@@ -6,26 +6,43 @@ use axum::{
     routing::{delete, get, patch, post},
 };
 use forge_domain::is_safe_identifier;
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::instrument;
 
+use fdb_ports::KetoCheck;
+use forge_policy::Pep;
+
+mod mutations;
+mod rpc;
+
 use crate::compilers::filters::{
     Filter, RESERVED_PARAMS, build_where, parse_filter,
 };
-use crate::model::{DatabaseModel, is_vector_type};
+use crate::model::DatabaseModel;
 use crate::passes::endpoint_generation::{EndpointKind, generate};
 
 /// Default page size when no `Range` header is supplied (PostgREST-style cap).
 const DEFAULT_LIMIT: i64 = 1000;
 
+/// Keto namespace used for coarse relationship checks on table mutations.
+pub(super) const KETO_NAMESPACE: &str = "entities";
+
 /// Shared state threaded into every route handler.
+///
+/// `keto` and `pep` are optional gates. When present, mutation handlers call
+/// them before executing SQL and return `403` on denial; when absent (early
+/// boot, tests) the gates are skipped. Both trait objects are `Send + Sync`,
+/// satisfying the web-domain requirement that handler state be shareable across
+/// worker threads.
 #[derive(Clone)]
-struct RestState {
-    model: Arc<DatabaseModel>,
-    pool: PgPool,
+pub(super) struct RestState {
+    pub(super) model: Arc<DatabaseModel>,
+    pub(super) pool: PgPool,
+    pub(super) keto: Option<Arc<dyn KetoCheck>>,
+    pub(super) pep: Option<Arc<dyn Pep>>,
 }
 
 /// Compiles a `DatabaseModel` into an Axum `Router` with CRUD + RPC handlers.
@@ -43,10 +60,26 @@ struct RestState {
 pub struct RestCompiler;
 
 impl RestCompiler {
+    /// Compile without authorization gates (early boot / tests). Mutations run
+    /// with RLS only. Prefer [`RestCompiler::compile_with_gates`] in production.
     pub fn compile(model: &DatabaseModel, pool: PgPool) -> Router {
+        Self::compile_with_gates(model, pool, None, None)
+    }
+
+    /// Compile with optional Keto (coarse relationship) and Cedar (capability)
+    /// gates. When supplied, every mutation handler calls both before touching
+    /// SQL and returns `403` on denial.
+    pub fn compile_with_gates(
+        model: &DatabaseModel,
+        pool: PgPool,
+        keto: Option<Arc<dyn KetoCheck>>,
+        pep: Option<Arc<dyn Pep>>,
+    ) -> Router {
         let state = RestState {
             model: Arc::new(model.clone()),
             pool,
+            keto,
+            pep,
         };
 
         let endpoints = generate(model);
@@ -60,16 +93,16 @@ impl RestCompiler {
                     router.route(&path, get(handle_list))
                 }
                 (EndpointKind::TableList { .. }, "POST") => {
-                    router.route(&path, post(handle_insert))
+                    router.route(&path, post(mutations::handle_insert))
                 }
                 (EndpointKind::TableById { .. }, "PATCH") => {
-                    router.route(&path, patch(handle_update))
+                    router.route(&path, patch(mutations::handle_update))
                 }
                 (EndpointKind::TableById { .. }, "DELETE") => {
-                    router.route(&path, delete(handle_delete))
+                    router.route(&path, delete(mutations::handle_delete))
                 }
                 (EndpointKind::Rpc { .. }, "POST") => {
-                    router.route(&path, post(handle_rpc))
+                    router.route(&path, post(rpc::handle_rpc))
                 }
                 _ => router,
             };
@@ -101,17 +134,10 @@ async fn handle_list(
         return bad_request("invalid schema or table identifier");
     }
 
-    // Parse filters (skip reserved param keys).
-    let mut filters: Vec<Filter> = Vec::new();
-    for (key, raw) in &params {
-        if RESERVED_PARAMS.contains(&key.as_str()) {
-            continue;
-        }
-        match parse_filter(key, raw) {
-            Ok(f) => filters.push(f),
-            Err(e) => return bad_request(&e.to_string()),
-        }
-    }
+    let filters = match parse_filters(&params) {
+        Ok(f) => f,
+        Err(resp) => return *resp,
+    };
 
     let (offset, limit) = parse_range(&headers);
     let where_clause = build_where(&filters, 1);
@@ -190,13 +216,86 @@ fn list_response(row: &sqlx::postgres::PgRow, offset: i64, limit: i64) -> axum::
         .into_response()
 }
 
+/// Parse the non-reserved query params into filters, or return a `400` response.
+pub(super) fn parse_filters(
+    params: &HashMap<String, String>,
+) -> Result<Vec<Filter>, Box<axum::response::Response>> {
+    let mut filters: Vec<Filter> = Vec::new();
+    for (key, raw) in params {
+        if RESERVED_PARAMS.contains(&key.as_str()) {
+            continue;
+        }
+        match parse_filter(key, raw) {
+            Ok(f) => filters.push(f),
+            Err(e) => return Err(Box::new(bad_request(&e.to_string()))),
+        }
+    }
+    Ok(filters)
+}
+
+/// Bind a JSON value as a Postgres parameter.
+///
+/// Strings bind as text; everything else binds as JSONB (`Value`), letting
+/// Postgres coerce to the target column type. This keeps the value on the
+/// parameter channel — it is never interpolated into SQL.
+pub(super) fn json_bind(v: &Value) -> Value {
+    v.clone()
+}
+
+/// `201 Created` response for an insert, with a `Location` header pointing at
+/// the new row. The primary-key value is read from the returned row when a
+/// single-column `id` is present; otherwise `Location` targets the collection.
+pub(super) fn insert_response(
+    row: &sqlx::postgres::PgRow,
+    schema: &str,
+    table: &str,
+) -> axum::response::Response {
+    use sqlx::Row;
+    let body: Value = row.try_get("row").unwrap_or(Value::Null);
+    let location = body
+        .get("id")
+        .map(|id| format!("/{schema}/{table}/{}", value_to_path(id)))
+        .unwrap_or_else(|| format!("/{schema}/{table}"));
+
+    (
+        StatusCode::CREATED,
+        [(header::LOCATION, location)],
+        Json(body),
+    )
+        .into_response()
+}
+
+/// `200 OK` response wrapping a JSON array of returned rows.
+pub(super) fn rows_response(rows: &[sqlx::postgres::PgRow]) -> axum::response::Response {
+    use sqlx::Row;
+    let out: Vec<Value> = rows
+        .iter()
+        .filter_map(|r| r.try_get::<Value, _>("row").ok())
+        .collect();
+    (StatusCode::OK, Json(Value::Array(out))).into_response()
+}
+
+/// Render a JSON scalar for use in a URL path segment.
+pub(super) fn value_to_path(v: &Value) -> String {
+    match v {
+        Value::String(s) => s.clone(),
+        other => other.to_string(),
+    }
+}
+
+/// `403 Forbidden` — a mutation gate (Keto or Cedar) denied the request.
+/// The body carries no subject, claim, or relation detail.
+pub(super) fn forbidden() -> axum::response::Response {
+    (StatusCode::FORBIDDEN, Json(json!({ "error": "forbidden" }))).into_response()
+}
+
 /// `400 Bad Request` with a JSON error body.
-fn bad_request(msg: &str) -> axum::response::Response {
+pub(super) fn bad_request(msg: &str) -> axum::response::Response {
     (StatusCode::BAD_REQUEST, Json(json!({ "error": msg }))).into_response()
 }
 
 /// `500 Internal Server Error` with a generic body (never leaks DB detail).
-fn internal_error() -> axum::response::Response {
+pub(super) fn internal_error() -> axum::response::Response {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         Json(json!({ "error": "internal server error" })),
@@ -204,168 +303,6 @@ fn internal_error() -> axum::response::Response {
         .into_response()
 }
 
-async fn handle_insert(State(_state): State<RestState>) -> StatusCode {
-    todo!("p2-c004: insert row via REST query builder")
-}
-
-async fn handle_update(
-    State(_state): State<RestState>,
-    Path(_id): Path<String>,
-) -> StatusCode {
-    todo!("p2-c004: update row via REST query builder")
-}
-
-async fn handle_delete(
-    State(_state): State<RestState>,
-    Path(_id): Path<String>,
-) -> StatusCode {
-    todo!("p2-c004: delete row via REST query builder")
-}
-
-/// POST /rpc/<schema>/<fn_name> — call a Postgres function with optional vector args.
-///
-/// Accepts a JSON object body where keys are arg names and values are arg values.
-/// Args whose `pg_type` starts with `"vector"` are deserialized from `[f32, ...]`
-/// JSON arrays into `pgvector::Vector` and bound with explicit `::vector` casting.
-/// All other args are bound as generic JSONB.
-///
-/// Returns the result rows as a JSON array. Returns 400 on malformed vector args
-/// or unknown function, 500 on database errors.
-#[instrument(skip(state, body), fields(schema = %schema, fn_name = %fn_name))]
-async fn handle_rpc(
-    State(state): State<RestState>,
-    Path((schema, fn_name)): Path<(String, String)>,
-    Json(body): Json<Map<String, Value>>,
-) -> impl IntoResponse {
-    // Locate the function metadata in the compiled model.
-    let fn_meta = match state
-        .model
-        .functions
-        .iter()
-        .find(|f| f.schema == schema && f.name == fn_name)
-    {
-        Some(f) => f,
-        None => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(json!({"error": format!("function {schema}.{fn_name} not found")})),
-            )
-                .into_response();
-        }
-    };
-
-    // Build the parameterised SQL call:
-    //   SELECT * FROM <schema>.<fn>($1, $2, ...) AS t
-    // Placeholder numbering matches the arg order from FnMeta.
-    let placeholders: Vec<String> = (1..=fn_meta.args.len())
-        .map(|i| format!("${i}"))
-        .collect();
-    // SECURITY: interpolate the identifiers from the *compiled model*
-    // (`fn_meta`), not the raw path params — the model is reflected from
-    // pg_catalog and is the trusted source. Belt-and-braces, re-validate.
-    if !is_safe_identifier(&fn_meta.schema) || !is_safe_identifier(&fn_meta.name) {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error": "invalid function identifier"})),
-        )
-            .into_response();
-    }
-    let call_sql = format!(
-        "SELECT row_to_json(t) AS row FROM {}.{}({}) AS t",
-        fn_meta.schema,
-        fn_meta.name,
-        placeholders.join(", ")
-    );
-
-    // Bind arguments in declaration order, dispatching on pg_type.
-    let mut q = sqlx::query(&call_sql);
-    for arg in &fn_meta.args {
-        let val = body.get(&arg.name).cloned().unwrap_or(Value::Null);
-        if is_vector_type(&arg.pg_type) {
-            match json_to_vector(val) {
-                Ok(vec) => {
-                    q = q.bind(vec);
-                }
-                Err(msg) => {
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        Json(json!({"error": msg})),
-                    )
-                        .into_response();
-                }
-            }
-        } else {
-            q = q.bind(val);
-        }
-    }
-
-    // Execute and collect result rows.
-    match q.fetch_all(&state.pool).await {
-        Ok(rows) => {
-            let result: Vec<Value> = rows
-                .into_iter()
-                .filter_map(|row| {
-                    use sqlx::Row;
-                    row.try_get::<Value, _>("row").ok()
-                })
-                .collect();
-            Json(Value::Array(result)).into_response()
-        }
-        Err(e) => {
-            tracing::error!(error = %e, schema = %schema, fn_name = %fn_name, "rpc execution error");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": "internal server error"})),
-            )
-                .into_response()
-        }
-    }
-}
-
-/// Deserialize a JSON value as a `pgvector::Vector`.
-///
-/// Expects a JSON array of numbers. Returns a descriptive error string on mismatch.
-fn json_to_vector(val: Value) -> Result<pgvector::Vector, String> {
-    let arr = match val {
-        Value::Array(a) => a,
-        Value::Null => return Err("vector arg must be a JSON array, got null".into()),
-        other => {
-            return Err(format!(
-                "vector arg must be a JSON array, got {}",
-                other.type_name_for_error()
-            ));
-        }
-    };
-
-    let floats: Result<Vec<f32>, _> = arr
-        .into_iter()
-        .map(|v| {
-            v.as_f64()
-                .map(|f| f as f32)
-                .ok_or_else(|| "vector elements must be numbers".to_owned())
-        })
-        .collect();
-
-    Ok(pgvector::Vector::from(floats?))
-}
-
-/// Helper to name the JSON type in error messages.
-trait JsonTypeName {
-    fn type_name_for_error(&self) -> &'static str;
-}
-
-impl JsonTypeName for Value {
-    fn type_name_for_error(&self) -> &'static str {
-        match self {
-            Value::Null => "null",
-            Value::Bool(_) => "boolean",
-            Value::Number(_) => "number",
-            Value::String(_) => "string",
-            Value::Array(_) => "array",
-            Value::Object(_) => "object",
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -399,32 +336,7 @@ mod tests {
         let _router = RestCompiler::compile(&model, pool);
     }
 
-    #[test]
-    fn json_to_vector_accepts_float_array() {
-        use serde_json::json;
-        use super::json_to_vector;
-        let v = json!([0.1_f64, 0.2_f64, 0.3_f64]);
-        let vec = json_to_vector(v).expect("should parse");
-        let floats: Vec<f32> = vec.into();
-        assert_eq!(floats.len(), 3);
-        assert!((floats[0] - 0.1_f32).abs() < 1e-6);
-    }
-
-    #[test]
-    fn json_to_vector_rejects_non_array() {
-        use serde_json::json;
-        use super::json_to_vector;
-        assert!(json_to_vector(json!("not an array")).is_err());
-        assert!(json_to_vector(json!(42)).is_err());
-        assert!(json_to_vector(serde_json::Value::Null).is_err());
-    }
-
-    #[test]
-    fn json_to_vector_rejects_non_numeric_elements() {
-        use serde_json::json;
-        use super::json_to_vector;
-        assert!(json_to_vector(json!(["a", "b"])).is_err());
-    }
+    // json_to_vector tests live with the handler in `rpc.rs`.
 
     fn range_header(val: &str) -> axum::http::HeaderMap {
         let mut h = axum::http::HeaderMap::new();
@@ -458,4 +370,5 @@ mod tests {
         // rows=20- → offset 20, default limit
         assert_eq!(parse_range(&range_header("rows=20-")), (20, DEFAULT_LIMIT));
     }
+
 }

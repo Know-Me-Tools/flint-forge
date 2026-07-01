@@ -23,4 +23,4 @@ pub use error::ReflectionError;
 pub use model::{
     ArgMeta, Column, DatabaseModel, EncryptedDek, FnMeta, ForeignKey, Table, ViewMeta,
 };
-pub use state_manager::StateManager;
+pub use state_manager::{MutationGates, StateManager};

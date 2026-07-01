@@ -1,10 +1,10 @@
 POSITION REMINDER — read this as your FIRST tool call every turn
 Phase: p3-auth-rls-keto
-Step: 3 of 9
+Step: 5 of 9
 Stage: unknown
 Next command: unknown
 
 Required signal format (emit BEFORE any tool call):
-  Starting <kbd-skill> — p3-auth-rls-keto (step 3 of 9)
+  Starting <kbd-skill> — p3-auth-rls-keto (step 5 of 9)
   [do work]
-  Completed <kbd-skill> — p3-auth-rls-keto (step 3 of 9)
+  Completed <kbd-skill> — p3-auth-rls-keto (step 5 of 9)

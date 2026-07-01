@@ -17,6 +17,7 @@ fdb-realtime = { path = "../fdb-realtime" }
 fdb-auth = { path = "../fdb-auth" }
 fdb-reflection = { path = "../fdb-reflection" }
 forge-identity = { path = "../forge-identity" }
+forge-policy = { path = "../forge-policy" }
 sqlx = { workspace = true }
 axum = { workspace = true }
 serde = { workspace = true }

@@ -2,6 +2,8 @@
 #![forbid(unsafe_code)]
 
 mod keto_sync;
+mod policy_source;
+mod rls_layer;
 
 use std::sync::Arc;
 
@@ -21,7 +23,8 @@ use fdb_auth::rls_from_bearer;
 use fdb_domain::{GraphQlRequest, VectorRpcRequest};
 use fdb_ports::GraphQlExecutor;
 use fdb_postgres::{PgGraphQl, PgVectorRpc};
-use fdb_reflection::{ReflectionEngine, StateManager};
+use fdb_reflection::{MutationGates, ReflectionEngine, StateManager};
+use forge_policy::CedarPolicyEngine;
 use sqlx::PgPool;
 
 /// Shared gateway state — available in all route handlers via `State<GatewayState>`.
@@ -111,17 +114,10 @@ async fn main() {
     };
     let vector_rpc = Arc::new(PgVectorRpc::new(vector_rpc_pool));
 
-    let engine = ReflectionEngine::new(pool.clone());
-    let state_manager = Arc::new(
-        StateManager::new(engine, pool.clone(), database_url.clone())
-            .await
-            .expect("initial schema compile"),
-    );
-
-    let _listener_handle = Arc::clone(&state_manager).start_listener();
-
-    // Spawn the Keto sync background task.
-    // SECURITY: pool is the privileged reflection pool — MUST NOT be the user RLS pool.
+    // Spawn the Keto sync background task BEFORE compiling routes, so the
+    // KetoCheck adapter can be threaded into the reflection compiler's mutation
+    // gates (and hot-reloads).
+    // SECURITY: this pool is the privileged reflection pool — MUST NOT be the user RLS pool.
     let keto_sync_cfg = keto_sync::keto_sync_config_from_env(Arc::new(
         PgPool::connect(&database_url)
             .await
@@ -130,11 +126,32 @@ async fn main() {
     let (keto_task, keto_cache) = keto_sync::KetoSyncTask::new(keto_sync_cfg);
     let _keto_sync_handle = keto_task.spawn();
 
-    // Build the KetoCheck adapter from the sync cache. This is the
-    // composition-time bridge between the background-synced cache and the
-    // application layer. When Quarry is constructed, pass this via `.with_keto()`.
+    // KetoCheck adapter — the composition-time bridge between the background
+    // cache and the mutation gates.
     let keto_adapter: Arc<dyn fdb_ports::KetoCheck> =
         Arc::new(keto_sync::KetoCacheAdapter::new(keto_cache));
+
+    // Cedar policy enforcement point, backed by flint_meta.cedar_policies via
+    // the privileged pool. Starts deny-all until the first successful load.
+    let policy_source = Arc::new(policy_source::DbPolicySource::new(pool.clone()));
+    let pep: Arc<dyn forge_policy::Pep> =
+        Arc::new(CedarPolicyEngine::new(policy_source).await);
+
+    // Thread both gates into the reflection compiler so initial + hot-swapped
+    // routers enforce Keto + Cedar on every mutation.
+    let gates = MutationGates {
+        keto: Some(Arc::clone(&keto_adapter)),
+        pep: Some(Arc::clone(&pep)),
+    };
+
+    let engine = ReflectionEngine::new(pool.clone());
+    let state_manager = Arc::new(
+        StateManager::new_with_gates(engine, pool.clone(), database_url.clone(), gates)
+            .await
+            .expect("initial schema compile"),
+    );
+
+    let _listener_handle = Arc::clone(&state_manager).start_listener();
 
     let gateway_state = GatewayState {
         state_manager: Arc::clone(&state_manager),
@@ -151,11 +168,16 @@ async fn main() {
     // Route hot-reload note: the reflection router is mounted once at startup.
     // Handler bodies read from RestState (captured at compile time); DDL-driven
     // route-set changes require a catch-all delegate pattern (future enhancement).
+    // Apply the RLS extraction middleware to the reflection router so its
+    // mutation handlers receive `Extension<RlsContext>` (required by the Keto +
+    // Cedar gates). GET /list is also covered — harmless, and keeps a single
+    // auth surface for the reflected CRUD routes.
     let reflection_router = state_manager
         .current()
         .router
         .as_ref()
-        .clone();
+        .clone()
+        .layer(axum::middleware::from_fn(rls_layer::require_rls));
 
     let app = Router::new()
         .route("/healthz", get(healthz))

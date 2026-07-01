@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
+use fdb_ports::KetoCheck;
+use forge_policy::Pep;
 
 use crate::{
     compiled::CompiledState,
@@ -8,6 +10,14 @@ use crate::{
     engine::ReflectionEngine,
     error::ReflectionError,
 };
+
+/// Optional authorization gates threaded into every REST recompile so that
+/// hot-swapped routers keep enforcing Keto + Cedar on mutations.
+#[derive(Clone, Default)]
+pub struct MutationGates {
+    pub keto: Option<Arc<dyn KetoCheck>>,
+    pub pep: Option<Arc<dyn Pep>>,
+}
 
 /// Hot-swappable schema state manager.
 ///
@@ -18,6 +28,7 @@ pub struct StateManager {
     engine: Arc<ReflectionEngine>,
     pool: sqlx::PgPool,
     db_url: String,
+    gates: MutationGates,
 }
 
 impl StateManager {
@@ -28,12 +39,24 @@ impl StateManager {
         pool: sqlx::PgPool,
         db_url: String,
     ) -> Result<Self, ReflectionError> {
-        let initial = Self::do_compile(&engine, pool.clone()).await?;
+        Self::new_with_gates(engine, pool, db_url, MutationGates::default()).await
+    }
+
+    /// Build a `StateManager` with authorization gates that are applied to
+    /// every REST recompile (initial and hot-swap).
+    pub async fn new_with_gates(
+        engine: ReflectionEngine,
+        pool: sqlx::PgPool,
+        db_url: String,
+        gates: MutationGates,
+    ) -> Result<Self, ReflectionError> {
+        let initial = Self::do_compile(&engine, pool.clone(), &gates).await?;
         Ok(Self {
             compiled: Arc::new(ArcSwap::from_pointee(initial)),
             engine: Arc::new(engine),
             pool,
             db_url,
+            gates,
         })
     }
 
@@ -62,7 +85,7 @@ impl StateManager {
                     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
                     // Force full recompile on reconnect — notifications may have been missed.
-                    match Self::do_compile(&self.engine, self.pool.clone()).await {
+                    match Self::do_compile(&self.engine, self.pool.clone(), &self.gates).await {
                         Ok(state) => {
                             self.compiled.store(Arc::new(state));
                             tracing::info!("schema recompiled after PgListener reconnect");
@@ -95,7 +118,7 @@ impl StateManager {
                 "meta_runtime notification — triggering recompile"
             );
 
-            match Self::do_compile(&self.engine, self.pool.clone()).await {
+            match Self::do_compile(&self.engine, self.pool.clone(), &self.gates).await {
                 Ok(state) => {
                     // ArcSwap::store is atomic — in-flight requests keep their old guard.
                     self.compiled.store(Arc::new(state));
@@ -111,9 +134,15 @@ impl StateManager {
     async fn do_compile(
         engine: &ReflectionEngine,
         pool: sqlx::PgPool,
+        gates: &MutationGates,
     ) -> Result<CompiledState, ReflectionError> {
         let model = engine.reflect().await?;
-        let router = RestCompiler::compile(&model, pool);
+        let router = RestCompiler::compile_with_gates(
+            &model,
+            pool,
+            gates.keto.clone(),
+            gates.pep.clone(),
+        );
         let openapi_doc = OpenApiCompiler::compile(&model);
         let subscription_schema = match GraphQlCompiler::compile(&model) {
             Ok(schema) => Some(schema),

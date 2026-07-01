@@ -10,6 +10,8 @@ authors.workspace = true
 fdb-domain  = { path = "../fdb-domain" }
 fdb-ports   = { path = "../fdb-ports" }
 forge-domain = { path = "../forge-domain" }
+forge-policy = { path = "../forge-policy" }
+forge-identity = { path = "../forge-identity" }
 async-graphql = { workspace = true }
 futures = { workspace = true }
 
@@ -25,3 +27,4 @@ tokio      = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
+async-trait = { workspace = true }
