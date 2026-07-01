@@ -27,8 +27,13 @@ fdb-domain = { path = "../fdb-domain" }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+async-trait = { workspace = true }
 async-graphql = { workspace = true }
 async-graphql-axum = { workspace = true }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
 
 [lints]
 workspace = true

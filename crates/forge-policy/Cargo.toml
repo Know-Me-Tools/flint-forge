@@ -10,6 +10,12 @@ forge-domain = { path = "../forge-domain" }
 forge-identity = { path = "../forge-identity" }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
+cedar-policy = { workspace = true }
+arc-swap = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
 
 [lints]
 workspace = true

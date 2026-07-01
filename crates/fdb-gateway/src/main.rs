@@ -30,6 +30,14 @@ struct GatewayState {
     state_manager: Arc<StateManager>,
     graphql_executor: Arc<PgGraphQl>,
     vector_rpc: Arc<PgVectorRpc>,
+    /// Keto relation-check adapter backed by the background sync cache.
+    /// Injected into `Quarry::with_keto()` when mutation use-cases are wired,
+    /// or called directly by handlers via `State<GatewayState>`.
+    //
+    // Scaffold-stage concession: the field is not yet read by any handler.
+    // CRUD mutation handlers (p3-c014) will call `state.keto.as_ref()`.
+    #[allow(dead_code)]
+    keto: Option<Arc<dyn fdb_ports::KetoCheck>>,
 }
 
 /// GraphQL request body as sent by clients (queries and mutations only — subscriptions
@@ -119,14 +127,35 @@ async fn main() {
             .await
             .expect("keto-sync pool connect"),
     ));
-    let (keto_task, _keto_cache) = keto_sync::KetoSyncTask::new(keto_sync_cfg);
+    let (keto_task, keto_cache) = keto_sync::KetoSyncTask::new(keto_sync_cfg);
     let _keto_sync_handle = keto_task.spawn();
+
+    // Build the KetoCheck adapter from the sync cache. This is the
+    // composition-time bridge between the background-synced cache and the
+    // application layer. When Quarry is constructed, pass this via `.with_keto()`.
+    let keto_adapter: Arc<dyn fdb_ports::KetoCheck> =
+        Arc::new(keto_sync::KetoCacheAdapter::new(keto_cache));
 
     let gateway_state = GatewayState {
         state_manager: Arc::clone(&state_manager),
         graphql_executor,
         vector_rpc,
+        keto: Some(keto_adapter),
     };
+
+    // Build gateway routes as Router<()> by applying state, then merge the
+    // reflection-compiled router (also Router<()>) into it. The reflection
+    // router exposes CRUD (/public/<table>) and RPC (/rpc/public/<fn>) routes
+    // generated from the live DatabaseModel.
+    //
+    // Route hot-reload note: the reflection router is mounted once at startup.
+    // Handler bodies read from RestState (captured at compile time); DDL-driven
+    // route-set changes require a catch-all delegate pattern (future enhancement).
+    let reflection_router = state_manager
+        .current()
+        .router
+        .as_ref()
+        .clone();
 
     let app = Router::new()
         .route("/healthz", get(healthz))
@@ -136,9 +165,8 @@ async fn main() {
             "/graphql",
             get(graphql_ws_handler).post(handle_graphql_query),
         )
-        // TODO(p2-c005): nest the reflection-compiled router at "/"
-        //   .nest("/", reflection_router(&state_manager))
-        .with_state(gateway_state);
+        .with_state(gateway_state)
+        .merge(reflection_router);
 
     let addr = "0.0.0.0:8080";
     tracing::info!(%addr, "flint-quarry listening");

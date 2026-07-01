@@ -1,7 +1,11 @@
 //! Flint Quarry port traits — the hexagonal seams. No adapter ever appears here.
 #![forbid(unsafe_code)]
 
+pub mod keto;
+
 use async_trait::async_trait;
+pub use keto::KetoCheck;
+
 use fdb_domain::{
     ChangeEvent, GraphQlRequest, RestQuery, RestResult, SchemaVersion, SubscriptionSpec, TableMeta,
 };

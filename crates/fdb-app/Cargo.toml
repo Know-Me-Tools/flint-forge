@@ -9,9 +9,12 @@ license.workspace = true
 fdb-domain = { path = "../fdb-domain" }
 fdb-ports = { path = "../fdb-ports" }
 forge-identity = { path = "../forge-identity" }
+forge-domain = { path = "../forge-domain" }
+forge-policy = { path = "../forge-policy" }
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+thiserror = { workspace = true }
 async-graphql = { workspace = true }
 
 [lints]
@@ -22,3 +25,4 @@ sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-native-tls", "j
 serde_json = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
+forge-domain = { path = "../forge-domain" }

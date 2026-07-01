@@ -23,6 +23,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_trait::async_trait;
+use fdb_ports::KetoCheck;
 use sqlx::PgPool;
 use tokio::sync::RwLock;
 use tracing::instrument;
@@ -189,6 +191,34 @@ pub fn keto_sync_config_from_env(pool: Arc<PgPool>) -> KetoSyncConfig {
     KetoSyncConfig {
         pool,
         interval: Duration::from_secs(interval_secs),
+    }
+}
+
+/// Adapter that implements [`fdb_ports::KetoCheck`] over the shared [`KetoCache`].
+///
+/// This is the composition-time bridge between the gateway's background-synced
+/// cache and the application layer's `Arc<dyn KetoCheck>` injection. It never
+/// logs `subject` values (PII).
+pub struct KetoCacheAdapter {
+    cache: KetoCache,
+}
+
+impl KetoCacheAdapter {
+    pub fn new(cache: KetoCache) -> Self {
+        Self { cache }
+    }
+}
+
+#[async_trait]
+impl KetoCheck for KetoCacheAdapter {
+    async fn check(
+        &self,
+        namespace: &str,
+        object: &str,
+        relation: &str,
+        subject: &str,
+    ) -> bool {
+        cache_check(&self.cache, namespace, object, relation, subject).await
     }
 }
 

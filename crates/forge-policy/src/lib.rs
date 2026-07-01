@@ -1,6 +1,10 @@
 //! Cedar policy enforcement point (PEP) shared by Quarry mutations, the Kiln linker, and Ember.
 #![forbid(unsafe_code)]
 
+pub mod cedar;
+
+pub use cedar::{CedarPolicyEngine, PolicyEntry, PolicyLoadError, PolicySource};
+
 use async_trait::async_trait;
 use forge_identity::RlsContext;
 

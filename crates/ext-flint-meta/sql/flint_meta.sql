@@ -120,6 +120,19 @@ CREATE TABLE IF NOT EXISTS flint_meta.vault_key_assignments (
     UNIQUE (category)
 );
 
+-- ── Cedar policy bundles ───────────────────────────────────────────────────
+-- Cedar policies (text form) loaded by forge-policy's CedarPolicyEngine.
+-- Loaded via the PRIVILEGED pool (service_role) — never exposed to RLS.
+CREATE TABLE IF NOT EXISTS flint_meta.cedar_policies (
+    id          text        NOT NULL,
+    name        text        NOT NULL,
+    policy_text text        NOT NULL,
+    enabled     boolean     NOT NULL DEFAULT true,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (id)
+);
+
 -- ── Security: schema lockdown ───────────────────────────────────────────────
 REVOKE ALL ON ALL TABLES IN SCHEMA flint_meta FROM PUBLIC;
 GRANT SELECT ON flint_meta.cache_tables TO authenticated, anon;
@@ -130,4 +143,5 @@ GRANT SELECT ON flint_meta.cache_policies TO service_role;
 GRANT SELECT ON flint_meta.cache_types TO authenticated, anon;
 GRANT SELECT ON flint_meta.schema_version TO service_role;
 GRANT ALL ON flint_meta.keto_tuples TO service_role;
+GRANT ALL ON flint_meta.cedar_policies TO service_role;
 GRANT ALL ON flint_meta.vault_keys, flint_meta.vault_key_assignments TO vault_admin;
