@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1",
+  "updatedAt": "2026-07-01T15:05:41Z",
+  "cursor": [
+    "p3-auth-rls-keto"
+  ],
+  "root": {
+    "type": "phase",
+    "id": "p3-auth-rls-keto",
+    "status": "in_progress",
+    "progress": {
+      "done": 3,
+      "total": 9
+    },
+    "children": [],
+    "annotations": []
+  }
+}

@@ -1,17 +1,25 @@
 use axum::{
     Json, Router,
-    extract::{Path, State},
-    http::StatusCode,
+    extract::{Path, Query, State},
+    http::{HeaderMap, StatusCode, header},
     response::IntoResponse,
     routing::{delete, get, patch, post},
 };
+use forge_domain::is_safe_identifier;
 use serde_json::{Map, Value, json};
 use sqlx::PgPool;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::instrument;
 
+use crate::compilers::filters::{
+    Filter, RESERVED_PARAMS, build_where, parse_filter,
+};
 use crate::model::{DatabaseModel, is_vector_type};
 use crate::passes::endpoint_generation::{EndpointKind, generate};
+
+/// Default page size when no `Range` header is supplied (PostgREST-style cap).
+const DEFAULT_LIMIT: i64 = 1000;
 
 /// Shared state threaded into every route handler.
 #[derive(Clone)]
@@ -71,8 +79,129 @@ impl RestCompiler {
     }
 }
 
-async fn handle_list(State(_state): State<RestState>) -> StatusCode {
-    todo!("p2-c004: list rows via REST query builder")
+/// `GET /<schema>/<table>` — list rows under the caller's RLS context.
+///
+/// Query params are PostgREST-style filters (`?col=eq.value`) except for the
+/// reserved keys in [`RESERVED_PARAMS`]. Pagination is driven by the `Range`
+/// header (`rows=<start>-<end>`); a `Content-Range` header echoes the served
+/// window and total. RLS is enforced by the connection's GUC context — this
+/// handler adds no extra GUC work.
+///
+/// SECURITY: schema, table, and every filter column pass through
+/// [`is_safe_identifier`]; all values are bound as `$n`. No user-supplied
+/// string is interpolated into SQL.
+#[instrument(skip(state, params, headers), fields(schema = %schema, table = %table))]
+async fn handle_list(
+    State(state): State<RestState>,
+    Path((schema, table)): Path<(String, String)>,
+    Query(params): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    if !is_safe_identifier(&schema) || !is_safe_identifier(&table) {
+        return bad_request("invalid schema or table identifier");
+    }
+
+    // Parse filters (skip reserved param keys).
+    let mut filters: Vec<Filter> = Vec::new();
+    for (key, raw) in &params {
+        if RESERVED_PARAMS.contains(&key.as_str()) {
+            continue;
+        }
+        match parse_filter(key, raw) {
+            Ok(f) => filters.push(f),
+            Err(e) => return bad_request(&e.to_string()),
+        }
+    }
+
+    let (offset, limit) = parse_range(&headers);
+    let where_clause = build_where(&filters, 1);
+    // LIMIT/OFFSET placeholders follow the filter binds.
+    let limit_idx = where_clause.binds.len() + 1;
+    let offset_idx = where_clause.binds.len() + 2;
+
+    let sql = format!(
+        "SELECT COALESCE(json_agg(t), '[]'::json) AS rows, \
+                (SELECT count(*) FROM {schema}.{table}) AS total \
+         FROM (SELECT * FROM {schema}.{table} {where_sql} \
+               ORDER BY 1 LIMIT ${limit_idx} OFFSET ${offset_idx}) t",
+        where_sql = where_clause.sql,
+    );
+
+    let mut q = sqlx::query(&sql);
+    for bind in &where_clause.binds {
+        q = q.bind(bind);
+    }
+    q = q.bind(limit).bind(offset);
+
+    match q.fetch_one(&state.pool).await {
+        Ok(row) => list_response(&row, offset, limit),
+        Err(e) => {
+            tracing::error!(error = %e, "handle_list query error");
+            internal_error()
+        }
+    }
+}
+
+/// Parse a `Range: rows=<start>-<end>` header into `(offset, limit)`.
+///
+/// Missing/malformed headers fall back to `(0, DEFAULT_LIMIT)`. An open-ended
+/// range (`rows=10-`) uses the default limit from `start`.
+fn parse_range(headers: &HeaderMap) -> (i64, i64) {
+    let default = (0_i64, DEFAULT_LIMIT);
+    let Some(val) = headers.get(header::RANGE).and_then(|v| v.to_str().ok()) else {
+        return default;
+    };
+    let Some(spec) = val.trim().strip_prefix("rows=") else {
+        return default;
+    };
+    let Some((start_s, end_s)) = spec.split_once('-') else {
+        return default;
+    };
+    let Ok(start) = start_s.trim().parse::<i64>() else {
+        return default;
+    };
+    if start < 0 {
+        return default;
+    }
+    match end_s.trim().parse::<i64>() {
+        Ok(end) if end >= start => (start, end - start + 1),
+        _ => (start, DEFAULT_LIMIT),
+    }
+}
+
+/// Build the `200 OK` list response with a `Content-Range` header.
+fn list_response(row: &sqlx::postgres::PgRow, offset: i64, limit: i64) -> axum::response::Response {
+    use sqlx::Row;
+    let rows: Value = row.try_get("rows").unwrap_or(Value::Array(vec![]));
+    let total: i64 = row.try_get("total").unwrap_or(0);
+
+    let count = rows.as_array().map_or(0, Vec::len) as i64;
+    let start = offset;
+    // `end` is the index of the last returned row (inclusive); -1 when empty.
+    let end = if count == 0 { start } else { start + count - 1 };
+    let content_range = format!("rows {start}-{end}/{total}");
+    let _ = limit; // limit shaped the query; the window is described by count.
+
+    (
+        StatusCode::OK,
+        [(header::CONTENT_RANGE, content_range)],
+        Json(rows),
+    )
+        .into_response()
+}
+
+/// `400 Bad Request` with a JSON error body.
+fn bad_request(msg: &str) -> axum::response::Response {
+    (StatusCode::BAD_REQUEST, Json(json!({ "error": msg }))).into_response()
+}
+
+/// `500 Internal Server Error` with a generic body (never leaks DB detail).
+fn internal_error() -> axum::response::Response {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(json!({ "error": "internal server error" })),
+    )
+        .into_response()
 }
 
 async fn handle_insert(State(_state): State<RestState>) -> StatusCode {
@@ -131,8 +260,20 @@ async fn handle_rpc(
     let placeholders: Vec<String> = (1..=fn_meta.args.len())
         .map(|i| format!("${i}"))
         .collect();
+    // SECURITY: interpolate the identifiers from the *compiled model*
+    // (`fn_meta`), not the raw path params — the model is reflected from
+    // pg_catalog and is the trusted source. Belt-and-braces, re-validate.
+    if !is_safe_identifier(&fn_meta.schema) || !is_safe_identifier(&fn_meta.name) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid function identifier"})),
+        )
+            .into_response();
+    }
     let call_sql = format!(
-        "SELECT row_to_json(t) AS row FROM {schema}.{fn_name}({}) AS t",
+        "SELECT row_to_json(t) AS row FROM {}.{}({}) AS t",
+        fn_meta.schema,
+        fn_meta.name,
         placeholders.join(", ")
     );
 
@@ -283,5 +424,38 @@ mod tests {
         use serde_json::json;
         use super::json_to_vector;
         assert!(json_to_vector(json!(["a", "b"])).is_err());
+    }
+
+    fn range_header(val: &str) -> axum::http::HeaderMap {
+        let mut h = axum::http::HeaderMap::new();
+        h.insert(axum::http::header::RANGE, val.parse().unwrap());
+        h
+    }
+
+    #[test]
+    fn parse_range_reads_closed_range() {
+        use super::parse_range;
+        // rows=0-9 → offset 0, limit 10
+        assert_eq!(parse_range(&range_header("rows=0-9")), (0, 10));
+        // rows=10-19 → offset 10, limit 10
+        assert_eq!(parse_range(&range_header("rows=10-19")), (10, 10));
+    }
+
+    #[test]
+    fn parse_range_defaults_when_absent_or_malformed() {
+        use super::{parse_range, DEFAULT_LIMIT};
+        use axum::http::HeaderMap;
+        assert_eq!(parse_range(&HeaderMap::new()), (0, DEFAULT_LIMIT));
+        assert_eq!(parse_range(&range_header("items=0-9")), (0, DEFAULT_LIMIT));
+        assert_eq!(parse_range(&range_header("rows=abc")), (0, DEFAULT_LIMIT));
+        // negative start is rejected
+        assert_eq!(parse_range(&range_header("rows=-5-9")), (0, DEFAULT_LIMIT));
+    }
+
+    #[test]
+    fn parse_range_open_ended_uses_default_limit() {
+        use super::{parse_range, DEFAULT_LIMIT};
+        // rows=20- → offset 20, default limit
+        assert_eq!(parse_range(&range_header("rows=20-")), (20, DEFAULT_LIMIT));
     }
 }

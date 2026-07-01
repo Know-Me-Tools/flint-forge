@@ -3,8 +3,8 @@
   "previousPhase": "p2-quarry-reflection-engine",
   "status": "in_progress",
   "updatedAt": "2026-07-01",
-  "next_action": "/kbd-apply p3-c013-rest-handle-list",
-  "changes_completed": 3,
+  "next_action": "/kbd-apply p3-c014-rest-handle-mutations",
+  "changes_completed": 4,
   "changes_total": 9,
   "goals_file": ".kbd-orchestrator/phases/p3-auth-rls-keto/goals.md",
   "spec_files": [
