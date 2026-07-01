@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "updatedAt": "2026-07-01T15:39:55Z",
+  "updatedAt": "2026-07-01T15:52:24Z",
   "cursor": [
     "p3-auth-rls-keto"
   ],
@@ -9,7 +9,7 @@
     "id": "p3-auth-rls-keto",
     "status": "in_progress",
     "progress": {
-      "done": 4,
+      "done": 5,
       "total": 9
     },
     "children": [],

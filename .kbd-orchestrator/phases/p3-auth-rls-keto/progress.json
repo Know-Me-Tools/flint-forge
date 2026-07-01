@@ -1,7 +1,7 @@
 {
   "phase": "p3-auth-rls-keto",
   "status": "in_progress",
-  "changes_completed": 5,
+  "changes_completed": 6,
   "changes_total": 9,
   "changes": [
     {
@@ -44,9 +44,13 @@
     },
     {
       "id": "p3-c015-gate-tests-rest-and-vault",
-      "status": "pending",
+      "status": "qa_passed",
       "priority": "P0",
-      "depends_on": "p3-c013"
+      "depends_on": "p3-c013",
+      "completed": "2026-07-01",
+      "completed_by": "claude-code",
+      "tasks_done": 6,
+      "tasks_total": 6
     },
     {
       "id": "p3-c016-gate-tests-mocks",
