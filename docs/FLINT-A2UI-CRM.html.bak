@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flint A2UI - CRM Interface</title>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0F14;--s1:#131A22;--s2:#1A232E;--s3:#0E141B;--s4:#202B38;--s5:#2A3542;
+--txt:#E8EDF3;--txtm:#B4BECB;--txtd:#97A1AE;--em:#FF6A3D;--emd:#E04E28;--cy:#34CFE6;
+--gr:#4FD18B;--yl:#F4B942;--rd:#F05D5D;--fd:'Space Grotesk';--fb:'Inter';--fm:'JetBrains Mono'}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font-family:var(--fb);font-size:14px;line-height:1.6;overflow-x:hidden}
+
+h1,h2,h3,h4{font-family:var(--fd);font-weight:600;letter-spacing:-0.02em}
+h1{font-size:2.8rem;margin-bottom:1rem}h2{font-size:1.8rem;margin:2rem 0 1rem}h3{font-size:1.3rem;margin:1.5rem 0 0.8rem}
+p{margin-bottom:1rem;color:var(--txtm)}
+
+.container{max-width:1400px;margin:0 auto;padding:0 24px}
+.grid{display:grid;gap:24px}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+
+.hero{background:var(--s1);border-bottom:1px solid var(--s4);padding:60px 0;text-align:center}
+.hero-b{display:inline-block;background:rgba(255,106,61,0.15);color:var(--em);padding:6px 16px;border-radius:20px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px}
+.hero p{max-width:700px;margin:0 auto 24px;color:var(--txtd)}
+
+.sec{background:var(--s1);border:1px solid var(--s4);border-radius:12px;padding:24px;margin-bottom:24px}
+.sec-h{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.sec-h .icon{width:36px;height:36px;background:var(--s3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.sec-h h3{margin:0}
+.sec-h .tag{font-size:11px;background:var(--s3);color:var(--txtd);padding:2px 8px;border-radius:4px;border:1px solid var(--s4)}
+
+.demo{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:20px;margin:16px 0}
+.demo-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--txtd);margin-bottom:8px;font-weight:600}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;border:none;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;text-decoration:none}
+.btn-p{background:var(--em);color:#fff}
+.btn-p:hover{background:var(--emd);transform:translateY(-1px)}
+.btn-s{background:var(--s3);color:var(--txt);border:1px solid var(--s4)}
+.btn-s:hover{border-color:var(--cy)}
+.btn-g{background:var(--s3);color:var(--gr);border:1px solid rgba(79,209,139,0.3)}
+.btn-r{background:var(--s3);color:var(--rd);border:1px solid rgba(240,93,93,0.3)}
+.btn-ghost{background:transparent;color:var(--txtm);border:1px solid var(--s4)}
+.btn-ghost:hover{color:var(--txt);border-color:var(--cy)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-lg{padding:12px 24px;font-size:14px}
+.btn-i{padding:8px}
+
+.inp{width:100%;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;transition:all 0.2s}
+.inp:focus{outline:none;border-color:var(--cy);box-shadow:0 0 0 3px rgba(52,207,230,0.1)}
+.inp::placeholder{color:var(--txtd)}
+.lbl{display:block;font-size:12px;font-weight:500;color:var(--txtm);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+.fg{margin-bottom:16px}
+.sel{width:100%;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;cursor:pointer}
+.sel:focus{outline:none;border-color:var(--cy)}
+.tx{width:100%;min-height:100px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;resize:vertical}
+
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 12px;background:var(--s3);color:var(--txtd);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--s4)}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--s4);color:var(--txtm)}
+.tbl tr:hover td{background:rgba(52,207,230,0.05)}
+.tbl tr:last-child td{border-bottom:none}
+
+.bd-g{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(79,209,139,0.15);color:var(--gr)}
+.bd-y{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(244,185,66,0.15);color:var(--yl)}
+.bd-r{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(240,93,93,0.15);color:var(--rd)}
+.bd-e{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(255,106,61,0.15);color:var(--em)}
+.bd-c{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(52,207,230,0.15);color:var(--cy)}
+.bd-d{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--s3);color:var(--txtd)}
+
+.card{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:20px;transition:all 0.2s}
+.card:hover{border-color:var(--cy);transform:translateY(-2px)}
+.card-h{font-size:14px;font-weight:600;margin-bottom:8px;color:var(--txt)}
+.card-d{font-size:13px;color:var(--txtd);margin-bottom:12px}
+
+.tbs{display:flex;border-bottom:1px solid var(--s4);gap:4px;margin-bottom:16px}
+.tb{padding:10px 16px;border:none;background:none;color:var(--txtd);font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s}
+.tb.on{color:var(--cy);border-bottom-color:var(--cy)}
+.tb:hover{color:var(--txt)}
+
+.tbar{display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--s1);border-bottom:1px solid var(--s4);position:sticky;top:0;z-index:100}
+.tbar-l{font-family:var(--fd);font-weight:700;font-size:18px;color:var(--em)}
+.tbar-n{display:flex;gap:4px}
+.tbar-n a{padding:6px 12px;border-radius:6px;color:var(--txtm);text-decoration:none;font-size:13px;transition:all 0.2s}
+.tbar-n a:hover,.tbar-n a.on{background:var(--s3);color:var(--txt)}
+.snav{width:260px;background:var(--s1);border-right:1px solid var(--s4);min-height:100vh;position:fixed;top:0;left:0;overflow-y:auto;z-index:99}
+.snav-h{padding:16px 20px;border-bottom:1px solid var(--s4);display:flex;align-items:center;gap:12px}
+.snav-l{display:flex;align-items:center;gap:10px;font-family:var(--fd);font-weight:700;font-size:16px}
+.snav-li{width:32px;height:32px;background:var(--em);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+.snav-i{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--txtm);text-decoration:none;font-size:13px;transition:all 0.2s;border-left:3px solid transparent}
+.snav-i:hover{background:var(--s2);color:var(--txt)}
+.snav-i.on{border-left-color:var(--em);background:var(--s2);color:var(--txt)}
+
+.av{width:36px;height:36px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--cy);border:2px solid var(--s4)}
+.av-sm{width:28px;height:28px;font-size:12px}
+
+.pb{height:6px;background:var(--s3);border-radius:3px;overflow:hidden}
+.pb-b{height:100%;background:var(--em);border-radius:3px;transition:width 0.5s ease}
+.pf{display:flex;align-items:center;gap:12px;margin:8px 0}
+.pf-l{font-size:12px;color:var(--txtd);min-width:80px}
+.pf-b{flex:1}
+.pf-v{font-size:12px;color:var(--txtm);min-width:40px;text-align:right}
+
+.tl{position:relative;padding-left:24px}
+.tl::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--s4)}
+.tl-i{position:relative;margin-bottom:20px}
+.tl-d{position:absolute;left:-24px;top:4px;width:16px;height:16px;border-radius:50%;background:var(--s3);border:2px solid var(--cy);z-index:1}
+.tl-c{font-size:12px;font-weight:600;color:var(--txt);margin-bottom:4px}
+.tl-t{font-size:11px;color:var(--txtd);margin-bottom:4px}
+.tl-x{font-size:13px;color:var(--txtm)}
+
+.mc{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:20px;transition:all 0.2s}
+.mc-v{font-size:28px;font-weight:700;font-family:var(--fd);color:var(--txt);margin-bottom:4px}
+.mc-l{font-size:12px;color:var(--txtd);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+.mc-d{display:flex;align-items:center;gap:6px;font-size:13px}
+.mc-d.up{color:var(--gr)}.mc-d.down{color:var(--rd)}
+
+.stp{display:flex;align-items:center;gap:8px;margin:24px 0}
+.st{display:flex;align-items:center;gap:8px}
+.stc{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;background:var(--s3);border:2px solid var(--s4);color:var(--txtd)}
+.stc.on{background:var(--em);border-color:var(--em);color:#fff}
+.stc.done{background:var(--gr);border-color:var(--gr);color:#fff}
+.stl{flex:1;height:2px;background:var(--s4);min-width:40px}
+.stl.on{background:var(--em)}
+
+.pg{display:flex;gap:4px;justify-content:center;align-items:center}
+.pg-b{padding:6px 12px;border:1px solid var(--s4);background:var(--s2);color:var(--txtm);border-radius:6px;cursor:pointer;font-size:13px;transition:all 0.2s}
+.pg-b:hover{border-color:var(--cy);color:var(--txt)}
+.pg-b.on{background:var(--em);border-color:var(--em);color:#fff}
+
+.fb{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:16px;background:var(--s2);border:1px solid var(--s4);border-radius:10px;margin-bottom:16px}
+.ft{flex:1;min-width:200px;position:relative}
+.ft-i{width:100%;padding:10px 14px 10px 36px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;color:var(--txt);font-size:13px}
+.ft::before{content:'🔍';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:12px;opacity:0.6}
+
+.htmx-added{animation:fadeIn 0.3s ease}
+.htmx-swapping{animation:fadeOut 0.2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+
+[x-cloak]{display:none !important}
+
+.page{display:flex;min-height:100vh}
+.page .main{flex:1;padding:24px;min-width:0;margin-left:260px}
+@media(max-width:900px){.snav{display:none}.page .main{margin-left:0}}
+
+.comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px}
+.comp-item{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:16px}
+.comp-item h4{font-size:13px;margin-bottom:12px;color:var(--txtd);text-transform:uppercase;letter-spacing:0.5px}
+.demo-code{background:var(--s3);border:1px solid var(--s4);border-radius:6px;padding:12px;margin-top:12px;font-family:var(--fm);font-size:11px;overflow-x:auto;color:var(--txtd)}
+
+.lst{border:1px solid var(--s4);border-radius:8px;overflow:hidden}
+.lst-i{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--s4);transition:all 0.15s}
+.lst-i:last-child{border-bottom:none}
+.lst-i:hover{background:var(--s3)}
+.lst-i-c{flex:1}
+.lst-i-t{font-size:13px;font-weight:500;color:var(--txt)}
+.lst-i-d{font-size:11px;color:var(--txtd);margin-top:2px}
+.lst-i-a{display:flex;gap:4px;opacity:0;transition:opacity 0.2s}
+.lst-i:hover .lst-i-a{opacity:1}
+
+/* CRM specific styles */
+.crm-p{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:20px;transition:all 0.2s;cursor:pointer}
+.crm-p:hover{border-color:var(--cy);transform:translateY(-2px)}
+.crm-p-h{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.crm-p-n{font-size:16px;font-weight:600;font-family:var(--fd)}
+.crm-p-e{font-size:12px;color:var(--txtd);margin-top:2px}
+.crm-p-b{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+.crm-deal{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:16px;transition:all 0.2s}
+.crm-deal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.crm-deal-t{font-size:14px;font-weight:600}
+.crm-deal-v{font-size:16px;font-weight:700;font-family:var(--fd);color:var(--em)}
+.crm-deal-b{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--s4)}
+.crm-deal-p{display:flex;align-items:center;gap:8px}
+.crm-deal-p-a{width:28px;height:28px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--cy);border:2px solid var(--s4);margin-left:-8px}
+.crm-deal-p-a:first-child{margin-left:0}
+
+.crm-pipe{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}
+.crm-pipe-c{min-width:250px;background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:16px}
+.crm-pipe-c-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.crm-pipe-c-t{font-size:13px;font-weight:600}
+.crm-pipe-c-n{font-size:11px;background:var(--s3);padding:2px 8px;border-radius:4px;color:var(--txtd)}
+.crm-pipe-c-d{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:12px;margin-bottom:8px;cursor:grab;transition:all 0.2s}
+.crm-pipe-c-d:hover{border-color:var(--cy)}
+.crm-pipe-c-d-h{font-size:13px;font-weight:500;margin-bottom:4px}
+.crm-pipe-c-d-v{font-size:14px;font-weight:700;font-family:var(--fd);color:var(--em);margin-bottom:4px}
+.crm-pipe-c-d-c{font-size:11px;color:var(--txtd)}
+
+.crm-act{display:flex;gap:8px;align-items:flex-start;margin-bottom:12px}
+.crm-act-i{width:32px;height:32px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--cy);border:2px solid var(--s4);flex-shrink:0}
+.crm-act-c{flex:1;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:12px}
+.crm-act-c-t{font-size:13px;font-weight:500;margin-bottom:4px}
+.crm-act-c-d{font-size:12px;color:var(--txtd);margin-bottom:8px}
+.crm-act-c-m{font-size:12px;color:var(--txtm);padding:8px;background:var(--s3);border-radius:6px}
+.crm-act-c-f{font-size:11px;color:var(--txtd);margin-top:8px;display:flex;gap:8px;align-items:center}
+</style>
+</head>
+<body>
+
+<!-- Hero Section -->
+<div class="hero">
+<div class="container">
+<div class="hero-b">Customer Relationship Management</div>
+<h1>Flint CRM</h1>
+<p>A full-featured CRM interface built with A2UI components. Manage contacts, track deals, monitor pipelines, and log activities with an AI-native design.</p>
+<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:24px;">
+<a href="FLINT-A2UI-REGISTRY-SPEC.html" class="btn btn-ghost">← Registry Spec</a>
+<a href="FLINT-A2UI-VIDEO-GEN.html" class="btn btn-ghost">← Video Gen</a>
+<a href="FLINT-A2UI-ERP.html" class="btn btn-s">ERP →</a>
+<a href="FLINT-A2UI-EMR.html" class="btn btn-s">EMR →</a>
+</div>
+</div>
+</div>
+
+<!-- Page Layout -->
+<div class="page">
+<!-- Sidebar Navigation -->
+<nav class="snav">
+<div class="snav-h">
+<div class="snav-l"><div class="snav-li">F</div><span>CRM</span></div>
+</div>
+<div style="padding:12px 0;">
+<a href="#dashboard" class="snav-i on">📊 Dashboard</a>
+<a href="#contacts" class="snav-i">👥 Contacts</a>
+<a href="#deals" class="snav-i">💰 Deals</a>
+<a href="#pipeline" class="snav-i">📈 Pipeline</a>
+<a href="#activities" class="snav-i">📝 Activities</a>
+</div>
+</nav>
+
+<!-- Main Content -->
+<main class="main">
+<div class="container">
+
+<!-- Dashboard Section -->
+<section id="dashboard" class="sec">
+<div class="sec-h"><div class="icon">📊</div><h3>CRM Dashboard</h3><span class="tag">Overview</span></div>
+
+<div class="grid grid-4" style="gap:16px;margin-bottom:24px;">
+<div class="mc"><div class="mc-v">1,247</div><div class="mc-l">Contacts</div><div class="mc-d up">↑ 12.5%</div></div>
+<div class="mc"><div class="mc-v">$2.4M</div><div class="mc-l">Pipeline</div><div class="mc-d up">↑ 8.3%</div></div>
+<div class="mc"><div class="mc-v">89</div><div class="mc-l">Deals</div><div class="mc-d up">↑ 5.1%</div></div>
+<div class="mc"><div class="mc-v">32</div><div class="mc-l">Activities</div><div class="mc-d down">↓ 2.3%</div></div>
+</div>
+
+<div class="grid grid-2" style="gap:16px;">
+<div class="card">
+<div class="card-h">Revenue Forecast</div>
+<div class="card-d">Projected revenue for the next quarter</div>
+<div style="height:200px;background:var(--s3);border-radius:8px;display:flex;align-items:end;gap:8px;padding:16px;">
+<div style="flex:1;background:var(--em);border-radius:2px;height:40%;opacity:0.7;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:55%;opacity:0.8;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:45%;opacity:0.7;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:70%;opacity:0.9;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:60%;opacity:0.8;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:85%;opacity:1;"></div>
+<div style="flex:1;background:var(--cy);border-radius:2px;height:75%;opacity:0.9;"></div>
+</div>
+</div>
+<div class="card">
+<div class="card-h">Recent Activities</div>
+<div class="card-d">Latest interactions with your contacts</div>
+<div class="tl">
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">Call with Acme Corp</div><div class="tl-t">2 hours ago</div><div class="tl-x">Discussed Q4 proposal, sent follow-up</div></div>
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">Email to Sarah Chen</div><div class="tl-t">4 hours ago</div><div class="tl-x">Product demo scheduled for Friday</div></div>
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">Meeting with TechStart</div><div class="tl-t">1 day ago</div><div class="tl-x">Contract review, needs legal approval</div></div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Contacts Section -->
+<section id="contacts" class="sec">
+<div class="sec-h"><div class="icon">👥</div><h3>Contacts</h3><span class="tag">People</span></div>
+
+<div class="fb">
+<div class="ft"><input type="text" class="ft-i" placeholder="Search contacts..."></div>
+<select class="sel" style="width:150px;"><option>All Status</option><option>Lead</option><option>Customer</option><option>Partner</option></select>
+<select class="sel" style="width:150px;"><option>All Sources</option><option>Website</option><option>Referral</option><option>Conference</option></select>
+<button class="btn btn-p">+ Add Contact</button>
+</div>
+
+<div class="grid grid-3" style="gap:16px;">
+<div class="crm-p">
+<div class="crm-p-h">
+<div class="av" style="color:var(--cy);">SC</div>
+<div><div class="crm-p-n">Sarah Chen</div><div class="crm-p-e">sarah@acme.com</div></div>
+</div>
+<div class="crm-p-b"><span class="bd-g">Customer</span><span class="bd-c">Enterprise</span></div>
+<div style="margin-top:12px;font-size:12px;color:var(--txtd);">Last contact: 2h ago • 12 deals</div>
+</div>
+<div class="crm-p">
+<div class="crm-p-h">
+<div class="av" style="color:var(--gr);">JM</div>
+<div><div class="crm-p-n">James Miller</div><div class="crm-p-e">james@techstart.io</div></div>
+</div>
+<div class="crm-p-b"><span class="bd-y">Lead</span><span class="bd-e">Startup</span></div>
+<div style="margin-top:12px;font-size:12px;color:var(--txtd);">Last contact: 1d ago • 3 deals</div>
+</div>
+<div class="crm-p">
+<div class="crm-p-h">
+<div class="av" style="color:var(--yl);">EW</div>
+<div><div class="crm-p-n">Emily Watson</div><div class="crm-p-e">emily@global.com</div></div>
+</div>
+<div class="crm-p-b"><span class="bd-g">Customer</span><span class="bd-c">Global</span></div>
+<div style="margin-top:12px;font-size:12px;color:var(--txtd);">Last contact: 3h ago • 8 deals</div>
+</div>
+<div class="crm-p">
+<div class="crm-p-h">
+<div class="av" style="color:var(--rd);">DK</div>
+<div><div class="crm-p-n">David Kim</div><div class="crm-p-e">david@nexgen.net</div></div>
+</div>
+<div class="crm-p-b"><span class="bd-y">Lead</span><span class="bd-e">Mid-Market</span></div>
+<div style="margin-top:12px;font-size:12px;color:var(--txtd);">Last contact: 2d ago • 1 deal</div>
+</div>
+<div class="crm-p">
+<div class="crm-p-h">
+<div class="av" style="color:var(--em);">LR</div>
+<div><div class="crm-p-n">Lisa Rodriguez</div><div class="crm-p-e">lisa@innovate.co</div></div>
+</div>
+<div class="crm-p-b"><span class="bd-g">Customer</span><span class="bd-c">SMB</span></div>
+<div style="margin-top:12px;font-size:12px;color:var(--txtd);">Last contact: 5h ago • 5 deals</div>
+</div>
+<div class="crm-p">
+<div class="crm-p-h">
+<div class="av" style="color:var(--cy);">TJ</div>
+<div><div class="crm-p-n">Tom Jackson</div><div class="crm-p-e">tom@apex.com</div></div>
+</div>
+<div class="crm-p-b"><span class="bd-r">Churned</span><span class="bd-c">Enterprise</span></div>
+<div style="margin-top:12px;font-size:12px;color:var(--txtd);">Last contact: 2w ago • 0 deals</div>
+</div>
+</div>
+<div class="pg" style="margin-top:16px;">
+<button class="pg-b" disabled>‹ Prev</button>
+<button class="pg-b on">1</button>
+<button class="pg-b">2</button>
+<button class="pg-b">3</button>
+<button class="pg-b">Next ›</button>
+</div>
+</section>
+
+<!-- Deals Section -->
+<section id="deals" class="sec">
+<div class="sec-h"><div class="icon">💰</div><h3>Deals</h3><span class="tag">Opportunities</span></div>
+
+<div class="grid grid-3" style="gap:16px;">
+<div class="crm-deal">
+<div class="crm-deal-h">
+<div class="crm-deal-t">Acme Corp - Enterprise</div>
+<div class="crm-deal-v">$450K</div>
+</div>
+<div style="margin-bottom:8px;"><span class="bd-g">Negotiation</span></div>
+<div class="pf"><span class="pf-l">Probability</span><div class="pf-b"><div class="pb"><div class="pb-b" style="width:75%"></div></div></div><span class="pf-v">75%</span></div>
+<div class="crm-deal-b">
+<div class="crm-deal-p">
+<div class="crm-deal-p-a">SC</div>
+<div class="crm-deal-p-a">JM</div>
+</div>
+<div style="font-size:12px;color:var(--txtd);">Close: Dec 15</div>
+</div>
+</div>
+<div class="crm-deal">
+<div class="crm-deal-h">
+<div class="crm-deal-t">TechStart - Platform</div>
+<div class="crm-deal-v">$120K</div>
+</div>
+<div style="margin-bottom:8px;"><span class="bd-y">Proposal</span></div>
+<div class="pf"><span class="pf-l">Probability</span><div class="pf-b"><div class="pb"><div class="pb-b" style="width:50%"></div></div></div><span class="pf-v">50%</span></div>
+<div class="crm-deal-b">
+<div class="crm-deal-p">
+<div class="crm-deal-p-a">EW</div>
+</div>
+<div style="font-size:12px;color:var(--txtd);">Close: Jan 10</div>
+</div>
+</div>
+<div class="crm-deal">
+<div class="crm-deal-h">
+<div class="crm-deal-t">Global Inc - Migration</div>
+<div class="crm-deal-v">$890K</div>
+</div>
+<div style="margin-bottom:8px;"><span class="bd-e">Discovery</span></div>
+<div class="pf"><span class="pf-l">Probability</span><div class="pf-b"><div class="pb"><div class="pb-b" style="width:25%"></div></div></div><span class="pf-v">25%</span></div>
+<div class="crm-deal-b">
+<div class="crm-deal-p">
+<div class="crm-deal-p-a">LR</div>
+<div class="crm-deal-p-a">DK</div>
+<div class="crm-deal-p-a">SC</div>
+</div>
+<div style="font-size:12px;color:var(--txtd);">Close: Feb 28</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Pipeline Section -->
+<section id="pipeline" class="sec">
+<div class="sec-h"><div class="icon">📈</div><h3>Sales Pipeline</h3><span class="tag">Kanban</span></div>
+
+<div class="crm-pipe">
+<div class="crm-pipe-c">
+<div class="crm-pipe-c-h"><span class="crm-pipe-c-t">Lead</span><span class="crm-pipe-c-n">12</span></div>
+<div class="crm-pipe-c-d"><div class="crm-pipe-c-d-h">NexGen Systems</div><div class="crm-pipe-c-d-v">$85K</div><div class="crm-pipe-c-d-c">Initial contact made</div></div>
+<div class="crm-pipe-c-d"><div class="crm-pipe-c-d-h">BrightStar</div><div class="crm-pipe-c-d-v">$45K</div><div class="crm-pipe-c-d-c">Website inquiry</div></div>
+<div class="crm-pipe-c-d"><div class="crm-pipe-c-d-h">CloudFirst</div><div class="crm-pipe-c-d-v">$120K</div><div class="crm-pipe-c-d-c">Referral from Sarah</div></div>
+</div>
+<div class="crm-pipe-c">
+<div class="crm-pipe-c-h"><span class="crm-pipe-c-t">Qualified</span><span class="crm-pipe-c-n">8</span></div>
+<div class="crm-pipe-c-d"><div class="crm-pipe-c-d-h">DataDriven Inc</div><div class="crm-pipe-c-d-v">$200K</div><div class="crm-pipe-c-d-c">Needs assessment complete</div></div>
+<div class="crm-pipe-c-d"><div class="crm-pipe-c-d-h">SecureNet</div><div class="crm-pipe-c-d-v">$150K</div><div class="crm-pipe-c-d-c">Budget confirmed</div></div>
+</div>
+<div class="crm-pipe-c">
+<div class="crm-pipe-c-h"><span class="crm-pipe-c-t">Proposal</span><span class="crm-pipe-c-n">5</span></div>
+<div class="crm-pipe-c-d"><div class="crm-pipe-c-d-h">TechStart</div><div class="crm-pipe-c-d-v">$120K</div><div class="crm-pipe-c-d-c">Proposal sent, awaiting feedback</div></div>
+<div class="crm-pipe-c-d"><div class="crm-pipe-c-d-h">InnovateCo</div><div class="crm-pipe-c-d-v">$75K</div><div class="crm-pipe-c-d-c">Demo scheduled</div></div>
+</div>
+<div class="crm-pipe-c">
+<div class="crm-pipe-c-h"><span class="crm-pipe-c-t">Negotiation</span><span class="crm-pipe-c-n">3</span></div>
+<div class="crm-pipe-c-d"><div class="crm-pipe-c-d-h">Acme Corp</div><div class="crm-pipe-c-d-v">$450K</div><div class="crm-pipe-c-d-c">Legal review in progress</div></div>
+</div>
+<div class="crm-pipe-c">
+<div class="crm-pipe-c-h"><span class="crm-pipe-c-t">Closed Won</span><span class="crm-pipe-c-n">7</span></div>
+<div class="crm-pipe-c-d"><div class="crm-pipe-c-d-h">Global Solutions</div><div class="crm-pipe-c-d-v">$320K</div><div class="crm-pipe-c-d-c">Contract signed 2d ago</div></div>
+</div>
+</div>
+</section>
+
+<!-- Activities Section -->
+<section id="activities" class="sec">
+<div class="sec-h"><div class="icon">📝</div><h3>Activity Timeline</h3><span class="tag">Log</span></div>
+
+<div class="crm-act">
+<div class="crm-act-i">📞</div>
+<div class="crm-act-c">
+<div class="crm-act-c-t">Call with Sarah Chen</div>
+<div class="crm-act-c-d">Acme Corp • 2 hours ago</div>
+<div class="crm-act-c-m">Discussed Q4 proposal requirements. Sarah needs additional API documentation and pricing for enterprise tier. Send follow-up by EOD.</div>
+<div class="crm-act-c-f"><span class="bd-g">Completed</span><span>Duration: 45 min</span><span>Outcome: Positive</span></div>
+</div>
+</div>
+<div class="crm-act">
+<div class="crm-act-i">✉️</div>
+<div class="crm-act-c">
+<div class="crm-act-c-t">Email to James Miller</div>
+<div class="crm-act-c-d">TechStart • 4 hours ago</div>
+<div class="crm-act-c-m">Product demo scheduled for Friday at 2PM EST. Shared calendar invite and demo agenda.</div>
+<div class="crm-act-c-f"><span class="bd-y">Pending</span><span>Opened: Yes</span><span>Clicked: Yes</span></div>
+</div>
+</div>
+<div class="crm-act">
+<div class="crm-act-i">🤝</div>
+<div class="crm-act-c">
+<div class="crm-act-c-t">Meeting with Emily Watson</div>
+<div class="crm-act-c-d">Global Inc • 1 day ago</div>
+<div class="crm-act-c-m">Contract review meeting. Legal team needs 2 weeks for review. Emily suggested expediting by involving external counsel.</div>
+<div class="crm-act-c-f"><span class="bd-g">Completed</span><span>Duration: 90 min</span><span>Outcome: Pending</span></div>
+</div>
+</div>
+<div class="crm-act">
+<div class="crm-act-i">📝</div>
+<div class="crm-act-c">
+<div class="crm-act-c-t">Note added by David Kim</div>
+<div class="crm-act-c-d">NexGen Systems • 2 days ago</div>
+<div class="crm-act-c-m">Initial discovery call. Company is evaluating 3 vendors. Budget is $85K for first year. Decision timeline: 6 weeks. Key stakeholders: CTO, CFO.</div>
+<div class="crm-act-c-f"><span class="bd-c">Note</span><span>Priority: High</span></div>
+</div>
+</div>
+</section>
+
+</div></main></div>
+</body></html>

@@ -1,0 +1,53 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/forge-domain", "crates/forge-identity", "crates/forge-policy",
+  "crates/fdb-domain", "crates/fdb-ports", "crates/fdb-app", "crates/fdb-postgres",
+  "crates/fdb-realtime", "crates/fdb-auth", "crates/fdb-reflection", "crates/fdb-gateway",
+  "crates/fke-domain", "crates/fke-ports", "crates/fke-runtime",
+  "crates/fke-store-oci", "crates/fke-store-ipfs", "crates/fke-store-s3", "crates/fke-store-fs",
+  "crates/fke-sign-did", "crates/fke-sign-cosign", "crates/fke-registry", "crates/fke-server",
+  "crates/forge-cli", "examples/hello-component",
+]
+# pgrx extensions are built with `cargo pgrx`, not the default workspace build, so they
+# are excluded here to keep `cargo check` green without a Postgres toolchain present.
+exclude = ["crates/ext-flint-auth", "crates/ext-flint-hooks", "crates/ext-flint-llm", "crates/ext-flint-vault", "crates/ext-flint-meta"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "Proprietary"
+authors = ["Prometheus AGS"]
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+axum = "0.8.8"
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+futures = "0.3"
+arc-swap = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio", "uuid", "json", "migrate"] }
+jsonwebtoken = "9"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+deadpool-postgres = "0.14"
+tokio-postgres = "0.7"
+async-graphql = { version = "7", features = ["dynamic-schema"] }
+async-graphql-axum = "7"
+tonic = { version = "0.12", features = ["transport"] }
+pgvector = { version = "0.4", features = ["postgres", "sqlx"] }
+
+[workspace.lints.clippy]
+# Pedantic is the CI gate (run with -D warnings). Allows below are scaffold-stage
+# concessions, each to be revisited as the todo!() bodies are implemented.
+pedantic = { level = "warn", priority = -1 }
+doc_markdown       = "allow"  # domain vocabulary: flint-gate, pg_graphql, pgvector, WatchEntityType, ProxyPre
+missing_errors_doc = "allow"  # Result-returning stubs; "# Errors" docs land with the implementations
+missing_panics_doc = "allow"  # todo!() stubs panic by definition until implemented
+must_use_candidate = "allow"  # premature on scaffolding

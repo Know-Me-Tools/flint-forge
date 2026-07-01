@@ -1,0 +1,56 @@
+use crate::model::{DatabaseModel, FnMeta, Table};
+
+/// Describes one HTTP endpoint derived from the `DatabaseModel`.
+#[derive(Debug, Clone)]
+pub struct Endpoint {
+    pub method: &'static str,
+    pub path: String,
+    pub kind: EndpointKind,
+}
+
+#[derive(Debug, Clone)]
+pub enum EndpointKind {
+    TableList { table: Table },
+    TableById { table: Table },
+    Rpc { func: FnMeta },
+}
+
+/// Produce the ordered list of endpoints from a validated `DatabaseModel`.
+/// Consumed by `RestCompiler::compile()`.
+pub fn generate(model: &DatabaseModel) -> Vec<Endpoint> {
+    let mut endpoints = Vec::new();
+
+    for table in &model.tables {
+        let prefix = format!("/{}/{}", table.schema, table.name);
+        endpoints.push(Endpoint {
+            method: "GET",
+            path: prefix.clone(),
+            kind: EndpointKind::TableList { table: table.clone() },
+        });
+        endpoints.push(Endpoint {
+            method: "POST",
+            path: prefix.clone(),
+            kind: EndpointKind::TableList { table: table.clone() },
+        });
+        endpoints.push(Endpoint {
+            method: "PATCH",
+            path: format!("{}/{{id}}", prefix),
+            kind: EndpointKind::TableById { table: table.clone() },
+        });
+        endpoints.push(Endpoint {
+            method: "DELETE",
+            path: format!("{}/{{id}}", prefix),
+            kind: EndpointKind::TableById { table: table.clone() },
+        });
+    }
+
+    for func in &model.functions {
+        endpoints.push(Endpoint {
+            method: "POST",
+            path: format!("/rpc/{}/{}", func.schema, func.name),
+            kind: EndpointKind::Rpc { func: func.clone() },
+        });
+    }
+
+    endpoints
+}

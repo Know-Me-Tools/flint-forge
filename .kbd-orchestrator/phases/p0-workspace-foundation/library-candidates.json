@@ -1,0 +1,175 @@
+{
+  "phase": "p0-workspace-foundation",
+  "generated": "2026-06-29",
+  "schema_version": "1.0",
+  "candidates": [
+    {
+      "id": "lc-001",
+      "capability": "REST API gateway over Postgres",
+      "decision": "build",
+      "chosen": "deadpool-postgres + tokio-postgres + axum",
+      "alternatives_rejected": ["PostgREST (Haskell, not Rust)", "sqlx (simpler but less control over multi-statement transactions)"],
+      "confidence": "high",
+      "rationale": "PostgREST is Haskell; a Rust-native implementation with deadpool-postgres gives full control over the three SET LOCAL RLS statements per transaction. axum is already the gateway framework. sqlx is an alternate pool but deadpool-postgres gives finer per-connection control needed for the RLS injection pattern.",
+      "phase_needed": "p1",
+      "crates": ["deadpool-postgres", "tokio-postgres", "axum"]
+    },
+    {
+      "id": "lc-002",
+      "capability": "GraphQL mutations/queries via pg_graphql",
+      "decision": "adopt",
+      "chosen": "pg_graphql (Postgres extension, supabase/pg_graphql)",
+      "alternatives_rejected": ["async-graphql for Q/M (would require reimplementing Postgres schema introspection)", "Hasura (not Rust, not embeddable)"],
+      "confidence": "high",
+      "rationale": "pg_graphql runs inside Postgres as a pgrx extension — zero network hop, full RLS context already set. The Forge approach is a thin passthrough: `SELECT graphql.resolve($query, $vars)` under the RLS context. Proven in Supabase at scale. Subscription operations use async-graphql as a separate sibling schema (see lc-003).",
+      "phase_needed": "p2",
+      "crates": [],
+      "notes": "PG18 compatibility is OQ-3 (no released build; may require build-from-source SHA). Blocks p2."
+    },
+    {
+      "id": "lc-003",
+      "capability": "GraphQL subscriptions",
+      "decision": "adopt",
+      "chosen": "async-graphql 7 (dynamic schema) + async-graphql-axum",
+      "alternatives_rejected": ["graphql-ws (JS only)", "custom WebSocket handler (reinvents graphql-transport-ws protocol)"],
+      "confidence": "high",
+      "rationale": "async-graphql's dynamic schema builder generates subscription types from the same introspection pg_graphql uses. graphql-transport-ws protocol support is built-in. The subscription resolvers pull from fdb-realtime's ChangeStreamSource, not from pg_graphql.",
+      "phase_needed": "p2",
+      "crates": ["async-graphql", "async-graphql-axum"]
+    },
+    {
+      "id": "lc-004",
+      "capability": "In-process connection pooling (RLS-safe)",
+      "decision": "adopt",
+      "chosen": "deadpool-postgres",
+      "alternatives_rejected": ["PgBouncer (external, transaction mode breaks SET LOCAL)", "bb8 (less PostgreSQL-specific)"],
+      "confidence": "high",
+      "rationale": "SET LOCAL only survives the current transaction — not a persistent connection session. deadpool-postgres gives per-connection lifecycle hooks for the three SET LOCAL statements before every query. PgBouncer in transaction mode is incompatible with SET LOCAL semantics.",
+      "phase_needed": "p1",
+      "crates": ["deadpool-postgres"]
+    },
+    {
+      "id": "lc-005",
+      "capability": "WASM component runtime (Kiln edge functions)",
+      "decision": "adopt",
+      "chosen": "Wasmtime + Cranelift AOT",
+      "alternatives_rejected": ["wasmer (less WASM Component Model support)", "V8/Deno (JS runtime, not Rust-native)"],
+      "confidence": "high",
+      "rationale": "Wasmtime is the reference WASM Component Model implementation. Cranelift AOT compilation avoids JIT at function invocation. wasi:http/proxy world is Wasmtime-native. The WASM Component Model's WIT contracts give fine-grained capability control that V8 cannot match.",
+      "phase_needed": "p3",
+      "crates": ["wasmtime", "wasmtime-wasi", "wasmtime-wasi-http"]
+    },
+    {
+      "id": "lc-006",
+      "capability": "WASM component toolchain (WIT validation, build)",
+      "decision": "adopt",
+      "chosen": "wasm-tools CLI",
+      "alternatives_rejected": [],
+      "confidence": "high",
+      "rationale": "wasm-tools is the canonical toolchain for WASM Component Model: WIT validation, component composition, inspect. Required for c003 gate. Install: `cargo install wasm-tools`.",
+      "phase_needed": "p0 (c003)",
+      "crates": [],
+      "tooling": ["wasm-tools"]
+    },
+    {
+      "id": "lc-007",
+      "capability": "Realtime event spine",
+      "decision": "adopt",
+      "chosen": "Apache Iggy (GQAdonis fork: github.com/GQAdonis/iggy, branch=master)",
+      "alternatives_rejected": ["NATS (LogBroker trait keeps this as swap path)", "Redpanda (JVM dependency)", "Kafka (operational overhead)"],
+      "confidence": "high",
+      "rationale": "Already committed in FRF architecture. Pre-1.0 risk is mitigated by the LogBroker trait abstraction — NATS or Redpanda can be swapped by changing the Cargo feature. The GQAdonis fork tracks fixes needed for the Flint use case.",
+      "phase_needed": "frf-p1",
+      "crates": ["iggy"]
+    },
+    {
+      "id": "lc-008",
+      "capability": "pgrx (Postgres extension framework)",
+      "decision": "adopt",
+      "chosen": "pgrx 0.18.1 (PG18)",
+      "alternatives_rejected": ["pgx (deprecated, predecessor)", "pgrx 0.12 (PG17 only — existing ext-flint-auth uses this; keep for legacy)"],
+      "confidence": "high",
+      "rationale": "pgrx 0.18.1 is the current release and supports PG18. Already used in flint_vault. flint_llm, flint_auth, flint_hooks will target PG18 with 0.18.1. Note: ext-flint-auth uses 0.12 (PG17) — do not upgrade it until PG18 auth extension is proven.",
+      "phase_needed": "p1",
+      "crates": ["pgrx"]
+    },
+    {
+      "id": "lc-009",
+      "capability": "Symmetric encryption (Vault)",
+      "decision": "build (already complete)",
+      "chosen": "XChaCha20-Poly1305 via RustCrypto (chacha20poly1305 crate) + HKDF-SHA256",
+      "alternatives_rejected": ["pgsodium (deprecated in Supabase-Vault)", "AES-GCM (128-bit nonce, collision risk at high volume)"],
+      "confidence": "high",
+      "rationale": "Already implemented in ext-flint-vault (489 lines, production-complete). 24-byte XChaCha nonce eliminates nonce-reuse risk. HKDF-SHA256 per-category subkeys enable independent rotation. DEK never selectable from SQL.",
+      "phase_needed": "complete",
+      "crates": ["chacha20poly1305", "hkdf", "sha2", "secrecy"]
+    },
+    {
+      "id": "lc-010",
+      "capability": "JWT verification (inbound from flint-gate)",
+      "decision": "build",
+      "chosen": "jsonwebtoken crate + reqwest JWKS fetch",
+      "alternatives_rejected": ["oauth2 crate (too heavy for JWT verify only)", "custom HMAC verify (fragile)"],
+      "confidence": "high",
+      "rationale": "forge-identity already has the Claims struct and RlsContext; `verify_and_build()` is todo!(). The jsonwebtoken crate handles HS256/RS256/ES256. JWKS endpoint is fetched from flint-gate (issuer/.well-known/jwks.json). forge-identity implements this in p1-c001.",
+      "phase_needed": "p1",
+      "crates": ["jsonwebtoken", "reqwest"]
+    },
+    {
+      "id": "lc-011",
+      "capability": "Scheduled jobs (pg_cron equivalent)",
+      "decision": "adopt",
+      "chosen": "pg_cron (Postgres extension)",
+      "alternatives_rejected": ["custom BGW scheduler (unnecessary build)", "external cron (breaks sovereign model)"],
+      "confidence": "high",
+      "rationale": "pg_cron is the standard Postgres scheduling extension. Add to PG18 Dockerfile alongside existing extensions. Supabase ships it; Flint should too. One apt-get or build-from-source addition to images/postgres18/Dockerfile.",
+      "phase_needed": "p1 (Dockerfile addition)",
+      "crates": [],
+      "tooling": ["pg_cron"]
+    },
+    {
+      "id": "lc-012",
+      "capability": "Object storage (Flint Storage)",
+      "decision": "adopt backend + build metadata layer",
+      "chosen": "S3-compatible backend (MinIO self-hosted or Cloudflare R2) + Postgres metadata table + Vault credentials + Keto access",
+      "alternatives_rejected": ["Build object storage primitives from scratch (unnecessary)", "SeaweedFS (less S3-compatible ecosystem)"],
+      "confidence": "medium",
+      "rationale": "Don't build object storage primitives. Build the Forge-specific layer: Postgres metadata table (file path, owner, ACL, mime type, size, checksum), Vault-encrypted presigned URL signing credentials, Keto permission check at file access. The fke-store-s3 crate (Kiln component store, already designed) can be the S3 client foundation. Phase 6.",
+      "phase_needed": "p6",
+      "crates": ["aws-sdk-s3", "object_store"]
+    },
+    {
+      "id": "lc-013",
+      "capability": "Action/capability policy (Cedar)",
+      "decision": "adopt (via UAR/PAUX-1)",
+      "chosen": "cedar-policy crate via existing UAR integration",
+      "alternatives_rejected": ["OPA (not Rust-native)", "Casbin (not as expressive for capability contexts)"],
+      "confidence": "high",
+      "rationale": "Cedar is already the chosen policy engine in PAUX-1/UAR. Flint Forge wires Cedar for Kiln capability gating and Quarry mutation authZ. Don't duplicate the Cedar engine; wire the existing UAR Cedar service.",
+      "phase_needed": "p3 (Kiln capability linker)",
+      "crates": ["cedar-policy"]
+    },
+    {
+      "id": "lc-014",
+      "capability": "Coarse relationship-based authZ (Keto)",
+      "decision": "adopt",
+      "chosen": "Ory Keto (Zanzibar ReBAC)",
+      "alternatives_rejected": ["SpiceDB (SpiceDB is an alternative to Keto; Keto already chosen)", "Casbin (not Zanzibar model)"],
+      "confidence": "high",
+      "rationale": "Already chosen in FRF architecture. Keto's check API provides subscribe-time topic visibility gate and per-event fan-out gate. The gRPC client is standard; check-cache with tuple-delete invalidation is the required scaling mitigation (OQ-6).",
+      "phase_needed": "p2 (subscription gate)",
+      "crates": ["tonic", "prost"]
+    },
+    {
+      "id": "lc-015",
+      "capability": "In-DB LLM routing (Flint Ember)",
+      "decision": "build",
+      "chosen": "liter-llm (Rust LLM routing library) + pgrx BGW",
+      "alternatives_rejected": ["Direct provider SDKs in pgrx (violates sovereign routing model)", "plv8 + JS LLM (V8 in Postgres, not Rust-native)"],
+      "confidence": "medium",
+      "rationale": "liter-llm provides the routing/provider-abstraction layer. The BGW (background worker) hosts the tokio runtime + liter-llm without blocking Postgres backends. Surface 1 (sync) requires careful interrupt handling (CHECK_FOR_INTERRUPTS / WaitLatch). Surface 2 (async queue) is the safe default. Phase 4.",
+      "phase_needed": "p4",
+      "crates": ["liter-llm", "pgrx"]
+    }
+  ]
+}

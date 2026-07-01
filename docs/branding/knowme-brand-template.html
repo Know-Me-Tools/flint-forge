@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en"
+  x-data="{
+    dark: localStorage.getItem('km-theme') !== 'light',
+    toggle() {
+      this.dark = !this.dark;
+      document.documentElement.classList.toggle('dark', this.dark);
+      localStorage.setItem('km-theme', this.dark ? 'dark' : 'light');
+    }
+  }"
+  :class="dark ? 'dark' : ''"
+  xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>KnowMe — [Document Title]</title>
+
+<!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║  KNOWME BRAND TEMPLATE v1.0                                  ║
+  ║  KnowMe, LLC · know-me.tools · April 2026                   ║
+  ║                                                              ║
+  ║  USAGE                                                       ║
+  ║  1. Replace [Document Title] and [DOC-XXX] in <head>        ║
+  ║  2. Fill in the nav-meta version string                      ║
+  ║  3. Replace the page-header content                          ║
+  ║  4. Add sections using .section + section-label patterns     ║
+  ║  5. Dark mode is on by default — FOUC guard handles it       ║
+  ╚══════════════════════════════════════════════════════════════╝
+-->
+
+<!-- FOUC GUARD: pre-apply theme before first paint -->
+<script>
+  (function() {
+    var t = localStorage.getItem('km-theme');
+    if (t === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+    }
+  })();
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
+
+<style>
+/* ══════════════════════════════════════════════════════ */
+/* § DESIGN TOKENS — LIGHT MODE                          */
+/* ══════════════════════════════════════════════════════ */
+:root {
+  /* Backgrounds */
+  --bg:              #F7F7F8;   /* Page background          */
+  --bg-raised:       #FFFFFF;   /* Cards, panels            */
+  --bg-surface:      #EEEEF1;   /* Subtle surface, stripes  */
+
+  /* Foreground */
+  --fg:              #0B0F14;   /* Primary text             */
+  --fg-muted:        #4B5563;   /* Secondary, captions      */
+  --fg-subtle:       #8894A0;   /* Metadata, placeholders   */
+
+  /* Borders */
+  --border:          #D8DEE6;   /* Standard border          */
+  --border-soft:     #E8ECF0;   /* Subtle dividers          */
+
+  /* Brand */
+  --ember:           #E04E28;   /* Primary CTA, focus ring  */
+  --ember-soft:      #F2D6CF;   /* Hover, selected state    */
+  --ember-bright:    #FF6A3D;   /* Gradient tip             */
+
+  /* Functional */
+  --code-bg:         #F0F2F5;   /* Code blocks              */
+  --swatch-ring:     #C8CDD5;   /* Color swatch borders     */
+  --success:         #16A34A;
+  --warning:         #D97706;
+  --danger:          #DC2626;
+
+  /* Radius */
+  --radius-sm:       4px;
+  --radius:          6px;
+  --radius-md:       10px;
+  --radius-lg:       14px;
+  --radius-xl:       24px;
+  --radius-full:     9999px;
+
+  /* Shadows — light only, not used in dark */
+  --shadow-sm:       0 1px 3px rgba(11,15,20,.06), 0 1px 2px rgba(11,15,20,.04);
+  --shadow:          0 4px 12px rgba(11,15,20,.08), 0 2px 4px rgba(11,15,20,.05);
+}
+
+/* ══════════════════════════════════════════════════════ */
+/* § DESIGN TOKENS — DARK MODE                           */
+/* ══════════════════════════════════════════════════════ */
+.dark {
+  --bg:              #0B0F14;
+  --bg-raised:       #0F1620;
+  --bg-surface:      #141C26;
+
+  --fg:              #E8EDF3;
+  --fg-muted:        #A7B0BC;
+  --fg-subtle:       #5C6B7A;
+
+  --border:          #1E2D3D;
+  --border-soft:     #162030;
+
+  --ember:           #FF6A3D;
+  --ember-soft:      #2A1510;
+  --ember-bright:    #FF8559;
+
+  --code-bg:         #0A1220;
+  --swatch-ring:     #2A3848;
+
+  --shadow-sm:       none;
+  --shadow:          none;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/* § BASE RESET & BODY                                   */
+/* ══════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background:           var(--bg);
+  color:                var(--fg);
+  font-family:          'Roboto', sans-serif;
+  font-size:            15px;
+  line-height:          1.7;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/* § NAV                                                 */
+/* ══════════════════════════════════════════════════════ */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  height: 54px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background 0.25s ease, border-color 0.25s ease;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family:    'Space Grotesk', sans-serif;
+  font-size:      15px;
+  font-weight:    700;
+  letter-spacing: -0.02em;
+  color:          var(--fg);
+  text-decoration: none;
+}
+
+.nav-brand .accent { color: var(--ember); }
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-meta {
+  font-family:    'JetBrains Mono', monospace;
+  font-size:      10px;
+  letter-spacing: 0.06em;
+  color:          var(--fg-subtle);
+}
+
+/* Mode toggle button */
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background:     var(--bg-surface);
+  border:         1px solid var(--border);
+  border-radius:  var(--radius-full);
+  padding:        4px 10px 4px 8px;
+  cursor:         pointer;
+  font-family:    'JetBrains Mono', monospace;
+  font-size:      10px;
+  font-weight:    600;
+  letter-spacing: 0.06em;
+  color:          var(--fg-muted);
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.mode-toggle:hover { border-color: var(--ember); color: var(--ember); }
+
+/* ══════════════════════════════════════════════════════ */
+/* § LAYOUT                                              */
+/* ══════════════════════════════════════════════════════ */
+.container {
+  max-width:  960px;
+  margin:     0 auto;
+  padding:    3.5rem 2rem 5rem;
+}
+
+.container-wide {
+  max-width:  1180px;
+  margin:     0 auto;
+  padding:    3.5rem 2rem 5rem;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .container, .container-wide { padding: 2rem 1.25rem 3rem; }
+}
+
+/* ══════════════════════════════════════════════════════ */
+/* § PAGE HEADER                                         */
+/* ══════════════════════════════════════════════════════ */
+.page-header {
+  margin-bottom: 4rem;
+  padding-bottom: 2.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.eyebrow {
+  font-family:    'JetBrains Mono', monospace;
+  font-size:      10px;
+  font-weight:    700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color:          var(--ember);
+  margin-bottom:  14px;
+  display:        block;
+}
+
+.page-title {
+  font-family:    'Space Grotesk', sans-serif;
+  font-size:      clamp(32px, 5vw, 52px);
+  font-weight:    700;
+  letter-spacing: -0.035em;
+  line-height:    1.0;
+  color:          var(--fg);
+  margin-bottom:  16px;
+}
+
+.page-title em {
+  color:       var(--ember);
+  font-style:  normal;
+}
+
+.page-lead {
+  font-family: 'Roboto', sans-serif;
+  font-size:   16px;
+  font-weight: 300;
+  color:       var(--fg-muted);
+  line-height: 1.75;
+  max-width:   58ch;
+}
+
+.meta-row {
+  display:    flex;
+  gap:        8px;
+  flex-wrap:  wrap;
+  margin-top: 20px;
+}
+
+.meta-chip {
+  font-family:    'JetBrains Mono', monospace;
+  font-size:      10px;
+  font-weight:    600;
+  letter-spacing: 0.06em;
+  color:          var(--fg-subtle);
+  background:     var(--bg-surface);
+  border:         1px solid var(--border);
+  border-radius:  var(--radius-sm);
+  padding:        3px 8px;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/* § SECTION                                             */
+/* ══════════════════════════════════════════════════════ */
+.section {
+  margin-bottom: 4.5rem;
+  scroll-margin-top: 70px;
+}
+
+.section-label {
+  font-family:    'JetBrains Mono', monospace;
+  font-size:      10px;
+  font-weight:    700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color:          var(--fg-subtle);
+  margin-bottom:  16px;
+  padding-bottom: 10px;
+  border-bottom:  1px solid var(--border);
+}
+
+.section-title {
+  font-family:    'Space Grotesk', sans-serif;
+  font-size:      24px;
+  font-weight:    700;
+  letter-spacing: -0.02em;
+  color:          var(--fg);
+  margin-bottom:  6px;
+}
+
+.section-desc {
+  font-family: 'Roboto', sans-serif;
+  font-size:   14px;
+  font-weight: 300;
+  color:       var(--fg-muted);
+  line-height: 1.7;
+  max-width:   60ch;
+  margin-bottom: 24px;
+}
+
+/* Subsection */
+.subsection       { margin-bottom: 2.5rem; }
+.subsection-label {
+  font-family:    'JetBrains Mono', monospace;
+  font-size:      10px;
+  font-weight:    700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color:          var(--fg-subtle);
+  margin-bottom:  12px;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/* § CARD                                                */
+/* ══════════════════════════════════════════════════════ */
+.card {
+  background:   var(--bg-raised);
+  border:       1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding:      24px 28px;
+  box-shadow:   var(--shadow-sm);
+  transition:   border-color 0.2s ease;
+}
+
+.card:hover { border-color: color-mix(in srgb, var(--border) 40%, var(--ember)); }
+
+.card-header {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.card-title {
+  font-family:    'Space Grotesk', sans-serif;
+  font-size:      16px;
+  font-weight:    700;
+  letter-spacing: -0.015em;
+  color:          var(--fg);
+}
+
+.card-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size:   12px;
+  color:       var(--fg-subtle);
+  margin-top:  3px;
+}
+
+.card-body {
+  font-family: 'Roboto', sans-serif;
+  font-size:   14px;
+  color:       var(--fg-muted);
+  line-height: 1.65;
+}
+
+/* Panel — no hover, strong container */
+.panel {
+  background:    var(--bg-raised);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow:      hidden;
+}
+
+.panel-header {
+  padding:        14px 20px;
+  border-bottom:  1px solid var(--border);
+  display:        flex;
+  align-items:    center;
+  justify-content: space-between;
+}
+
+.panel-body { padding: 20px 24px; }
+
+/* ══════════════════════════════════════════════════════ */
+/* § BUTTONS                                             */
+/* ══════════════════════════════════════════════════════ */
+.btn {
+  display:        inline-flex;
+  align-items:    center;
+  gap:            6px;
+  font-family:    'Inter', sans-serif;
+  font-weight:    600;
+  letter-spacing: 0.01em;
+  border:         1.5px solid transparent;
+  border-radius:  var(--radius);
+  cursor:         pointer;
+  transition:     opacity 0.15s ease, transform 0.1s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  text-decoration: none;
+  white-space:    nowrap;
+}
+
+/* Sizes */
+.btn-xs { font-size: 11px; padding: 5px 12px; }
+.btn-sm { font-size: 12px; padding: 7px 14px; }
+.btn-md { font-size: 13px; padding: 9px 20px; }   /* Default */
+.btn-lg { font-size: 15px; padding: 12px 28px; }
+
+/* Variants */
+.btn-primary {
+  background: var(--ember);
+  color:      #fff;
+}
+.btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+
+.btn-secondary {
+  background:   transparent;
+  color:        var(--fg);
+  border-color: var(--border);
+}
+.btn-secondary:hover { border-color: var(--ember); color: var(--ember); }
+
+.btn-ghost {
+  background: transparent;
+  color:      var(--ember);
+}
+.btn-ghost:hover { background: var(--ember-soft); }
+
+.btn-danger {
+  background: var(--danger);
+  color:      #fff;
+}
+.btn-danger:hover { opacity: 0.88; }
+
+/* ══════════════════════════════════════════════════════ */
+/* § FORM ELEMENTS                                       */
+/* ══════════════════════════════════════════════════════ */
+.form-label {
+  display:        block;
+  font-family:    'Inter', sans-serif;
+  font-size:      11px;
+  font-weight:    600;
+  letter-spacing: 0.02em;
+  color:          var(--fg-muted);
+  margin-bottom:  5px;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+  width:       100%;
+  background:  var(--bg);
+  border:      1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding:     9px 12px;
+  font-family: 'Inter', sans-serif;
+  font-size:   13px;
+  color:       var(--fg);
+  outline:     none;
+  transition:  border-color 0.15s ease;
+  appearance:  none;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus { border-color: var(--ember); }
+
+.form-input::placeholder,
+.form-textarea::placeholder { color: var(--fg-subtle); }
+
+.form-textarea { resize: vertical; min-height: 96px; }
+
+.form-hint {
+  font-family: 'Inter', sans-serif;
+  font-size:   11px;
+  color:       var(--fg-subtle);
+  margin-top:  5px;
+}
+
+.form-error {
+  font-family: 'Inter', sans-serif;
+  font-size:   11px;
+  color:       var(--danger);
+  margin-top:  5px;
+}
+
+.field { margin-bottom: 16px; }
+.field:last-child { margin-bottom: 0; }
+
+/* ══════════════════════════════════════════════════════ */
+/* § BADGES & CHIPS                                      */
+/* ══════════════════════════════════════════════════════ */
+.badge {
+  display:        inline-flex;
+  align-items:    center;
+  font-family:    'JetBrains Mono', monospace;
+  font-size:      10px;
+  font-weight:    600;
+  letter-spacing: 0.06em;
+  border-radius:  var(--radius-sm);
+  padding:        2px 8px;
+  border:         1px solid transparent;
+  white-space:    nowrap;
+}
+
+.badge-ember   { background: var(--ember-soft); color: var(--ember); border-color: color-mix(in srgb, var(--ember) 25%, transparent); }
+.badge-neutral { background: var(--bg-surface); color: var(--fg-muted); border-color: var(--border); }
+.badge-success { background: #DCFCE7; color: #15803D; border-color: #BBF7D0; }
+.badge-warning { background: #FEF3C7; color: #92400E; border-color: #FDE68A; }
+.badge-danger  { background: #FEE2E2; color: #991B1B; border-color: #FECACA; }
+
+.dark .badge-success { background: #052E16; color: #4ADE80; border-color: #166534; }
+.dark .badge-warning { background: #1C1108; color: #FCD34D; border-color: #78350F; }
+.dark .badge-danger  { background: #1F0808; color: #F87171; border-color: #7F1D1D; }
+
+/* ══════════════════════════════════════════════════════ */
+/* § CALLOUT / ALERT                                     */
+/* ══════════════════════════════════════════════════════ */
+.callout {
+  background:    var(--ember-soft);
+  border-left:   3px solid var(--ember);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding:       14px 18px;
+  margin-bottom: 20px;
+}
+
+.callout p {
+  font-family: 'Inter', sans-serif;
+  font-size:   13px;
+  color:       var(--fg);
+  line-height: 1.6;
+}
+
+.callout strong { color: var(--ember); font-weight: 700; }
+
+.callout-neutral {
+  background:  var(--bg-surface);
+  border-color: var(--border);
+}
+
+.callout-neutral p { color: var(--fg-muted); }
+.callout-neutral strong { color: var(--fg); }
+
+/* ══════════════════════════════════════════════════════ */
+/* § CODE BLOCK                                          */
+/* ══════════════════════════════════════════════════════ */
+.code-block {
+  background:    var(--code-bg);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding:       16px 20px;
+  font-family:   'JetBrains Mono', monospace;
+  font-size:     12px;
+  color:         var(--fg-muted);
+  line-height:   1.65;
+  overflow-x:    auto;
+  margin-bottom: 16px;
+}
+
+code, .inline-code {
+  font-family:    'JetBrains Mono', monospace;
+  font-size:      0.875em;
+  background:     var(--bg-surface);
+  border:         1px solid var(--border);
+  border-radius:  var(--radius-sm);
+  padding:        1px 5px;
+  color:          var(--fg);
+}
+
+/* Syntax highlight helpers */
+.kw  { color: var(--ember); }
+.str { color: #7EC8A0; }
+.num { color: #B8A0E0; }
+.cmt { color: var(--fg-subtle); font-style: italic; }
+.fn  { color: #6EA8D0; }
+
+/* ══════════════════════════════════════════════════════ */
+/* § TABLE                                               */
+/* ══════════════════════════════════════════════════════ */
+.data-table {
+  width:           100%;
+  border-collapse: collapse;
+  font-family:     'Inter', sans-serif;
+  font-size:       13px;
+  margin-bottom:   20px;
+}
+
+.data-table th {
+  text-align:   left;
+  padding:      9px 14px;
+  border-bottom: 1.5px solid var(--border);
+  font-weight:  600;
+  font-size:    11px;
+  color:        var(--fg);
+  white-space:  nowrap;
+}
+
+.data-table td {
+  padding:      10px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  color:        var(--fg-muted);
+  vertical-align: middle;
+}
+
+.data-table td:first-child {
+  font-family: 'JetBrains Mono', monospace;
+  font-size:   11.5px;
+  font-weight: 500;
+  color:       var(--fg);
+}
+
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td      { background: var(--bg-surface); }
+
+/* ══════════════════════════════════════════════════════ */
+/* § TYPOGRAPHY UTILITIES                                */
+/* ══════════════════════════════════════════════════════ */
+h1, .h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size:   clamp(32px, 5vw, 52px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.0;
+  color: var(--fg);
+}
+
+h2, .h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size:   32px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  color: var(--fg);
+}
+
+h3, .h3 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size:   22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--fg);
+}
+
+h4, .h4 {
+  font-family: 'Inter', sans-serif;
+  font-size:   15px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+p { margin-bottom: 1rem; }
+p:last-child { margin-bottom: 0; }
+
+.lead {
+  font-family: 'Roboto', sans-serif;
+  font-size:   17px;
+  font-weight: 300;
+  color:       var(--fg-muted);
+  line-height: 1.75;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size:   0.9em;
+}
+
+.ember { color: var(--ember); }
+.muted { color: var(--fg-muted); }
+.subtle { color: var(--fg-subtle); }
+
+/* ══════════════════════════════════════════════════════ */
+/* § DIVIDER                                             */
+/* ══════════════════════════════════════════════════════ */
+.divider {
+  width:       100%;
+  height:      1px;
+  background:  var(--border);
+  margin:      2rem 0;
+}
+
+.divider-label {
+  display:     flex;
+  align-items: center;
+  gap:         14px;
+  margin:      2rem 0;
+}
+
+.divider-label::before,
+.divider-label::after {
+  content:     '';
+  flex:        1;
+  height:      1px;
+  background:  var(--border);
+}
+
+.divider-label span {
+  font-family:    'JetBrains Mono', monospace;
+  font-size:      10px;
+  font-weight:    700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color:          var(--fg-subtle);
+  white-space:    nowrap;
+}
+
+/* ══════════════════════════════════════════════════════ */
+/* § KPI / STAT                                          */
+/* ══════════════════════════════════════════════════════ */
+.stat-card {
+  background:    var(--bg-raised);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding:       20px 24px;
+}
+
+.stat-label {
+  font-family:    'JetBrains Mono', monospace;
+  font-size:      10px;
+  font-weight:    700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color:          var(--fg-subtle);
+  margin-bottom:  6px;
+}
+
+.stat-value {
+  font-family:    'Space Grotesk', sans-serif;
+  font-size:      36px;
+  font-weight:    700;
+  letter-spacing: -0.03em;
+  line-height:    1;
+  color:          var(--fg);
+  margin-bottom:  4px;
+}
+
+.stat-value em { color: var(--ember); font-style: normal; }
+
+.stat-delta {
+  font-family: 'Inter', sans-serif;
+  font-size:   12px;
+  font-weight: 500;
+  color:       var(--fg-subtle);
+}
+
+.stat-delta.up   { color: var(--success); }
+.stat-delta.down { color: var(--danger); }
+
+/* ══════════════════════════════════════════════════════ */
+/* § DOCUMENT FOOTER                                     */
+/* ══════════════════════════════════════════════════════ */
+.doc-footer {
+  margin-top:  5rem;
+  padding:     2rem 0;
+  border-top:  1px solid var(--border);
+  display:     flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap:   wrap;
+  gap:         12px;
+}
+
+.doc-footer-brand {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+}
+
+.footer-text {
+  font-family:    'JetBrains Mono', monospace;
+  font-size:      10px;
+  letter-spacing: 0.04em;
+  color:          var(--fg-subtle);
+}
+
+/* ══════════════════════════════════════════════════════ */
+/* § LOGO COMPONENT                                      */
+/* ══════════════════════════════════════════════════════ */
+/* Use .km-logo class on the SVG wrapper for inline use  */
+.km-logo {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+}
+
+.km-logo-text {
+  font-family:    'Space Grotesk', sans-serif;
+  font-weight:    700;
+  letter-spacing: -0.025em;
+  color:          var(--fg);
+}
+
+.km-logo-text .accent { color: var(--ember); }
+
+/* ══════════════════════════════════════════════════════ */
+/* § SCROLLBAR POLISH                                    */
+/* ══════════════════════════════════════════════════════ */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--fg-subtle); }
+
+/* ══════════════════════════════════════════════════════ */
+/* § SELECTION                                           */
+/* ══════════════════════════════════════════════════════ */
+::selection { background: var(--ember-soft); color: var(--ember); }
+
+</style>
+</head>
+
+<!--
+  ┌─────────────────────────────────────────────────────┐
+  │  Alpine.js x-data lives on <html> only.             │
+  │  dark: defaults to dark unless 'light' in storage.  │
+  │  toggle() flips mode + persists to localStorage.    │
+  └─────────────────────────────────────────────────────┘
+-->
+<body>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- NAV — Replace nav-meta content as needed          -->
+<!-- ══════════════════════════════════════════════════ -->
+<nav class="nav">
+  <a class="nav-brand" href="#">
+    <!-- KnowMe Conviction logomark at 22px nav size -->
+    <svg viewBox="0 0 200 200" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="10" width="180" height="180" rx="40" ry="40" fill="none" stroke="currentColor" stroke-width="6"/>
+      <g transform="translate(48,36)">
+        <rect x="0" y="0" width="22" height="128" rx="11" fill="currentColor"/>
+        <path d="M 18,64 C 28,54 48,32 66,18 C 76,10 84,8 88,14 C 90,18 86,24 80,28 C 64,40 44,56 30,66 C 24,70 20,68 18,64 Z" fill="currentColor"/>
+        <path d="M 18,64 C 28,74 48,96 66,110 C 76,118 84,120 88,114 C 90,110 86,104 80,100 C 64,88 44,72 30,62 C 24,58 20,60 18,64 Z" fill="currentColor"/>
+        <circle cx="20" cy="64" r="11" fill="#E04E28"/>
+      </g>
+    </svg>
+    Know<span class="accent">Me</span>
+  </a>
+  <div class="nav-right">
+    <!-- Replace with document name + version -->
+    <span class="nav-meta">[document-name] · [DOC-XXX]</span>
+    <button class="mode-toggle" @click="toggle()">
+      <span x-text="dark ? '☀' : '◑'"></span>
+      <span x-text="dark ? 'LIGHT' : 'DARK'"></span>
+    </button>
+  </div>
+</nav>
+
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- MAIN CONTAINER                                    -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="container">
+
+  <!-- PAGE HEADER ─────────────────────────────────── -->
+  <!--
+    Replace:
+    - eyebrow text: brand / product context
+    - page-title: document name; use <em> for ember accent
+    - page-lead: 1–2 sentence document purpose
+    - meta-chips: version, date, entity
+  -->
+  <header class="page-header">
+    <span class="eyebrow">KnowMe, LLC · [Context]</span>
+    <h1 class="page-title">[Document<br>Title] <em>v1.0</em></h1>
+    <p class="page-lead">[One to two sentences describing this document's purpose and audience. Keep it declarative and spare.]</p>
+    <div class="meta-row">
+      <span class="meta-chip">v1.0 · [Month YYYY]</span>
+      <span class="meta-chip">know-me.tools</span>
+      <span class="meta-chip">[DOC-XXX]</span>
+    </div>
+  </header>
+
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION TEMPLATE                            -->
+  <!-- Copy-paste this block per section           -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section" id="section-01">
+    <div class="section-label">01 · [Section Label]</div>
+    <h2 class="section-title">[Section Title]</h2>
+    <p class="section-desc">[Short description of what this section covers. Optional — remove if section opens directly into content.]</p>
+
+    <!-- ─── Callout example ──────────────────── -->
+    <div class="callout">
+      <p><strong>Key point:</strong> [Use callouts for the single most important note in a section. One per section maximum.]</p>
+    </div>
+
+    <!-- ─── Subsection example ───────────────── -->
+    <div class="subsection">
+      <div class="subsection-label">[Subsection Label]</div>
+
+      <!-- Table example -->
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Column A</th>
+            <th>Column B</th>
+            <th>Column C</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>value-a</td>
+            <td>Description for value A</td>
+            <td>Notes</td>
+          </tr>
+          <tr>
+            <td>value-b</td>
+            <td>Description for value B</td>
+            <td>Notes</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ─── Card grid example ────────────────── -->
+    <div class="grid-2" style="margin-bottom:20px;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">[Card Title]</div>
+          <div class="card-subtitle">[Card subtitle or metadata]</div>
+        </div>
+        <div class="card-body">[Card body content. Describes the item, feature, or concept being presented.]</div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">[Card Title]</div>
+          <div class="card-subtitle">[Card subtitle or metadata]</div>
+        </div>
+        <div class="card-body">[Card body content. Describes the item, feature, or concept being presented.]</div>
+      </div>
+    </div>
+
+    <!-- ─── Stat card example ────────────────── -->
+    <div class="grid-3" style="margin-bottom:20px;">
+      <div class="stat-card">
+        <div class="stat-label">Metric Label</div>
+        <div class="stat-value">24<em>k</em></div>
+        <div class="stat-delta up">↑ 12% vs last month</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Another Metric</div>
+        <div class="stat-value"><em>98</em>%</div>
+        <div class="stat-delta">No change</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Third Metric</div>
+        <div class="stat-value">4.2<em>ms</em></div>
+        <div class="stat-delta down">↓ 3% this week</div>
+      </div>
+    </div>
+
+    <!-- ─── Badge row example ────────────────── -->
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+      <span class="badge badge-ember">LABEL</span>
+      <span class="badge badge-neutral">STATUS</span>
+      <span class="badge badge-success">ACTIVE</span>
+      <span class="badge badge-warning">REVIEW</span>
+      <span class="badge badge-danger">CRITICAL</span>
+    </div>
+
+    <!-- ─── Button row example ───────────────── -->
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
+      <button class="btn btn-primary btn-md">Primary Action</button>
+      <button class="btn btn-secondary btn-md">Secondary</button>
+      <button class="btn btn-ghost btn-md">Ghost</button>
+      <button class="btn btn-primary btn-sm">Small CTA</button>
+    </div>
+
+    <!-- ─── Code block example ───────────────── -->
+    <div class="code-block">
+<span class="cmt">// Example code block — replace with actual content</span>
+<span class="kw">const</span> config = {
+  brand: <span class="str">"KnowMe"</span>,
+  ember: <span class="str">"#E04E28"</span>,
+  version: <span class="str">"v1.0"</span>
+};
+    </div>
+
+  </section>
+  <!-- /SECTION TEMPLATE -->
+
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 2 — add as many as needed           -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section class="section" id="section-02">
+    <div class="section-label">02 · [Section Label]</div>
+    <h2 class="section-title">[Section Title]</h2>
+    <p class="section-desc">[Section description.]</p>
+
+    <!-- ─── Form example ─────────────────────── -->
+    <div class="panel" style="max-width:440px;margin-bottom:20px;">
+      <div class="panel-header">
+        <span style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--fg);">[Form Title]</span>
+        <span class="badge badge-ember">EXAMPLE</span>
+      </div>
+      <div class="panel-body">
+        <div class="field">
+          <label class="form-label">Name</label>
+          <input class="form-input" type="text" placeholder="Your name" />
+        </div>
+        <div class="field">
+          <label class="form-label">Email</label>
+          <input class="form-input" type="email" placeholder="you@example.com" />
+          <span class="form-hint">We'll never share your email.</span>
+        </div>
+        <div class="field">
+          <label class="form-label">Message</label>
+          <textarea class="form-textarea" placeholder="What's on your mind?"></textarea>
+        </div>
+        <button class="btn btn-primary btn-md" style="width:100%;">Submit</button>
+      </div>
+    </div>
+
+  </section>
+  <!-- /SECTION 2 -->
+
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- DOCUMENT FOOTER                           -->
+  <!-- ══════════════════════════════════════════ -->
+  <footer class="doc-footer">
+    <div class="doc-footer-brand">
+      <!-- Logomark at footer size -->
+      <svg viewBox="0 0 200 200" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+        <rect x="10" y="10" width="180" height="180" rx="40" ry="40" fill="none" stroke="currentColor" stroke-width="8"/>
+        <g transform="translate(48,36)">
+          <rect x="0" y="0" width="22" height="128" rx="11" fill="currentColor"/>
+          <path d="M 18,64 C 28,54 48,32 66,18 C 76,10 84,8 88,14 C 90,18 86,24 80,28 C 64,40 44,56 30,66 C 24,70 20,68 18,64 Z" fill="currentColor"/>
+          <path d="M 18,64 C 28,74 48,96 66,110 C 76,118 84,120 88,114 C 90,110 86,104 80,100 C 64,88 44,72 30,62 C 24,58 20,60 18,64 Z" fill="currentColor"/>
+          <circle cx="20" cy="64" r="11" fill="#E04E28"/>
+        </g>
+      </svg>
+      <span class="footer-text">KnowMe, LLC · [Document Title] · [DOC-XXX]</span>
+    </div>
+    <span class="footer-text">know-me.tools · [Month YYYY] · Conviction Logomark</span>
+  </footer>
+
+</div>
+<!-- /container -->
+
+</body>
+</html>

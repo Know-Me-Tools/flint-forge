@@ -1,0 +1,22 @@
+# Flint Forge — Postgres 18 BASELINE image (verified-working subset).
+# Provides everything that installs without source builds: pgvector, pgcrypto, and the
+# pure-SQL Flint schemas (auth helpers, webhook registry/trigger, llm.jobs queue).
+# The full image (Dockerfile) adds pg_net, pg_graphql, and the Anvil Rust extensions.
+#
+# Build (context = repo root):
+#   docker build -f images/postgres18/Dockerfile.baseline -t flint-forge-pg:baseline .
+FROM postgres:18
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends postgresql-18-pgvector \
+ && rm -rf /var/lib/apt/lists/*
+
+# Init order: extensions, then Flint schemas (pure SQL), then the boot assertion.
+COPY images/postgres18/init-baseline/00-extensions.sql /docker-entrypoint-initdb.d/00-extensions.sql
+COPY crates/ext-flint-auth/sql/flint_auth.sql          /docker-entrypoint-initdb.d/10-flint-auth.sql
+COPY crates/ext-flint-hooks/sql/flint_hooks.sql        /docker-entrypoint-initdb.d/20-flint-hooks.sql
+COPY crates/ext-flint-llm/sql/flint_llm.sql            /docker-entrypoint-initdb.d/30-flint-llm.sql
+COPY images/postgres18/init-baseline/99-assert.sql     /docker-entrypoint-initdb.d/99-assert.sql
+
+# wal_level=logical for the fabric CDC source. (No preloaded libs in the baseline.)
+CMD ["postgres", "-c", "wal_level=logical"]

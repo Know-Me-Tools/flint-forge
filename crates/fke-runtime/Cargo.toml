@@ -1,0 +1,21 @@
+[package]
+name = "fke-runtime"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+default = []
+# Cranelift AOT compiler — present only in the Kiln control-plane build.
+compiler = []
+
+[dependencies]
+fke-domain = { path = "../fke-domain" }
+fke-ports = { path = "../fke-ports" }
+forge-policy = { path = "../forge-policy" }
+async-trait = { workspace = true }
+# TODO(p5-c001): wasmtime, wasmtime-wasi, wasmtime-wasi-http (Component Model, wasi:http/proxy)
+
+[lints]
+workspace = true

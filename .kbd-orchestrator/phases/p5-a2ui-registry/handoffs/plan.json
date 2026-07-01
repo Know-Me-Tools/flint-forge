@@ -1,0 +1,27 @@
+{
+  "stage": "plan",
+  "phase": "p5-a2ui-registry",
+  "completed_at": "2026-06-30",
+  "summary": "15 changes ordered across 9 execution waves; two spec defects (R1 is_system column, R2 RLS column mismatch) embedded as pre-execution corrections inside c001 and c014 task lists respectively; c009 (CompiledState) mandates consumer audit as its first step before any code is written. First change to apply: p5-c001-flint-a2ui-schema.",
+  "artifacts": [
+    ".kbd-orchestrator/phases/p5-a2ui-registry/plan.md"
+  ],
+  "execution_order": [
+    { "wave": 1, "changes": ["p5-c001-flint-a2ui-schema"], "mode": "serial" },
+    { "wave": 2, "changes": ["p5-c002-base-components-seed", "p5-c003-auto-binding-trigger"], "mode": "sequential-in-session" },
+    { "wave": 3, "changes": ["p5-c009-compiled-state-upgrade"], "mode": "serial" },
+    { "wave": 4, "changes": ["p5-c014-sdk-schema-extensions"], "mode": "serial" },
+    { "wave": 5, "changes": ["p5-c010-react-sdk", "p5-c011-flutter-sdk"], "mode": "parallel" },
+    { "wave": 6, "changes": ["p5-c005-application-model", "p5-c004-embeddings-pipeline", "p5-c012-htmx-renderer"], "mode": "parallel" },
+    { "wave": 7, "changes": ["p5-c006-rest-api"], "mode": "serial" },
+    { "wave": 8, "changes": ["p5-c007-event-driven-assembly", "p5-c008-protocol-surfaces", "p5-c013-opendesign-integration"], "mode": "parallel" },
+    { "wave": 9, "changes": ["p5-c015-claude-design-skill"], "mode": "serial" }
+  ],
+  "mvp_gate": {
+    "waves": [1, 2, 3, 4, 5],
+    "changes": ["p5-c001", "p5-c002", "p5-c003", "p5-c009", "p5-c014", "p5-c010", "p5-c011"]
+  },
+  "first_change": "p5-c001-flint-a2ui-schema",
+  "next_stage": "execute",
+  "next_command": "/kbd-execute p5-a2ui-registry"
+}

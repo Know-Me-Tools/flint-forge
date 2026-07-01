@@ -1,0 +1,5 @@
+{
+  "name": "flint-forge-ci",
+  "sdk": "go",
+  "source": ".dagger"
+}

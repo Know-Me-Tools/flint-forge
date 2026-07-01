@@ -1,0 +1,34 @@
+{
+  "stage": "plan",
+  "phase": "p3-graphql-hybrid-engine",
+  "summary": "9 changes fully specified (8 P0 + 1 P2 deferral). Execution order: p3-c005 (OQ-3 research) and p3-c008 (GUC propagation) first in parallel; then p3-c001 → p3-c007 → p3-c004 → p3-c002 chain; p3-c003 and p3-c006 run in parallel with chain middle. p3-c009 deferred (P2, requires operator risk consent). Three open questions must resolve before coding: OQ-3 (pg_graphql PG18), OQ-FRF-1 (WatchEntityType proto), OQ-8 (Iggy keto_changes schema).",
+  "artifacts": [
+    ".kbd-orchestrator/phases/p3-graphql-hybrid-engine/plan.md",
+    "openspec/changes/p3-c005-pg-graphql-pg18/proposal.md",
+    "openspec/changes/p3-c005-pg-graphql-pg18/tasks.md",
+    "openspec/changes/p3-c008-extended-guc-propagation/proposal.md",
+    "openspec/changes/p3-c008-extended-guc-propagation/tasks.md",
+    "openspec/changes/p3-c001-graphql-passthrough/proposal.md",
+    "openspec/changes/p3-c001-graphql-passthrough/tasks.md",
+    "openspec/changes/p3-c007-graphql-compiler/proposal.md",
+    "openspec/changes/p3-c007-graphql-compiler/tasks.md",
+    "openspec/changes/p3-c004-graphql-transport-ws/proposal.md",
+    "openspec/changes/p3-c004-graphql-transport-ws/tasks.md",
+    "openspec/changes/p3-c002-subscriptions/proposal.md",
+    "openspec/changes/p3-c002-subscriptions/tasks.md",
+    "openspec/changes/p3-c003-introspection-merge/proposal.md",
+    "openspec/changes/p3-c003-introspection-merge/tasks.md",
+    "openspec/changes/p3-c006-keto-sync/proposal.md",
+    "openspec/changes/p3-c006-keto-sync/tasks.md",
+    "openspec/changes/p3-c009-predicate-pushdown/proposal.md",
+    "openspec/changes/p3-c009-predicate-pushdown/tasks.md"
+  ],
+  "first_change": "p3-c005-pg-graphql-pg18",
+  "parallel_start": ["p3-c005-pg-graphql-pg18", "p3-c008-extended-guc-propagation"],
+  "open_questions": {
+    "OQ-3": "pg_graphql PG18 release — resolved by p3-c005 T1",
+    "OQ-FRF-1": "WatchEntityType .proto — resolved by p3-c002 T0",
+    "OQ-8": "FRF Iggy keto_changes schema — resolved by p3-c006 T0"
+  },
+  "created_at": "2026-06-30T00:00:00Z"
+}

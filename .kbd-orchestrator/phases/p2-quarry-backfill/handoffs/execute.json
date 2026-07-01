@@ -1,0 +1,37 @@
+{
+  "stage": "execute",
+  "phase": "p2-quarry-backfill",
+  "completed_at": "2026-06-30",
+  "backend": "native-tool",
+  "summary": "Both MVP changes delivered and QA-passed. p2-c007 (OpenApiCompiler) replaced the todo!() startup panic with a full 3.1.0 document generator and wired GET /openapi.json. p2-c006 (PgVectorRpc) added VectorRpcRequest domain type, PgVectorRpc adapter with SQL injection guard, and POST /rpc/vector with full 6-GUC RLS context. All workspace tests pass; cargo clippy -D warnings clean.",
+  "changes": [
+    {
+      "id": "p2-c007-openapi-compiler",
+      "status": "qa_passed",
+      "files_modified": [
+        "crates/fdb-reflection/src/compilers/openapi.rs",
+        "crates/fdb-gateway/src/main.rs"
+      ],
+      "tests_added": 13,
+      "test_result": "13/13 pass"
+    },
+    {
+      "id": "p2-c006-pgvector-rpc",
+      "status": "qa_passed",
+      "files_modified": [
+        "Cargo.toml",
+        "crates/fdb-domain/src/lib.rs",
+        "crates/fdb-postgres/Cargo.toml",
+        "crates/fdb-postgres/src/lib.rs",
+        "crates/fdb-gateway/src/main.rs"
+      ],
+      "tests_added": 4,
+      "test_result": "4/4 pass"
+    }
+  ],
+  "ci_gate": {
+    "cargo_check": "PASS",
+    "cargo_test": "PASS (all workspace crates)",
+    "cargo_clippy_D_warnings": "PASS (fixed redundant closure in PgVectorRpc row serializer)"
+  }
+}

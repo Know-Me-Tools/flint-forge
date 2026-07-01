@@ -1,0 +1,15 @@
+# Throwaway: compile-verify flint_vault against pgrx 0.18.1 / PG18.
+# First three layers are identical to the real image's anvil stage → cache hits;
+# only the flint_vault compile runs fresh.
+FROM rust:1.96-bookworm AS anvil
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      postgresql-common gnupg ca-certificates clang pkg-config libssl-dev \
+ && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
+ && apt-get install -y --no-install-recommends postgresql-server-dev-18 \
+ && rm -rf /var/lib/apt/lists/*
+RUN cargo install cargo-pgrx --version 0.18.1 --locked
+RUN cargo pgrx init --pg18 "$(which pg_config)"
+WORKDIR /build/flint_vault
+COPY crates/ext-flint-vault/ .
+RUN cargo pgrx package --pg-config "$(which pg_config)" --out-dir /out \
+ && ls -R /out | head -40

@@ -1,0 +1,27 @@
+[package]
+name = "flint_llm"
+version = "0.1.0"
+edition = "2021"
+license = "Proprietary"
+# Built standalone in the Docker anvil stage (no workspace root present), so no
+# workspace inheritance here. pgrx 0.18.1 requires rustc >= 1.96 (builder base matches).
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+name = "pgrx_embed_flint_llm"
+path = "src/bin/pgrx_embed.rs"
+
+[features]
+default = ["pg18"]
+pg17 = ["pgrx/pg17", "pgrx-tests/pg17"]
+pg18 = ["pgrx/pg18", "pgrx-tests/pg18"]
+pg_test = []
+
+[dependencies]
+pgrx = "=0.18.1"
+# TODO(p4): liter-llm bridge on a dedicated runtime thread; background worker.
+
+[dev-dependencies]
+pgrx-tests = "=0.18.1"

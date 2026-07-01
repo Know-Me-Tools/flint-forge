@@ -1,0 +1,18 @@
+{
+  "stage": "plan",
+  "phase": "p2-quarry-reflection-engine",
+  "completed_at": "2026-06-30",
+  "summary": "7 OpenSpec changes planned across 2 priority tiers. MVP = p2-c003 (new fdb-reflection crate) → p2-c001 + p2-c002 in parallel → p2-c004 (REST compiler) → p2-c005 (ArcSwap hot-reload). Post-MVP = p2-c007 (OpenAPI) + p2-c006 (pgvector). Key workspace deps to add: sqlx 0.8, deadpool-postgres 0.14, jsonwebtoken 9, reqwest 0.12. Security gates: no JWT values in logs, EncryptedDek ciphertext only, SET LOCAL inside transaction.",
+  "artifact": ".kbd-orchestrator/phases/p2-quarry-reflection-engine/plan.md",
+  "next_stage": "execute",
+  "next_command": "/kbd-execute p2-quarry-reflection-engine",
+  "changes": [
+    { "id": "p2-c003-flint-reflection-crate", "order": 1, "priority": "P0", "parallel_group": null },
+    { "id": "p2-c001-fdb-auth",               "order": 2, "priority": "P0", "parallel_group": "2" },
+    { "id": "p2-c002-fdb-postgres",            "order": 2, "priority": "P0", "parallel_group": "2" },
+    { "id": "p2-c004-rest-compiler",           "order": 3, "priority": "P0", "parallel_group": null },
+    { "id": "p2-c005-arcswap-hot-reload",      "order": 4, "priority": "P0", "parallel_group": null },
+    { "id": "p2-c007-openapi-compiler",        "order": 5, "priority": "P1", "parallel_group": null },
+    { "id": "p2-c006-pgvector-rpc",            "order": 6, "priority": "P1", "parallel_group": null }
+  ]
+}

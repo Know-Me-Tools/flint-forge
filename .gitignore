@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────────────────────────
+# Flint Forge — .gitignore
+#
+# Policy: KBD orchestrator state is TRACKED, not ignored.
+# The `.kbd-orchestrator/` tree (project.json, waypoints, phase
+# assessments/goals/plans/progress/handoffs) and the KBD event
+# log under `.prometheus/` are the durable, file-based source of
+# truth for the development process and MUST be committed.
+# See CLAUDE.md §"No Hidden State".
+# ─────────────────────────────────────────────────────────────
+
+# ── Rust / Cargo ──
+/target/
+**/target/
+**/*.rs.bk
+*.cwasm
+
+# pgrx build artifacts (Flint Anvil extensions)
+/.pgrx/
+*.so
+*.dylib
+*.dll
+
+# ── Dagger cache ──
+/.dagger/.cache/
+
+# ── Environment / secrets ──
+.env
+.env.*
+!.env.example
+
+# ── Scaffold / research scratch (not project source) ──
+_scaffold.py
+.firecrawl/
+.meta_html_body.txt
+
+# ── IDE ──
+.idea/
+.vscode/
+*.iml
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+
+# ─────────────────────────────────────────────────────────────
+# Agent-tool state
+#
+# Shared, checked-in assets (commands/, skills/, agents/) stay
+# tracked so every tool has the same project context. Only the
+# machine-local scratch is ignored.
+# ─────────────────────────────────────────────────────────────
+.claude/settings.local.json
+.opencode/opencode-loop/
+.kbd-orchestrator/*.local.json
+
+# ── KBD state: keep everything (explicit un-ignore guard) ──
+!.kbd-orchestrator/
+!.kbd-orchestrator/**
+!.prometheus/
+!.prometheus/**

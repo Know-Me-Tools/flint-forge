@@ -1,0 +1,13 @@
+{
+  "stage": "reflect",
+  "phase": "p2-quarry-backfill",
+  "completed_at": "2026-06-30",
+  "summary": "2/2 goals MET. Key deltas: pgvector Rust crate resolves to 0.4.x (not 0.7 as spec'd — Rust crate and Postgres extension versioning are independent axes); PgVectorRpc row serializer uses text format for all column types (numbers/booleans come back as strings — acceptable for Phase 5 unblocking, needs typed deserialization before production SDK ships). No blocking debt. Recommended next: p3-graphql-hybrid-engine, after confirming OQ-3 resolved.",
+  "scope_deltas": [
+    "pgvector Rust crate version is 0.4.2, not 0.7 (independent versioning axis from Postgres extension 0.7.4)",
+    "PgVectorRpc row serializer uses text format — non-string columns serialize as Postgres text representation",
+    "filter field in VectorRpcRequest accepted but not yet applied to WHERE clause"
+  ],
+  "recommended_next_phase": "p3-graphql-hybrid-engine",
+  "pre_kickoff_gate": "OQ-3 must be confirmed resolved (pg_graphql PG18) before p3-c001"
+}

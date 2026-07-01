@@ -1,0 +1,23 @@
+{
+  "stage": "assess",
+  "phase": "p3-graphql-hybrid-engine",
+  "completed_at": "2026-06-30",
+  "summary": "All 8 P0 changes are NOT STARTED or STUB ONLY. Three new Cargo deps are absent (async-graphql, async-graphql-axum, tonic). Three open questions block coding (OQ-3 pg_graphql PG18, OQ-8 FRF Iggy keto_changes, OQ-FRF-1 WatchEntityType proto). Execution order: p3-c005 (OQ-3 research) → p3-c008 (SET LOCAL + RlsContext fields + instrument fix) → p3-c001 (POST /graphql passthrough) → p3-c007 (async-graphql + GraphQlCompiler) → p3-c004 (WebSocket) → p3-c002 (FabricChangeSource) → p3-c003 (introspection merge) → p3-c006 (Keto sync).",
+  "artifact": ".kbd-orchestrator/phases/p3-graphql-hybrid-engine/assessment.md",
+  "next_stage": "plan",
+  "next_command": "/kbd-plan p3-graphql-hybrid-engine",
+  "key_gaps": [
+    "async-graphql / async-graphql-axum / tonic not in workspace Cargo.toml",
+    "No /graphql route (POST or GET) in fdb-gateway",
+    "PgGraphQl::execute() body absent (graphql.resolve() passthrough unwritten)",
+    "GraphQlCompiler::compile() is todo!() — no subscription schema built or stored in CompiledState",
+    "FabricChangeSource::watch() is todo!() — no tonic, no Keto, no per-event RLS re-query",
+    "CompiledState missing subscription_schema field",
+    "RlsContext missing keto_subject / vault_key_id fields",
+    "PgBackend::acquire() missing 3 extended GUC SET LOCAL statements",
+    "#[instrument(skip(bearer))] missing on verify_and_build() — Phase 2 security debt"
+  ],
+  "unresolved_oqs": ["OQ-3", "OQ-8", "OQ-FRF-1", "OQ-FRF-2", "OQ-GQL-1"],
+  "unblocked_changes": ["p3-c005", "p3-c008"],
+  "build_health": "GREEN — cargo check clean, 9 tests pass"
+}

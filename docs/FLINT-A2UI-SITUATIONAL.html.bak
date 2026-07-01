@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flint A2UI Situational Examples</title>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0F14;--s1:#131A22;--s2:#1A232E;--s3:#0E141B;--s4:#202B38;--s5:#2A3542;
+--txt:#E8EDF3;--txtm:#B4BECB;--txtd:#97A1AE;--em:#FF6A3D;--emd:#E04E28;--cy:#34CFE6;
+--gr:#4FD18B;--yl:#F4B942;--rd:#F05D5D;--fd:'Space Grotesk';--fb:'Inter';--fm:'JetBrains Mono'}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font-family:var(--fb);font-size:14px;line-height:1.6;overflow-x:hidden}
+
+h1,h2,h3,h4{font-family:var(--fd);font-weight:600;letter-spacing:-0.02em}
+h1{font-size:2.8rem;margin-bottom:1rem}h2{font-size:1.8rem;margin:2rem 0 1rem}h3{font-size:1.3rem;margin:1.5rem 0 0.8rem}
+p{margin-bottom:1rem;color:var(--txtm)}
+
+.container{max-width:1400px;margin:0 auto;padding:0 24px}
+.grid{display:grid;gap:24px}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+.hero{background:var(--s1);border-bottom:1px solid var(--s4);padding:60px 0;text-align:center}
+.hero-b{display:inline-block;background:rgba(255,106,61,0.15);color:var(--em);padding:6px 16px;border-radius:20px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px}
+.hero p{max-width:700px;margin:0 auto 24px;color:var(--txtd)}
+
+.sec{background:var(--s1);border:1px solid var(--s4);border-radius:12px;padding:24px;margin-bottom:24px}
+.sec-h{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.sec-h .icon{width:36px;height:36px;background:var(--s3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.sec-h h3{margin:0}
+.sec-h .tag{font-size:11px;background:var(--s3);color:var(--txtd);padding:2px 8px;border-radius:4px;border:1px solid var(--s4)}
+
+.demo{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:20px;margin:16px 0}
+.demo-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--txtd);margin-bottom:8px;font-weight:600}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;border:none;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;text-decoration:none}
+.btn-p{background:var(--em);color:#fff}
+.btn-p:hover{background:var(--emd);transform:translateY(-1px)}
+.btn-s{background:var(--s3);color:var(--txt);border:1px solid var(--s4)}
+.btn-s:hover{border-color:var(--cy)}
+.btn-g{background:var(--s3);color:var(--gr);border:1px solid rgba(79,209,139,0.3)}
+.btn-r{background:var(--s3);color:var(--rd);border:1px solid rgba(240,93,93,0.3)}
+.btn-ghost{background:transparent;color:var(--txtm);border:1px solid var(--s4)}
+.btn-ghost:hover{color:var(--txt);border-color:var(--cy)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-lg{padding:12px 24px;font-size:14px}
+.btn-i{padding:8px}
+
+.inp{width:100%;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;transition:all 0.2s}
+.inp:focus{outline:none;border-color:var(--cy);box-shadow:0 0 0 3px rgba(52,207,230,0.1)}
+.inp::placeholder{color:var(--txtd)}
+.lbl{display:block;font-size:12px;font-weight:500;color:var(--txtm);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+.fg{margin-bottom:16px}
+.sel{width:100%;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;cursor:pointer}
+.sel:focus{outline:none;border-color:var(--cy)}
+.tx{width:100%;min-height:100px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;resize:vertical}
+.tx:focus{outline:none;border-color:var(--cy)}
+.chk,.rd{display:flex;align-items:center;gap:8px;cursor:pointer;margin:8px 0;font-size:13px;color:var(--txtm)}
+.chk input,.rd input{accent-color:var(--em)}
+
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 12px;background:var(--s3);color:var(--txtd);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--s4)}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--s4);color:var(--txtm)}
+.tbl tr:hover td{background:rgba(52,207,230,0.05)}
+.tbl tr:last-child td{border-bottom:none}
+
+.bd-g{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(79,209,139,0.15);color:var(--gr)}
+.bd-y{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(244,185,66,0.15);color:var(--yl)}
+.bd-r{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(240,93,93,0.15);color:var(--rd)}
+.bd-e{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(255,106,61,0.15);color:var(--em)}
+.bd-c{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(52,207,230,0.15);color:var(--cy)}
+.bd-d{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--s3);color:var(--txtd)}
+
+.card{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:20px;transition:all 0.2s}
+.card:hover{border-color:var(--cy);transform:translateY(-2px)}
+.card-h{font-size:14px;font-weight:600;margin-bottom:8px;color:var(--txt)}
+.card-d{font-size:13px;color:var(--txtd);margin-bottom:12px}
+
+.tbs{display:flex;border-bottom:1px solid var(--s4);gap:4px;margin-bottom:16px}
+.tb{padding:10px 16px;border:none;background:none;color:var(--txtd);font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s}
+.tb.on{color:var(--cy);border-bottom-color:var(--cy)}
+.tb:hover{color:var(--txt)}
+
+.acc{border:1px solid var(--s4);border-radius:8px;margin-bottom:8px;overflow:hidden}
+.acc-h{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--s2);cursor:pointer;font-weight:500;font-size:13px}
+.acc-h:hover{background:var(--s3)}
+.acc-b{padding:12px 16px;background:var(--bg);border-top:1px solid var(--s4);font-size:13px;color:var(--txtm)}
+
+.mod-o{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}
+.mod-c{background:var(--s2);border:1px solid var(--s4);border-radius:12px;max-width:600px;width:90%;max-height:80vh;overflow:auto}
+.mod-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--s4)}
+.mod-h h4{margin:0}
+.mod-b{padding:20px}
+.mod-f{display:flex;justify-content:flex-end;gap:8px;padding:16px 20px;border-top:1px solid var(--s4)}
+
+.drw{position:fixed;top:0;right:0;width:400px;max-width:90vw;height:100%;background:var(--s2);border-left:1px solid var(--s4);z-index:1001;display:flex;flex-direction:column}
+.drw-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--s4)}
+.drw-b{flex:1;overflow:auto;padding:20px}
+.drw-f{padding:16px 20px;border-top:1px solid var(--s4)}
+
+.tbar{display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--s1);border-bottom:1px solid var(--s4);position:sticky;top:0;z-index:100}
+.tbar-l{font-family:var(--fd);font-weight:700;font-size:18px;color:var(--em)}
+.tbar-n{display:flex;gap:4px}
+.tbar-n a{padding:6px 12px;border-radius:6px;color:var(--txtm);text-decoration:none;font-size:13px;transition:all 0.2s}
+.tbar-n a:hover,.tbar-n a.on{background:var(--s3);color:var(--txt)}
+.snav{width:260px;background:var(--s1);border-right:1px solid var(--s4);min-height:100vh;position:fixed;top:0;left:0;overflow-y:auto;z-index:99}
+.snav-h{padding:16px 20px;border-bottom:1px solid var(--s4);display:flex;align-items:center;gap:12px}
+.snav-l{display:flex;align-items:center;gap:10px;font-family:var(--fd);font-weight:700;font-size:16px}
+.snav-li{width:32px;height:32px;background:var(--em);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+.snav-i{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--txtm);text-decoration:none;font-size:13px;transition:all 0.2s;border-left:3px solid transparent}
+.snav-i:hover{background:var(--s2);color:var(--txt)}
+.snav-i.on{border-left-color:var(--em);background:var(--s2);color:var(--txt)}
+
+.av{width:36px;height:36px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--cy);border:2px solid var(--s4)}
+.av-sm{width:28px;height:28px;font-size:12px}
+.av-lg{width:48px;height:48px;font-size:16px}
+.av-g{border-radius:8px}
+
+.pb{height:6px;background:var(--s3);border-radius:3px;overflow:hidden}
+.pb-b{height:100%;background:var(--em);border-radius:3px;transition:width 0.5s ease}
+.pb-g .pb-b{background:var(--gr)}
+.pb-c .pb-b{background:var(--cy)}
+.pf{display:flex;align-items:center;gap:12px;margin:8px 0}
+.pf-l{font-size:12px;color:var(--txtd);min-width:80px}
+.pf-b{flex:1}
+.pf-v{font-size:12px;color:var(--txtm);min-width:40px;text-align:right}
+
+.chat{display:flex;flex-direction:column;gap:16px;max-height:500px;overflow-y:auto;padding:16px;background:var(--bg);border-radius:8px}
+.chat-m{display:flex;gap:12px;align-items:flex-start}
+.chat-m.own{flex-direction:row-reverse}
+.chat-b{padding:10px 14px;border-radius:12px;max-width:70%;font-size:13px}
+.chat-m:not(.own) .chat-b{background:var(--s2);border:1px solid var(--s4);color:var(--txtm)}
+.chat-m.own .chat-b{background:var(--em);color:#fff}
+.chat-t{font-size:11px;color:var(--txtd);margin-top:4px}
+
+.tl{position:relative;padding-left:24px}
+.tl::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--s4)}
+.tl-i{position:relative;margin-bottom:20px}
+.tl-d{position:absolute;left:-24px;top:4px;width:16px;height:16px;border-radius:50%;background:var(--s3);border:2px solid var(--cy);z-index:1}
+.tl-c{font-size:12px;font-weight:600;color:var(--txt);margin-bottom:4px}
+.tl-t{font-size:11px;color:var(--txtd);margin-bottom:4px}
+.tl-x{font-size:13px;color:var(--txtm)}
+
+.kb{display:flex;gap:16px;overflow-x:auto;padding-bottom:8px}
+.kc{min-width:280px;background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:16px}
+.kc-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.kc-t{font-size:13px;font-weight:600}
+.kc-n{font-size:11px;background:var(--s3);padding:2px 8px;border-radius:4px;color:var(--txtd)}
+.kcd{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:12px;margin-bottom:8px;cursor:grab;transition:all 0.2s}
+.kcd:hover{border-color:var(--cy)}
+.kcd-h{font-size:13px;font-weight:500;margin-bottom:4px}
+.kcd-t{font-size:11px;color:var(--txtd);margin-bottom:8px}
+.kcd-b{display:flex;gap:6px;flex-wrap:wrap}
+
+.mc{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:20px;transition:all 0.2s}
+.mc:hover{border-color:var(--cy)}
+.mc-v{font-size:28px;font-weight:700;font-family:var(--fd);color:var(--txt);margin-bottom:4px}
+.mc-l{font-size:12px;color:var(--txtd);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+.mc-d{display:flex;align-items:center;gap:6px;font-size:13px}
+.mc-d.up{color:var(--gr)}.mc-d.down{color:var(--rd)}
+.mv{display:flex;align-items:center;gap:12px;padding:16px;background:var(--s2);border:1px solid var(--s4);border-radius:10px}
+.mv-i{width:40px;height:40px;border-radius:10px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:20px}
+.mv-c{flex:1}
+.mv-v{font-size:18px;font-weight:700;font-family:var(--fd)}
+.mv-l{font-size:12px;color:var(--txtd)}
+
+.stp{display:flex;align-items:center;gap:8px;margin:24px 0}
+.st{display:flex;align-items:center;gap:8px}
+.stc{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;background:var(--s3);border:2px solid var(--s4);color:var(--txtd)}
+.stc.on{background:var(--em);border-color:var(--em);color:#fff}
+.stc.done{background:var(--gr);border-color:var(--gr);color:#fff}
+.stl{flex:1;height:2px;background:var(--s4);min-width:40px}
+.stl.on{background:var(--em)}
+.stt{font-size:12px;color:var(--txtd);margin-top:4px;white-space:nowrap}
+
+.pg{display:flex;gap:4px;justify-content:center;align-items:center}
+.pg-b{padding:6px 12px;border:1px solid var(--s4);background:var(--s2);color:var(--txtm);border-radius:6px;cursor:pointer;font-size:13px;transition:all 0.2s}
+.pg-b:hover{border-color:var(--cy);color:var(--txt)}
+.pg-b.on{background:var(--em);border-color:var(--em);color:#fff}
+.pg-b:disabled{opacity:0.4;cursor:not-allowed}
+
+.fb{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:16px;background:var(--s2);border:1px solid var(--s4);border-radius:10px;margin-bottom:16px}
+.ft{flex:1;min-width:200px;position:relative}
+.ft-i{width:100%;padding:10px 14px 10px 36px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;color:var(--txt);font-size:13px}
+.ft-i:focus{outline:none;border-color:var(--cy)}
+.ft::before{content:'🔍';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:12px;opacity:0.6}
+
+.tt-c{position:fixed;bottom:24px;right:24px;z-index:1002;display:flex;flex-direction:column;gap:8px}
+.tt{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);min-width:300px;animation:slideIn 0.3s ease}
+.tt-g{border-left:3px solid var(--gr)}.tt-r{border-left:3px solid var(--rd)}.tt-y{border-left:3px solid var(--yl)}
+.tt-h{font-weight:600;font-size:13px}.tt-b{font-size:12px;color:var(--txtd)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+.cp-o{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1003;display:flex;align-items:start;justify-content:center;padding-top:120px;backdrop-filter:blur(4px)}
+.cp{background:var(--s2);border:1px solid var(--s4);border-radius:12px;width:600px;max-width:90%;overflow:hidden}
+.cp-i{padding:16px 20px;border-bottom:1px solid var(--s4);display:flex;align-items:center;gap:12px}
+.cp-i input{flex:1;background:none;border:none;color:var(--txt);font-size:16px;outline:none}
+.cp-i input::placeholder{color:var(--txtd)}
+.cp-l{max-height:400px;overflow-y:auto}
+.cp-r{padding:10px 20px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.15s}
+.cp-r:hover{background:var(--s3)}
+.cp-r.on{background:var(--s3);border-left:2px solid var(--em)}
+.cp-ri{width:32px;height:32px;background:var(--s3);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.cp-rt{flex:1}
+.cp-rt h5{font-size:13px;font-weight:500;margin-bottom:2px}
+.cp-rt p{font-size:11px;color:var(--txtd)}
+.cp-rs{font-size:11px;color:var(--txtd);font-family:var(--fm)}
+
+.htmx-added{animation:fadeIn 0.3s ease}
+.htmx-swapping{animation:fadeOut 0.2s ease}
+.fade-me-in{animation:fadeIn 0.4s ease}
+.slide-me-in{animation:slideIn 0.4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+
+[x-cloak]{display:none !important}
+
+.page{display:flex;min-height:100vh}
+.page .main{flex:1;padding:24px;min-width:0;margin-left:260px}
+@media(max-width:900px){.snav{display:none}.page .main{margin-left:0}}
+
+.comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px}
+.comp-item{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:16px}
+.comp-item h4{font-size:13px;margin-bottom:12px;color:var(--txtd);text-transform:uppercase;letter-spacing:0.5px}
+.demo-code{background:var(--s3);border:1px solid var(--s4);border-radius:6px;padding:12px;margin-top:12px;font-family:var(--fm);font-size:11px;overflow-x:auto;color:var(--txtd)}
+
+.sw{display:flex;align-items:center;gap:10px;cursor:pointer}
+.sw-i{position:relative;width:44px;height:24px;background:var(--s4);border-radius:12px;transition:all 0.2s}
+.sw-i.on{background:var(--em)}
+.sw-i::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:all 0.2s}
+.sw-i.on::after{left:22px}
+.sw-l{font-size:13px;color:var(--txtm)}
+
+.ttp{position:relative;display:inline-block}
+.ttp-b{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);padding:6px 10px;background:var(--s2);border:1px solid var(--s4);border-radius:6px;font-size:11px;white-space:nowrap;opacity:0;visibility:hidden;transition:all 0.2s;margin-bottom:6px;z-index:50}
+.ttp:hover .ttp-b{opacity:1;visibility:visible}
+
+.fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--em);color:#fff;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 16px rgba(255,106,61,0.4);z-index:100;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+.fab:hover{transform:scale(1.1)}
+
+.mn{position:relative;display:inline-block}
+.mn-c{position:absolute;top:100%;left:0;min-width:200px;background:var(--s2);border:1px solid var(--s4);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:50;overflow:hidden;margin-top:4px}
+.mn-i{padding:10px 14px;font-size:13px;color:var(--txtm);cursor:pointer;transition:all 0.15s;border-bottom:1px solid var(--s4)}
+.mn-i:last-child{border-bottom:none}
+.mn-i:hover{background:var(--s3);color:var(--txt)}
+.mn-i-k{font-size:11px;color:var(--txtd);float:right;font-family:var(--fm)}
+
+.ctx-mn{background:var(--s2);border:1px solid var(--s4);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.4);overflow:hidden;min-width:180px}
+.ctx-i{padding:8px 14px;font-size:13px;color:var(--txtm);cursor:pointer;border-bottom:1px solid var(--s4);display:flex;align-items:center;gap:8px;transition:all 0.15s}
+.ctx-i:last-child{border-bottom:none}
+.ctx-i:hover{background:var(--s3);color:var(--txt)}
+.ctx-i-rd{color:var(--rd)}
+
+.sb{display:inline-flex;align-items:center}
+.sb-m{padding:8px 16px;border-radius:8px 0 0 8px;background:var(--em);color:#fff;border:none;font-size:13px;font-weight:500;cursor:pointer}
+.sb-d{padding:8px 10px;border-radius:0 8px 8px 0;background:var(--emd);color:#fff;border:none;font-size:13px;cursor:pointer;border-left:1px solid rgba(0,0,0,0.2)}
+
+.rng{width:100%;-webkit-appearance:none;appearance:none;height:6px;background:var(--s4);border-radius:3px;outline:none}
+.rng::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--cy);cursor:pointer;border:2px solid var(--s2);box-shadow:0 2px 6px rgba(0,0,0,0.3)}
+
+.tgi{display:flex;flex-wrap:wrap;gap:6px;padding:6px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;align-items:center}
+.tgi-t{display:flex;align-items:center;gap:4px;padding:4px 8px;background:var(--s3);border:1px solid var(--s4);border-radius:4px;font-size:12px;color:var(--txtm)}
+.tgi-t button{background:none;border:none;color:var(--txtd);cursor:pointer;font-size:14px;padding:0 2px}
+.tgi-t button:hover{color:var(--rd)}
+
+.csw{width:32px;height:32px;border-radius:6px;border:2px solid var(--s4);cursor:pointer;transition:all 0.2s}
+.csw:hover{border-color:var(--cy);transform:scale(1.1)}
+.csw.on{border-color:var(--em);box-shadow:0 0 0 2px rgba(255,106,61,0.3)}
+
+.ag-sug{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.ag-sug-b{padding:6px 12px;background:var(--s3);border:1px solid var(--s4);border-radius:16px;font-size:12px;color:var(--txtm);cursor:pointer;transition:all 0.2s}
+.ag-sug-b:hover{border-color:var(--cy);color:var(--txt)}
+.ag-sug-b.on{background:rgba(52,207,230,0.15);border-color:var(--cy);color:var(--cy)}
+
+.ag-conf{padding:16px;background:var(--s2);border:1px solid var(--s4);border-radius:10px;margin:8px 0}
+.ag-conf-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:8px}
+.ag-conf-b{font-size:12px;color:var(--txtd)}
+
+.ag-res{border:1px solid var(--s4);border-radius:8px;overflow:hidden;margin:8px 0}
+.ag-res-h{padding:10px 14px;background:var(--s3);font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--s4)}
+.ag-res-b{padding:14px;background:var(--bg);font-size:13px;color:var(--txtm);font-family:var(--fm);white-space:pre-wrap}
+
+.ag-typing{display:flex;align-items:center;gap:8px;padding:8px 14px;color:var(--txtd);font-size:13px;font-style:italic}
+.ag-typing span{animation:blink 1.4s infinite both}
+.ag-typing span:nth-child(2){animation-delay:0.2s}
+.ag-typing span:nth-child(3){animation-delay:0.4s}
+@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
+
+.ag-act{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;font-size:12px;color:var(--txtd);margin:4px 0}
+.ag-act-i{font-size:14px;animation:spin 1s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+.ag-snd{background:var(--s2);border:1px solid var(--s4);border-radius:8px;padding:8px;font-size:12px;color:var(--txtd);margin:8px 0}
+.ag-snd-h{font-weight:600;margin-bottom:4px;color:var(--txtm)}
+
+.ag-rat{display:flex;gap:8px;align-items:center;margin:8px 0}
+.ag-rat-b{padding:4px 10px;background:var(--s3);border:1px solid var(--s4);border-radius:4px;font-size:12px;cursor:pointer;transition:all 0.2s}
+.ag-rat-b:hover{border-color:var(--cy)}
+.ag-rat-b.on{background:var(--em);border-color:var(--em);color:#fff}
+
+.ag-st{padding:12px;background:var(--s3);border:1px solid var(--s4);border-radius:8px;margin:8px 0}
+.ag-st-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;margin-bottom:8px}
+.ag-st-b{display:flex;flex-direction:column;gap:6px}
+.ag-st-r{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.ag-st-r-l{color:var(--txtd)}
+.ag-st-r-v{color:var(--txtm);font-family:var(--fm)}
+
+.ag-poll{border:1px solid var(--s4);border-radius:8px;overflow:hidden;margin:8px 0}
+.ag-poll-h{padding:10px 14px;background:var(--s3);font-size:13px;font-weight:500;border-bottom:1px solid var(--s4)}
+.ag-poll-o{padding:8px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:all 0.15s;border-bottom:1px solid var(--s4)}
+.ag-poll-o:last-child{border-bottom:none}
+.ag-poll-o:hover{background:var(--s3)}
+.ag-poll-o-bar{flex:1;height:6px;background:var(--s4);border-radius:3px;overflow:hidden}
+.ag-poll-o-bar-f{height:100%;background:var(--em);border-radius:3px}
+.ag-poll-o-v{font-size:12px;color:var(--txtd);min-width:40px;text-align:right}
+
+.ag-snd-m{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0}
+.ag-snd-mi{flex:1;min-width:120px;padding:8px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;text-align:center;cursor:pointer;transition:all 0.2s;font-size:12px}
+.ag-snd-mi:hover{border-color:var(--cy)}
+.ag-snd-mi img{max-width:100%;border-radius:4px;margin-bottom:4px}
+
+/* Matrix specific */
+.mx-msg{background:var(--s2);border:1px solid var(--s4);border-radius:8px;padding:12px;margin-bottom:8px;transition:all 0.2s}
+.mx-msg:hover{border-color:var(--cy)}
+.mx-msg-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.mx-msg-n{font-weight:600;font-size:13px;color:var(--cy)}
+.mx-msg-t{font-size:11px;color:var(--txtd)}
+.mx-msg-b{font-size:13px;color:var(--txtm)}
+.mx-msg-r{display:inline-block;padding:2px 6px;border-radius:4px;font-size:11px;background:rgba(79,209,139,0.15);color:var(--gr);margin-left:6px}
+
+/* Video specific */
+.vp{aspect-ratio:16/9;background:var(--s3);border-radius:12px;position:relative;overflow:hidden;border:1px solid var(--s4);display:flex;align-items:center;justify-content:center}
+.vp-b{position:absolute;bottom:0;left:0;right:0;padding:16px;background:linear-gradient(transparent,rgba(0,0,0,0.8));display:flex;align-items:center;gap:12px}
+.vp-ct{color:#fff;font-size:13px;font-family:var(--fm)}
+.vp-btn{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;opacity:0.8;transition:opacity 0.2s}
+.vp-btn:hover{opacity:1}
+.vp-bar{flex:1;height:4px;background:rgba(255,255,255,0.3);border-radius:2px;cursor:pointer}
+.vp-bar-f{height:100%;background:var(--em);border-radius:2px;width:35%}
+
+/* Image gallery */
+.ig{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.ig-i{aspect-ratio:1;background:var(--s3);border:1px solid var(--s4);border-radius:8px;overflow:hidden;cursor:pointer;transition:all 0.2s;position:relative}
+.ig-i:hover{border-color:var(--cy);transform:scale(1.02)}
+.ig-i-o{position:absolute;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s}
+.ig-i:hover .ig-i-o{opacity:1}
+.ig-i-b{display:flex;gap:8px}
+.ig-i-b button{background:none;border:none;color:#fff;font-size:16px;cursor:pointer}
+
+/* Image editor toolbar */
+.ie-t{display:flex;gap:8px;padding:10px;background:var(--s2);border:1px solid var(--s4);border-radius:8px;margin-bottom:12px;flex-wrap:wrap}
+.ie-t-b{padding:6px 12px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;font-size:12px;color:var(--txtm);cursor:pointer;transition:all 0.2s}
+.ie-t-b:hover{border-color:var(--cy);color:var(--txt)}
+.ie-t-b.on{background:rgba(52,207,230,0.15);border-color:var(--cy);color:var(--cy)}
+.ie-c{aspect-ratio:16/9;background:var(--s3);border:1px solid var(--s4);border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+
+/* Video editor timeline */
+.ve-tl{display:flex;align-items:center;gap:8px;padding:12px;background:var(--s2);border:1px solid var(--s4);border-radius:8px;margin-top:12px}
+.ve-tl-t{display:flex;gap:2px;flex:1;align-items:end;height:40px}
+.ve-tl-s{width:8px;background:var(--cy);border-radius:2px;opacity:0.6}
+.ve-tl-c{position:absolute;width:2px;height:56px;background:var(--em);top:-8px}
+.ve-tl-w{position:relative;flex:1}
+
+/* Form validation states */
+.fg.ok .inp{border-color:var(--gr)}
+.fg.err .inp{border-color:var(--rd);box-shadow:0 0 0 3px rgba(240,93,93,0.1)}
+.fg-msg{font-size:11px;margin-top:4px}
+.fg-msg.ok{color:var(--gr)}
+.fg-msg.err{color:var(--rd)}
+
+/* Admin shell */
+.adm{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.adm-s{background:var(--s1);border-right:1px solid var(--s4);padding:16px}
+.adm-m{padding:24px;min-width:0}
+.adm-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.adm-h h2{margin:0}
+.adm-c{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+
+/* Chat interface */
+.cht{display:grid;grid-template-columns:280px 1fr;min-height:100vh;border:1px solid var(--s4);border-radius:12px;overflow:hidden}
+.cht-s{background:var(--s1);border-right:1px solid var(--s4);padding:16px}
+.cht-m{display:flex;flex-direction:column;min-height:0}
+.cht-h{padding:12px 16px;border-bottom:1px solid var(--s4);display:flex;align-items:center;justify-content:space-between}
+.cht-b{flex:1;overflow-y:auto;padding:16px;min-height:0}
+.cht-f{padding:12px 16px;border-top:1px solid var(--s4);display:flex;gap:8px;align-items:center}
+.cht-fi{flex:1}
+.cht-fi input{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;color:var(--txt);font-size:13px}
+.cht-fi input:focus{outline:none;border-color:var(--cy)}
+
+/* List with actions */
+.lst{border:1px solid var(--s4);border-radius:8px;overflow:hidden}
+.lst-i{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--s4);transition:all 0.15s}
+.lst-i:last-child{border-bottom:none}
+.lst-i:hover{background:var(--s3)}
+.lst-i-c{flex:1}
+.lst-i-t{font-size:13px;font-weight:500;color:var(--txt)}
+.lst-i-d{font-size:11px;color:var(--txtd);margin-top:2px}
+.lst-i-a{display:flex;gap:4px;opacity:0;transition:opacity 0.2s}
+.lst-i:hover .lst-i-a{opacity:1}
+
+/* Tabbed interface with content */
+.tbc{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:20px;min-height:200px}
+
+/* Wizard form */
+.wz-f{padding:20px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;min-height:300px}
+</style>
+</head>
+<body>
+
+<!-- Hero Section -->
+<div class="hero">
+<div class="container">
+<div class="hero-b">Situational Examples</div>
+<h1>A2UI Component Combinations</h1>
+<p>Real-world examples of A2UI primitives combined into forms, lists, tabs, admin shells, chat interfaces, Matrix messaging, video streaming, and image editing.</p>
+<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:24px;">
+<a href="FLINT-A2UI-REGISTRY-SPEC.html" class="btn btn-ghost">← Registry Spec</a>
+<a href="FLINT-A2UI-DOCS.html" class="btn btn-s">Document Mgmt →</a>
+<a href="FLINT-A2UI-CRM.html" class="btn btn-s">CRM →</a>
+<a href="FLINT-A2UI-ERP.html" class="btn btn-s">ERP →</a>
+<a href="FLINT-A2UI-EMR.html" class="btn btn-s">EMR →</a>
+</div>
+</div>
+</div>
+
+<!-- Page Layout -->
+<div class="page">
+<!-- Sidebar Navigation -->
+<nav class="snav">
+<div class="snav-h">
+<div class="snav-l"><div class="snav-li">F</div><span>A2UI Examples</span></div>
+</div>
+<div style="padding:12px 0;">
+<a href="#forms" class="snav-i on">📝 Forms</a>
+<a href="#lists" class="snav-i">☰ Lists</a>
+<a href="#tabs" class="snav-i">📑 Tabs</a>
+<a href="#admin" class="snav-i">🖥️ Admin Shell</a>
+<a href="#chat" class="snav-i">💬 Chat</a>
+<a href="#matrix" class="snav-i">🌐 Matrix</a>
+<a href="#video" class="snav-i">🎬 Video</a>
+<a href="#image" class="snav-i">🖼️ Image</a>
+</div>
+</nav>
+
+<!-- Main Content -->
+<main class="main">
+<div class="container">
+
+<!-- Forms Section -->
+<section id="forms" class="sec">
+<div class="sec-h"><div class="icon">📝</div><h3>Forms with Validation</h3><span class="tag">Combined</span></div>
+
+<div class="comp-grid">
+<div class="comp-item" style="grid-column:1/-1;">
+<h4>📋 User Registration Form</h4>
+<div class="demo">
+<div class="demo-label">Interactive Form</div>
+<div class="wz-f" x-data="{step:1,form:{name:'',email:'',password:'',role:'developer'},errors:{}}">
+<div class="stp">
+<div class="st"><div class="stc" :class="step>=1?'on':''">1</div><div class="stt">Account</div></div>
+<div class="stl" :class="step>=2?'on':''"></div>
+<div class="st"><div class="stc" :class="step>=2?'on':''">2</div><div class="stt">Profile</div></div>
+<div class="stl" :class="step>=3?'on':''"></div>
+<div class="st"><div class="stc" :class="step>=3?'on':''">3</div><div class="stt">Review</div></div>
+</div>
+
+<div x-show="step==1" x-transition>
+<div class="fg" :class="errors.name?'err':'ok'">
+<label class="lbl">Full Name</label>
+<input type="text" class="inp" x-model="form.name" placeholder="John Doe" hx-validate="required|min:2">
+<div class="fg-msg" :class="errors.name?'err':'ok'" x-text="errors.name||'✓ Valid'"></div>
+</div>
+<div class="fg" :class="errors.email?'err':'ok'">
+<label class="lbl">Email</label>
+<input type="email" class="inp" x-model="form.email" placeholder="john@example.com" hx-validate="required|email">
+<div class="fg-msg" :class="errors.email?'err':'ok'" x-text="errors.email||'✓ Valid'"></div>
+</div>
+<div class="fg">
+<label class="lbl">Password</label>
+<input type="password" class="inp" x-model="form.password" placeholder="Min 8 characters" hx-validate="required|min:8">
+<div style="margin-top:6px;height:4px;background:var(--s4);border-radius:2px;overflow:hidden;">
+<div style="height:100%;border-radius:2px;transition:all 0.3s;" :style="'width:'+(form.password.length*10)+'%;background:'+(form.password.length<8?'var(--rd)':form.password.length<12?'var(--yl)':'var(--gr)')"></div>
+</div>
+</div>
+<div style="display:flex;justify-content:flex-end;margin-top:16px;">
+<button class="btn btn-p" @click="step=2">Next →</button>
+</div>
+</div>
+
+<div x-show="step==2" x-transition style="display:none;">
+<div class="fg">
+<label class="lbl">Role</label>
+<select class="sel" x-model="form.role">
+<option value="developer">Developer</option>
+<option value="designer">Designer</option>
+<option value="product">Product Manager</option>
+<option value="admin">Admin</option>
+</select>
+</div>
+<div class="fg">
+<label class="lbl">Bio</label>
+<textarea class="tx" rows="3" placeholder="Tell us about yourself..."></textarea>
+</div>
+<div class="fg" x-data="{tags:['UI','A2UI'],newTag:''}">
+<label class="lbl">Skills</label>
+<div class="tgi">
+<template x-for="tag in tags" :key="tag">
+<div class="tgi-t"><span x-text="tag"></span><button @click="tags = tags.filter(t => t !== tag)">×</button></div>
+</template>
+<input type="text" class="inp" style="border:none;padding:4px 8px;flex:1;min-width:80px;" placeholder="Add skill..." x-model="newTag" @keydown.enter="if(newTag.trim()){tags.push(newTag.trim());newTag=''}">
+</div>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:16px;">
+<button class="btn btn-ghost" @click="step=1">← Back</button>
+<button class="btn btn-p" @click="step=3">Next →</button>
+</div>
+</div>
+
+<div x-show="step==3" x-transition style="display:none;">
+<div style="background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:16px;">
+<h4 style="margin-bottom:12px;font-size:14px;">Review Your Information</h4>
+<div style="display:grid;grid-template-columns:120px 1fr;gap:8px;font-size:13px;color:var(--txtm);">
+<div style="color:var(--txtd);">Name:</div><div x-text="form.name||'—'"></div>
+<div style="color:var(--txtd);">Email:</div><div x-text="form.email||'—'"></div>
+<div style="color:var(--txtd);">Role:</div><div x-text="form.role"></div>
+</div>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:16px;">
+<button class="btn btn-ghost" @click="step=2">← Back</button>
+<button class="btn btn-p" hx-post="/api/register" hx-vals="js:{form}" hx-target="#reg-result">Submit Registration</button>
+</div>
+<div id="reg-result" style="margin-top:12px;"></div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"form_wizard","steps":3,"fields":[{"name":"email","type":"email","validation":"required|email"},...],"hx_post":"/api/register"}</div>
+</div>
+</div>
+
+<div class="comp-grid">
+<div class="comp-item">
+<h4>🔐 Login Form</h4>
+<div class="demo">
+<div class="demo-label">Compact</div>
+<div class="fg">
+<label class="lbl">Email</label>
+<input type="email" class="inp" placeholder="user@example.com" hx-validate="required|email">
+</div>
+<div class="fg">
+<label class="lbl">Password</label>
+<input type="password" class="inp" placeholder="••••••••" hx-validate="required|min:8">
+</div>
+<div class="fg" style="display:flex;align-items:center;justify-content:space-between;">
+<label class="chk" style="margin:0;"><input type="checkbox"> Remember me</label>
+<a href="#" style="font-size:12px;color:var(--cy);text-decoration:none;">Forgot password?</a>
+</div>
+<button class="btn btn-p" style="width:100%;" hx-post="/api/login" hx-target="#login-result">Sign In</button>
+<div id="login-result" style="margin-top:8px;"></div>
+</div>
+<div class="demo-code">{"type":"login_form","fields":["email","password"],"remember_me":true,"hx_post":"/api/login"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🔍 Filter & Search</h4>
+<div class="demo">
+<div class="demo-label">Search with Filters</div>
+<div class="fb">
+<div class="ft" style="flex:2;">
+<input type="text" class="ft-i" placeholder="Search users, projects, or components..." hx-get="/api/search" hx-trigger="keyup changed delay:300ms" hx-target="#filter-results" hx-indicator="#filter-indicator">
+</div>
+<select class="sel" style="width:150px;" hx-get="/api/filter" hx-target="#filter-results" hx-trigger="change">
+<option>All Status</option><option>Active</option><option>Pending</option><option>Archived</option>
+</select>
+<select class="sel" style="width:150px;" hx-get="/api/filter" hx-target="#filter-results" hx-trigger="change">
+<option>All Types</option><option>Component</option><option>Application</option><option>Design</option>
+</select>
+<button class="btn btn-s" hx-get="/api/reset" hx-target="#filter-results">Reset</button>
+</div>
+<div id="filter-indicator" class="htmx-indicator" style="font-size:11px;color:var(--cy);margin-bottom:8px;">Searching...</div>
+<div id="filter-results" style="border:1px solid var(--s4);border-radius:8px;overflow:hidden;">
+<div class="lst-i"><div class="lst-i-c"><div class="lst-i-t">User Profile Component</div><div class="lst-i-d">Layout • Active</div></div><span class="bd-g">Active</span></div>
+<div class="lst-i"><div class="lst-i-c"><div class="lst-i-t">Dashboard Application</div><div class="lst-i-d">Application • Active</div></div><span class="bd-g">Active</div>
+<div class="lst-i"><div class="lst-i-c"><div class="lst-i-t">Dark Theme System</div><div class="lst-i-d">Design • Active</div></div><span class="bd-g">Active</span></div>
+</div>
+</div>
+<div class="demo-code">{"type":"filter_search","fields":["query","status","type"],"hx_get":"/api/search","hx_trigger":"keyup changed delay:300ms"}</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Lists Section -->
+<section id="lists" class="sec">
+<div class="sec-h"><div class="icon">☰</div><h3>Lists with Actions</h3><span class="tag">Data Display</span></div>
+
+<div class="comp-grid">
+<div class="comp-item" style="grid-column:1/-1;">
+<h4>📄 Interactive List</h4>
+<div class="demo">
+<div class="demo-label">List with Inline Actions</div>
+<div class="lst">
+<div class="lst-i">
+<div class="av" style="color:var(--cy);">AC</div>
+<div class="lst-i-c"><div class="lst-i-t">Alice Chen</div><div class="lst-i-d">alice@example.com • Admin</div></div>
+<span class="bd-g">Active</span>
+<div class="lst-i-a">
+<button class="btn btn-s btn-i btn-sm" title="Edit">✏️</button>
+<button class="btn btn-s btn-i btn-sm" title="Delete">🗑️</button>
+</div>
+</div>
+<div class="lst-i">
+<div class="av" style="color:var(--gr);">BS</div>
+<div class="lst-i-c"><div class="lst-i-t">Bob Smith</div><div class="lst-i-d">bob@example.com • Editor</div></div>
+<span class="bd-y">Pending</span>
+<div class="lst-i-a">
+<button class="btn btn-s btn-i btn-sm" title="Edit">✏️</button>
+<button class="btn btn-s btn-i btn-sm" title="Delete">🗑️</button>
+</div>
+</div>
+<div class="lst-i">
+<div class="av" style="color:var(--yl);">CW</div>
+<div class="lst-i-c"><div class="lst-i-t">Carol Wu</div><div class="lst-i-d">carol@example.com • Viewer</div></div>
+<span class="bd-r">Inactive</span>
+<div class="lst-i-a">
+<button class="btn btn-s btn-i btn-sm" title="Edit">✏️</button>
+<button class="btn btn-s btn-i btn-sm" title="Delete">🗑️</button>
+</div>
+</div>
+<div class="lst-i">
+<div class="av" style="color:var(--rd);">DJ</div>
+<div class="lst-i-c"><div class="lst-i-t">David Johnson</div><div class="lst-i-d">david@example.com • Developer</div></div>
+<span class="bd-g">Active</span>
+<div class="lst-i-a">
+<button class="btn btn-s btn-i btn-sm" title="Edit">✏️</button>
+<button class="btn btn-s btn-i btn-sm" title="Delete">🗑️</button>
+</div>
+</div>
+</div>
+<div class="pg" style="margin-top:12px;">
+<button class="pg-b" disabled>‹ Prev</button>
+<button class="pg-b on">1</button>
+<button class="pg-b">2</button>
+<button class="pg-b">3</button>
+<button class="pg-b">Next ›</button>
+</div>
+</div>
+<div class="demo-code">{"type":"interactive_list","items":[...],"actions":["edit","delete"],"pagination":true,"hx_get":"/api/users?page={page}"}</div>
+</div>
+</div>
+
+<div class="comp-grid">
+<div class="comp-item">
+<h4>📊 Sortable Data Table</h4>
+<div class="demo">
+<div class="demo-label">Table with Sort</div>
+<table class="tbl">
+<thead><tr>
+<th style="cursor:pointer;">Name ↕</th>
+<th style="cursor:pointer;">Role ↕</th>
+<th style="cursor:pointer;">Status ↕</th>
+<th style="cursor:pointer;text-align:right;">Revenue ↕</th>
+</tr></thead>
+<tbody>
+<tr><td>Alice Chen</td><td>Admin</td><td><span class="bd-g">Active</span></td><td style="text-align:right;">$12,450</td></tr>
+<tr><td>Bob Smith</td><td>Editor</td><td><span class="bd-g">Active</span></td><td style="text-align:right;">$8,320</td></tr>
+<tr><td>Carol Wu</td><td>Viewer</td><td><span class="bd-y">Pending</span></td><td style="text-align:right;">$0</td></tr>
+<tr><td>David Johnson</td><td>Developer</td><td><span class="bd-g">Active</span></td><td style="text-align:right;">$23,100</td></tr>
+</tbody>
+</table>
+</div>
+<div class="demo-code">{"type":"data_table","columns":["Name","Role","Status","Revenue"],"sortable":true,"hx_get":"/api/data?sort={col}&order={dir}"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🗂️ Kanban Board</h4>
+<div class="demo">
+<div class="demo-label">Drag & Drop Board</div>
+<div class="kb">
+<div class="kc">
+<div class="kc-h"><span class="kc-t">To Do</span><span class="kc-n">3</span></div>
+<div class="kcd"><div class="kcd-h">Design System</div><div class="kcd-t">Create color tokens</div><div class="kcd-b"><span class="bd-e">High</span><span class="bd-c">Design</span></div></div>
+<div class="kcd"><div class="kcd-h">API Integration</div><div class="kcd-t">Connect to CRM</div><div class="kcd-b"><span class="bd-g">Medium</span><span class="bd-c">Dev</span></div></div>
+<div class="kcd"><div class="kcd-h">User Testing</div><div class="kcd-t">Recruit participants</div><div class="kcd-b"><span class="bd-y">Low</span><span class="bd-c">Research</span></div></div>
+</div>
+<div class="kc">
+<div class="kc-h"><span class="kc-t">In Progress</span><span class="kc-n">2</span></div>
+<div class="kcd"><div class="kcd-h">Component Registry</div><div class="kcd-t">Build base primitives</div><div class="kcd-b"><span class="bd-e">High</span><span class="bd-c">Dev</span></div></div>
+<div class="kcd"><div class="kcd-h">Documentation</div><div class="kcd-t">Write API docs</div><div class="kcd-b"><span class="bd-g">Medium</span><span class="bd-c">Docs</span></div></div>
+</div>
+<div class="kc">
+<div class="kc-h"><span class="kc-t">Done</span><span class="kc-n">1</span></div>
+<div class="kcd"><div class="kcd-h">Project Setup</div><div class="kcd-t">Initialize repo</div><div class="kcd-b"><span class="bd-g">Done</span></div></div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"kanban","columns":["To Do","In Progress","Done"],"items":[...],"hx_post":"/api/kanban/move"}</div>
+</div>
+</div>
+</section>
+
+<!-- Tabs Section -->
+<section id="tabs" class="sec">
+<div class="sec-h"><div class="icon">📑</div><h3>Tabbed Interfaces</h3><span class="tag">Navigation</span></div>
+
+<div class="comp-grid">
+<div class="comp-item" style="grid-column:1/-1;">
+<h4>📑 Complex Tabbed Panel</h4>
+<div class="demo">
+<div class="demo-label">Tabs with Content</div>
+<div x-data="{tab:'overview'}">
+<div class="tbs">
+<button class="tb" :class="tab=='overview'?'on':''" @click="tab='overview'">Overview</button>
+<button class="tb" :class="tab=='analytics'?'on':''" @click="tab='analytics'">Analytics</button>
+<button class="tb" :class="tab=='settings'?'on':''" @click="tab='settings'">Settings</button>
+<button class="tb" :class="tab=='logs'?'on':''" @click="tab='logs'">Logs</button>
+</div>
+<div class="tbc">
+<div x-show="tab=='overview'" x-transition>
+<div class="grid grid-3" style="gap:12px;margin-bottom:16px;">
+<div class="mc"><div class="mc-v">12,847</div><div class="mc-l">Users</div><div class="mc-d up">↑ 12.5%</div></div>
+<div class="mc"><div class="mc-v">$84.2K</div><div class="mc-l">Revenue</div><div class="mc-d up">↑ 8.3%</div></div>
+<div class="mc"><div class="mc-v">99.9%</div><div class="mc-l">Uptime</div><div class="mc-d up">↑ 0.1%</div></div>
+</div>
+<div class="card"><div class="card-h">Recent Activity</div><div class="card-d">Last 24 hours of system activity and user interactions.</div>
+<div class="tl">
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">New user registered</div><div class="tl-t">2 min ago</div><div class="tl-x">Alice Chen joined the platform</div></div>
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">Component updated</div><div class="tl-t">15 min ago</div><div class="tl-x">Button variant "ghost" added</div></div>
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">Deployment completed</div><div class="tl-t">1 hour ago</div><div class="tl-x">v2.1.0 deployed to production</div></div>
+</div>
+</div>
+</div>
+<div x-show="tab=='analytics'" x-transition style="display:none;">
+<div class="card"><div class="card-h">Traffic Analytics</div><div class="card-d">Page views and user sessions over the last 30 days.</div>
+<div style="height:200px;background:var(--s3);border-radius:8px;display:flex;align-items:end;gap:4px;padding:16px;">
+<div style="flex:1;background:var(--em);border-radius:2px;height:40%;opacity:0.7;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:55%;opacity:0.8;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:45%;opacity:0.7;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:70%;opacity:0.9;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:60%;opacity:0.8;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:85%;opacity:1;"></div>
+<div style="flex:1;background:var(--cy);border-radius:2px;height:75%;opacity:0.9;"></div>
+</div>
+</div>
+</div>
+<div x-show="tab=='settings'" x-transition style="display:none;">
+<div class="fg"><label class="lbl">Site Name</label><input type="text" class="inp" value="Flint Platform"></div>
+<div class="fg"><label class="lbl">Timezone</label><select class="sel"><option>UTC</option><option>EST</option><option>PST</option></select></div>
+<div class="fg" x-data="{on:true}"><label class="lbl">Maintenance Mode</label><div class="sw" @click="on=!on"><div class="sw-i" :class="on?'on':''"></div><span class="sw-l" x-text="on?'Enabled':'Disabled'"></span></div></div>
+<div style="display:flex;gap:8px;margin-top:16px;"><button class="btn btn-p">Save Settings</button><button class="btn btn-ghost">Reset</button></div>
+</div>
+<div x-show="tab=='logs'" x-transition style="display:none;">
+<div style="background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:16px;font-family:var(--fm);font-size:12px;max-height:300px;overflow:auto;">
+<div style="margin-bottom:4px;"><span style="color:var(--gr);">[INFO]</span> <span style="color:var(--txtd);">2024-03-15 10:23:45</span> <span style="color:var(--txtm);">Server started on port 3000</span></div>
+<div style="margin-bottom:4px;"><span style="color:var(--cy);">[DEBUG]</span> <span style="color:var(--txtd);">2024-03-15 10:23:46</span> <span style="color:var(--txtm);">Database connection established</span></div>
+<div style="margin-bottom:4px;"><span style="color:var(--yl);">[WARN]</span> <span style="color:var(--txtd);">2024-03-15 10:24:12</span> <span style="color:var(--txtm);">Slow query detected: 340ms</span></div>
+<div style="margin-bottom:4px;"><span style="color:var(--gr);">[INFO]</span> <span style="color:var(--txtd);">2024-03-15 10:25:01</span> <span style="color:var(--txtm);">User login: alice@example.com</span></div>
+<div style="margin-bottom:4px;"><span style="color:var(--rd);">[ERROR]</span> <span style="color:var(--txtd);">2024-03-15 10:26:33</span> <span style="color:var(--txtm);">Failed to connect to external API</span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"tabbed_panel","tabs":["Overview","Analytics","Settings","Logs"],"content_type":"dynamic","hx_get":"/api/tab/{id}"}</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Admin Shell Section -->
+<section id="admin" class="sec">
+<div class="sec-h"><div class="icon">🖥️</div><h3>Admin Shell Interface</h3><span class="tag">Full Application</span></div>
+
+<div class="comp-item" style="margin-bottom:16px;">
+<h4>🖥️ Dashboard Admin Shell</h4>
+<div class="demo" style="padding:0;overflow:hidden;border-radius:8px;">
+<div class="demo-label">Full Layout</div>
+<div style="display:grid;grid-template-columns:200px 1fr;min-height:500px;background:var(--bg);">
+<!-- Sidebar -->
+<div style="background:var(--s1);border-right:1px solid var(--s4);padding:16px;">
+<div style="font-family:var(--fd);font-weight:700;font-size:18px;color:var(--em);margin-bottom:24px;">Flint Admin</div>
+<div style="display:flex;flex-direction:column;gap:4px;">
+<a href="#" style="padding:10px 12px;border-radius:6px;background:var(--s3);color:var(--txt);text-decoration:none;font-size:13px;display:flex;align-items:center;gap:8px;">📊 Dashboard</a>
+<a href="#" style="padding:10px 12px;border-radius:6px;color:var(--txtm);text-decoration:none;font-size:13px;display:flex;align-items:center;gap:8px;">👥 Users</a>
+<a href="#" style="padding:10px 12px;border-radius:6px;color:var(--txtm);text-decoration:none;font-size:13px;display:flex;align-items:center;gap:8px;">🧩 Components</a>
+<a href="#" style="padding:10px 12px;border-radius:6px;color:var(--txtm);text-decoration:none;font-size:13px;display:flex;align-items:center;gap:8px;">🎨 Design</a>
+<a href="#" style="padding:10px 12px;border-radius:6px;color:var(--txtm);text-decoration:none;font-size:13px;display:flex;align-items:center;gap:8px;">⚙️ Settings</a>
+</div>
+<div style="margin-top:auto;padding-top:16px;border-top:1px solid var(--s4);">
+<div style="display:flex;align-items:center;gap:8px;">
+<div class="av" style="width:28px;height:28px;font-size:11px;">A</div>
+<div><div style="font-size:13px;font-weight:500;">Admin User</div><div style="font-size:11px;color:var(--txtd);">admin@flint.dev</div></div>
+</div>
+</div>
+</div>
+<!-- Main Content -->
+<div style="padding:24px;overflow:auto;">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+<div>
+<div style="font-size:12px;color:var(--txtd);margin-bottom:4px;">Dashboard</div>
+<h3 style="margin:0;">Overview</h3>
+</div>
+<div style="display:flex;gap:8px;">
+<button class="btn btn-s btn-sm">🔄 Refresh</button>
+<button class="btn btn-p btn-sm">+ New</button>
+</div>
+</div>
+<div class="grid grid-4" style="gap:12px;margin-bottom:24px;">
+<div class="mc" style="padding:16px;"><div class="mc-v">2,847</div><div class="mc-l">Users</div><div class="mc-d up">↑ 12.5%</div></div>
+<div class="mc" style="padding:16px;"><div class="mc-v">156</div><div class="mc-l">Components</div><div class="mc-d up">↑ 8.3%</div></div>
+<div class="mc" style="padding:16px;"><div class="mc-v">42</div><div class="mc-l">Apps</div><div class="mc-d up">↑ 5.1%</div></div>
+<div class="mc" style="padding:16px;"><div class="mc-v">99.9%</div><div class="mc-l">Uptime</div><div class="mc-d up">↑ 0.1%</div></div>
+</div>
+<div style="background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:16px;">
+<div style="font-weight:600;margin-bottom:12px;font-size:14px;">Recent Activity</div>
+<div class="tl">
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">New component registered</div><div class="tl-t">2 min ago</div><div class="tl-x">ChatMessage component added to registry</div></div>
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">User role updated</div><div class="tl-t">15 min ago</div><div class="tl-x">Alice Chen promoted to Admin</div></div>
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">Design system imported</div><div class="tl-t">1 hour ago</div><div class="tl-x">Flint Dark theme imported from ODSF</div></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"admin_shell","sidebar_items":["Dashboard","Users","Components","Design","Settings"],"main_content":"dashboard","hx_get":"/api/admin/{section}"}</div>
+</div>
+</div>
+</section>
+
+<!-- Chat Section -->
+<section id="chat" class="sec">
+<div class="sec-h"><div class="icon">💬</div><h3>Agent Chat Interface</h3><span class="tag">Agent UI</span></div>
+
+<div class="comp-item" style="margin-bottom:16px;">
+<h4>💬 AI Agent Chat</h4>
+<div class="demo" style="padding:0;overflow:hidden;">
+<div class="demo-label">Interactive Chat</div>
+<div class="cht" style="min-height:400px;grid-template-columns:1fr;">
+<div class="cht-m" style="display:flex;flex-direction:column;">
+<div class="cht-h">
+<div style="display:flex;align-items:center;gap:8px;">
+<div class="av" style="background:rgba(255,106,61,0.2);color:var(--em);border-color:rgba(255,106,61,0.3);">🤖</div>
+<div><div style="font-weight:600;font-size:13px;">Flint Assistant</div><div style="font-size:11px;color:var(--gr);">● Online</div></div>
+</div>
+<div style="display:flex;gap:4px;">
+<button class="btn btn-s btn-i btn-sm">⚙️</button>
+<button class="btn btn-s btn-i btn-sm">✕</button>
+</div>
+</div>
+<div class="cht-b" style="flex:1;overflow-y:auto;padding:16px;background:var(--bg);">
+<div class="chat-m" style="margin-bottom:12px;">
+<div class="av" style="color:var(--cy);">U</div>
+<div><div class="chat-b">Can you show me the component registry for our new project?</div><div class="chat-t">10:23 AM</div></div>
+</div>
+<div class="chat-m" style="margin-bottom:12px;">
+<div class="av" style="background:rgba(255,106,61,0.2);color:var(--em);border-color:rgba(255,106,61,0.3);">🤖</div>
+<div><div class="chat-b">Sure! Here are the available components for your project:</div><div class="chat-t">10:23 AM</div></div>
+</div>
+<div class="ag-snd" style="margin-left:48px;margin-bottom:12px;">
+<div class="ag-snd-h">📎 Context: Project Alpha</div>
+<div style="font-size:12px;color:var(--txtd);margin-top:4px;">Components: 24 | Status: Active | Last updated: 2h ago</div>
+</div>
+<div class="chat-m" style="margin-bottom:12px;margin-left:48px;">
+<div><div class="chat-b">I've found 24 components matching your project. Would you like me to generate a dashboard with the most relevant ones?</div><div class="chat-t">10:24 AM</div></div>
+</div>
+<div class="ag-sug" style="margin-left:48px;margin-bottom:12px;">
+<button class="ag-sug-b on">Generate Dashboard</button>
+<button class="ag-sug-b">Show All Components</button>
+<button class="ag-sug-b">Filter by Category</button>
+</div>
+<div class="chat-m" style="margin-bottom:12px;">
+<div class="av" style="color:var(--cy);">U</div>
+<div><div class="chat-b">Yes, generate a dashboard with layout, data display, and action components.</div><div class="chat-t">10:25 AM</div></div>
+</div>
+<div class="ag-act" style="margin-left:48px;margin-bottom:12px;">
+<span class="ag-act-i">⟳</span>
+<span>Composing dashboard layout...</span>
+</div>
+<div class="chat-m" style="margin-bottom:12px;margin-left:48px;">
+<div><div class="chat-b">Done! I've composed a dashboard with Stack, Grid, Card, Table, Button, and Modal components. Here's the preview:</div><div class="chat-t">10:26 AM</div></div>
+</div>
+<div class="ag-snd-m" style="margin-left:48px;margin-bottom:12px;">
+<div class="ag-snd-mi">📊<div style="font-size:11px;margin-top:4px;">Dashboard</div></div>
+<div class="ag-snd-mi">📄<div style="font-size:11px;margin-top:4px;">JSON</div></div>
+<div class="ag-snd-mi">🎨<div style="font-size:11px;margin-top:4px;">Preview</div></div>
+</div>
+<div class="ag-typing" style="margin-left:48px;">
+<span style="width:8px;height:8px;border-radius:50%;background:var(--cy);display:inline-block;"></span>
+<span style="width:8px;height:8px;border-radius:50%;background:var(--cy);display:inline-block;"></span>
+<span style="width:8px;height:8px;border-radius:50%;background:var(--cy);display:inline-block;"></span>
+<span>Agent is thinking...</span>
+</div>
+</div>
+<div class="cht-f">
+<div class="cht-fi"><input type="text" placeholder="Type a message..." hx-post="/api/chat" hx-trigger="keydown[key=='Enter']" hx-target="#chat-response"></div>
+<button class="btn btn-p">Send</button>
+</div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"agent_chat","agent":"Flint Assistant","suggestions":["Generate Dashboard","Show All Components"],"hx_post":"/api/chat","hx_trigger":"keydown[key=='Enter']"}</div>
+</div>
+</div>
+</section>
+
+<!-- Matrix Section -->
+<section id="matrix" class="sec">
+<div class="sec-h"><div class="icon">🌐</div><h3>Matrix-Style Messaging</h3><span class="tag">Real-time</span></div>
+
+<div class="comp-item" style="margin-bottom:16px;">
+<h4>🌐 Matrix Room Interface</h4>
+<div class="demo" style="padding:0;overflow:hidden;">
+<div class="demo-label">Matrix Protocol UI</div>
+<div class="cht" style="min-height:400px;">
+<div class="cht-s" style="padding:0;">
+<div style="padding:16px;border-bottom:1px solid var(--s4);">
+<div class="ft"><input type="text" class="ft-i" placeholder="Search rooms..." style="padding-left:14px;"></div>
+</div>
+<div style="padding:8px 0;">
+<div style="padding:10px 16px;display:flex;align-items:center;gap:8px;background:var(--s3);border-left:3px solid var(--em);">
+<div class="av av-sm" style="color:var(--cy);">#g</div>
+<div style="flex:1;"><div style="font-size:13px;font-weight:500;">#general:flint.dev</div><div style="font-size:11px;color:var(--txtd);">Alice: Latest update...</div></div>
+<span class="bd-g" style="font-size:10px;">12</span>
+</div>
+<div style="padding:10px 16px;display:flex;align-items:center;gap:8px;">
+<div class="av av-sm" style="color:var(--gr);">#d</div>
+<div style="flex:1;"><div style="font-size:13px;">#design:flint.dev</div><div style="font-size:11px;color:var(--txtd);">Bob: Color tokens...</div></div>
+</div>
+<div style="padding:10px 16px;display:flex;align-items:center;gap:8px;">
+<div class="av av-sm" style="color:var(--yl);">#d</div>
+<div style="flex:1;"><div style="font-size:13px;">#dev:flint.dev</div><div style="font-size:11px;color:var(--txtd);">Carol: PR merged</div></div>
+<span class="bd-g" style="font-size:10px;">3</span>
+</div>
+</div>
+</div>
+<div class="cht-m" style="display:flex;flex-direction:column;">
+<div class="cht-h">
+<div style="display:flex;align-items:center;gap:8px;">
+<div class="av" style="color:var(--cy);">#g</div>
+<div><div style="font-weight:600;font-size:13px;">#general:flint.dev</div><div style="font-size:11px;color:var(--txtd);">24 members • 12 online</div></div>
+</div>
+<div style="display:flex;gap:4px;">
+<button class="btn btn-s btn-i btn-sm">🔍</button>
+<button class="btn btn-s btn-i btn-sm">👥</button>
+<button class="btn btn-s btn-i btn-sm">⚙️</button>
+</div>
+</div>
+<div class="cht-b" style="flex:1;overflow-y:auto;padding:16px;background:var(--bg);">
+<div class="mx-msg">
+<div class="mx-msg-h"><span class="mx-msg-n">Alice</span><span class="mx-msg-t">10:23 AM</span><span class="mx-msg-r">Mod</span></div>
+<div class="mx-msg-b">Hey team, the new component registry is live! 🎉</div>
+</div>
+<div class="mx-msg">
+<div class="mx-msg-h"><span class="mx-msg-n" style="color:var(--gr);">Bob</span><span class="mx-msg-t">10:24 AM</span></div>
+<div class="mx-msg-b">Awesome! I can see the new Button and Card primitives. Great work on the dark theme.</div>
+</div>
+<div class="mx-msg">
+<div class="mx-msg-h"><span class="mx-msg-n" style="color:var(--yl);">Carol</span><span class="mx-msg-t">10:25 AM</span></div>
+<div class="mx-msg-b">Can we add a Timeline component to the registry? I need it for the admin dashboard.</div>
+</div>
+<div class="mx-msg">
+<div class="mx-msg-h"><span class="mx-msg-n">Alice</span><span class="mx-msg-t">10:26 AM</span><span class="mx-msg-r">Mod</span></div>
+<div class="mx-msg-b">Sure! I'll add it to the backlog. The Timeline is already in the base primitives, just needs to be registered.</div>
+</div>
+<div class="mx-msg" style="background:rgba(52,207,230,0.05);border-color:var(--cy);">
+<div class="mx-msg-h"><span class="mx-msg-n" style="color:var(--em);">🤖 Bot</span><span class="mx-msg-t">10:26 AM</span><span class="mx-msg-r" style="background:rgba(255,106,61,0.15);color:var(--em);">Bot</span></div>
+<div class="mx-msg-b">📎 <strong>Component Request Logged</strong><br>Request: Timeline component registration<br>Status: Added to backlog<br>Priority: Medium</div>
+</div>
+</div>
+<div class="cht-f">
+<div class="cht-fi"><input type="text" placeholder="Message #general..." hx-post="/matrix/send" hx-trigger="keydown[key=='Enter']" hx-vals='{"room":"#general:flint.dev"}'></div>
+<button class="btn btn-p">Send</button>
+</div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"matrix_chat","room":"#general:flint.dev","members":24,"online":12,"hx_post":"/matrix/send","hx_vals":{"room":"#general:flint.dev"}}</div>
+</div>
+</div>
+</section>
+
+<!-- Video Section -->
+<section id="video" class="sec">
+<div class="sec-h"><div class="icon">🎬</div><h3>Video Streaming</h3><span class="tag">Media</span></div>
+
+<div class="comp-grid">
+<div class="comp-item" style="grid-column:1/-1;">
+<h4>🎬 Video Player</h4>
+<div class="demo">
+<div class="demo-label">Streaming Interface</div>
+<div class="vp">
+<div style="font-size:48px;opacity:0.3;">▶</div>
+<div class="vp-b">
+<button class="vp-btn">▶</button>
+<button class="vp-btn">⏸</button>
+<div class="vp-bar"><div class="vp-bar-f" style="width:35%"></div></div>
+<div class="vp-ct">04:23 / 12:45</div>
+<button class="vp-btn">⚙</button>
+<button class="vp-btn">⛶</button>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"video_player","src":"/stream/video.mp4","controls":true,"progress":35,"hx_get":"/api/video/progress"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🎬 Video Editor Timeline</h4>
+<div class="demo">
+<div class="demo-label">Timeline Interface</div>
+<div class="ie-t">
+<button class="ie-t-b on">Select</button><button class="ie-t-b">Split</button><button class="ie-t-b">Delete</button>
+<button class="ie-t-b">Undo</button><button class="ie-t-b">Redo</button>
+<div style="width:1px;background:var(--s4);margin:0 4px;"></div>
+<button class="ie-t-b">🎵</button><button class="ie-t-b">🎬</button><button class="ie-t-b">🎨</button>
+</div>
+<div class="ie-c" style="aspect-ratio:16/9;background:var(--s3);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border-radius:8px;">
+<div style="font-size:48px;opacity:0.3;">🎬</div>
+</div>
+<div class="ve-tl">
+<div class="ve-tl-w" style="position:relative;flex:1;">
+<div class="ve-tl-t">
+<div class="ve-tl-s" style="height:60%"></div><div class="ve-tl-s" style="height:80%"></div><div class="ve-tl-s" style="height:40%"></div>
+<div class="ve-tl-s" style="height:90%"></div><div class="ve-tl-s" style="height:55%"></div><div class="ve-tl-s" style="height:70%"></div>
+<div class="ve-tl-s" style="height:45%"></div><div class="ve-tl-s" style="height:85%"></div><div class="ve-tl-s" style="height:60%"></div>
+<div class="ve-tl-s" style="height:75%"></div><div class="ve-tl-s" style="height:50%"></div><div class="ve-tl-s" style="height:80%"></div>
+<div class="ve-tl-s" style="height:65%"></div><div class="ve-tl-s" style="height:90%"></div><div class="ve-tl-s" style="height:55%"></div>
+<div class="ve-tl-s" style="height:70%"></div><div class="ve-tl-s" style="height:45%"></div><div class="ve-tl-s" style="height:85%"></div>
+<div class="ve-tl-s" style="height:60%"></div><div class="ve-tl-s" style="height:75%"></div>
+</div>
+<div class="ve-tl-c" style="left:35%"></div>
+</div>
+<div style="font-size:11px;color:var(--txtd);font-family:var(--fm);min-width:60px;text-align:right;">04:23</div>
+</div>
+</div>
+<div class="demo-code">{"type":"video_editor","tracks":["Video","Audio"],"duration":"12:45","playhead":"04:23","hx_post":"/api/video/edit"}</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Image Section -->
+<section id="image" class="sec">
+<div class="sec-h"><div class="icon">🖼️</div><h3>Image Display & Editing</h3><span class="tag">Media</span></div>
+
+<div class="comp-grid">
+<div class="comp-item" style="grid-column:1/-1;">
+<h4>🖼️ Image Gallery</h4>
+<div class="demo">
+<div class="demo-label">Grid Gallery</div>
+<div class="ig">
+<div class="ig-i"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--s3);">🖼️</div><div class="ig-i-o"><div class="ig-i-b"><button>🔍</button><button>✏️</button><button>🗑️</button></div></div></div>
+<div class="ig-i"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--s3);">📊</div><div class="ig-i-o"><div class="ig-i-b"><button>🔍</button><button>✏️</button><button>🗑️</button></div></div></div>
+<div class="ig-i"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--s3);">🎨</div><div class="ig-i-o"><div class="ig-i-b"><button>🔍</button><button>✏️</button><button>🗑️</button></div></div></div>
+<div class="ig-i"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--s3);">📄</div><div class="ig-i-o"><div class="ig-i-b"><button>🔍</button><button>✏️</button><button>🗑️</button></div></div></div>
+<div class="ig-i"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--s3);">🗺️</div><div class="ig-i-o"><div class="ig-i-b"><button>🔍</button><button>✏️</button><button>🗑️</button></div></div></div>
+<div class="ig-i" style="border-style:dashed;border-color:var(--txtd);display:flex;align-items:center;justify-content:center;cursor:pointer;"><div style="text-align:center;"><div style="font-size:24px;margin-bottom:4px;">+</div><div style="font-size:12px;color:var(--txtd);">Upload</div></div></div>
+</div>
+</div>
+<div class="demo-code">{"type":"image_gallery","images":[...],"actions":["view","edit","delete"],"hx_post":"/api/gallery/upload"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🖼️ Image Editor</h4>
+<div class="demo">
+<div class="demo-label">Editing Interface</div>
+<div class="ie-t">
+<button class="ie-t-b on">Crop</button><button class="ie-t-b">Rotate</button><button class="ie-t-b">Resize</button>
+<div style="width:1px;background:var(--s4);margin:0 4px;"></div>
+<button class="ie-t-b">Brightness</button><button class="ie-t-b">Contrast</button><button class="ie-t-b">Saturation</button>
+<div style="width:1px;background:var(--s4);margin:0 4px;"></div>
+<button class="ie-t-b">🎨 Filters</button>
+</div>
+<div class="ie-c" style="aspect-ratio:4/3;">
+<div style="font-size:48px;opacity:0.3;">🖼️</div>
+<div style="position:absolute;bottom:12px;left:12px;right:12px;display:flex;gap:8px;">
+<div class="fg" style="flex:1;margin:0;"><label class="lbl" style="font-size:10px;">Brightness</label><input type="range" class="rng" min="0" max="200" value="100"></div>
+<div class="fg" style="flex:1;margin:0;"><label class="lbl" style="font-size:10px;">Contrast</label><input type="range" class="rng" min="0" max="200" value="100"></div>
+</div>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:12px;">
+<button class="btn btn-ghost btn-sm">Reset</button>
+<div style="display:flex;gap:8px;">
+<button class="btn btn-s btn-sm">Download</button>
+<button class="btn btn-p btn-sm">Save</button>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"image_editor","tools":["crop","rotate","brightness","contrast"],"hx_post":"/api/image/edit"}</div>
+</div>
+</div>
+</div>
+</section>
+
+</div></main></div>
+</body></html>

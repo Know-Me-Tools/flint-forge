@@ -1,0 +1,46 @@
+[package]
+name = "flint_vault"
+version = "0.1.0"
+edition = "2021"
+license = "Proprietary"
+description = "Flint Forge sovereign secret store. XChaCha20-Poly1305 AEAD; the data key is held in process memory, unwrapped at startup from an external KMS (KEK), and is never selectable from SQL. Plaintext secrets are never returned to SQL clients or WASM sandboxes."
+
+# Built standalone in the Docker anvil stage (no workspace root present) → no inheritance.
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+name = "pgrx_embed_flint_vault"
+path = "src/bin/pgrx_embed.rs"
+
+[features]
+default = ["pg18"]
+pg17 = ["pgrx/pg17", "pgrx-tests/pg17"]
+pg18 = ["pgrx/pg18", "pgrx-tests/pg18"]
+pg_test = []
+
+[dependencies]
+pgrx = "=0.18.1"
+# AEAD (same primitive family pgsodium/Supabase Vault used): 24-byte nonce, AAD support.
+chacha20poly1305 = "0.10"
+# HKDF-SHA256 derives a per-(category,key_id) subkey from the data key.
+hkdf = "0.12"
+sha2 = "0.10"
+rand = "0.8"
+base64 = "0.22"
+# Memory hygiene: keep the key out of Debug/logs and wipe on drop.
+secrecy = "0.8"
+zeroize = "1"
+
+[dev-dependencies]
+pgrx-tests = "=0.18.1"
+
+[profile.dev]
+panic = "unwind"
+
+[profile.release]
+panic = "unwind"
+opt-level = 3
+lto = "fat"
+codegen-units = 1

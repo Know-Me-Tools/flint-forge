@@ -1,0 +1,41 @@
+{
+  "name": "Flint Forge",
+  "description": "Sovereign data and edge-compute plane of the Flint platform: Quarry (REST/GraphQL DB gateway), Anvil (pgrx extensions), and Kiln (WASM edge-function gateway).",
+  "active_phase": "p3-auth-rls-keto",
+  "last_completed_phase": "p2-quarry-reflection-engine",
+  "completed_phases": ["p0-workspace-foundation", "p1-anvil-meta-foundation", "p2-quarry-reflection-engine"],
+  "focus_project_path": "/Users/gqadonis/Projects/prometheus/flint-forge",
+  "spec_paths": [
+    "docs/FLINT-FORGE-SPEC.md",
+    "openspec/changes/p0-c001-workspace",
+    "openspec/changes/p0-c002-pg18-image",
+    "openspec/changes/p0-c003-wit-contract",
+    "openspec/changes/p0-c004-fabric-watch-entity-type"
+  ],
+  "openspec_available": true,
+  "constraint_file": ".kbd-orchestrator/constraints.md",
+  "build_health_command": "cargo check --workspace",
+  "test_command": "cargo test --workspace",
+  "lint_command": "cargo clippy --workspace -- -D warnings",
+  "dev_command": null,
+  "preferred_planning_agent": "antigravity",
+  "preferred_execution_agents": [],
+  "agents_config": {
+    "rust_edition": "2021",
+    "msrv": "1.85",
+    "toolchain": "1.90",
+    "pgrx_workspace_excluded": true,
+    "pgrx_build_command": "cargo pgrx run -p <crate>",
+    "ci_script": "./scripts/ci-check.sh"
+  },
+  "workspace": {
+    "workspace_file": null,
+    "folders": [
+      {
+        "path": "/Users/gqadonis/Projects/prometheus/flint-forge",
+        "role": "focus",
+        "write_access": true
+      }
+    ]
+  }
+}

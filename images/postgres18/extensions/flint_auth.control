@@ -1,0 +1,4 @@
+comment = 'Flint Forge: JWT/RLS context helpers (SQL-only)'
+default_version = '0.1.0'
+relocatable = false
+superuser = false

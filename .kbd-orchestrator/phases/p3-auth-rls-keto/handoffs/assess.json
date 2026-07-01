@@ -1,0 +1,29 @@
+{
+  "stage": "assess",
+  "phase": "p3-auth-rls-keto",
+  "completed_at": "2026-07-01",
+  "summary": "Gap analysis complete. Pre-certified as done: 6-GUC SET LOCAL, Keto sync task, GraphQL WebSocket handler, pg_graphql passthrough, GraphQL compiler. Major gaps: Cedar (new forge-policy impl, cedar-policy crate missing), CRUD handler bodies (4 todo!() stubs), gate tests (4 tests, none written). Reflection router not mounted in gateway — must be first change. G7/G5 live path blocked on OQ-FRF-1. Hexagonal risk: KetoCheck must be a port trait, not a direct import. 9 changes planned, 2 conditionally blocked.",
+  "artifacts": ["assessment.md"],
+  "next_stage": "plan",
+  "next_command": "/kbd-plan p3-auth-rls-keto",
+  "open_questions": {
+    "OQ-FRF-1": "FRF WatchEntityType RPC delivery — blocks G7 and G5 live path",
+    "OQ-3": "pg_graphql PG18 tagged release — pre-flight before G4 passthrough",
+    "OQ-cedar": "cedar-policy crate stable version (3 vs 4?)",
+    "OQ-cedar-policies-table": "Does flint_meta.cedar_policies exist in Phase 1 migrations?"
+  },
+  "pre_certified_done": [
+    "p3-c008: 6 SET LOCAL GUCs in fdb-postgres::acquire()",
+    "keto_sync background task (keto_sync.rs, fully wired in gateway)",
+    "graphql_ws_handler() WebSocket upgrade",
+    "handle_graphql_query() pg_graphql passthrough",
+    "GraphQlCompiler::compile() with subscription schema"
+  ],
+  "critical_path": [
+    "p3-c001: mount reflection router in gateway",
+    "p3-c002: KetoCheck port trait + fdb-app integration",
+    "p3-c003: forge-policy Cedar implementation",
+    "p3-c004/c005: CRUD handler bodies",
+    "p3-c006/c007: gate tests"
+  ]
+}

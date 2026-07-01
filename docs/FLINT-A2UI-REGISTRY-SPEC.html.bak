@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flint A2UI Registry Specification</title>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0F14;--s1:#131A22;--s2:#1A232E;--s3:#0E141B;--s4:#202B38;--s5:#2A3542;
+--txt:#E8EDF3;--txtm:#B4BECB;--txtd:#97A1AE;--em:#FF6A3D;--emd:#E04E28;--cy:#34CFE6;
+--gr:#4FD18B;--yl:#F4B942;--rd:#F05D5D;--fd:'Space Grotesk';--fb:'Inter';--fm:'JetBrains Mono'}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font-family:var(--fb);font-size:14px;line-height:1.6;overflow-x:hidden}
+
+h1,h2,h3,h4{font-family:var(--fd);font-weight:600;letter-spacing:-0.02em}
+h1{font-size:2.8rem;margin-bottom:1rem}h2{font-size:1.8rem;margin:2rem 0 1rem}h3{font-size:1.3rem;margin:1.5rem 0 0.8rem}
+h4{font-size:1.1rem;margin:1rem 0 0.5rem}
+p{margin-bottom:1rem;color:var(--txtm)}
+code{font-family:var(--fm);font-size:12px;background:var(--s3);padding:2px 6px;border-radius:4px;color:var(--cy)}
+pre{background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:16px;overflow-x:auto;font-family:var(--fm);font-size:12px}
+pre code{background:none;padding:0}
+
+.container{max-width:1400px;margin:0 auto;padding:0 24px}
+.grid{display:grid;gap:24px}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+
+.hero{background:var(--s1);border-bottom:1px solid var(--s4);padding:60px 0;text-align:center}
+.hero-b{display:inline-block;background:rgba(255,106,61,0.15);color:var(--em);padding:6px 16px;border-radius:20px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px}
+.hero p{max-width:700px;margin:0 auto 24px;color:var(--txtd)}
+
+.sec{background:var(--s1);border:1px solid var(--s4);border-radius:12px;padding:24px;margin-bottom:24px}
+.sec-h{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.sec-h .icon{width:36px;height:36px;background:var(--s3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.sec-h h3{margin:0}
+.sec-h .tag{font-size:11px;background:var(--s3);color:var(--txtd);padding:2px 8px;border-radius:4px;border:1px solid var(--s4)}
+
+.demo{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:20px;margin:16px 0}
+.demo-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--txtd);margin-bottom:8px;font-weight:600}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;border:none;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;text-decoration:none}
+.btn-p{background:var(--em);color:#fff}
+.btn-p:hover{background:var(--emd);transform:translateY(-1px)}
+.btn-s{background:var(--s3);color:var(--txt);border:1px solid var(--s4)}
+.btn-s:hover{border-color:var(--cy)}
+.btn-g{background:var(--s3);color:var(--gr);border:1px solid rgba(79,209,139,0.3)}
+.btn-g:hover{background:rgba(79,209,139,0.1)}
+.btn-r{background:var(--s3);color:var(--rd);border:1px solid rgba(240,93,93,0.3)}
+.btn-ghost{background:transparent;color:var(--txtm);border:1px solid var(--s4)}
+.btn-ghost:hover{color:var(--txt);border-color:var(--cy)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-lg{padding:12px 24px;font-size:14px}
+.btn-i{padding:8px}
+
+.inp{width:100%;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;transition:all 0.2s}
+.inp:focus{outline:none;border-color:var(--cy);box-shadow:0 0 0 3px rgba(52,207,230,0.1)}
+.inp::placeholder{color:var(--txtd)}
+.lbl{display:block;font-size:12px;font-weight:500;color:var(--txtm);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+.fg{margin-bottom:16px}
+.sel{width:100%;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;cursor:pointer}
+.sel:focus{outline:none;border-color:var(--cy)}
+.tx{width:100%;min-height:100px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;resize:vertical}
+.tx:focus{outline:none;border-color:var(--cy)}
+.chk,.rd{display:flex;align-items:center;gap:8px;cursor:pointer;margin:8px 0;font-size:13px;color:var(--txtm)}
+.chk input,.rd input{accent-color:var(--em)}
+
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 12px;background:var(--s3);color:var(--txtd);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--s4)}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--s4);color:var(--txtm)}
+.tbl tr:hover td{background:rgba(52,207,230,0.05)}
+.tbl tr:last-child td{border-bottom:none}
+
+.bd-g{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(79,209,139,0.15);color:var(--gr)}
+.bd-y{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(244,185,66,0.15);color:var(--yl)}
+.bd-r{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(240,93,93,0.15);color:var(--rd)}
+.bd-e{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(255,106,61,0.15);color:var(--em)}
+.bd-c{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(52,207,230,0.15);color:var(--cy)}
+.bd-d{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--s3);color:var(--txtd)}
+
+.card{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:20px;transition:all 0.2s}
+.card:hover{border-color:var(--cy);transform:translateY(-2px)}
+.card-h{font-size:14px;font-weight:600;margin-bottom:8px;color:var(--txt)}
+.card-d{font-size:13px;color:var(--txtd);margin-bottom:12px}
+
+.tbs{display:flex;border-bottom:1px solid var(--s4);gap:4px;margin-bottom:16px}
+.tb{padding:10px 16px;border:none;background:none;color:var(--txtd);font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s}
+.tb.on{color:var(--cy);border-bottom-color:var(--cy)}
+.tb:hover{color:var(--txt)}
+
+.acc{border:1px solid var(--s4);border-radius:8px;margin-bottom:8px;overflow:hidden}
+.acc-h{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--s2);cursor:pointer;font-weight:500;font-size:13px}
+.acc-h:hover{background:var(--s3)}
+.acc-b{padding:12px 16px;background:var(--bg);border-top:1px solid var(--s4);font-size:13px;color:var(--txtm)}
+
+.mod-o{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}
+.mod-c{background:var(--s2);border:1px solid var(--s4);border-radius:12px;max-width:600px;width:90%;max-height:80vh;overflow:auto}
+.mod-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--s4)}
+.mod-h h4{margin:0}
+.mod-b{padding:20px}
+.mod-f{display:flex;justify-content:flex-end;gap:8px;padding:16px 20px;border-top:1px solid var(--s4)}
+
+.drw{position:fixed;top:0;right:0;width:400px;max-width:90vw;height:100%;background:var(--s2);border-left:1px solid var(--s4);z-index:1001;display:flex;flex-direction:column}
+.drw-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--s4)}
+.drw-b{flex:1;overflow:auto;padding:20px}
+.drw-f{padding:16px 20px;border-top:1px solid var(--s4)}
+
+.tbar{display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--s1);border-bottom:1px solid var(--s4);position:sticky;top:0;z-index:100}
+.tbar-l{font-family:var(--fd);font-weight:700;font-size:18px;color:var(--em)}
+.tbar-n{display:flex;gap:4px}
+.tbar-n a{padding:6px 12px;border-radius:6px;color:var(--txtm);text-decoration:none;font-size:13px;transition:all 0.2s}
+.tbar-n a:hover,.tbar-n a.on{background:var(--s3);color:var(--txt)}
+.snav{width:260px;background:var(--s1);border-right:1px solid var(--s4);min-height:100vh;position:fixed;top:0;left:0;overflow-y:auto;z-index:99}
+.snav-h{padding:16px 20px;border-bottom:1px solid var(--s4);display:flex;align-items:center;gap:12px}
+.snav-l{display:flex;align-items:center;gap:10px;font-family:var(--fd);font-weight:700;font-size:16px}
+.snav-li{width:32px;height:32px;background:var(--em);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+.snav-i{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--txtm);text-decoration:none;font-size:13px;transition:all 0.2s;border-left:3px solid transparent}
+.snav-i:hover{background:var(--s2);color:var(--txt)}
+.snav-i.on{border-left-color:var(--em);background:var(--s2);color:var(--txt)}
+
+.av{width:36px;height:36px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--cy);border:2px solid var(--s4)}
+.av-sm{width:28px;height:28px;font-size:12px}
+.av-lg{width:48px;height:48px;font-size:16px}
+.av-g{border-radius:8px}
+
+.pb{height:6px;background:var(--s3);border-radius:3px;overflow:hidden}
+.pb-b{height:100%;background:var(--em);border-radius:3px;transition:width 0.5s ease}
+.pb-g .pb-b{background:var(--gr)}
+.pb-c .pb-b{background:var(--cy)}
+.pf{display:flex;align-items:center;gap:12px;margin:8px 0}
+.pf-l{font-size:12px;color:var(--txtd);min-width:80px}
+.pf-b{flex:1}
+.pf-v{font-size:12px;color:var(--txtm);min-width:40px;text-align:right}
+
+.chat{display:flex;flex-direction:column;gap:16px;max-height:500px;overflow-y:auto;padding:16px;background:var(--bg);border-radius:8px}
+.chat-m{display:flex;gap:12px;align-items:flex-start}
+.chat-m.own{flex-direction:row-reverse}
+.chat-b{padding:10px 14px;border-radius:12px;max-width:70%;font-size:13px}
+.chat-m:not(.own) .chat-b{background:var(--s2);border:1px solid var(--s4);color:var(--txtm)}
+.chat-m.own .chat-b{background:var(--em);color:#fff}
+.chat-t{font-size:11px;color:var(--txtd);margin-top:4px}
+
+.tl{position:relative;padding-left:24px}
+.tl::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--s4)}
+.tl-i{position:relative;margin-bottom:20px}
+.tl-d{position:absolute;left:-24px;top:4px;width:16px;height:16px;border-radius:50%;background:var(--s3);border:2px solid var(--cy);z-index:1}
+.tl-c{font-size:12px;font-weight:600;color:var(--txt);margin-bottom:4px}
+.tl-t{font-size:11px;color:var(--txtd);margin-bottom:4px}
+.tl-x{font-size:13px;color:var(--txtm)}
+
+.kb{display:flex;gap:16px;overflow-x:auto;padding-bottom:8px}
+.kc{min-width:280px;background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:16px}
+.kc-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.kc-t{font-size:13px;font-weight:600}
+.kc-n{font-size:11px;background:var(--s3);padding:2px 8px;border-radius:4px;color:var(--txtd)}
+.kcd{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:12px;margin-bottom:8px;cursor:grab;transition:all 0.2s}
+.kcd:hover{border-color:var(--cy)}
+.kcd-h{font-size:13px;font-weight:500;margin-bottom:4px}
+.kcd-t{font-size:11px;color:var(--txtd);margin-bottom:8px}
+.kcd-b{display:flex;gap:6px;flex-wrap:wrap}
+
+.mc{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:20px;transition:all 0.2s}
+.mc:hover{border-color:var(--cy)}
+.mc-v{font-size:28px;font-weight:700;font-family:var(--fd);color:var(--txt);margin-bottom:4px}
+.mc-l{font-size:12px;color:var(--txtd);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+.mc-d{display:flex;align-items:center;gap:6px;font-size:13px}
+.mc-d.up{color:var(--gr)}.mc-d.down{color:var(--rd)}
+.mv{display:flex;align-items:center;gap:12px;padding:16px;background:var(--s2);border:1px solid var(--s4);border-radius:10px}
+.mv-i{width:40px;height:40px;border-radius:10px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:20px}
+.mv-c{flex:1}
+.mv-v{font-size:18px;font-weight:700;font-family:var(--fd)}
+.mv-l{font-size:12px;color:var(--txtd)}
+
+.stp{display:flex;align-items:center;gap:8px;margin:24px 0}
+.st{display:flex;align-items:center;gap:8px}
+.stc{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;background:var(--s3);border:2px solid var(--s4);color:var(--txtd)}
+.stc.on{background:var(--em);border-color:var(--em);color:#fff}
+.stc.done{background:var(--gr);border-color:var(--gr);color:#fff}
+.stl{flex:1;height:2px;background:var(--s4);min-width:40px}
+.stl.on{background:var(--em)}
+.stt{font-size:12px;color:var(--txtd);margin-top:4px;white-space:nowrap}
+
+.pg{display:flex;gap:4px;justify-content:center;align-items:center}
+.pg-b{padding:6px 12px;border:1px solid var(--s4);background:var(--s2);color:var(--txtm);border-radius:6px;cursor:pointer;font-size:13px;transition:all 0.2s}
+.pg-b:hover{border-color:var(--cy);color:var(--txt)}
+.pg-b.on{background:var(--em);border-color:var(--em);color:#fff}
+.pg-b:disabled{opacity:0.4;cursor:not-allowed}
+
+.fb{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:16px;background:var(--s2);border:1px solid var(--s4);border-radius:10px;margin-bottom:16px}
+.ft{flex:1;min-width:200px;position:relative}
+.ft-i{width:100%;padding:10px 14px 10px 36px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;color:var(--txt);font-size:13px}
+.ft-i:focus{outline:none;border-color:var(--cy)}
+.ft::before{content:'🔍';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:12px;opacity:0.6}
+
+.tt-c{position:fixed;bottom:24px;right:24px;z-index:1002;display:flex;flex-direction:column;gap:8px}
+.tt{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);min-width:300px;animation:slideIn 0.3s ease}
+.tt-g{border-left:3px solid var(--gr)}.tt-r{border-left:3px solid var(--rd)}.tt-y{border-left:3px solid var(--yl)}
+.tt-h{font-weight:600;font-size:13px}.tt-b{font-size:12px;color:var(--txtd)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+.cp-o{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1003;display:flex;align-items:start;justify-content:center;padding-top:120px;backdrop-filter:blur(4px)}
+.cp{background:var(--s2);border:1px solid var(--s4);border-radius:12px;width:600px;max-width:90%;overflow:hidden}
+.cp-i{padding:16px 20px;border-bottom:1px solid var(--s4);display:flex;align-items:center;gap:12px}
+.cp-i input{flex:1;background:none;border:none;color:var(--txt);font-size:16px;outline:none}
+.cp-i input::placeholder{color:var(--txtd)}
+.cp-l{max-height:400px;overflow-y:auto}
+.cp-r{padding:10px 20px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.15s}
+.cp-r:hover{background:var(--s3)}
+.cp-r.on{background:var(--s3);border-left:2px solid var(--em)}
+.cp-ri{width:32px;height:32px;background:var(--s3);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.cp-rt{flex:1}
+.cp-rt h5{font-size:13px;font-weight:500;margin-bottom:2px}
+.cp-rt p{font-size:11px;color:var(--txtd)}
+.cp-rs{font-size:11px;color:var(--txtd);font-family:var(--fm)}
+
+.htmx-added{animation:fadeIn 0.3s ease}
+.htmx-swapping{animation:fadeOut 0.2s ease}
+.fade-me-in{animation:fadeIn 0.4s ease}
+.slide-me-in{animation:slideIn 0.4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+
+[x-cloak]{display:none !important}
+
+.page{display:flex;min-height:100vh}
+.page .main{flex:1;padding:24px;min-width:0;margin-left:260px}
+@media(max-width:900px){.snav{display:none}.page .main{margin-left:0}}
+
+.svg-d{max-width:100%;margin:24px auto;display:block}
+.comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.comp-item{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:16px}
+.comp-item h4{font-size:13px;margin-bottom:12px;color:var(--txtd);text-transform:uppercase;letter-spacing:0.5px}
+.demo-code{background:var(--s3);border:1px solid var(--s4);border-radius:6px;padding:12px;margin-top:12px;font-family:var(--fm);font-size:11px;overflow-x:auto;color:var(--txtd)}
+
+/* Switch */
+.sw{display:flex;align-items:center;gap:10px;cursor:pointer}
+.sw-i{position:relative;width:44px;height:24px;background:var(--s4);border-radius:12px;transition:all 0.2s}
+.sw-i.on{background:var(--em)}
+.sw-i::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:all 0.2s}
+.sw-i.on::after{left:22px}
+.sw-l{font-size:13px;color:var(--txtm)}
+
+/* Tooltip */
+.ttp{position:relative;display:inline-block}
+.ttp-b{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);padding:6px 10px;background:var(--s2);border:1px solid var(--s4);border-radius:6px;font-size:11px;white-space:nowrap;opacity:0;visibility:hidden;transition:all 0.2s;margin-bottom:6px;z-index:50}
+.ttp:hover .ttp-b{opacity:1;visibility:visible}
+
+/* FAB */
+.fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--em);color:#fff;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 16px rgba(255,106,61,0.4);z-index:100;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+.fab:hover{transform:scale(1.1)}
+
+/* Menu dropdown */
+.mn{position:relative;display:inline-block}
+.mn-c{position:absolute;top:100%;left:0;min-width:200px;background:var(--s2);border:1px solid var(--s4);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:50;overflow:hidden;margin-top:4px}
+.mn-i{padding:10px 14px;font-size:13px;color:var(--txtm);cursor:pointer;transition:all 0.15s;border-bottom:1px solid var(--s4)}
+.mn-i:last-child{border-bottom:none}
+.mn-i:hover{background:var(--s3);color:var(--txt)}
+.mn-i-k{font-size:11px;color:var(--txtd);float:right;font-family:var(--fm)}
+
+/* Context menu */
+.ctx-mn{background:var(--s2);border:1px solid var(--s4);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.4);overflow:hidden;min-width:180px}
+.ctx-i{padding:8px 14px;font-size:13px;color:var(--txtm);cursor:pointer;border-bottom:1px solid var(--s4);display:flex;align-items:center;gap:8px;transition:all 0.15s}
+.ctx-i:last-child{border-bottom:none}
+.ctx-i:hover{background:var(--s3);color:var(--txt)}
+.ctx-i-rd{color:var(--rd)}
+
+/* Speed dial */
+.sd{position:fixed;bottom:100px;right:24px;display:flex;flex-direction:column;align-items:center;gap:12px;z-index:100}
+.sd-a{width:40px;height:40px;border-radius:50%;background:var(--s2);border:1px solid var(--s4);color:var(--txt);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+.sd-a:hover{background:var(--s3);border-color:var(--cy);transform:scale(1.1)}
+
+/* Split button */
+.sb{display:inline-flex;align-items:center}
+.sb-m{padding:8px 16px;border-radius:8px 0 0 8px;background:var(--em);color:#fff;border:none;font-size:13px;font-weight:500;cursor:pointer}
+.sb-d{padding:8px 10px;border-radius:0 8px 8px 0;background:var(--emd);color:#fff;border:none;font-size:13px;cursor:pointer;border-left:1px solid rgba(0,0,0,0.2)}
+
+/* Range slider */
+.rng{width:100%;-webkit-appearance:none;appearance:none;height:6px;background:var(--s4);border-radius:3px;outline:none}
+.rng::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--cy);cursor:pointer;border:2px solid var(--s2);box-shadow:0 2px 6px rgba(0,0,0,0.3)}
+
+/* Tag input */
+.tgi{display:flex;flex-wrap:wrap;gap:6px;padding:6px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;align-items:center}
+.tgi-t{display:flex;align-items:center;gap:4px;padding:4px 8px;background:var(--s3);border:1px solid var(--s4);border-radius:4px;font-size:12px;color:var(--txtm)}
+.tgi-t button{background:none;border:none;color:var(--txtd);cursor:pointer;font-size:14px;padding:0 2px}
+.tgi-t button:hover{color:var(--rd)}
+
+/* Color swatch */
+.csw{width:32px;height:32px;border-radius:6px;border:2px solid var(--s4);cursor:pointer;transition:all 0.2s}
+.csw:hover{border-color:var(--cy);transform:scale(1.1)}
+.csw.on{border-color:var(--em);box-shadow:0 0 0 2px rgba(255,106,61,0.3)}
+
+/* Agent-specific components */
+.ag-sug{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.ag-sug-b{padding:6px 12px;background:var(--s3);border:1px solid var(--s4);border-radius:16px;font-size:12px;color:var(--txtm);cursor:pointer;transition:all 0.2s}
+.ag-sug-b:hover{border-color:var(--cy);color:var(--txt)}
+.ag-sug-b.on{background:rgba(52,207,230,0.15);border-color:var(--cy);color:var(--cy)}
+
+.ag-conf{padding:16px;background:var(--s2);border:1px solid var(--s4);border-radius:10px;margin:8px 0}
+.ag-conf-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:8px}
+.ag-conf-b{font-size:12px;color:var(--txtd)}
+
+.ag-res{border:1px solid var(--s4);border-radius:8px;overflow:hidden;margin:8px 0}
+.ag-res-h{padding:10px 14px;background:var(--s3);font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--s4)}
+.ag-res-b{padding:14px;background:var(--bg);font-size:13px;color:var(--txtm);font-family:var(--fm);white-space:pre-wrap}
+
+.ag-typing{display:flex;align-items:center;gap:8px;padding:8px 14px;color:var(--txtd);font-size:13px;font-style:italic}
+.ag-typing span{animation:blink 1.4s infinite both}
+.ag-typing span:nth-child(2){animation-delay:0.2s}
+.ag-typing span:nth-child(3){animation-delay:0.4s}
+@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
+
+.ag-act{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;font-size:12px;color:var(--txtd);margin:4px 0}
+.ag-act-i{font-size:14px;animation:spin 1s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+.ag-snd{background:var(--s2);border:1px solid var(--s4);border-radius:8px;padding:8px;font-size:12px;color:var(--txtd);margin:8px 0}
+.ag-snd-h{font-weight:600;margin-bottom:4px;color:var(--txtm)}
+
+.ag-rat{display:flex;gap:8px;align-items:center;margin:8px 0}
+.ag-rat-b{padding:4px 10px;background:var(--s3);border:1px solid var(--s4);border-radius:4px;font-size:12px;cursor:pointer;transition:all 0.2s}
+.ag-rat-b:hover{border-color:var(--cy)}
+.ag-rat-b.on{background:var(--em);border-color:var(--em);color:#fff}
+
+.ag-st{padding:12px;background:var(--s3);border:1px solid var(--s4);border-radius:8px;margin:8px 0}
+.ag-st-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;margin-bottom:8px}
+.ag-st-b{display:flex;flex-direction:column;gap:6px}
+.ag-st-r{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.ag-st-r-l{color:var(--txtd)}
+.ag-st-r-v{color:var(--txtm);font-family:var(--fm)}
+
+.ag-poll{border:1px solid var(--s4);border-radius:8px;overflow:hidden;margin:8px 0}
+.ag-poll-h{padding:10px 14px;background:var(--s3);font-size:13px;font-weight:500;border-bottom:1px solid var(--s4)}
+.ag-poll-o{padding:8px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:all 0.15s;border-bottom:1px solid var(--s4)}
+.ag-poll-o:last-child{border-bottom:none}
+.ag-poll-o:hover{background:var(--s3)}
+.ag-poll-o-bar{flex:1;height:6px;background:var(--s4);border-radius:3px;overflow:hidden}
+.ag-poll-o-bar-f{height:100%;background:var(--em);border-radius:3px}
+.ag-poll-o-v{font-size:12px;color:var(--txtd);min-width:40px;text-align:right}
+
+.ag-snd-m{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0}
+.ag-snd-mi{flex:1;min-width:120px;padding:8px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;text-align:center;cursor:pointer;transition:all 0.2s;font-size:12px}
+.ag-snd-mi:hover{border-color:var(--cy)}
+.ag-snd-mi img{max-width:100%;border-radius:4px;margin-bottom:4px}
+</style>
+</head>
+<body>
+
+<!-- Hero Section -->
+<div class="hero">
+<div class="container">
+<div class="hero-b">A2UI Registry Specification</div>
+<h1>Flint Component Registry</h1>
+<p>Complete reference for all A2UI base primitives, registry schema, API surfaces, and assembly pipelines. Interactive HTMX examples with the KnowMe design system.</p>
+<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:24px;">
+<a href="#primitives" class="btn btn-p">Component Primitives</a>
+<a href="#registry-schema" class="btn btn-s">Registry Schema</a>
+<a href="#api" class="btn btn-s">API Surface</a>
+<a href="FLINT-A2UI-SITUATIONAL.html" class="btn btn-ghost">Situational Examples →</a>
+</div>
+</div>
+</div>
+
+<!-- Page Layout -->
+<div class="page">
+<!-- Sidebar Navigation -->
+<nav class="snav">
+<div class="snav-h">
+<div class="snav-l"><div class="snav-li">F</div><span>A2UI Registry</span></div>
+</div>
+<div style="padding:12px 0;">
+<a href="#overview" class="snav-i on">📋 Overview</a>
+<a href="#primitives" class="snav-i">🧩 Primitives</a>
+<a href="#layout" class="snav-i" style="padding-left:40px;">Layout</a>
+<a href="#data-display" class="snav-i" style="padding-left:40px;">Data Display</a>
+<a href="#input" class="snav-i" style="padding-left:40px;">Input</a>
+<a href="#action" class="snav-i" style="padding-left:40px;">Action</a>
+<a href="#agent" class="snav-i" style="padding-left:40px;">Agent</a>
+<a href="#navigation" class="snav-i" style="padding-left:40px;">Navigation</a>
+<a href="#registry-schema" class="snav-i">🗄️ Schema</a>
+<a href="#bindings" class="snav-i">🔗 Bindings</a>
+<a href="#design-bridge" class="snav-i">🎨 Design Bridge</a>
+<a href="#api" class="snav-i">📡 API</a>
+<a href="#a2a" class="snav-i">🤝 A2A Tasks</a>
+<a href="#mcp" class="snav-i">🔧 MCP Tools</a>
+<a href="#events" class="snav-i">⚡ Events</a>
+<a href="#security" class="snav-i">🔒 Security</a>
+<a href="#roadmap" class="snav-i">🗺️ Roadmap</a>
+</div>
+</nav>
+
+<!-- Main Content -->
+<main class="main">
+<div class="container">
+
+<!-- Overview Section -->
+<section id="overview" class="sec">
+<div class="sec-h"><div class="icon">📋</div><h3>Executive Overview</h3><span class="tag">RFC-FORGE-A2UI-001</span></div>
+<p>The <strong>Flint A2UI Component Registry</strong> is a domain-agnostic, metadata-driven system that enables AI agents to discover, select, compose, and render user interface components through structured JSON references.</p>
+<h4>Core Philosophy</h4>
+<p>Agents do not generate raw HTML/CSS. They reference <strong>constrained component identifiers</strong> with structured parameters, and the registry handles the rendering, data binding, and lifecycle management.</p>
+<ul style="margin:12px 0 12px 24px;color:var(--txtm);">
+<li><strong>Security</strong> — No arbitrary markup injection</li>
+<li><strong>Consistency</strong> — All UIs follow the same design system</li>
+<li><strong>Composability</strong> — Components nest and combine predictably</li>
+<li><strong>Accessibility</strong> — Base primitives include ARIA roles</li>
+<li><strong>Performance</strong> — Pre-optimized rendering paths</li>
+</ul>
+</section>
+
+<!-- Component Primitives Section -->
+<section id="primitives" class="sec">
+<div class="sec-h"><div class="icon">🧩</div><h3>Base Component Primitives</h3><span class="tag">30+ Components</span></div>
+<p>All A2UI components are classified into six taxonomic categories. Each primitive has a canonical JSON schema, HTMX rendering, and semantic embedding for agent discovery.</p>
+
+<h4 id="layout">Layout Primitives</h4>
+<div class="comp-grid">
+<div class="comp-item">
+<h4>📦 Stack / Container</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<div style="padding:12px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;"><span style="font-size:12px;color:var(--txtd);">Stack Item 1</span></div>
+<div style="padding:12px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;"><span style="font-size:12px;color:var(--txtd);">Stack Item 2</span></div>
+<div style="padding:12px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;"><span style="font-size:12px;color:var(--txtd);">Stack Item 3</span></div>
+</div>
+</div>
+<div class="demo-code">{"type":"stack","direction":"vertical","gap":"8px","items":["Item 1","Item 2","Item 3"]}</div>
+</div>
+
+<div class="comp-item">
+<h4>⊞ Grid</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+<div style="padding:16px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;text-align:center;"><span style="font-size:12px;">A</span></div>
+<div style="padding:16px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;text-align:center;"><span style="font-size:12px;">B</span></div>
+<div style="padding:16px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;text-align:center;"><span style="font-size:12px;">C</span></div>
+<div style="padding:16px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;text-align:center;"><span style="font-size:12px;">D</span></div>
+</div>
+</div>
+<div class="demo-code">{"type":"grid","columns":2,"gap":"8px","items":["A","B","C","D"]}</div>
+</div>
+
+<div class="comp-item">
+<h4>◫ Split Pane</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<div style="display:flex;gap:1px;background:var(--s4);border-radius:6px;overflow:hidden;">
+<div style="flex:1;padding:20px;background:var(--s3);text-align:center;"><span style="font-size:12px;">Left Pane</span></div>
+<div style="flex:1;padding:20px;background:var(--s3);text-align:center;"><span style="font-size:12px;">Right Pane</span></div>
+</div>
+</div>
+<div class="demo-code">{"type":"split_pane","ratio":0.5,"orientation":"horizontal"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🃏 Panel / Card</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<div class="card" style="margin:0;">
+<div class="card-h">Card Title</div>
+<div class="card-d">Card content with description text that wraps to multiple lines.</div>
+<button class="btn btn-p btn-sm">Action</button>
+</div>
+</div>
+<div class="demo-code">{"type":"card","title":"Card Title","description":"...","action":{"label":"Action"}}</div>
+</div>
+
+<div class="comp-item">
+<h4>📜 Scroll Area</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<div style="max-height:80px;overflow-y:auto;background:var(--s3);border:1px solid var(--s4);border-radius:6px;padding:8px;">
+<div style="padding:6px;font-size:12px;border-bottom:1px solid var(--s4);">Item 1</div>
+<div style="padding:6px;font-size:12px;border-bottom:1px solid var(--s4);">Item 2</div>
+<div style="padding:6px;font-size:12px;border-bottom:1px solid var(--s4);">Item 3</div>
+<div style="padding:6px;font-size:12px;border-bottom:1px solid var(--s4);">Item 4</div>
+<div style="padding:6px;font-size:12px;">Item 5</div>
+</div>
+</div>
+<div class="demo-code">{"type":"scroll_area","max_height":"200px","content":"..."}</div>
+</div>
+
+<div class="comp-item">
+<h4>— Divider</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<div style="padding:16px 0;">
+<div style="font-size:12px;margin-bottom:8px;">Section A</div>
+<div style="height:1px;background:var(--s4);margin:8px 0;"></div>
+<div style="font-size:12px;margin-top:8px;">Section B</div>
+</div>
+</div>
+<div class="demo-code">{"type":"divider","style":"horizontal"}</div>
+</div>
+</div>
+
+<h4 id="data-display">Data Display Primitives</h4>
+<div class="comp-grid">
+<div class="comp-item">
+<h4>📊 Table</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<table class="tbl">
+<thead><tr><th>Name</th><th>Role</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>Alice</td><td>Admin</td><td><span class="bd-g">Active</span></td></tr>
+<tr><td>Bob</td><td>Editor</td><td><span class="bd-y">Pending</span></td></tr>
+<tr><td>Carol</td><td>Viewer</td><td><span class="bd-r">Inactive</span></td></tr>
+</tbody>
+</table>
+</div>
+<div class="demo-code">{"type":"table","columns":["Name","Role","Status"],"rows":[["Alice","Admin","Active"],...]}</div>
+</div>
+
+<div class="comp-item">
+<h4>☰ List</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<div style="border:1px solid var(--s4);border-radius:6px;overflow:hidden;">
+<div style="padding:10px 14px;border-bottom:1px solid var(--s4);display:flex;align-items:center;gap:8px;"><div class="av av-sm">A</div><span style="font-size:13px;">Alice Chen</span></div>
+<div style="padding:10px 14px;border-bottom:1px solid var(--s4);display:flex;align-items:center;gap:8px;"><div class="av av-sm" style="color:var(--gr);">B</div><span style="font-size:13px;">Bob Smith</span></div>
+<div style="padding:10px 14px;display:flex;align-items:center;gap:8px;"><div class="av av-sm" style="color:var(--yl);">C</div><span style="font-size:13px;">Carol Wu</span></div>
+</div>
+</div>
+<div class="demo-code">{"type":"list","items":[{"avatar":"A","title":"Alice"},...]}</div>
+</div>
+
+<div class="comp-item">
+<h4>🌳 Tree</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<div style="font-size:13px;padding:8px;">
+<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;"><span>▼</span><strong>src</strong></div>
+<div style="margin-left:20px;margin-bottom:4px;"><span style="color:var(--txtd);">├─ components</span></div>
+<div style="margin-left:20px;margin-bottom:4px;"><span style="color:var(--txtd);">├─ pages</span></div>
+<div style="margin-left:20px;"><span style="color:var(--txtd);">└─ utils</span></div>
+</div>
+</div>
+<div class="demo-code">{"type":"tree","nodes":[{"label":"src","children":[...]}]}</div>
+</div>
+
+<div class="comp-item">
+<h4>🏷️ Badge</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;">
+<span class="bd-g">Active</span><span class="bd-y">Pending</span><span class="bd-r">Error</span><span class="bd-e">Beta</span><span class="bd-c">New</span>
+</div>
+</div>
+<div class="demo-code">{"type":"badge","label":"Active","variant":"success"}</div>
+</div>
+
+<div class="comp-item">
+<h4>👤 Avatar</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<div style="display:flex;gap:8px;align-items:center;">
+<div class="av">JD</div><div class="av av-g">🏢</div><div class="av av-sm">A</div><div class="av av-lg">+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"avatar","initials":"JD","size":"md","shape":"circle"}</div>
+</div>
+
+<div class="comp-item">
+<h4>📶 Progress Bar</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<div class="pf"><span class="pf-l">Upload</span><div class="pf-b"><div class="pb"><div class="pb-b" style="width:65%"></div></div></div><span class="pf-v">65%</span></div>
+<div class="pf"><span class="pf-l">Sync</span><div class="pf-b pb-g"><div class="pb"><div class="pb-b" style="width:92%"></div></div></div><span class="pf-v">92%</span></div>
+<div class="pf"><span class="pf-l">CPU</span><div class="pf-b pb-c"><div class="pb"><div class="pb-b" style="width:34%"></div></div></div><span class="pf-v">34%</span></div>
+</div>
+<div class="demo-code">{"type":"progress_bar","label":"Upload","value":65,"max":100}</div>
+</div>
+
+<div class="comp-item">
+<h4>📈 Metric Card</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<div class="grid grid-2" style="gap:8px;">
+<div class="mc" style="padding:12px;"><div class="mc-v">12,847</div><div class="mc-l">Users</div><div class="mc-d up">↑ 12.5%</div></div>
+<div class="mc" style="padding:12px;"><div class="mc-v">$84.2K</div><div class="mc-l">Revenue</div><div class="mc-d down">↓ 3.2%</div></div>
+</div>
+</div>
+<div class="demo-code">{"type":"metric_card","value":"12,847","label":"Users","trend":"+12.5%"}</div>
+</div>
+
+<div class="comp-item">
+<h4>⏱️ Timeline</h4>
+<div class="demo"><div class="demo-label">Visual</div>
+<div class="tl">
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">Project Created</div><div class="tl-t">2024-01-15 09:00</div><div class="tl-x">Initial setup completed</div></div>
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">First Deployment</div><div class="tl-t">2024-01-20 14:30</div><div class="tl-x">v0.1.0 released to staging</div></div>
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">Production Launch</div><div class="tl-t">2024-02-01 10:00</div><div class="tl-x">Live on production</div></div>
+</div>
+</div>
+<div class="demo-code">{"type":"timeline","events":[{"title":"...","timestamp":"...","description":"..."}]}</div>
+</div>
+</div>
+</section>
+</body></html>
+
+
+<!-- Input Primitives -->
+<h4 id="input">Input Primitives</h4>
+<div class="comp-grid">
+
+<div class="comp-item">
+<h4>📝 Text Input</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="fg" x-data="{count:0}">
+<label class="lbl">Username</label>
+<input type="text" class="inp" placeholder="Enter username..." hx-validate="true" hx-post="/api/validate-username" hx-target="#uname-feedback" hx-trigger="keyup changed delay:500ms" hx-indicator="#uname-spinner" x-model="count" @input="count = $event.target.value.length">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+<span id="uname-spinner" class="htmx-indicator" style="font-size:11px;color:var(--cy);">Validating...</span>
+<span id="uname-feedback" style="font-size:11px;"></span>
+<span style="font-size:11px;color:var(--txtd);" x-text="count + ' chars'"></span>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"text_input","label":"Username","placeholder":"...","validation":"required|min:3","hx_validate":true,"hx_post":"/api/validate-username"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🔢 Number Input</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="fg">
+<label class="lbl">Quantity</label>
+<div style="display:flex;gap:8px;align-items:center;">
+<button class="btn btn-s btn-i" @click="$refs.qty.value = Math.max(0, parseInt($refs.qty.value||0)-1)">−</button>
+<input type="number" class="inp" x-ref="qty" value="5" min="0" max="100" step="1" style="text-align:center;width:80px;">
+<button class="btn btn-s btn-i" @click="$refs.qty.value = Math.min(100, parseInt($refs.qty.value||0)+1)">+</button>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"number_input","label":"Quantity","min":0,"max":100,"step":1,"value":5}</div>
+</div>
+
+<div class="comp-item">
+<h4>▼ Select / Dropdown</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="fg">
+<label class="lbl">Department</label>
+<select class="sel" hx-get="/api/teams" hx-target="#team-select" hx-trigger="change">
+<option value="">Choose department...</option>
+<option value="eng">Engineering</option>
+<option value="design">Design</option>
+<option value="product">Product</option>
+<option value="marketing">Marketing</option>
+</select>
+<div id="team-select" style="margin-top:8px;"></div>
+</div>
+</div>
+<div class="demo-code">{"type":"select","label":"Department","options":[{"value":"eng","label":"Engineering"},...],"hx_get":"/api/teams","hx_target":"#team-select"}</div>
+</div>
+
+<div class="comp-item">
+<h4>☑️ Checkbox & Radio</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="fg">
+<label class="lbl">Permissions</label>
+<label class="chk"><input type="checkbox" checked> Read</label>
+<label class="chk"><input type="checkbox"> Write</label>
+<label class="chk"><input type="checkbox"> Delete</label>
+</div>
+<div class="fg">
+<label class="lbl">Role</label>
+<label class="rd"><input type="radio" name="role" value="admin" checked> Admin</label>
+<label class="rd"><input type="radio" name="role" value="editor"> Editor</label>
+<label class="rd"><input type="radio" name="role" value="viewer"> Viewer</label>
+</div>
+</div>
+<div class="demo-code">{"type":"checkbox_group","label":"Permissions","options":["Read","Write","Delete"],"hx_vals":{"role":"admin"}}</div>
+</div>
+
+<div class="comp-item">
+<h4>🔄 Switch / Toggle</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="fg" x-data="{on:true}">
+<label class="lbl">Dark Mode</label>
+<div class="sw" @click="on=!on">
+<div class="sw-i" :class="on?'on':''"></div>
+<span class="sw-l" x-text="on?'Enabled':'Disabled'"></span>
+</div>
+</div>
+<div class="fg" x-data="{on:false}">
+<label class="lbl">Notifications</label>
+<div class="sw" @click="on=!on">
+<div class="sw-i" :class="on?'on':''"></div>
+<span class="sw-l" x-text="on?'Enabled':'Disabled'"></span>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"switch","label":"Dark Mode","value":true,"x_model":"darkMode"}</div>
+</div>
+
+<div class="comp-item">
+<h4>📄 Textarea</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="fg" x-data="{text:''}">
+<label class="lbl">Description</label>
+<textarea class="tx" rows="3" placeholder="Enter description..." x-model="text" style="min-height:60px;"></textarea>
+<div style="text-align:right;font-size:11px;color:var(--txtd);margin-top:4px;" x-text="text.length + '/500'"></div>
+</div>
+</div>
+<div class="demo-code">{"type":"textarea","label":"Description","rows":3,"maxlength":500,"x_model":"description"}</div>
+</div>
+
+<div class="comp-item">
+<h4>📅 Date & Time</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="grid grid-2" style="gap:8px;">
+<div class="fg">
+<label class="lbl">Date</label>
+<input type="date" class="inp" value="2024-03-15">
+</div>
+<div class="fg">
+<label class="lbl">Time</label>
+<input type="time" class="inp" value="14:30">
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"date_picker","label":"Date","value":"2024-03-15","format":"YYYY-MM-DD"}</div>
+</div>
+
+<div class="comp-item">
+<h4>📤 File Upload</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div style="padding:24px;border:2px dashed var(--s4);border-radius:8px;text-align:center;" hx-encoding="multipart/form-data" hx-post="/api/upload" hx-target="#upload-result">
+<div style="font-size:24px;margin-bottom:8px;">📎</div>
+<div style="font-size:13px;color:var(--txtm);margin-bottom:8px;">Drop files here or click to browse</div>
+<input type="file" class="inp" style="border:none;padding:0;text-align:center;">
+<div class="pf" style="margin-top:12px;"><span class="pf-l">Upload</span><div class="pf-b"><div class="pb"><div class="pb-b" style="width:0%"></div></div></div><span class="pf-v">0%</span></div>
+<div id="upload-result"></div>
+</div>
+</div>
+<div class="demo-code">{"type":"file_upload","accept":"image/*,pdf","max_size":"10MB","hx_encoding":"multipart/form-data","hx_post":"/api/upload"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🔍 Search Input</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="ft">
+<input type="text" class="ft-i" placeholder="Search components..." hx-get="/api/search" hx-trigger="keyup changed delay:300ms" hx-target="#search-results" hx-indicator="#search-indicator">
+<div id="search-indicator" class="htmx-indicator" style="font-size:11px;color:var(--cy);margin-top:4px;">Searching...</div>
+<div id="search-results" style="margin-top:8px;background:var(--s2);border:1px solid var(--s4);border-radius:6px;overflow:hidden;">
+<div style="padding:8px 12px;font-size:12px;border-bottom:1px solid var(--s4);color:var(--txtd);">Button component</div>
+<div style="padding:8px 12px;font-size:12px;border-bottom:1px solid var(--s4);color:var(--txtd);">Card component</div>
+<div style="padding:8px 12px;font-size:12px;color:var(--txtd);">Table component</div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"search","placeholder":"Search...","hx_get":"/api/search","hx_trigger":"keyup changed delay:300ms","hx_target":"#search-results"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🎚️ Range Slider</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="fg" x-data="{val:50}">
+<label class="lbl">Volume: <span x-text="val + '%'"></span></label>
+<input type="range" class="rng" min="0" max="100" x-model="val">
+<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--txtd);margin-top:4px;"><span>0%</span><span>50%</span><span>100%</span></div>
+</div>
+</div>
+<div class="demo-code">{"type":"range_slider","label":"Volume","min":0,"max":100,"value":50,"x_model":"volume"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🔽 Autocomplete</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="fg" x-data="{open:false, selected:'React'}">
+<label class="lbl">Framework</label>
+<div style="position:relative;">
+<input type="text" class="inp" value="React" @focus="open=true" @blur="setTimeout(()=>open=false,200)">
+<div x-show="open" x-transition class="mn-c" style="position:absolute;top:100%;left:0;right:0;z-index:50;">
+<div class="mn-i on" @click="selected='React'">React</div>
+<div class="mn-i" @click="selected='Vue'">Vue</div>
+<div class="mn-i" @click="selected='Angular'">Angular</div>
+<div class="mn-i" @click="selected='Svelte'">Svelte</div>
+</div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"autocomplete","label":"Framework","options":["React","Vue","Angular","Svelte"],"hx_get":"/api/frameworks"}</div>
+</div>
+
+<div class="comp-item">
+<h4>✏️ Rich Text Editor</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div style="border:1px solid var(--s4);border-radius:8px;overflow:hidden;">
+<div style="display:flex;gap:4px;padding:8px;border-bottom:1px solid var(--s4);background:var(--s3);">
+<button class="btn btn-s btn-sm">B</button><button class="btn btn-s btn-sm">I</button><button class="btn btn-s btn-sm">U</button>
+<button class="btn btn-s btn-sm">H1</button><button class="btn btn-s btn-sm">•</button><button class="btn btn-s btn-sm">🔗</button>
+</div>
+<div contenteditable="true" style="padding:12px;min-height:80px;font-size:13px;color:var(--txtm);" class="tx" style="border:none;">Start typing your content here...</div>
+</div>
+</div>
+<div class="demo-code">{"type":"rich_text","toolbar":["bold","italic","link","heading","list"],"placeholder":"Start typing..."}</div>
+</div>
+
+<div class="comp-item">
+<h4>🏷️ Tag / Chip Input</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="fg" x-data="{tags:['Design','UI','A2UI'], newTag:''}">
+<label class="lbl">Tags</label>
+<div class="tgi">
+<template x-for="tag in tags" :key="tag">
+<div class="tgi-t"><span x-text="tag"></span><button @click="tags = tags.filter(t => t !== tag)">×</button></div>
+</template>
+<input type="text" class="inp" style="border:none;padding:4px 8px;flex:1;min-width:80px;" placeholder="Add tag..." x-model="newTag" @keydown.enter="if(newTag.trim()){tags.push(newTag.trim());newTag=''}"
+@keydown.backspace="if(!newTag && tags.length){tags.pop()}">
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"tag_input","label":"Tags","value":["Design","UI","A2UI"],"x_model":"tags"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🎨 Color Picker</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="fg" x-data="{selected:'#FF6A3D'}">
+<label class="lbl">Theme Color</label>
+<div style="display:flex;gap:8px;flex-wrap:wrap;">
+<div class="csw" style="background:#FF6A3D;" :class="selected=='#FF6A3D'?'on':''" @click="selected='#FF6A3D'"></div>
+<div class="csw" style="background:#34CFE6;" :class="selected=='#34CFE6'?'on':''" @click="selected='#34CFE6'"></div>
+<div class="csw" style="background:#4FD18B;" :class="selected=='#4FD18B'?'on':''" @click="selected='#4FD18B'"></div>
+<div class="csw" style="background:#F4B942;" :class="selected=='#F4B942'?'on':''" @click="selected='#F4B942'"></div>
+<div class="csw" style="background:#F05D5D;" :class="selected=='#F05D5D'?'on':''" @click="selected='#F05D5D'"></div>
+<div class="csw" style="background:#8B5CF6;" :class="selected=='#8B5CF6'?'on':''" @click="selected='#8B5CF6'"></div>
+</div>
+<div style="margin-top:8px;font-size:13px;color:var(--txtm);" x-text="'Selected: ' + selected"></div>
+</div>
+</div>
+<div class="demo-code">{"type":"color_picker","label":"Theme Color","value":"#FF6A3D","options":["#FF6A3D","#34CFE6","#4FD18B"]}</div>
+</div>
+</div>
+
+
+<!-- Action Primitives -->
+<h4 id="action">Action Primitives</h4>
+<div class="comp-grid">
+
+<div class="comp-item">
+<h4>🔘 Button</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+<button class="btn btn-p">Primary</button>
+<button class="btn btn-s">Secondary</button>
+<button class="btn btn-ghost">Ghost</button>
+<button class="btn btn-r">Danger</button>
+<button class="btn btn-g">Success</button>
+</div>
+<div style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+<button class="btn btn-p btn-sm">Small</button>
+<button class="btn btn-p">Medium</button>
+<button class="btn btn-p btn-lg">Large</button>
+</div>
+<div style="margin-top:12px;">
+<button class="btn btn-p" hx-post="/api/action" hx-indicator="#btn-spinner">
+<span>Loading Button</span>
+<span id="btn-spinner" class="htmx-indicator" style="display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;"></span>
+</button>
+</div>
+</div>
+<div class="demo-code">{"type":"button","label":"Submit","variant":"primary","size":"md","hx_post":"/api/action","hx_indicator":"#btn-spinner"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🎛️ Button Group</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div x-data="{view:'list'}" style="display:inline-flex;border:1px solid var(--s4);border-radius:8px;overflow:hidden;">
+<button class="btn btn-ghost" :class="view=='list'?'on':''" @click="view='list'" style="border-radius:0;border:none;border-right:1px solid var(--s4);" :style="view=='list'?'background:var(--s3);color:var(--txt);':''">☰ List</button>
+<button class="btn btn-ghost" :class="view=='grid'?'on':''" @click="view='grid'" style="border-radius:0;border:none;border-right:1px solid var(--s4);" :style="view=='grid'?'background:var(--s3);color:var(--txt);':''">⊞ Grid</button>
+<button class="btn btn-ghost" :class="view=='map'?'on':''" @click="view='map'" style="border-radius:0;border:none;" :style="view=='map'?'background:var(--s3);color:var(--txt);':''">🗺 Map</button>
+</div>
+<div style="margin-top:8px;font-size:12px;color:var(--txtd);" x-text="'Selected: ' + view"></div>
+</div>
+<div class="demo-code">{"type":"button_group","options":["List","Grid","Map"],"value":"List","x_model":"viewMode"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🔲 Icon Button</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div style="display:flex;gap:8px;">
+<div class="ttp"><button class="btn btn-s btn-i">✏️</button><div class="ttp-b">Edit</div></div>
+<div class="ttp"><button class="btn btn-s btn-i">🗑️</button><div class="ttp-b">Delete</div></div>
+<div class="ttp"><button class="btn btn-s btn-i">📋</button><div class="ttp-b">Copy</div></div>
+<div class="ttp"><button class="btn btn-s btn-i">🔗</button><div class="ttp-b">Share</div></div>
+</div>
+</div>
+<div class="demo-code">{"type":"icon_button","icon":"edit","tooltip":"Edit","variant":"secondary","hx_post":"/api/edit"}</div>
+</div>
+
+<div class="comp-item">
+<h4>➕ Floating Action Button</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div style="position:relative;height:120px;background:var(--s3);border-radius:8px;overflow:hidden;">
+<div class="fab" style="position:absolute;bottom:16px;right:16px;">+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"fab","icon":"plus","position":"bottom-right","hx_post":"/api/create","hx_target":"#create-modal"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🧰 Toolbar</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div style="display:flex;gap:4px;padding:8px;background:var(--s3);border:1px solid var(--s4);border-radius:8px;">
+<button class="btn btn-s btn-sm">📥 Import</button>
+<button class="btn btn-s btn-sm">📤 Export</button>
+<div style="width:1px;background:var(--s4);margin:0 4px;"></div>
+<button class="btn btn-s btn-i btn-sm">✂️</button>
+<button class="btn btn-s btn-i btn-sm">📋</button>
+<button class="btn btn-s btn-i btn-sm">🗑️</button>
+<div style="width:1px;background:var(--s4);margin:0 4px;"></div>
+<button class="btn btn-s btn-i btn-sm">⚙️</button>
+</div>
+</div>
+<div class="demo-code">{"type":"toolbar","items":[{"label":"Import","icon":"import","action":"import"},...]}</div>
+</div>
+
+<div class="comp-item">
+<h4>📋 Menu / Dropdown</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="mn" x-data="{open:false}">
+<button class="btn btn-s" @click="open=!open">Actions ▼</button>
+<div x-show="open" x-transition @click.away="open=false" class="mn-c">
+<div class="mn-i">✏️ Edit <span class="mn-i-k">⌘E</span></div>
+<div class="mn-i">📋 Duplicate <span class="mn-i-k">⌘D</span></div>
+<div class="mn-i">🏷️ Tag <span class="mn-i-k">⌘T</span></div>
+<div class="mn-i" style="border-top:1px solid var(--s4);color:var(--rd);">🗑️ Delete <span class="mn-i-k">⌫</span></div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"menu","trigger":"Actions","items":[{"label":"Edit","shortcut":"⌘E","action":"edit"},...]}</div>
+</div>
+
+<div class="comp-item">
+<h4>🖱️ Context Menu</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="ctx-mn" style="display:inline-block;">
+<div class="ctx-i">✏️ Edit</div>
+<div class="ctx-i">📋 Copy</div>
+<div class="ctx-i">🔗 Paste</div>
+<div class="ctx-i" style="border-top:1px solid var(--s4);">🏷️ Add Tag</div>
+<div class="ctx-i ctx-i-rd">🗑️ Delete</div>
+</div>
+</div>
+<div class="demo-code">{"type":"context_menu","items":[{"label":"Edit","action":"edit"},{"label":"Delete","variant":"danger","action":"delete"}]}</div>
+</div>
+
+<div class="comp-item">
+<h4>🔀 Split Button</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="sb">
+<button class="sb-m">Save</button>
+<button class="sb-d">▼</button>
+</div>
+</div>
+<div class="demo-code">{"type":"split_button","primary":{"label":"Save","action":"save"},"dropdown":[{"label":"Save as Draft","action":"draft"}]}</div>
+</div>
+
+<div class="comp-item">
+<h4>⚡ Speed Dial</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div style="position:relative;height:160px;background:var(--s3);border-radius:8px;overflow:hidden;" x-data="{open:false}">
+<div class="sd" x-show="open" x-transition>
+<div class="sd-a">📄</div>
+<div class="sd-a">📊</div>
+<div class="sd-a">📁</div>
+</div>
+<div class="fab" style="position:absolute;bottom:16px;right:16px;" @click="open=!open" x-text="open?'✕':'+'">+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"speed_dial","icon":"plus","items":[{"icon":"document","action":"new_doc"},...]}</div>
+</div>
+</div>
+
+<!-- Agent Primitives -->
+<h4 id="agent">Agent Primitives</h4>
+<div class="comp-grid">
+
+<div class="comp-item">
+<h4>💬 Suggestion Chips</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="ag-sug">
+<button class="ag-sug-b on">Create a table</button>
+<button class="ag-sug-b">Show me a chart</button>
+<button class="ag-sug-b">Filter by date</button>
+<button class="ag-sug-b">Export to CSV</button>
+</div>
+</div>
+<div class="demo-code">{"type":"suggestion_chips","suggestions":["Create a table","Show me a chart","Filter by date"],"hx_post":"/api/agent/suggest"}</div>
+</div>
+
+<div class="comp-item">
+<h4>✅ Confirmation Prompt</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="ag-conf">
+<div class="ag-conf-h">⚠️ Confirm Action</div>
+<div class="ag-conf-b">Are you sure you want to delete 24 selected records? This action cannot be undone.</div>
+<div style="display:flex;gap:8px;margin-top:12px;">
+<button class="btn btn-r" hx-delete="/api/bulk-delete" hx-confirm="Are you sure?" hx-target="#result">Delete</button>
+<button class="btn btn-ghost" @click="$el.closest('.ag-conf').remove()">Cancel</button>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"confirmation","title":"Confirm Action","message":"...","actions":[{"label":"Delete","variant":"danger","hx_delete":"/api/bulk-delete"}]}</div>
+</div>
+
+<div class="comp-item">
+<h4>📊 Result Visualization</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="ag-res">
+<div class="ag-res-h">📈 Query Results</div>
+<div class="ag-res-b">{
+  "total_records": 1247,
+  "filtered": 89,
+  "aggregations": {
+    "revenue": "$84,200",
+    "growth": "+12.5%"
+  }
+}</div>
+</div>
+</div>
+<div class="demo-code">{"type":"result_visualization","format":"json","data":{"total_records":1247,...}}</div>
+</div>
+
+<div class="comp-item">
+<h4>✍️ Agent Typing Indicator</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="ag-typing">
+<span style="width:8px;height:8px;border-radius:50%;background:var(--cy);display:inline-block;"></span>
+<span style="width:8px;height:8px;border-radius:50%;background:var(--cy);display:inline-block;"></span>
+<span style="width:8px;height:8px;border-radius:50%;background:var(--cy);display:inline-block;"></span>
+<span>Agent is thinking...</span>
+</div>
+</div>
+<div class="demo-code">{"type":"typing_indicator","status":"thinking","message":"Agent is thinking..."}</div>
+</div>
+
+<div class="comp-item">
+<h4>🔄 Action Spinner</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="ag-act">
+<span class="ag-act-i">⟳</span>
+<span>Processing your request...</span>
+</div>
+<div class="ag-act">
+<span class="ag-act-i">⬇</span>
+<span>Fetching data from CRM...</span>
+</div>
+</div>
+<div class="demo-code">{"type":"action_spinner","status":"loading","message":"Processing..."}</div>
+</div>
+
+<div class="comp-item">
+<h4>💡 Context Snippet</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="ag-snd">
+<div class="ag-snd-h">📎 Context: Sales Report Q4</div>
+<div style="font-size:12px;color:var(--txtd);margin-top:4px;">Revenue: $84.2K | Growth: +12.5% | Customers: 1,247</div>
+</div>
+</div>
+<div class="demo-code">{"type":"context_snippet","title":"Sales Report Q4","fields":[{"label":"Revenue","value":"$84.2K"}]}</div>
+</div>
+
+<div class="comp-item">
+<h4>⭐ Rating / Feedback</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="ag-rat" x-data="{rating:0}">
+<template x-for="i in 5">
+<button class="ag-rat-b" :class="i<=rating?'on':''" @click="rating=i" x-text="i<=rating?'★':'☆'"></button>
+</template>
+<span style="font-size:12px;color:var(--txtd);margin-left:8px;" x-text="rating + '/5'"></span>
+</div>
+</div>
+<div class="demo-code">{"type":"rating","max":5,"value":0,"x_model":"feedback_rating"}</div>
+</div>
+
+<div class="comp-item">
+<h4>📊 Status Display</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="ag-st">
+<div class="ag-st-h">🔍 Search Status</div>
+<div class="ag-st-b">
+<div class="ag-st-r"><span class="ag-st-r-l">Documents</span><span class="ag-st-r-v">1,247</span></div>
+<div class="ag-st-r"><span class="ag-st-r-l">Filtered</span><span class="ag-st-r-v">89</span></div>
+<div class="ag-st-r"><span class="ag-st-r-l">Time</span><span class="ag-st-r-v">0.42s</span></div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"status_display","title":"Search Status","items":[{"label":"Documents","value":"1,247"}]}</div>
+</div>
+
+<div class="comp-item">
+<h4>📊 Poll / Voting</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="ag-poll">
+<div class="ag-poll-h">Which feature should we build next?</div>
+<div class="ag-poll-o">
+<span style="font-size:13px;min-width:100px;">Dark Mode</span>
+<div class="ag-poll-o-bar"><div class="ag-poll-o-bar-f" style="width:68%"></div></div>
+<span class="ag-poll-o-v">68%</span>
+</div>
+<div class="ag-poll-o">
+<span style="font-size:13px;min-width:100px;">Mobile App</span>
+<div class="ag-poll-o-bar"><div class="ag-poll-o-bar-f" style="width:24%"></div></div>
+<span class="ag-poll-o-v">24%</span>
+</div>
+<div class="ag-poll-o">
+<span style="font-size:13px;min-width:100px;">API Access</span>
+<div class="ag-poll-o-bar"><div class="ag-poll-o-bar-f" style="width:8%"></div></div>
+<span class="ag-poll-o-v">8%</span>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"poll","question":"Which feature?","options":[{"label":"Dark Mode","votes":68},...]}</div>
+</div>
+
+<div class="comp-item">
+<h4>🖼️ Media Grid</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="ag-snd-m">
+<div class="ag-snd-mi">📊<div style="font-size:11px;margin-top:4px;">Chart</div></div>
+<div class="ag-snd-mi">📄<div style="font-size:11px;margin-top:4px;">Report</div></div>
+<div class="ag-snd-mi">🗺<div style="font-size:11px;margin-top:4px;">Map</div></div>
+<div class="ag-snd-mi">📁<div style="font-size:11px;margin-top:4px;">Folder</div></div>
+</div>
+</div>
+<div class="demo-code">{"type":"media_grid","items":[{"type":"chart","title":"Chart"},{"type":"document","title":"Report"}]}</div>
+</div>
+</div>
+
+<!-- Navigation Primitives -->
+<h4 id="navigation">Navigation Primitives</h4>
+<div class="comp-grid">
+
+<div class="comp-item">
+<h4>🧭 Top Navigation Bar</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="tbar" style="position:static;margin:-20px;border-radius:8px 8px 0 0;">
+<div class="tbar-l">Flint</div>
+<div class="tbar-n">
+<a href="#" class="on">Dashboard</a>
+<a href="#">Projects</a>
+<a href="#">Team</a>
+<a href="#">Settings</a>
+</div>
+<div class="av" style="margin-left:auto;">JD</div>
+</div>
+</div>
+<div class="demo-code">{"type":"top_nav","brand":"Flint","items":[{"label":"Dashboard","href":"/","active":true},...]}</div>
+</div>
+
+<div class="comp-item">
+<h4>📑 Sidebar Navigation</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div style="background:var(--s2);border:1px solid var(--s4);border-radius:8px;overflow:hidden;max-width:200px;">
+<div style="padding:12px 16px;border-bottom:1px solid var(--s4);font-weight:700;font-size:14px;">Menu</div>
+<div style="padding:8px 0;">
+<a href="#" style="display:block;padding:8px 16px;color:var(--txt);text-decoration:none;font-size:13px;background:var(--s3);border-left:3px solid var(--em);">Dashboard</a>
+<a href="#" style="display:block;padding:8px 16px;color:var(--txtm);text-decoration:none;font-size:13px;">Analytics</a>
+<a href="#" style="display:block;padding:8px 16px;color:var(--txtm);text-decoration:none;font-size:13px;">Reports</a>
+<a href="#" style="display:block;padding:8px 16px;color:var(--txtm);text-decoration:none;font-size:13px;">Settings</a>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"sidebar_nav","items":[{"label":"Dashboard","href":"/","active":true},...]}</div>
+</div>
+
+<div class="comp-item">
+<h4>🍞 Breadcrumbs</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--txtd);">
+<a href="#" style="color:var(--txtm);text-decoration:none;">Home</a>
+<span>›</span>
+<a href="#" style="color:var(--txtm);text-decoration:none;">Projects</a>
+<span>›</span>
+<a href="#" style="color:var(--txtm);text-decoration:none;">Flint</a>
+<span>›</span>
+<span style="color:var(--txt);">Registry</span>
+</div>
+</div>
+<div class="demo-code">{"type":"breadcrumbs","items":[{"label":"Home","href":"/"},{"label":"Projects","href":"/projects"},{"label":"Registry"}]}</div>
+</div>
+
+<div class="comp-item">
+<h4>📑 Tabs</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div x-data="{tab:'overview'}">
+<div class="tbs">
+<button class="tb on" :class="tab=='overview'?'on':''" @click="tab='overview'">Overview</button>
+<button class="tb" :class="tab=='settings'?'on':''" @click="tab='settings'">Settings</button>
+<button class="tb" :class="tab=='logs'?'on':''" @click="tab='logs'">Logs</button>
+</div>
+<div style="padding:12px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;font-size:13px;color:var(--txtm);">
+<div x-show="tab=='overview'" x-transition>Overview content panel</div>
+<div x-show="tab=='settings'" x-transition style="display:none;">Settings content panel</div>
+<div x-show="tab=='logs'" x-transition style="display:none;">Logs content panel</div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"tabs","tabs":[{"label":"Overview","id":"overview","active":true},...],"hx_get":"/api/tab/{id}"}</div>
+</div>
+
+<div class="comp-item">
+<h4>📂 Accordion</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div x-data="{open:1}">
+<div class="acc">
+<div class="acc-h" @click="open=1">General Settings <span x-text="open==1?'▲':'▼'" style="font-size:11px;"></span></div>
+<div class="acc-b" x-show="open==1" x-transition>Language, timezone, and appearance preferences.</div>
+</div>
+<div class="acc">
+<div class="acc-h" @click="open=2">Security <span x-text="open==2?'▲':'▼'" style="font-size:11px;"></span></div>
+<div class="acc-b" x-show="open==2" x-transition style="display:none;">Two-factor authentication and password settings.</div>
+</div>
+<div class="acc">
+<div class="acc-h" @click="open=3">Notifications <span x-text="open==3?'▲':'▼'" style="font-size:11px;"></span></div>
+<div class="acc-b" x-show="open==3" x-transition style="display:none;">Email and push notification preferences.</div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"accordion","items":[{"label":"General","content":"...","expanded":true},...]}</div>
+</div>
+
+<div class="comp-item">
+<h4>🗂️ Stepper / Wizard</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="stp">
+<div class="st"><div class="stc done">✓</div><div class="stt">Account</div></div>
+<div class="stl on"></div>
+<div class="st"><div class="stc on">2</div><div class="stt">Profile</div></div>
+<div class="stl"></div>
+<div class="st"><div class="stc">3</div><div class="stt">Verify</div></div>
+<div class="stl"></div>
+<div class="st"><div class="stc">4</div><div class="stt">Done</div></div>
+</div>
+</div>
+<div class="demo-code">{"type":"stepper","steps":[{"label":"Account","status":"completed"},{"label":"Profile","status":"active"},...]}</div>
+</div>
+
+<div class="comp-item">
+<h4>📄 Pagination</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="pg">
+<button class="pg-b" disabled>‹ Prev</button>
+<button class="pg-b on">1</button>
+<button class="pg-b">2</button>
+<button class="pg-b">3</button>
+<span style="color:var(--txtd);font-size:13px;">...</span>
+<button class="pg-b">10</button>
+<button class="pg-b">Next ›</button>
+</div>
+</div>
+<div class="demo-code">{"type":"pagination","page":1,"total_pages":10,"hx_get":"/api/items?page={page}"}</div>
+</div>
+
+<div class="comp-item">
+<h4>🔍 Command Palette</h4>
+<div class="demo">
+<div class="demo-label">Visual</div>
+<div class="cp" style="position:static;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+<div class="cp-i"><span>⌘</span><input type="text" placeholder="Search commands..." value="open"></div>
+<div class="cp-l">
+<div class="cp-r on"><div class="cp-ri">📄</div><div class="cp-rt"><h5>Open File</h5><p>Open a file from the workspace</p></div><div class="cp-rs">⌘O</div></div>
+<div class="cp-r"><div class="cp-ri">🔍</div><div class="cp-rt"><h5>Find in Files</h5><p>Search across all files</p></div><div class="cp-rs">⇧⌘F</div></div>
+<div class="cp-r"><div class="cp-ri">⚙️</div><div class="cp-rt"><h5>Settings</h5><p>Open application settings</p></div><div class="cp-rs">⌘,</div></div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"command_palette","placeholder":"Search commands...","commands":[{"label":"Open File","shortcut":"⌘O"},...]}</div>
+</div>
+</div>
+</section>
+
+<!-- Registry Schema Section -->
+<section id="registry-schema" class="sec">
+<div class="sec-h"><div class="icon">🗄️</div><h3>Registry Schema</h3><span class="tag">PostgreSQL + pgvector</span></div>
+<p>The registry schema consists of six core tables stored in PostgreSQL, with pgvector embeddings for semantic component discovery.</p>
+
+<h4>Core Tables</h4>
+<table class="tbl" style="margin:16px 0;">
+<thead><tr><th>Table</th><th>Purpose</th><th>Key Columns</th></tr></thead>
+<tbody>
+<tr><td><code>components</code></td><td>Component definitions</td><td>id, name, category, json_schema, embedding, htmx_template</td></tr>
+<tr><td><code>applications</code></td><td>App registrations</td><td>id, name, domain, config_json, embedding</td></tr>
+<tr><td><code>design_systems</code></td><td>Theme tokens</td><td>id, name, tokens_json, css_variables</td></tr>
+<tr><td><code>bindings</code></td><td>DB field mappings</td><td>id, component_id, table_name, column_name, transform</td></tr>
+<tr><td><code>events</code></td><td>Event definitions</td><td>id, name, payload_schema, handlers</td></tr>
+<tr><td><code>embeddings</code></td><td>Semantic vectors</td><td>id, entity_type, entity_id, embedding vector(1536)</td></tr>
+</tbody>
+</table>
+
+<h4>JSON Schema Example</h4>
+<pre><code>{
+  "type": "object",
+  "properties": {
+    "type": {"type": "string", "enum": ["button"]},
+    "label": {"type": "string", "maxLength": 50},
+    "variant": {"type": "string", "enum": ["primary","secondary","ghost"]},
+    "size": {"type": "string", "enum": ["sm","md","lg"]},
+    "action": {"type": "string"},
+    "hx_post": {"type": "string", "format": "uri"},
+    "hx_target": {"type": "string"},
+    "hx_swap": {"type": "string", "enum": ["innerHTML","outerHTML","beforeend"]}
+  },
+  "required": ["type", "label"]
+}</code></pre>
+</section>
+
+<!-- Bindings Section -->
+<section id="bindings" class="sec">
+<div class="sec-h"><div class="icon">🔗</div><h3>Database Bindings</h3><span class="tag">Auto-binding</span></div>
+<p>Components can be automatically bound to PostgreSQL tables and columns. When a table is registered, the registry suggests matching components based on column types and constraints.</p>
+
+<h4>Binding Configuration</h4>
+<pre><code>{
+  "table": "users",
+  "column": "email",
+  "component": "text_input",
+  "transform": {
+    "validation": "required|email",
+    "placeholder": "user@example.com",
+    "label": "Email Address"
+  }
+}</code></pre>
+
+<h4>Auto-binding Trigger</h4>
+<pre><code>CREATE TRIGGER auto_bind_component
+AFTER INSERT ON information_schema.columns
+FOR EACH ROW
+EXECUTE FUNCTION suggest_component_binding();</code></pre>
+</section>
+
+<!-- Design Bridge Section -->
+<section id="design-bridge" class="sec">
+<div class="sec-h"><div class="icon">🎨</div><h3>Open Design Bridge</h3><span class="tag">ODSF Import/Export</span></div>
+<p>The registry can import and export design system definitions in the Open Design System Format (ODSF), enabling interoperability with design tools like Figma and Sketch.</p>
+
+<h4>Import Function</h4>
+<pre><code>SELECT import_odsf('{
+  "name": "Flint Dark",
+  "tokens": {
+    "color": {
+      "background": "#0B0F14",
+      "surface": "#131A22",
+      "primary": "#FF6A3D",
+      "accent": "#34CFE6"
+    },
+    "typography": {
+      "heading": "Space Grotesk",
+      "body": "Inter",
+      "mono": "JetBrains Mono"
+    }
+  }
+}'::jsonb);</code></pre>
+</section>
+
+<!-- API Section -->
+<section id="api" class="sec">
+<div class="sec-h"><div class="icon">📡</div><h3>REST API</h3><span class="tag">5 Endpoint Groups</span></div>
+
+<h4>Endpoints</h4>
+<table class="tbl" style="margin:16px 0;">
+<thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><span class="bd-g">GET</span></td><td><code>/api/v1/components</code></td><td>List all components with filtering</td></tr>
+<tr><td><span class="bd-g">GET</span></td><td><code>/api/v1/components/{id}</code></td><td>Get component by ID or name</td></tr>
+<tr><td><span class="bd-e">POST</span></td><td><code>/api/v1/components/search</code></td><td>Semantic search with natural language</td></tr>
+<tr><td><span class="bd-g">GET</span></td><td><code>/api/v1/applications/{id}/components</code></td><td>List components for an application</td></tr>
+<tr><td><span class="bd-e">POST</span></td><td><code>/api/v1/render</code></td><td>Render component to HTML/HTMX</td></tr>
+<tr><td><span class="bd-e">POST</span></td><td><code>/api/v1/compose</code></td><td>Compose multiple components</td></tr>
+</tbody>
+</table>
+
+<h4>Semantic Search Example</h4>
+<pre><code>POST /api/v1/components/search
+Content-Type: application/json
+
+{
+  "query": "a form to collect user feedback with ratings",
+  "limit": 5,
+  "threshold": 0.7
+}</code></pre>
+</section>
+
+<!-- A2A Section -->
+<section id="a2a" class="sec">
+<div class="sec-h"><div class="icon">🤝</div><h3>A2A Tasks</h3><span class="tag">16 Standard Tasks</span></div>
+<p>The registry exposes 16 standard A2A tasks that agents can invoke to discover, compose, and manage components.</p>
+
+<table class="tbl" style="margin:16px 0;">
+<thead><tr><th>Task</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>list_components</code></td><td>List all components with optional filters</td></tr>
+<tr><td><code>search_components</code></td><td>Semantic search by natural language query</td></tr>
+<tr><td><code>get_component</code></td><td>Get component schema and metadata</td></tr>
+<tr><td><code>compose_ui</code></td><td>Compose a multi-component UI from a description</td></tr>
+<tr><td><code>render_component</code></td><td>Render a component to HTML/HTMX</td></tr>
+<tr><td><code>register_component</code></td><td>Register a new component</td></tr>
+<tr><td><code>update_component</code></td><td>Update component metadata</td></tr>
+<tr><td><code>delete_component</code></td><td>Soft-delete a component</td></tr>
+<tr><td><code>list_applications</code></td><td>List registered applications</td></tr>
+<tr><td><code>get_application</code></td><td>Get application metadata</td></tr>
+<tr><td><code>bind_table</code></td><td>Auto-bind components to a table</td></tr>
+<tr><td><code>get_bindings</code></td><td>Get bindings for a table</td></tr>
+<tr><td><code>import_odsf</code></td><td>Import ODSF design system</td></tr>
+<tr><td><code>export_odsf</code></td><td>Export design system to ODSF</td></tr>
+<tr><td><code>validate_ui</code></td><td>Validate a UI composition</td></tr>
+<tr><td><code>generate_embedding</code></td><td>Generate semantic embedding</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- MCP Section -->
+<section id="mcp" class="sec">
+<div class="sec-h"><div class="icon">🔧</div><h3>MCP Tools</h3><span class="tag">7 Tools</span></div>
+<p>The registry exposes 7 MCP (Model Context Protocol) tools for integration with agent frameworks.</p>
+
+<table class="tbl" style="margin:16px 0;">
+<thead><tr><th>Tool</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>search_components</code></td><td>Search components by query string</td></tr>
+<tr><td><code>get_component_schema</code></td><td>Get JSON schema for a component</td></tr>
+<tr><td><code>compose_ui</code></td><td>Compose UI from component references</td></tr>
+<tr><td><code>render_htmx</code></td><td>Render component to HTMX HTML</td></tr>
+<tr><td><code>validate_composition</code></td><td>Validate component nesting</td></tr>
+<tr><td><code>list_design_systems</code></td><td>List available design systems</td></tr>
+<tr><td><code>get_binding_suggestions</code></td><td>Get auto-binding suggestions for a table</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- Events Section -->
+<section id="events" class="sec">
+<div class="sec-h"><div class="icon">⚡</div><h3>Event-Driven Assembly</h3><span class="tag">Realtime</span></div>
+<p>The registry uses PostgreSQL LISTEN/NOTIFY for real-time event propagation, enabling live UI updates when components change.</p>
+
+<h4>Event Types</h4>
+<table class="tbl" style="margin:16px 0;">
+<thead><tr><th>Event</th><th>Channel</th><th>Payload</th></tr></thead>
+<tbody>
+<tr><td><code>component_registered</code></td><td><code>a2ui_components</code></td><td>{id, name, category}</td></tr>
+<tr><td><code>component_updated</code></td><td><code>a2ui_components</code></td><td>{id, changes}</td></tr>
+<tr><td><code>composition_requested</code></td><td><code>a2ui_compose</code></td><td>{request_id, description, agent_id}</td></tr>
+<tr><td><code>binding_created</code></td><td><code>a2ui_bindings</code></td><td>{id, table, column, component}</td></tr>
+<tr><td><code>design_system_imported</code></td><td><code>a2ui_design</code></td><td>{id, name, token_count}</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- Security Section -->
+<section id="security" class="sec">
+<div class="sec-h"><div class="icon">🔒</div><h3>Security Model</h3><span class="tag">RLS + JWT</span></div>
+<p>All registry tables use PostgreSQL Row Level Security (RLS) with JWT claims. The security model follows the principle of least privilege.</p>
+
+<h4>RLS Policies</h4>
+<pre><code>CREATE POLICY component_read_policy ON components
+FOR SELECT USING (jwt_claims ->> 'role' IN ('admin', 'developer', 'agent'));
+
+CREATE POLICY component_write_policy ON components
+FOR INSERT WITH CHECK (jwt_claims ->> 'role' = 'admin');</code></pre>
+</section>
+
+<!-- Roadmap Section -->
+<section id="roadmap" class="sec">
+<div class="sec-h"><div class="icon">🗺️</div><h3>Implementation Roadmap</h3><span class="tag">8 Milestones</span></div>
+
+<table class="tbl" style="margin:16px 0;">
+<thead><tr><th>Milestone</th><th>Deliverable</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>M1</td><td>Core schema + 30 base primitives</td><td><span class="bd-g">Planned</span></td></tr>
+<tr><td>M2</td><td>HTMX rendering engine</td><td><span class="bd-g">Planned</span></td></tr>
+<tr><td>M3</td><td>Semantic embeddings + search</td><td><span class="bd-g">Planned</span></td></tr>
+<tr><td>M4</td><td>Auto-binding pipeline</td><td><span class="bd-g">Planned</span></td></tr>
+<tr><td>M5</td><td>A2A task surface</td><td><span class="bd-g">Planned</span></td></tr>
+<tr><td>M6</td><td>MCP tool surface</td><td><span class="bd-g">Planned</span></td></tr>
+<tr><td>M7</td><td>Event-driven assembly</td><td><span class="bd-g">Planned</span></td></tr>
+<tr><td>M8</td><td>Production hardening</td><td><span class="bd-g">Planned</span></td></tr>
+</tbody>
+</table>
+</section>
+
+</div></main></div>
+
+</body></html>

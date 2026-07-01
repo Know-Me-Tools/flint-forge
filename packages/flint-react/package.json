@@ -1,0 +1,56 @@
+{
+  "name": "@flint/react",
+  "version": "0.1.0",
+  "description": "Flint A2UI component library for React 19 — headless primitives, Zod schema registry, AG-UI SSE integration",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist", "SKILL.md"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:a11y": "vitest run --reporter=verbose src/**/*.a11y.test.tsx",
+    "size": "size-limit"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "zod": "^3.22.0",
+    "@radix-ui/react-slot": "^1.1.0",
+    "swr": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "axe-core": "^4.8.0",
+    "jsdom": "^24.0.0",
+    "size-limit": "^11.0.0",
+    "@size-limit/preset-small-lib": "^11.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^1.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "^6.0.0"
+  },
+  "size-limit": [
+    {
+      "path": "./dist/index.mjs",
+      "limit": "80 kB",
+      "gzip": true
+    }
+  ],
+  "sideEffects": false,
+  "license": "MIT"
+}

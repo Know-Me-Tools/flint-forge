@@ -1,0 +1,47 @@
+{
+  "stage": "assess",
+  "phase": "p5-a2ui-registry",
+  "completed_at": "2026-06-30",
+  "summary": "Zero implementation exists for any p5 deliverable; migrations/ and packages/ directories must be created. Two spec defects found: missing is_system column in c001 DDL and RLS column-name mismatch (app_id vs application_id) in c014 policy — both must be fixed before plan finalizes ordering. p5-c009 CompiledState upgrade is highest-risk MVP change: touches hot-path ArcSwap state and requires full consumer audit in fdb-gateway before execution.",
+  "artifacts": [
+    ".kbd-orchestrator/phases/p5-a2ui-registry/assessment.md"
+  ],
+  "key_gaps": [
+    "No migrations/ directory — must be created for p5-c001",
+    "No packages/ directory — must be created for p5-c010, p5-c011",
+    "CompiledState has no a2ui_catalog field — p5-c009 adds it with compile-breaking change",
+    "agui.rs line 83 still returns 'ag-ui/1.0' — p5-c003 must update label + test line 253",
+    "fdb-app/src/a2ui/ module does not exist — p5-c014 must create it"
+  ],
+  "spec_defects": [
+    {
+      "id": "R1",
+      "change": "p5-c001",
+      "defect": "is_system column referenced in seed INSERT but missing from applications table DDL",
+      "action": "Add is_system boolean NOT NULL DEFAULT false to CREATE TABLE flint_a2ui.applications"
+    },
+    {
+      "id": "R2",
+      "change": "p5-c014",
+      "defect": "resolve_components_with_overrides() RLS references ra.app_id and ra.role_name but role_assignments table uses application_id and has no role_name column",
+      "action": "Fix column references in c014 policy SQL to match c001 DDL"
+    }
+  ],
+  "open_questions": {
+    "OQ-10": {
+      "status": "UNRESOLVED",
+      "blocks": "p5-c004-embeddings-pipeline",
+      "mitigation": "Stub semantic_search() with RAISE NOTICE; unblock all other changes"
+    },
+    "OQ-13": {
+      "status": "ADVISORY",
+      "resolution": "Pin genui to exact version 0.9.2 in pubspec.lock"
+    },
+    "OQ-14": {
+      "status": "ADVISORY",
+      "resolution": "GitHub-path install for OpenDesign — marketplace not required for Phase 5"
+    }
+  },
+  "next_stage": "plan",
+  "next_command": "/kbd-plan p5-a2ui-registry"
+}

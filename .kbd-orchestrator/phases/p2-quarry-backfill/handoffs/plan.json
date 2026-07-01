@@ -1,0 +1,12 @@
+{
+  "stage": "plan",
+  "phase": "p2-quarry-backfill",
+  "summary": "2 changes planned in fixed order: p2-c007 first (OpenApiCompiler todo!() panics on startup — unblocks gateway boot), then p2-c006 (dedicated POST /rpc/vector endpoint with pgvector crate, MVP scope). OpenSpec proposals pre-exist for both. pgvector general-purpose arg injection deferred; dedicated endpoint is sufficient to unblock Phase 5.",
+  "artifacts": [
+    ".kbd-orchestrator/phases/p2-quarry-backfill/plan.md"
+  ],
+  "first_change": "p2-c007-openapi-compiler",
+  "execution_backend": "openspec",
+  "changes_total": 2,
+  "created_at": "2026-06-30T00:00:00Z"
+}

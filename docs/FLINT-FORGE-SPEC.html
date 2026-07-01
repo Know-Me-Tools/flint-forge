@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flint Forge — Functional Specification, Architecture & Development Plan</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#0B0F14; --surface-1:#131A22; --surface-2:#1A232E; --surface-3:#0E141B;
+  --surface-4:#202B38;
+  --text:#E8EDF3; --text-muted:#B4BECB; --text-dim:#97A1AE;
+  --ember:#FF6A3D; --ember-deep:#E04E28; --ember-tint:rgba(255,106,61,0.10);
+  --ember-tint-2:rgba(255,106,61,0.16);
+  --cyan:#34CFE6; --cyan-tint:rgba(52,207,230,0.10);
+  --code-bg:#0E141B; --code-text:#D8E4F0;
+  --line:#28333F; --good:#4FD18B; --warn:#F4B942;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Inter',sans-serif; background:var(--bg); color:var(--text-muted);
+  font-size:15.5px; line-height:1.72; -webkit-font-smoothing:antialiased;
+}
+.layout{display:grid; grid-template-columns:300px 1fr; max-width:1500px; margin:0 auto;}
+
+/* ---- Sidebar TOC ---- */
+.sidebar{
+  position:sticky; top:0; align-self:start; height:100vh; overflow-y:auto;
+  background:var(--surface-3); padding:30px 22px 60px;
+}
+.sidebar .brand{display:flex; align-items:center; gap:12px; margin-bottom:26px;}
+.sidebar .brand .wm{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:21px; color:var(--text); letter-spacing:-0.03em; line-height:1;}
+.sidebar .brand .sub{font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-dim); letter-spacing:0.1em; margin-top:3px; text-transform:uppercase;}
+.toc-label{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-dim); margin:22px 0 10px;}
+.sidebar nav a{
+  display:block; font-size:13px; color:var(--text-dim); text-decoration:none;
+  padding:5px 10px; border-radius:6px; line-height:1.4; transition:all .15s;
+}
+.sidebar nav a:hover{color:var(--text); background:var(--surface-1);}
+.sidebar nav a.sub{padding-left:22px; font-size:12px;}
+.sidebar nav a.active{color:var(--ember); background:var(--ember-tint);}
+
+/* ---- Main ---- */
+main{padding:0; min-width:0;}
+.cover{padding:64px 60px 48px; background:linear-gradient(160deg,#11181F 0%,#0B0F14 70%);}
+.cover .eyebrow{font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:var(--ember); margin-bottom:18px;}
+.cover .lockup{display:flex; align-items:center; gap:18px; margin-bottom:30px;}
+.cover h1{font-family:'Space Grotesk',sans-serif; font-size:54px; font-weight:700; letter-spacing:-0.035em; line-height:1.02; color:var(--text); margin-bottom:18px;}
+.cover .lede{font-size:18px; font-weight:300; line-height:1.6; max-width:680px; color:var(--text-muted);}
+.cover .metarow{display:flex; flex-wrap:wrap; gap:10px; margin-top:30px;}
+.cover .chip{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-muted); background:var(--surface-2); padding:7px 13px; border-radius:6px;}
+.cover .chip b{color:var(--ember);}
+
+.content{padding:8px 60px 80px; max-width:980px;}
+section{padding:40px 0 8px; scroll-margin-top:20px;}
+.sec-num{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ember); letter-spacing:0.1em; font-weight:600;}
+h2{font-family:'Space Grotesk',sans-serif; font-size:32px; font-weight:700; letter-spacing:-0.03em; color:var(--text); margin:6px 0 18px; line-height:1.1;}
+h3{font-family:'Space Grotesk',sans-serif; font-size:21px; font-weight:600; letter-spacing:-0.02em; color:var(--text); margin:34px 0 12px;}
+h4{font-family:'Space Grotesk',sans-serif; font-size:16px; font-weight:600; color:var(--text); margin:24px 0 8px;}
+p{margin:0 0 14px; max-width:74ch;}
+strong{color:var(--text); font-weight:600;}
+a{color:var(--ember);}
+ul,ol{margin:0 0 16px; padding-left:22px; max-width:74ch;}
+li{margin-bottom:7px;}
+code{font-family:'JetBrains Mono',monospace; font-size:0.86em; background:var(--surface-2); color:var(--code-text); padding:2px 6px; border-radius:4px;}
+pre{background:var(--code-bg); border-radius:10px; padding:18px 20px; overflow-x:auto; margin:0 0 18px;}
+pre code{background:none; padding:0; font-size:13px; line-height:1.6; color:var(--code-text); white-space:pre;}
+
+/* ---- Callouts (tinted bg, no borders) ---- */
+.callout{background:var(--surface-1); border-radius:10px; padding:18px 22px; margin:0 0 18px; position:relative; overflow:hidden;}
+.callout::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--ember);}
+.callout .k{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ember); font-weight:600; display:block; margin-bottom:7px;}
+.callout.warn::before{background:var(--warn);} .callout.warn .k{color:var(--warn);}
+.callout.good::before{background:var(--good);} .callout.good .k{color:var(--good);}
+.callout.cyan::before{background:var(--cyan);} .callout.cyan .k{color:var(--cyan);}
+.callout p:last-child{margin-bottom:0;}
+
+/* ---- Tables (zebra, no borders) ---- */
+.tw{overflow-x:auto; margin:0 0 20px; border-radius:10px;}
+table{border-collapse:collapse; width:100%; font-size:13.5px; background:var(--surface-1);}
+th{background:var(--surface-4); color:var(--text); text-align:left; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:12.5px; padding:11px 14px; white-space:nowrap;}
+td{padding:10px 14px; color:var(--text-muted); vertical-align:top;}
+tbody tr:nth-child(even){background:var(--surface-2);}
+td code{font-size:12px; background:var(--code-bg);}
+
+/* ---- Figures ---- */
+figure{margin:24px 0 26px; background:var(--surface-1); border-radius:12px; padding:24px 22px 14px;}
+figure svg{display:block; width:100%; height:auto;}
+figcaption{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); margin-top:12px; letter-spacing:0.04em;}
+figcaption b{color:var(--ember); font-weight:600;}
+
+/* ---- SVG diagram primitives ---- */
+.d-node{fill:var(--surface-2);} .d-node-2{fill:var(--surface-4);} .d-ext{fill:#0E141B;}
+.d-ember{fill:var(--ember);} .d-label{fill:var(--text); font-family:'Inter',sans-serif; font-weight:600;}
+.d-sub{fill:var(--text-dim); font-family:'JetBrains Mono',monospace;}
+.d-edge{stroke:#3A4654; stroke-width:1.6; fill:none;} .d-edge-em{stroke:var(--ember); stroke-width:1.8; fill:none;}
+.d-elabel{fill:var(--text-muted); font-family:'JetBrains Mono',monospace; font-size:10px;}
+
+/* ---- Pills / kicker ---- */
+.kicker{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ember); font-weight:600; margin-bottom:6px;}
+.pill{display:inline-block; font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 9px; border-radius:20px; background:var(--surface-2); color:var(--text-muted); margin:0 4px 4px 0;}
+.pill.em{background:var(--ember-tint); color:var(--ember);}
+.divider{height:3px; width:54px; background:var(--ember); border-radius:2px; margin:46px 0 0;}
+
+/* ---- Phase cards ---- */
+.phase{background:var(--surface-1); border-radius:10px; padding:18px 20px; margin-bottom:14px; overflow:hidden; position:relative;}
+.phase::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--cyan);}
+.phase .ph-h{font-family:'Space Grotesk',sans-serif; font-weight:600; color:var(--text); font-size:16px; margin-bottom:6px;}
+.phase .ph-h b{color:var(--ember); font-family:'JetBrains Mono',monospace; font-size:13px; margin-right:8px;}
+.phase .exit{font-size:12.5px; color:var(--good); margin-top:8px;}
+.phase .exit b{color:var(--good); font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; display:block;}
+
+footer{background:var(--surface-3); padding:40px 60px; color:var(--text-dim); font-size:13px;}
+footer .fl{display:flex; align-items:center; gap:14px; margin-bottom:14px;}
+
+/* ---- Mobile ---- */
+.toc-toggle{display:none;}
+@media(max-width:860px){
+  .layout{grid-template-columns:1fr;}
+  .sidebar{position:fixed; top:0; left:0; right:0; height:auto; max-height:80vh; z-index:50; padding:16px 20px; display:none;}
+  .sidebar.open{display:block;}
+  .toc-toggle{display:flex; position:sticky; top:0; z-index:40; align-items:center; gap:10px; background:var(--surface-3); color:var(--text); padding:12px 20px; font-family:'JetBrains Mono',monospace; font-size:12px; cursor:pointer; letter-spacing:0.08em;}
+  .cover{padding:40px 24px 32px;} .cover h1{font-size:38px;}
+  .content{padding:8px 24px 60px;} footer{padding:30px 24px;}
+}
+@media(max-width:540px){
+  body{font-size:14.5px;} .cover h1{font-size:30px;} h2{font-size:25px;} h3{font-size:18px;}
+  .content{padding:8px 16px 50px;} pre code{font-size:12px;} table{font-size:12.5px;}
+  th,td{padding:8px 10px;}
+}
+</style>
+</head>
+<body>
+<div class="toc-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰&nbsp; Contents</div>
+<div class="layout">
+<aside class="sidebar">
+  <div class="brand">
+    <svg viewBox="0 0 200 200" width="38" height="38" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="10" width="180" height="180" rx="40" ry="40" fill="none" stroke="#E8EDF3" stroke-width="4.5"/>
+      <g transform="translate(50,38)">
+        <rect x="0" y="0" width="20" height="124" rx="10" fill="#E8EDF3"/>
+        <path d="M 16,62 C 26,52 44,32 62,18 C 72,10 80,8 84,14 C 86,18 82,24 76,28 C 60,40 40,56 28,66 C 22,70 18,68 16,64 Z" fill="#E8EDF3"/>
+        <path d="M 16,62 C 26,72 44,92 62,106 C 72,114 80,116 84,110 C 86,106 82,100 76,96 C 60,84 40,68 28,58 C 22,54 18,56 16,60 Z" fill="#E8EDF3"/>
+        <circle cx="18" cy="62" r="10" fill="#FF6A3D"/>
+      </g>
+    </svg>
+    <div><div class="wm">KnowMe</div><div class="sub">Flint Forge Spec</div></div>
+  </div>
+  <div class="toc-label">Contents</div>
+  <nav>
+    <a href="#summary">01 · Executive Summary</a>
+    <a href="#naming">02 · Naming &amp; System Map</a>
+    <a href="#context" class="sub">C4 · System Context</a>
+    <a href="#container" class="sub">C4 · Containers</a>
+    <a href="#architecture">03 · Architecture Principles</a>
+    <a href="#hexagonal" class="sub">Hexagonal / Clean</a>
+    <a href="#convergence" class="sub">Convergence Invariants</a>
+    <a href="#foundations">04 · Cross-Cutting Foundations</a>
+    <a href="#identity" class="sub">Identity &amp; JWT</a>
+    <a href="#authz" class="sub">Authorization</a>
+    <a href="#quarry">05 · Flint Quarry</a>
+    <a href="#quarry-graphql" class="sub">GraphQL Hybrid</a>
+    <a href="#quarry-sub" class="sub">Subscriptions &amp; RLS</a>
+    <a href="#anvil">06 · Flint Anvil</a>
+    <a href="#hooks" class="sub">Webhooks</a>
+    <a href="#ember" class="sub">Flint Ember (LLM)</a>
+    <a href="#vault" class="sub">Flint Vault (Secrets)</a>
+    <a href="#kiln">07 · Flint Kiln</a>
+    <a href="#kiln-compile" class="sub">Compilation / AOT</a>
+    <a href="#kiln-langs" class="sub">Supported Languages</a>
+    <a href="#kiln-sign" class="sub">Signing &amp; Storage</a>
+    <a href="#workspace">08 · Workspace Layout</a>
+    <a href="#plan">09 · Development Plan</a>
+    <a href="#skills">10 · AI Skills for Build</a>
+    <a href="#patterns">11 · Patterns Reference</a>
+    <a href="#deps">12 · Dependencies &amp; Open Items</a>
+    <a href="#nongoals">13 · Non-Goals</a>
+  </nav>
+</aside>
+<main>
+<div class="cover">
+  <div class="eyebrow">RFC-FORGE-001 · Functional Specification · Architecture · Development Plan</div>
+  <div class="lockup">
+    <svg viewBox="0 0 200 200" width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="10" width="180" height="180" rx="40" ry="40" fill="none" stroke="#E8EDF3" stroke-width="4.5"/>
+      <g transform="translate(50,38)">
+        <rect x="0" y="0" width="20" height="124" rx="10" fill="#E8EDF3"/>
+        <path d="M 16,62 C 26,52 44,32 62,18 C 72,10 80,8 84,14 C 86,18 82,24 76,28 C 60,40 40,56 28,66 C 22,70 18,68 16,64 Z" fill="#E8EDF3"/>
+        <path d="M 16,62 C 26,72 44,92 62,106 C 72,114 80,116 84,110 C 86,106 82,100 76,96 C 60,84 40,68 28,58 C 22,54 18,56 16,60 Z" fill="#E8EDF3"/>
+        <circle cx="18" cy="62" r="15" fill="#FF6A3D" opacity="0.12"/>
+        <circle cx="18" cy="62" r="10" fill="#FF6A3D"/>
+      </g>
+    </svg>
+    <div>
+      <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:24px; color:#E8EDF3; letter-spacing:-0.03em; line-height:1;">KnowMe</div>
+      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#97A1AE; margin-top:4px; letter-spacing:0.06em;">a Prometheus AGS platform</div>
+    </div>
+  </div>
+  <h1>Flint Forge</h1>
+  <p class="lede">The sovereign data &amp; edge-compute plane of the Flint platform: a backend-agnostic REST + GraphQL database gateway, an in-database capability suite, and a polyglot WASM edge-function runtime — unified by one identity model and one governance boundary.</p>
+  <div class="metarow">
+    <span class="chip"><b>Quarry</b> &nbsp;DB API Gateway</span>
+    <span class="chip"><b>Anvil</b> &nbsp;pgrx Extensions</span>
+    <span class="chip"><b>Ember</b> &nbsp;In-DB LLM</span>
+    <span class="chip"><b>Kiln</b> &nbsp;WASM Edge</span>
+    <span class="chip">Status: <b>Draft for Build</b></span>
+  </div>
+</div>
+<div class="content">
+<section id="summary">
+  <div class="sec-num">01</div>
+  <h2>Executive Summary</h2>
+  <p><strong>Flint Forge</strong> is the data and edge-compute plane of the Flint platform. It sits behind <code>flint-gate</code> (ingress and authentication) and consumes <code>flint-realtime-fabric</code> (the change-data spine), exposing a uniform governance, identity, and realtime surface over a Postgres&nbsp;18 backend and a WASM edge runtime. It replaces the Supabase pattern — PostgREST, pg_graphql, GoTrue, Realtime, Database Webhooks, and Edge Functions — with a sovereign, model-independent, Rust-native architecture in which orchestration and governance are the durable moat.</p>
+  <p>The platform is one Cargo workspace delivering three subsystems, named for the forge: raw material is <strong>quarried</strong> from the source, shaped on the <strong>anvil</strong> in place, and fired in the <strong>kiln</strong> into hardened tools.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Subsystem</th><th>Flint name</th><th>Does</th><th>Built with</th></tr></thead>
+    <tbody>
+      <tr><td>REST / GraphQL DB API Gateway</td><td><strong>Flint Quarry</strong></td><td>Extracts structured data: PostgREST-compatible REST, pg_graphql passthrough, RLS-correct GraphQL subscriptions</td><td>Axum · async-graphql · tokio-postgres</td></tr>
+      <tr><td>In-database capability suite (pgrx)</td><td><strong>Flint Anvil</strong></td><td>Shapes data in place: JWT/RLS context, webhooks, in-DB LLM</td><td>pgrx · pg_net · pgcrypto</td></tr>
+      <tr><td>In-database LLM / embeddings</td><td><strong>Flint Ember</strong></td><td>liter-llm bound into Postgres (sync + async surfaces)</td><td>pgrx BGW · liter-llm</td></tr>
+      <tr><td>WASM Edge Function Gateway</td><td><strong>Flint Kiln</strong></td><td>Compiles &amp; runs signed polyglot WASM components</td><td>Wasmtime · Cranelift · wasi:http/proxy</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout"><span class="k">The thesis</span><p>Three properties make this a moat rather than a clone: <strong>one identity injection</strong> powers both row-level security and trigger-side JWT forwarding; <strong>one durable capture</strong> feeds both webhooks and LLM jobs; <strong>one WASM host</strong> serves both edge functions and UAR skills. Every external effect — a webhook, an LLM call, an edge function's database access — is routed back through <code>flint-gate</code> and governed by Cedar, Keto, and Postgres RLS. Nothing escapes the boundary.</p></div>
+</section>
+
+<section id="naming">
+  <div class="sec-num">02</div>
+  <h2>Naming &amp; System Map</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Component</th><th>Flint name</th><th>Crate prefix</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>Umbrella platform / monorepo</td><td><strong>Flint Forge</strong></td><td><code>flint-forge/</code></td><td>Data + edge compute plane</td></tr>
+      <tr><td>REST/GraphQL DB API Gateway</td><td><strong>Flint Quarry</strong></td><td><code>fdb-</code></td><td>Extract structured data from Postgres</td></tr>
+      <tr><td>pgrx extension suite</td><td><strong>Flint Anvil</strong></td><td><code>ext-flint-*</code></td><td>auth context · webhooks · in-DB LLM · secrets</td></tr>
+      <tr><td>In-DB LLM / embeddings</td><td><strong>Flint Ember</strong></td><td><code>ext-flint-llm</code></td><td>liter-llm bound into Postgres</td></tr>
+      <tr><td>Sovereign secret store</td><td><strong>Flint Vault</strong></td><td><code>ext-flint-vault</code></td><td>Encrypted secrets of any kind; KMS-wrapped DEK</td></tr>
+      <tr><td>WASM Edge Function Gateway</td><td><strong>Flint Kiln</strong></td><td><code>fke-</code></td><td>Compile &amp; run signed WASM components</td></tr>
+      <tr><td>Shared core</td><td>Forge core</td><td><code>forge-</code></td><td>Domain types · identity · policy</td></tr>
+    </tbody>
+  </table></div>
+  <h4>External systems this plane depends on (not built here)</h4>
+  <ul>
+    <li><strong>flint-gate</strong> — ingress, Kratos session → RLS JWT minting, WS/SSE/NDJSON stream proxy, the <code>request.headers</code> token-carrier origin. Forge trusts flint-gate's issuer/JWKS and never authenticates end users itself.</li>
+    <li><strong>flint-realtime-fabric</strong> — CDC (<code>frf-postgres-cdc</code>), the Iggy spine, the Keto per-event gate, and the <code>WatchEntityType</code> RPC that Quarry subscriptions consume.</li>
+    <li><strong>UAR</strong> — the sovereign inference and governance plane that Ember and Kiln route LLM calls into, and whose Wasmtime component host Kiln shares.</li>
+  </ul>
+
+  <h3 id="context">System Context (C4 — Level 1)</h3>
+  <figure>
+    <svg viewBox="0 0 880 470" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="C4 system context diagram">
+      <!-- person -->
+      <circle cx="86" cy="60" r="16" class="d-ember"/><rect x="66" y="80" width="40" height="34" rx="8" class="d-ember"/>
+      <text x="86" y="132" text-anchor="middle" class="d-sub" font-size="11">Users / Apps</text>
+      <!-- flint-gate -->
+      <rect x="300" y="32" width="280" height="64" rx="10" class="d-node-2"/>
+      <text x="440" y="60" text-anchor="middle" class="d-label" font-size="14">flint-gate</text>
+      <text x="440" y="80" text-anchor="middle" class="d-sub" font-size="10">ingress · Kratos authn · RLS JWT mint · stream proxy</text>
+      <!-- Flint Forge (center) -->
+      <rect x="250" y="170" width="380" height="150" rx="14" fill="#161F29"/>
+      <rect x="250" y="170" width="380" height="36" rx="14" class="d-ember" opacity="0.18"/>
+      <text x="440" y="194" text-anchor="middle" class="d-label" font-size="16" fill="#FF6A3D">FLINT FORGE</text>
+      <rect x="270" y="222" width="110" height="40" rx="7" class="d-node"/><text x="325" y="247" text-anchor="middle" class="d-label" font-size="12">Quarry</text>
+      <rect x="388" y="222" width="104" height="40" rx="7" class="d-node"/><text x="440" y="247" text-anchor="middle" class="d-label" font-size="12">Anvil</text>
+      <rect x="500" y="222" width="110" height="40" rx="7" class="d-node"/><text x="555" y="247" text-anchor="middle" class="d-label" font-size="12">Kiln</text>
+      <text x="440" y="288" text-anchor="middle" class="d-sub" font-size="10">REST · GraphQL · Subscriptions · Webhooks · Edge · in-DB LLM</text>
+      <!-- dependencies -->
+      <rect x="40" y="370" width="200" height="62" rx="10" class="d-ext"/>
+      <text x="140" y="396" text-anchor="middle" class="d-label" font-size="13">Postgres 18</text>
+      <text x="140" y="415" text-anchor="middle" class="d-sub" font-size="9">pg_graphql · pgvector · pg_net</text>
+      <rect x="340" y="370" width="200" height="62" rx="10" class="d-ext"/>
+      <text x="440" y="396" text-anchor="middle" class="d-label" font-size="13">flint-realtime-fabric</text>
+      <text x="440" y="415" text-anchor="middle" class="d-sub" font-size="9">CDC → Iggy → Keto gate</text>
+      <rect x="640" y="370" width="200" height="62" rx="10" class="d-ext"/>
+      <text x="740" y="396" text-anchor="middle" class="d-label" font-size="13">UAR</text>
+      <text x="740" y="415" text-anchor="middle" class="d-sub" font-size="9">sovereign inference · Cedar</text>
+      <!-- edges -->
+      <path d="M106,80 C 180,70 230,66 300,64" class="d-edge-em"/><text x="200" y="52" class="d-elabel">HTTPS / WS</text>
+      <path d="M440,96 L440,170" class="d-edge-em"/><text x="450" y="138" class="d-elabel">RLS JWT</text>
+      <path d="M300,300 C 240,330 190,350 165,370" class="d-edge"/><text x="200" y="350" class="d-elabel">SQL · RLS ctx</text>
+      <path d="M440,320 L440,370" class="d-edge"/><text x="450" y="350" class="d-elabel">WatchEntityType</text>
+      <path d="M600,300 C 670,330 715,350 740,370" class="d-edge"/><text x="690" y="345" class="d-elabel">flint:llm</text>
+    </svg>
+    <figcaption><b>Fig 1.</b> Flint Forge in its ecosystem. Clients reach the plane only through flint-gate; every subsystem's outbound effects are governed.</figcaption>
+  </figure>
+
+  <h3 id="container">Containers (C4 — Level 2)</h3>
+  <figure>
+    <svg viewBox="0 0 880 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="C4 container diagram">
+      <rect x="300" y="20" width="280" height="50" rx="10" class="d-node-2"/>
+      <text x="440" y="42" text-anchor="middle" class="d-label" font-size="13">flint-gate (ingress / auth)</text>
+      <text x="440" y="59" text-anchor="middle" class="d-sub" font-size="9">RLS JWT · Option-3 outbound · WS proxy</text>
+      <!-- Quarry container -->
+      <rect x="40" y="130" width="360" height="150" rx="12" fill="#161F29"/>
+      <text x="60" y="156" class="d-label" font-size="14" fill="#FF6A3D">Flint Quarry · Axum</text>
+      <rect x="58" y="170" width="150" height="42" rx="7" class="d-node"/><text x="133" y="190" text-anchor="middle" class="d-label" font-size="11">REST executor</text><text x="133" y="204" text-anchor="middle" class="d-sub" font-size="9">PostgREST-compat</text>
+      <rect x="220" y="170" width="160" height="42" rx="7" class="d-node"/><text x="300" y="190" text-anchor="middle" class="d-label" font-size="11">GraphQL Q/M</text><text x="300" y="204" text-anchor="middle" class="d-sub" font-size="9">pg_graphql passthrough</text>
+      <rect x="58" y="222" width="322" height="42" rx="7" class="d-node"/><text x="219" y="242" text-anchor="middle" class="d-label" font-size="11">Subscriptions (async-graphql · graphql-transport-ws)</text><text x="219" y="256" text-anchor="middle" class="d-sub" font-size="9">fabric source + Keto gate + per-event RLS re-query</text>
+      <!-- Kiln container -->
+      <rect x="480" y="130" width="360" height="150" rx="12" fill="#161F29"/>
+      <text x="500" y="156" class="d-label" font-size="14" fill="#FF6A3D">Flint Kiln · Axum</text>
+      <rect x="498" y="170" width="160" height="42" rx="7" class="d-node"/><text x="578" y="190" text-anchor="middle" class="d-label" font-size="11">Admin (control plane)</text><text x="578" y="204" text-anchor="middle" class="d-sub" font-size="9">Cranelift AOT · sign-verify</text>
+      <rect x="670" y="170" width="150" height="42" rx="7" class="d-node"/><text x="745" y="190" text-anchor="middle" class="d-label" font-size="11">Invoke (data plane)</text><text x="745" y="204" text-anchor="middle" class="d-sub" font-size="9">compiler-off · .cwasm</text>
+      <rect x="498" y="222" width="322" height="42" rx="7" class="d-node"/><text x="659" y="242" text-anchor="middle" class="d-label" font-size="11">Wasmtime host · Cedar-gated linker · fuel/epoch</text><text x="659" y="256" text-anchor="middle" class="d-sub" font-size="9">shared with UAR Tier-2 skills</text>
+      <!-- Postgres + Anvil -->
+      <rect x="40" y="350" width="500" height="140" rx="12" class="d-ext"/>
+      <text x="60" y="376" class="d-label" font-size="14">Postgres 18  +  Flint Anvil</text>
+      <rect x="58" y="392" width="148" height="38" rx="7" class="d-node"/><text x="132" y="415" text-anchor="middle" class="d-label" font-size="11">flint_auth</text>
+      <rect x="218" y="392" width="148" height="38" rx="7" class="d-node"/><text x="292" y="415" text-anchor="middle" class="d-label" font-size="11">flint_hooks</text>
+      <rect x="378" y="392" width="148" height="38" rx="7" class="d-node"/><text x="452" y="415" text-anchor="middle" class="d-label" font-size="11">flint_llm (Ember)</text>
+      <text x="60" y="455" class="d-sub" font-size="10">pg_graphql · pgvector · pg_net · pgcrypto · BGW queue · outbox</text>
+      <text x="60" y="472" class="d-sub" font-size="10">request.jwt.claims (RLS) · request.headers (forwarding)</text>
+      <!-- ComponentStore + fabric -->
+      <rect x="580" y="350" width="260" height="62" rx="12" class="d-ext"/><text x="710" y="376" text-anchor="middle" class="d-label" font-size="13">ComponentStore</text><text x="710" y="395" text-anchor="middle" class="d-sub" font-size="9">OCI · IPFS · S3 · fs</text>
+      <rect x="580" y="428" width="260" height="62" rx="12" class="d-ext"/><text x="710" y="454" text-anchor="middle" class="d-label" font-size="13">flint-realtime-fabric</text><text x="710" y="473" text-anchor="middle" class="d-sub" font-size="9">WatchEntityType stream</text>
+      <!-- edges -->
+      <path d="M360,70 C 280,95 230,110 210,130" class="d-edge-em"/>
+      <path d="M520,70 C 600,95 650,110 670,130" class="d-edge-em"/>
+      <path d="M210,280 L 200,350" class="d-edge"/><text x="150" y="320" class="d-elabel">SQL · RLS ctx</text>
+      <path d="M360,250 C 470,300 540,400 580,438" class="d-edge"/><text x="470" y="330" class="d-elabel">WatchEntityType</text>
+      <path d="M660,280 L 690,350" class="d-edge"/><text x="700" y="320" class="d-elabel">load .cwasm</text>
+      <path d="M745,212 C 700,300 600,360 560,392" class="d-edge"/><text x="610" y="300" class="d-elabel">flint:db / flint:llm → flint-gate</text>
+    </svg>
+    <figcaption><b>Fig 2.</b> Container view. Quarry and Kiln are Axum services; Anvil lives inside Postgres. The Kiln admin (control plane) compiles; the invocation path (data plane) ships with the compiler disabled.</figcaption>
+  </figure>
+</section>
+<section id="architecture">
+  <div class="sec-num">03</div>
+  <h2>Architecture Principles</h2>
+  <p>Flint Forge is built as a <strong>hexagonal (ports-and-adapters) clean architecture</strong>. The discipline is not decorative: it is what makes the backend swappable, the security boundary provable, and the build parallelizable across the KBD/PMPO loop. Three rules are load-bearing.</p>
+
+  <h3 id="hexagonal">The dependency rule</h3>
+  <p>Dependencies point inward only. The domain knows nothing of infrastructure; infrastructure knows nothing of interfaces. The compiler enforces this — adapter crates are simply absent from the <code>[dependencies]</code> of domain and application crates, so a violation does not compile.</p>
+  <figure>
+    <svg viewBox="0 0 880 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Hexagonal architecture layers">
+      <!-- concentric -->
+      <rect x="40" y="40" width="800" height="280" rx="16" fill="#10171F"/>
+      <text x="60" y="68" class="d-sub" font-size="11">INTERFACE — fdb-gateway · fke-server (compose adapters via Cargo features)</text>
+      <rect x="120" y="86" width="640" height="210" rx="14" fill="#141C25"/>
+      <text x="140" y="112" class="d-sub" font-size="11">INFRASTRUCTURE — fdb-postgres · fdb-realtime · fke-store-* · fke-sign-* · ext-flint-*</text>
+      <rect x="220" y="130" width="440" height="140" rx="12" fill="#18222D"/>
+      <text x="240" y="156" class="d-sub" font-size="11">APPLICATION — *-app (use-cases) · *-ports (trait seams)</text>
+      <rect x="320" y="176" width="240" height="76" rx="10" class="d-ember" opacity="0.16"/>
+      <rect x="320" y="176" width="240" height="76" rx="10" fill="none"/>
+      <text x="440" y="206" text-anchor="middle" class="d-label" font-size="14" fill="#FF6A3D">DOMAIN</text>
+      <text x="440" y="228" text-anchor="middle" class="d-sub" font-size="10">forge-domain · pure types · serde only</text>
+      <text x="440" y="243" text-anchor="middle" class="d-sub" font-size="10">zero infra dependencies</text>
+      <!-- arrow -->
+      <path d="M812,330 C 812,200 812,120 760,96" class="d-edge-em"/>
+      <text x="690" y="345" class="d-elabel">imports point inward →</text>
+      <circle cx="760" cy="96" r="3.5" class="d-ember"/>
+    </svg>
+    <figcaption><b>Fig 3.</b> One adapter implements exactly one port. Composition happens only in interface crates, so a deployment compiles only the planes it runs.</figcaption>
+  </figure>
+  <div class="callout"><span class="k">Capability inversion at compile time</span><p>The crate dependency graph physically excludes write actuators and provider keys from the agent and component layers. Edge components receive only governed host capabilities; the in-DB LLM extension holds no provider keys; the Kiln data plane is compiled without a WASM compiler. These are structural guarantees, not runtime policies — the unsafe path does not exist in the binary.</p></div>
+
+  <h3 id="convergence">The two convergence invariants</h3>
+  <p>Where a naive design would grow surface, Flint Forge collapses it. Two mechanisms are each built once and consumed twice.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Invariant</th><th>Built once</th><th>Consumed by</th></tr></thead>
+    <tbody>
+      <tr><td><strong>One in-transaction capture</strong></td><td>A trigger captures <code>(change + origin JWT)</code> from <code>request.headers</code>, plus a durable outbox</td><td><code>flint_hooks</code> (webhooks) &amp; <code>flint_llm</code> (LLM jobs)</td></tr>
+      <tr><td><strong>One WASM component host</strong></td><td>Wasmtime engine, ProxyPre cache, Cedar-gated linker, fuel/epoch limits</td><td><strong>Flint Kiln</strong> (edge) &amp; <strong>UAR</strong> Tier-2 skills</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout cyan"><span class="k">Why this matters for the build</span><p>Convergence is a <em>cost-control</em> decision, not just elegance. Each shared mechanism is one crate to test, one security review, one place where the JWT-capture or sandbox semantics can be wrong. The KBD plan (§09) sequences these shared crates first so both consumers inherit a proven foundation.</p></div>
+</section>
+
+<section id="foundations">
+  <div class="sec-num">04</div>
+  <h2>Cross-Cutting Foundations</h2>
+
+  <h3 id="identity">Identity &amp; the JWT injection</h3>
+  <p>Postgres has no native knowledge of application identity; it is injected as transaction-scoped settings (GUCs). The single injection that powers row-level security <em>also</em> makes the JWT available to triggers — one mechanism, two consumers.</p>
+  <pre><code>-- set per request transaction by fdb-postgres before any user statement
+SET LOCAL ROLE authenticated;                          -- single pooled role (pooling-safe)
+SET LOCAL "request.jwt.claims" = '{"sub":…,"role":…,"tenant_id":…}';   -- decoded → RLS
+SET LOCAL "request.headers"    = '{"authorization":"Bearer &lt;raw-jwt&gt;"}'; -- raw token carrier</code></pre>
+  <figure>
+    <svg viewBox="0 0 880 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="JWT injection data flow">
+      <rect x="20" y="100" width="150" height="56" rx="10" class="d-node-2"/><text x="95" y="124" text-anchor="middle" class="d-label" font-size="12">flint-gate</text><text x="95" y="142" text-anchor="middle" class="d-sub" font-size="9">verifies + mints JWT</text>
+      <rect x="240" y="100" width="170" height="56" rx="10" class="d-node-2"/><text x="325" y="124" text-anchor="middle" class="d-label" font-size="12">Quarry · acquire()</text><text x="325" y="142" text-anchor="middle" class="d-sub" font-size="9">3 × SET LOCAL on txn</text>
+      <rect x="480" y="30" width="170" height="50" rx="10" class="d-node"/><text x="565" y="52" text-anchor="middle" class="d-label" font-size="12">RLS policies</text><text x="565" y="68" text-anchor="middle" class="d-sub" font-size="9">auth.uid() / auth.jwt()</text>
+      <rect x="480" y="100" width="170" height="50" rx="10" class="d-node"/><text x="565" y="122" text-anchor="middle" class="d-label" font-size="12">pg_graphql resolve</text><text x="565" y="138" text-anchor="middle" class="d-sub" font-size="9">in-session → RLS applies</text>
+      <rect x="480" y="170" width="170" height="50" rx="10" class="d-node"/><text x="565" y="192" text-anchor="middle" class="d-label" font-size="12">triggers</text><text x="565" y="208" text-anchor="middle" class="d-sub" font-size="9">auth.bearer() → forward</text>
+      <rect x="710" y="100" width="150" height="56" rx="10" class="d-ext"/><text x="785" y="124" text-anchor="middle" class="d-label" font-size="12">hooks · LLM</text><text x="785" y="142" text-anchor="middle" class="d-sub" font-size="9">Option-3 outbound</text>
+      <path d="M170,128 L240,128" class="d-edge-em"/>
+      <path d="M410,120 C 440,90 450,70 480,58" class="d-edge"/>
+      <path d="M410,128 L480,125" class="d-edge"/>
+      <path d="M410,136 C 440,165 450,185 480,192" class="d-edge"/>
+      <path d="M650,195 L710,150" class="d-edge"/>
+    </svg>
+    <figcaption><b>Fig 4.</b> The claims feed RLS; the raw token (carried in <b>request.headers</b>) feeds trigger-side forwarding. Verification stays upstream — signing keys never enter Postgres.</figcaption>
+  </figure>
+  <div class="callout good"><span class="k">Outbound — Option-3 hybrid (ratified)</span><p>When the database calls outward, the call is authenticated with a <strong>service identity</strong> flint-gate trusts; the originating user JWT travels in <code>X-Forge-Origin-JWT</code> for identity/audit/Cedar, plus an HMAC body signature (<code>X-Forge-Signature</code>). Delivery never fails on user-JWT expiry, yet the origin identity stays attributable. A per-registration <code>forward_jwt=true</code> opts into raw-bearer forwarding for prompt-delivery cases.</p></div>
+
+  <h3 id="authz">Authorization — four layers, distinct jobs</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Layer</th><th>Question it answers</th><th>Enforced</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Kratos</strong> (authn)</td><td>Who is the caller?</td><td>flint-gate</td><td>per session</td></tr>
+      <tr><td><strong>Keto</strong> (coarse)</td><td>May this subject touch this entity-type / tenant at all?</td><td>fabric + Quarry/Kiln pre-check</td><td>subscribe-time (cached); request entry</td></tr>
+      <tr><td><strong>Postgres RLS</strong> (authoritative)</td><td>May this subject see/modify <em>this row</em>?</td><td>Postgres, in-session</td><td>every query; every subscription event</td></tr>
+      <tr><td><strong>Cedar</strong> (action / capability)</td><td>May this action / capability grant proceed?</td><td>Quarry mutations · Kiln linker · Ember model-use</td><td>per action / per instantiation</td></tr>
+    </tbody>
+  </table></div>
+  <h4>Quality gates (CI-enforced, all crates)</h4>
+  <p>No <code>unwrap</code>/<code>expect</code> in library crates (<code>thiserror</code> in libs, <code>anyhow</code> only at binary edges); <code>clippy::pedantic</code> + <code>deny(warnings)</code>; <code>#[non_exhaustive]</code> on public enums; newtype IDs with <code>#[repr(transparent)]</code>; <code>tracing</code> spans across every port boundary; pinned MSRV; semver discipline on <code>forge-domain</code>; Dagger CI. Never log JWT payloads, claims, relation tuples, or tenant identifiers.</p>
+</section>
+<section id="quarry">
+  <div class="sec-num">05</div>
+  <h2>Flint Quarry — REST / GraphQL DB API Gateway</h2>
+  <p><span class="pill em">Axum 0.8.8</span><span class="pill">async-graphql 7</span><span class="pill">deadpool-postgres</span><span class="pill">tokio-postgres</span><span class="pill">tonic</span><span class="pill">arc-swap</span></p>
+  <p>Quarry exposes a uniform REST and GraphQL surface over Postgres&nbsp;18. Query and mutation GraphQL pass through to <code>pg_graphql</code> (mature, RLS-aware, in-session); subscriptions are served by an <code>async-graphql</code> sibling schema sourced from the realtime fabric. The <code>GraphQlExecutor</code> port is the reversibility seam: a future uniform multi-backend dialect is a second adapter, leaving callers untouched.</p>
+
+  <h3>Ports (<code>fdb-ports</code>)</h3>
+  <pre><code>#[async_trait] pub trait DatabaseBackend  { async fn acquire(&amp;self, rls: &amp;RlsContext) -&gt; Result&lt;Conn, BackendError&gt;; }
+#[async_trait] pub trait SchemaProvider   { async fn introspect(&amp;self) -&gt; Result&lt;Vec&lt;TableMeta&gt;, BackendError&gt;;
+                                            fn subscribe_ddl(&amp;self) -&gt; watch::Receiver&lt;SchemaVersion&gt;; }
+#[async_trait] pub trait RestExecutor     { async fn execute(&amp;self, q: RestQuery, rls: &amp;RlsContext) -&gt; Result&lt;RestResult, BackendError&gt;; }
+#[async_trait] pub trait GraphQlExecutor  { async fn execute(&amp;self, r: GraphQlRequest, rls: &amp;RlsContext) -&gt; Result&lt;Value, BackendError&gt;; }
+#[async_trait] pub trait ChangeStreamSource{ async fn watch(&amp;self, s: SubscriptionSpec, who: &amp;RlsContext)
+                                              -&gt; Result&lt;BoxStream&lt;'static, Result&lt;ChangeEvent, StreamError&gt;&gt;, StreamError&gt;; }</code></pre>
+
+  <h3 id="quarry-graphql">GraphQL — hybrid by operation type</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Operation</th><th>Path</th><th>Mechanism</th></tr></thead>
+    <tbody>
+      <tr><td>Query / Mutation</td><td><code>POST /graphql</code></td><td>Confirm not a subscription → <code>graphql.resolve($query,$vars)</code> inside Postgres under RLS context → return JSON verbatim. async-graphql is <strong>not</strong> in this path.</td></tr>
+      <tr><td>Subscription</td><td><code>GET /graphql</code> → <code>graphql-transport-ws</code></td><td>async-graphql <code>GraphQLSubscription</code>; resolvers pull from <code>ChangeStreamSource</code>; reshape <code>ChangeEvent</code> → change payload.</td></tr>
+      <tr><td>Introspection</td><td><code>__schema</code></td><td><strong>Merge</strong> of pg_graphql introspection ∪ sibling subscription SDL — the only seam where the two schemas meet.</td></tr>
+    </tbody>
+  </table></div>
+  <pre><code>enum ChangeOp { INSERT UPDATE DELETE UPSERT }
+type TChangePayload { op: ChangeOp!  record: T  old_record: T }
+type Subscription { tChanges(filter: TFilter): TChangePayload! }</code></pre>
+  <div class="callout"><span class="k">Why passthrough, not reimplement</span><p>pg_graphql already implements Relay connections, FK-nested relationships, the filter/order grammar, and cursor pagination — and resolves in-session so RLS applies identically to REST. Reimplementing in async-graphql buys a uniform multi-backend dialect we do not yet need, at multi-month cost plus a permanent parity tax. The port keeps that option reversible; we spend engineering only on the differentiated subscription path.</p></div>
+
+  <h3 id="quarry-sub">Subscriptions &amp; RLS enforcement</h3>
+  <p>The WAL bypasses RLS — a change event contains a row regardless of who may see it. Quarry therefore enforces visibility itself, in two stages, and this is the genuinely hard part of the system.</p>
+  <ol>
+    <li><strong>Source.</strong> <code>fdb-realtime</code> is a gRPC client of the fabric's <code>WatchEntityType(tenant, entity_type, filter)</code> stream. It runs no CDC of its own.</li>
+    <li><strong>Subscribe-time gate (coarse).</strong> One Keto <code>check(subject,"view",entity_type|tenant)</code>, cached for the subscription's lifetime.</li>
+    <li><strong>Per-event authoritative filter.</strong> For each change, re-query the changed row <em>as the subscriber</em> (claims set, RLS applies). Deliver only if it survives — the same technique Supabase Realtime uses, and the only path faithful to query-time RLS semantics.</li>
+    <li><strong>Opt-in predicate pushdown (per hot table).</strong> Translate the RLS predicate to a payload filter, skipping the re-query. <em>Operator-accepted risk, off by default:</em> predicate drift silently leaks or drops rows.</li>
+  </ol>
+  <figure>
+    <svg viewBox="0 0 880 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Subscription RLS sequence diagram">
+      <!-- lifelines -->
+      <text x="70" y="26" text-anchor="middle" class="d-label" font-size="11">Client</text>
+      <text x="240" y="26" text-anchor="middle" class="d-label" font-size="11">flint-gate</text>
+      <text x="420" y="26" text-anchor="middle" class="d-label" font-size="11">Quarry</text>
+      <text x="600" y="26" text-anchor="middle" class="d-label" font-size="11">fabric</text>
+      <text x="770" y="26" text-anchor="middle" class="d-label" font-size="11">Postgres</text>
+      <line x1="70" y1="38" x2="70" y2="312" class="d-edge"/><line x1="240" y1="38" x2="240" y2="312" class="d-edge"/>
+      <line x1="420" y1="38" x2="420" y2="312" class="d-edge"/><line x1="600" y1="38" x2="600" y2="312" class="d-edge"/>
+      <line x1="770" y1="38" x2="770" y2="312" class="d-edge"/>
+      <!-- messages -->
+      <path d="M70,62 L240,62" class="d-edge-em"/><text x="78" y="56" class="d-elabel">subscribe (WS) + JWT</text>
+      <path d="M240,86 L420,86" class="d-edge-em"/><text x="248" y="80" class="d-elabel">RLS JWT</text>
+      <path d="M420,110 L600,110" class="d-edge"/><text x="428" y="104" class="d-elabel">Keto check (cached)</text>
+      <path d="M420,134 L600,134" class="d-edge"/><text x="428" y="128" class="d-elabel">WatchEntityType(filter)</text>
+      <path d="M600,168 L420,168" class="d-edge"/><text x="430" y="162" class="d-elabel">EntityChange (WAL — no RLS)</text>
+      <path d="M420,192 L770,192" class="d-edge"/><text x="428" y="186" class="d-elabel">re-query row AS subscriber (RLS applies)</text>
+      <path d="M770,216 L420,216" class="d-edge"/><text x="430" y="210" class="d-elabel">row | ∅</text>
+      <rect x="408" y="232" width="24" height="40" rx="4" class="d-ember" opacity="0.2"/><text x="448" y="252" class="d-elabel">if survives → reshape</text>
+      <path d="M420,290 L70,290" class="d-edge-em"/><text x="120" y="284" class="d-elabel">TChangePayload (only permitted rows)</text>
+    </svg>
+    <figcaption><b>Fig 5.</b> Subscription delivery sequence. The coarse Keto gate rejects whole subscriptions cheaply; the per-event re-query is the authoritative row filter.</figcaption>
+  </figure>
+
+  <h3>REST surface &amp; pgvector</h3>
+  <p>PostgREST-compatible: <code>GET/POST/PATCH/DELETE /&lt;schema&gt;.&lt;table&gt;</code> with <code>select</code>, filter operators (<code>eq,neq,gt,gte,lt,lte,like,ilike,in,is,cs,fts</code>), <code>order</code>, range headers, and <code>Prefer</code> semantics. <code>POST /rpc/&lt;fn&gt;</code> invokes Postgres functions. <strong>pgvector</strong> similarity ships first as <code>/rpc/&lt;fn&gt;</code> over a SQL function (<code>ORDER BY embedding &lt;-&gt; $q LIMIT k</code>); a GraphQL vector field is a later sibling-schema enhancement.</p>
+
+  <h3>Crate map</h3>
+  <pre><code>fdb-domain/   TableMeta · RestQuery · RestResult · ChangeEvent · ChangeOp · SubscriptionSpec · RlsContext
+fdb-ports/    the five traits above
+fdb-app/      REST use-case · GraphQL exec · subscription orchestration · RLS assembly
+fdb-postgres/ DatabaseBackend · SchemaProvider · RestExecutor · GraphQlExecutor (pg_graphql) · pgvector
+fdb-realtime/ ChangeStreamSource over fabric WatchEntityType + Keto gate + per-event RLS re-query
+fdb-auth/     JWT verify (flint-gate issuer/JWKS) → RlsContext
+fdb-gateway/  Axum composition root: /graphql (Q/M/Sub) · REST · /rpc · /healthz · admin</code></pre>
+</section>
+<section id="anvil">
+  <div class="sec-num">06</div>
+  <h2>Flint Anvil — pgrx Extension Suite</h2>
+  <p><span class="pill em">pgrx</span><span class="pill">Postgres 18</span><span class="pill">pg_net</span><span class="pill">pgcrypto</span><span class="pill">background workers</span></p>
+  <p>Four extensions, each a workspace crate built with <code>cargo pgrx</code> and shipped into the prebuilt Postgres&nbsp;18 image. Anvil shapes data in place: it provides the auth vocabulary RLS policies are written in, dispatches webhooks with forwarded identity, binds LLM inference into the database, and holds every secret encrypted at rest.</p>
+
+  <h3><code>flint_auth</code> — JWT / RLS context helpers</h3>
+  <p>Defines the <code>auth</code> schema so policy authors never touch <code>current_setting</code> directly. Ships no policies — it provides the vocabulary policies are written in.</p>
+  <pre><code>CREATE FUNCTION auth.jwt()    RETURNS jsonb LANGUAGE sql STABLE AS
+  $$ SELECT coalesce(current_setting('request.jwt.claims', true), '{}')::jsonb $$;
+CREATE FUNCTION auth.uid()    RETURNS text  LANGUAGE sql STABLE AS $$ SELECT auth.jwt()-&gt;&gt;'sub' $$;
+CREATE FUNCTION auth.role()   RETURNS text  LANGUAGE sql STABLE AS $$ SELECT coalesce(auth.jwt()-&gt;&gt;'role','anon') $$;
+CREATE FUNCTION auth.bearer() RETURNS text  LANGUAGE sql STABLE AS          -- raw token for forwarding
+  $$ SELECT current_setting('request.headers', true)::json-&gt;&gt;'authorization' $$;</code></pre>
+
+  <h3 id="hooks"><code>flint_hooks</code> — webhook dispatch</h3>
+  <p>A gateway-managed registry drives one generic <code>SECURITY DEFINER</code> trigger per hooked table. <code>SECURITY DEFINER</code> changes the privilege context (so the function can reach <code>net.*</code> and the registry) but <code>current_setting</code> still returns the session GUCs — so the trigger reads the originating JWT while running privileged.</p>
+  <pre><code>CREATE TABLE flint.webhooks (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  schema_name text, table_name text, events text[],          -- {'INSERT','UPDATE','DELETE'}
+  target_url text,                                            -- routes through flint-gate
+  forward_jwt boolean DEFAULT false,                          -- Option-1 opt-in (else Option-3)
+  custom_headers jsonb DEFAULT '{}', secret text,             -- HMAC key
+  tier text DEFAULT 'standard',                               -- 'standard'(pg_net) | 'durable'(outbox)
+  active boolean DEFAULT true, timeout_ms int DEFAULT 5000);
+
+CREATE TABLE flint.webhook_outbox (                           -- durable tier
+  id bigserial PRIMARY KEY, webhook_id uuid, payload jsonb, headers jsonb,
+  status text DEFAULT 'pending', visible_at timestamptz DEFAULT now(), retry_count int DEFAULT 0);</code></pre>
+  <p>The dispatch function builds <code>{type, table, schema, record, old_record}</code>, reads <code>auth.bearer()</code> in-transaction, and per matching registration sets headers — Option-3 by default (<code>Authorization: Bearer &lt;service&gt;</code> + <code>X-Forge-Origin-JWT</code> + <code>X-Forge-Signature</code>). Two delivery tiers:</p>
+  <figure>
+    <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Webhook dispatch flow">
+      <rect x="20" y="120" width="150" height="58" rx="10" class="d-node-2"/><text x="95" y="144" text-anchor="middle" class="d-label" font-size="12">INSERT/UPDATE</text><text x="95" y="162" text-anchor="middle" class="d-sub" font-size="9">row change</text>
+      <rect x="220" y="120" width="170" height="58" rx="10" class="d-node-2"/><text x="305" y="144" text-anchor="middle" class="d-label" font-size="12">dispatch trigger</text><text x="305" y="162" text-anchor="middle" class="d-sub" font-size="9">capture JWT + payload</text>
+      <!-- standard tier -->
+      <rect x="450" y="40" width="170" height="56" rx="10" class="d-node"/><text x="535" y="62" text-anchor="middle" class="d-label" font-size="12">net.http_post</text><text x="535" y="80" text-anchor="middle" class="d-sub" font-size="9">standard · best-effort</text>
+      <!-- durable tier -->
+      <rect x="450" y="200" width="170" height="56" rx="10" class="d-node"/><text x="535" y="222" text-anchor="middle" class="d-label" font-size="12">webhook_outbox</text><text x="535" y="240" text-anchor="middle" class="d-sub" font-size="9">durable · same txn</text>
+      <rect x="660" y="200" width="100" height="56" rx="10" class="d-node"/><text x="710" y="225" text-anchor="middle" class="d-label" font-size="11">dispatcher</text><text x="710" y="241" text-anchor="middle" class="d-sub" font-size="8">SKIP LOCKED</text>
+      <rect x="690" y="110" width="170" height="56" rx="10" class="d-ext"/><text x="775" y="134" text-anchor="middle" class="d-label" font-size="12">flint-gate → target</text><text x="775" y="152" text-anchor="middle" class="d-sub" font-size="9">re-verifies identity</text>
+      <path d="M170,149 L220,149" class="d-edge-em"/>
+      <path d="M390,135 C 420,100 430,80 450,68" class="d-edge"/><text x="396" y="100" class="d-elabel">standard</text>
+      <path d="M390,163 C 420,190 430,210 450,222" class="d-edge"/><text x="396" y="205" class="d-elabel">durable</text>
+      <path d="M620,68 C 660,90 680,100 700,110" class="d-edge"/>
+      <path d="M620,228 L660,228" class="d-edge"/>
+      <path d="M760,222 C 800,190 820,170 800,166" class="d-edge"/>
+    </svg>
+    <figcaption><b>Fig 6.</b> Standard tier (pg_net, async best-effort) vs. durable tier (outbox + dispatcher with ordering &amp; retry). Both capture the originating JWT at trigger time — the WAL/CDC stream cannot, which is why a trigger is required.</figcaption>
+  </figure>
+
+  <h3 id="ember">Flint Ember — <code>flint_llm</code> (in-database LLM via liter-llm)</h3>
+  <p><span class="pill em">liter-llm</span><span class="pill">pgrx BGW</span><span class="pill">routes through flint-gate / UAR</span></p>
+  <p>Inference is bound into Postgres but routes <strong>inward</strong> to flint-gate/UAR, never directly to providers. The database holds a flint-gate credential, never provider keys; every in-DB call inherits Cedar policy, rate-limiting, cost attribution, and model routing, and may be served by candle-vllm/RunPod. Two surfaces with a hard boundary between them.</p>
+  <div class="callout warn"><span class="k">The hazard the design avoids</span><p>A synchronous LLM call inside a write trigger holds the row locks for the entire model latency. A bulk insert through a row-level sync trigger becomes N serial LLM calls in one transaction → backend/connection-pool exhaustion → whole-database stall. <strong>No mature project does this</strong> (pgai, pgEdge, pg_vectorize all use a worker + queue). The async surface is the default for triggers; the sync surface is gated and explicit.</p></div>
+  <h4>Surface 1 — synchronous (read / explicit path only)</h4>
+  <pre><code>llm.embed(input text, model text DEFAULT 'default') RETURNS vector
+llm.complete(prompt text, opts jsonb DEFAULT '{}')   RETURNS text</code></pre>
+  <p>liter-llm runs on a dedicated runtime thread touching no Postgres internals; the backend thread blocks under a hard timeout + periodic <code>CHECK_FOR_INTERRUPTS()</code>/<code>WaitLatch</code> so <code>statement_timeout</code> and <code>pg_cancel_backend</code> work. <code>EXECUTE</code> granted narrowly. Legitimate only when the output <em>gates the write</em> or is <em>required-at-commit</em> — rare, low-volume, operator-opt-in per table. Never the default in a write trigger.</p>
+  <h4>Surface 2 — asynchronous enrichment (default for triggers)</h4>
+  <pre><code>CREATE TABLE llm.jobs (
+  id bigserial PRIMARY KEY, kind text,          -- 'embed' | 'summarize' | 'classify'
+  schema_name text, table_name text, pk jsonb,
+  source jsonb, target_column text, model text,
+  origin_jwt text,                              -- captured at enqueue: attribution + Cedar
+  status text DEFAULT 'pending', visible_at timestamptz DEFAULT now(), retry_count int DEFAULT 0);
+-- dequeue: SELECT … FOR UPDATE SKIP LOCKED  (PGMQ pattern)
+
+-- declarative (provisions column + enqueue trigger + HNSW index + worker config, index-like):
+llm.enable_embedding(table regclass, column text, model text, dim int)
+llm.enable_summary(table regclass, source_col text, target_col text, prompt_template text)</code></pre>
+  <figure>
+    <svg viewBox="0 0 880 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Async LLM enrichment flow">
+      <rect x="20" y="100" width="140" height="54" rx="10" class="d-node-2"/><text x="90" y="124" text-anchor="middle" class="d-label" font-size="12">INSERT</text><text x="90" y="141" text-anchor="middle" class="d-sub" font-size="9">commits immediately</text>
+      <rect x="200" y="100" width="150" height="54" rx="10" class="d-node-2"/><text x="275" y="124" text-anchor="middle" class="d-label" font-size="12">enqueue trigger</text><text x="275" y="141" text-anchor="middle" class="d-sub" font-size="9">llm.jobs + origin_jwt</text>
+      <rect x="390" y="100" width="150" height="54" rx="10" class="d-node"/><text x="465" y="124" text-anchor="middle" class="d-label" font-size="12">BGW (own process)</text><text x="465" y="141" text-anchor="middle" class="d-sub" font-size="9">SKIP LOCKED · batch · governor</text>
+      <rect x="580" y="40" width="160" height="54" rx="10" class="d-ext"/><text x="660" y="64" text-anchor="middle" class="d-label" font-size="12">flint-gate / UAR</text><text x="660" y="81" text-anchor="middle" class="d-sub" font-size="9">liter-llm · governed</text>
+      <rect x="580" y="160" width="160" height="54" rx="10" class="d-node"/><text x="660" y="184" text-anchor="middle" class="d-label" font-size="12">write back (SPI)</text><text x="660" y="201" text-anchor="middle" class="d-sub" font-size="9">UPDATE embedding/summary</text>
+      <path d="M160,127 L200,127" class="d-edge-em"/>
+      <path d="M350,127 L390,127" class="d-edge"/>
+      <path d="M540,118 C 560,90 565,80 580,72" class="d-edge"/>
+      <path d="M580,90 C 540,140 510,160 540,170" class="d-edge"/>
+      <path d="M580,187 C 540,200 510,170 540,150" class="d-edge"/>
+    </svg>
+    <figcaption><b>Fig 7.</b> Trigger enqueues (capturing identity), the background worker dequeues and calls inference through flint-gate, then writes results back. The write transaction never waits on the model.</figcaption>
+  </figure>
+  <p><strong>v1 scope:</strong> embeddings via Surface 2 first (safe, pairs with pgvector); summaries/completions follow once the worker + governor are proven; Surface 1 added when a real gating use case appears.</p>
+  <h3 id="vault"><code>flint_vault</code> — Sovereign Secret Store</h3>
+  <p><span class="pill em">pgrx</span><span class="pill">XChaCha20-Poly1305</span><span class="pill">KMS envelope</span><span class="pill">HKDF-SHA256</span></p>
+  <p>A pgrx extension that stores <strong>secrets of any kind</strong> — database passwords, external-service API keys (LLM providers, Stripe, SendGrid, …), connection strings, OAuth/refresh tokens, certificates, and arbitrary secret parameters — encrypted at rest in an ordinary Postgres table, so backups/WAL/replicas carry <strong>ciphertext only</strong>. It is the single sovereign store every Forge subsystem reads from; LLM keys (§4.3) are one consumer among many. It descends from the Supabase-Vault/pgsodium lineage but drops the deprecated <code>pgsodium</code> dependency and the file-only root key.</p>
+
+  <h4>Crypto</h4>
+  <p>XChaCha20-Poly1305 AEAD (24-byte nonce per row). The row <code>id</code> is bound in as <strong>associated data</strong>, so a ciphertext copied to another row fails authentication. The per-row working key is <code>HKDF-SHA256(DEK, info = category ‖ key_id)</code>, so a category can be rotated independently.</p>
+
+  <div class="callout"><span class="k">Envelope encryption — the key improvement over the reference</span><p>The Data Encryption Key (DEK) is <strong>never a raw file</strong>. At postmaster start it is unwrapped from a Key Encryption Key (KEK) that lives in an external KMS — <strong>Azure Key Vault via managed identity</strong> (or AWS KMS / GCP KMS / Vault Transit) — through a KMS-agnostic unwrap command (the EDB-TDE <code>PGDATAKEYUNWRAPCMD</code> pattern: wrapped DEK on stdin → 32 raw bytes on stdout). The KEK never enters the DB or the process. <em>Stakes:</em> revoking the KEK renders every secret cryptographically dead (KMS kill-switch); rotating the KEK only rewraps the DEK — <strong>zero data re-encryption</strong>. A raw-DEK env var remains as the dev fallback. The DEK is held in <code>secrecy::Secret</code>, zeroized on drop, and is <strong>never selectable from SQL</strong>. <code>_PG_init</code> fails fast and loud if a configured key cannot be loaded.</p></div>
+
+  <h4>Schema (in schema <code>vault</code>)</h4>
+  <pre><code>CREATE TYPE vault.secret_category AS ENUM
+  ('api_key','password','connection_string','token','certificate','secret_param');
+
+CREATE TABLE vault.secrets (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  category vault.secret_category NOT NULL,
+  name text NOT NULL, description text NOT NULL DEFAULT '',
+  provider text,                 -- api_key: 'anthropic','stripe',…; target system; or NULL
+  scope text,                    -- optional tenant/environment scope
+  secret text NOT NULL,          -- base64 ciphertext
+  key_id uuid NOT NULL DEFAULT '…0001', nonce bytea NOT NULL,
+  created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now(),
+  UNIQUE (category, name, COALESCE(scope,'')));
+CREATE TABLE vault.access_log (…);   -- append-only audit of every privileged read/write
+CREATE VIEW  vault.decrypted_secrets AS … ;   -- decrypt-on-read (revoked from PUBLIC)</code></pre>
+
+  <h4>Access model — "available but not exposed" (two tiers)</h4>
+  <p>Grounded in the wasmCloud secrets model and host-boundary credential injection (IronClaw):</p>
+  <ul>
+    <li><strong>In-process (DB consumers).</strong> <code>flint_llm</code>, <code>flint_hooks</code>, and flint-gate's service role resolve plaintext in the trusted Postgres process via <code>SECURITY DEFINER</code> functions <code>vault.get_secret(name[,scope])</code> and <code>vault.resolve_api_key(provider[,scope])</code>, granted only to a <code>flint_secret_reader</code> role (<code>flint_llm_worker</code> inherits it) — <strong>never to <code>PUBLIC</code></strong>, every call audited.</li>
+    <li><strong>Edge (WASM, brokered — default for high-value secrets).</strong> A component <strong>never receives the raw value</strong>: it calls <code>flint:llm</code> or a host-mediated outbound, and Flint Kiln injects the secret at the host boundary (the key never enters WASM linear memory).</li>
+    <li><strong>Edge (delegated — escape hatch, default-deny).</strong> When a component must read a value, <code>flint:secrets.get(name)</code> returns an opaque <code>secret</code> resource and <code>reveal(secret)</code> is a separate, <strong>Cedar-gated, audited</strong> call (§5.4).</li>
+  </ul>
+
+  <h4>Write path</h4>
+  <p><code>vault.create_secret</code> / <code>update_secret</code> are <code>SECURITY DEFINER</code>, revoked from <code>PUBLIC</code>, granted to a <code>vault_admin</code> role, and meant to be driven by the trusted host (flint-gate/Tauri/Axum) with statement logging disabled on that path (plaintext is a function argument — the one residual hole inherited from the reference).</p>
+
+  <div class="callout warn"><span class="k">Reconciliation — supersedes a prior decision</span><p>The earlier "provider keys live in flint-gate, never in the DB" is refined to: <em>no secret is in the DB in plaintext.</em> Secrets are ciphertext in <code>flint_vault</code>, the DEK is KMS-wrapped, and decryption happens only in the trusted DB process or trusted host — never to SQL clients or WASM. v1 resolution uses the <code>SECURITY DEFINER</code> SQL path (residual risk: a role that can assume <code>flint_secret_reader</code> can read plaintext, and it transits an SPI result); v2 hardens to a true in-process Rust entrypoint with no SQL round-trip.</p></div>
+
+  <p><strong>v1 scope:</strong> crate compiles + packages against pgrx 0.18.1 / PG18 (<code>flint_vault.so</code> + generated SQL + control, verified). Open items — KEK provider, brokered-vs-delegated default, crypto lib (RustCrypto vs <code>dryoc</code> for mlock'd pages), wrapped-DEK location — are in §12.</p>
+</section>
+<section id="kiln">
+  <div class="sec-num">07</div>
+  <h2>Flint Kiln — WASM Edge Function Gateway</h2>
+  <p><span class="pill em">Wasmtime</span><span class="pill">Cranelift</span><span class="pill">wasi:http/proxy</span><span class="pill">Component Model</span><span class="pill">Ed25519 / DID</span><span class="pill">Cosign</span></p>
+  <p>Kiln compiles and runs signed, content-addressed WASM <strong>components</strong> — the deployable unit is a single <code>.wasm</code>, not a source directory. It mirrors Supabase Edge Functions but replaces Deno isolates with the standard WASM Component Model, giving stronger isolation, polyglot authoring, and AOT-to-native compilation. It shares its Wasmtime host with UAR's Tier-2 skills.</p>
+
+  <h3>Runtime model</h3>
+  <p>A bespoke Wasmtime host targets the standard <code>wasi:http/proxy</code> world — a component <strong>exports</strong> <code>wasi:http/incoming-handler</code>. Pre-instantiate once with <code>ProxyPre</code>; per request create a fresh <code>Store</code> and call <code>ProxyPre::instantiate_async</code>. Fresh linear memory per invocation means no cross-request state leakage; functions externalize state to <code>flint:kv</code>/DB. Epoch + fuel interruption enforce per-request timeouts; <code>StoreLimits</code> caps memory; the pooling allocator gives low-latency instances.</p>
+
+  <h3 id="kiln-compile">Compilation strategy — Cranelift, AOT, control/data-plane split</h3>
+  <p>Wasmtime + Cranelift already emits native machine code; the dial is <em>when</em> and <em>which backend</em>. <code>CompilationStrategy</code> is a first-class config dimension.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Strategy</th><th>Use</th><th>Mechanism</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Cranelift-AOT</strong> (default, prod)</td><td>registered functions</td><td>At registration (post-verify) <code>precompile_component</code> → <code>.cwasm</code>; cache keyed <code>(source_digest, target_arch, wasmtime_version)</code>; invocation <code>deserialize</code>s native code, zero compile latency.</td></tr>
+      <tr><td><strong>Winch</strong> (dev)</td><td>fast iterate</td><td>baseline compile ~15–20× faster, code ~1.1–1.5× slower; x86_64. No Winch→Cranelift auto-tiering.</td></tr>
+      <tr><td><strong>Pulley</strong> (fallback)</td><td>no-codegen targets</td><td>portable interpreter; slowest; default where Cranelift has no backend.</td></tr>
+    </tbody>
+  </table></div>
+  <figure>
+    <svg viewBox="0 0 880 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AOT compilation pipeline">
+      <text x="245" y="24" class="d-sub" font-size="11" fill="#FF6A3D">CONTROL PLANE — admin server (has Cranelift)</text>
+      <rect x="20" y="40" width="120" height="50" rx="9" class="d-node-2"/><text x="80" y="62" text-anchor="middle" class="d-label" font-size="11">register</text><text x="80" y="78" text-anchor="middle" class="d-sub" font-size="9">.wasm + manifest</text>
+      <rect x="160" y="40" width="120" height="50" rx="9" class="d-node-2"/><text x="220" y="62" text-anchor="middle" class="d-label" font-size="11">verify sig</text><text x="220" y="78" text-anchor="middle" class="d-sub" font-size="9">Ed25519/DID · Cedar</text>
+      <rect x="300" y="40" width="130" height="50" rx="9" class="d-node-2"/><text x="365" y="62" text-anchor="middle" class="d-label" font-size="11">Cranelift AOT</text><text x="365" y="78" text-anchor="middle" class="d-sub" font-size="9">per target (all-arch)</text>
+      <rect x="450" y="40" width="130" height="50" rx="9" class="d-node-2"/><text x="515" y="62" text-anchor="middle" class="d-label" font-size="11">.cwasm cache</text><text x="515" y="78" text-anchor="middle" class="d-sub" font-size="9">digest+target+version</text>
+      <line x1="20" y1="120" x2="860" y2="120" class="d-edge"/><text x="600" y="116" class="d-elabel">trust boundary</text>
+      <text x="245" y="150" class="d-sub" font-size="11" fill="#34CFE6">DATA PLANE — invocation server (compiler features OFF)</text>
+      <rect x="160" y="165" width="130" height="50" rx="9" class="d-node"/><text x="225" y="187" text-anchor="middle" class="d-label" font-size="11">deserialize</text><text x="225" y="203" text-anchor="middle" class="d-sub" font-size="9">native · zero compile</text>
+      <rect x="310" y="165" width="130" height="50" rx="9" class="d-node"/><text x="375" y="187" text-anchor="middle" class="d-label" font-size="11">ProxyPre</text><text x="375" y="203" text-anchor="middle" class="d-sub" font-size="9">fresh Store / req</text>
+      <rect x="460" y="165" width="130" height="50" rx="9" class="d-node"/><text x="525" y="187" text-anchor="middle" class="d-label" font-size="11">handle()</text><text x="525" y="203" text-anchor="middle" class="d-sub" font-size="9">fuel/epoch/limits</text>
+      <path d="M140,65 L160,65" class="d-edge"/><path d="M280,65 L300,65" class="d-edge"/><path d="M430,65 L450,65" class="d-edge"/>
+      <path d="M515,90 C 400,130 320,150 250,165" class="d-edge-em"/>
+      <path d="M290,190 L310,190" class="d-edge"/><path d="M440,190 L460,190" class="d-edge"/>
+    </svg>
+    <figcaption><b>Fig 8.</b> Compilation happens once in the trusted control plane; the data plane handling untrusted requests ships with the compiler disabled and only <b>deserialize</b>s pre-verified native code.</figcaption>
+  </figure>
+  <div class="callout warn"><span class="k">.cwasm trust — an RCE surface</span><p><code>deserialize</code> trusts the artifact; a tampered <code>.cwasm</code> runs as native code. Resolution: sign the <em>source</em> <code>.wasm</code>, AOT-compile only inside the trusted control plane, and treat the <code>.cwasm</code> as trusted because it was produced from a verified source in a controlled pipeline (optionally sealing it with a runtime key the data plane checks). A Wasmtime upgrade invalidates the cache → the pipeline recompiles on version bumps. <strong>Going "fully native" without the runtime would strip the sandbox, capability linker, and interruption — that is explicitly a non-goal.</strong></p></div>
+</section>
+<section>
+  <h3 id="kiln-langs">Supported languages</h3>
+  <p>Any toolchain producing a component that targets the <code>wasi:http/proxy</code> world runs unmodified. Components may also be <strong>composed</strong> (auth in Rust, logic in Go, gateway in TS) into one component via WAC before signing.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Language</th><th>Toolchain</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Rust</td><td><code>cargo-component --proxy</code> · <code>wasm32-wasip2</code></td><td>first-class; reference for <code>flint:*</code> bindings</td></tr>
+      <tr><td>JavaScript / TypeScript</td><td><code>jco</code> / <code>componentize-js</code> (StarlingMonkey)</td><td>larger component; higher instantiate cost/memory</td></tr>
+      <tr><td>Python</td><td><code>componentize-py</code></td><td>maturity varies; pin versions</td></tr>
+      <tr><td>Go</td><td>TinyGo <code>wasip2</code></td><td>maturity varies</td></tr>
+      <tr><td>C / C++</td><td><code>wasi-sdk</code> + <code>wit-bindgen</code></td><td>small footprint</td></tr>
+      <tr><td>C# / .NET, others</td><td><code>componentize-dotnet</code>, etc.</td><td>as the ecosystem matures</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Capability interfaces (WIT) — governed by Cedar</h3>
+  <p>A component can do only what the host links into it. The <code>Linker</code> adds only the interfaces the function's signed manifest <strong>requests</strong> ∩ Cedar <strong>allows for that publisher</strong> (default-deny). A function never holds a raw DB connection or provider key — only governed host capabilities, so it cannot escape the boundary.</p>
+  <pre><code>package flint:host@0.1.0;
+interface db       { query: func(sql: string, params: list&lt;json&gt;) -&gt; result&lt;list&lt;json&gt;, error&gt;; }
+interface llm      { embed: func(input: string, model: option&lt;string&gt;) -&gt; result&lt;list&lt;f32&gt;, error&gt;;
+                     complete: func(prompt: string, opts: json) -&gt; result&lt;string, error&gt;; }
+interface kv       { get: func(k: string) -&gt; option&lt;list&lt;u8&gt;&gt;; set: func(k: string, v: list&lt;u8&gt;); }
+interface identity { origin-jwt: func() -&gt; option&lt;string&gt;; claims: func() -&gt; json; }
+interface secrets  { get: func(name: string) -&gt; result&lt;string, error&gt;; }   // Cedar-gated, per-function
+world edge-function {
+  export wasi:http/incoming-handler;
+  import wasi:http/outgoing-handler;
+  import db; import llm; import kv; import identity; import secrets;
+}</code></pre>
+  <figure>
+    <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Edge function invocation sequence">
+      <text x="70" y="24" text-anchor="middle" class="d-label" font-size="11">Caller</text>
+      <text x="250" y="24" text-anchor="middle" class="d-label" font-size="11">flint-gate</text>
+      <text x="440" y="24" text-anchor="middle" class="d-label" font-size="11">Kiln (data plane)</text>
+      <text x="640" y="24" text-anchor="middle" class="d-label" font-size="11">Component</text>
+      <text x="810" y="24" text-anchor="middle" class="d-label" font-size="11">Quarry / Ember</text>
+      <line x1="70" y1="36" x2="70" y2="284" class="d-edge"/><line x1="250" y1="36" x2="250" y2="284" class="d-edge"/>
+      <line x1="440" y1="36" x2="440" y2="284" class="d-edge"/><line x1="640" y1="36" x2="640" y2="284" class="d-edge"/>
+      <line x1="810" y1="36" x2="810" y2="284" class="d-edge"/>
+      <path d="M70,58 L250,58" class="d-edge-em"/><text x="78" y="52" class="d-elabel">POST /functions/v1/x (webhook or direct)</text>
+      <path d="M250,84 L440,84" class="d-edge-em"/><text x="258" y="78" class="d-elabel">+ Option-3 origin JWT</text>
+      <rect x="430" y="100" width="22" height="36" rx="4" class="d-ember" opacity="0.2"/><text x="462" y="118" class="d-elabel">deserialize .cwasm · fresh Store · grant caps ∩ Cedar</text>
+      <path d="M440,154 L640,154" class="d-edge"/><text x="448" y="148" class="d-elabel">handle(req) via wasi:http</text>
+      <path d="M640,186 L810,186" class="d-edge"/><text x="648" y="180" class="d-elabel">flint:db / flint:llm → flint-gate (origin JWT)</text>
+      <path d="M810,214 L640,214" class="d-edge"/><text x="650" y="208" class="d-elabel">RLS + Cedar enforced result</text>
+      <path d="M640,248 L70,248" class="d-edge-em"/><text x="200" y="242" class="d-elabel">HTTP response</text>
+    </svg>
+    <figcaption><b>Fig 9.</b> Edge invocation. The component's only I/O is through governed host capabilities, which route back through flint-gate under the origin identity — RLS and Cedar still apply.</figcaption>
+  </figure>
+
+  <h3 id="kiln-sign">Signing model &amp; storage</h3>
+  <p><strong>Content-address</strong> every component (sha256 digest / IPFS CID). The registry maps <code>name@version → digest</code>; artifacts are immutable, name pointers mutable.</p>
+  <ul>
+    <li><strong>Sovereign default — Ed25519 detached signature over a manifest</strong>, keyed to the publisher's <code>did:prometheus:</code> identity, issued as a Kaia Verifiable Credential. The runtime verifies signature + DID + validity <em>before instantiation</em> and refuses unsigned or capability-over-requesting components.</li>
+    <li><strong>OCI interop — Cosign/Sigstore:</strong> sign by digest, OIDC-keyless, signature + Rekor transparency entry alongside the artifact (SLSA alignment for components shared outside the sovereign boundary).</li>
+  </ul>
+  <pre><code>{ "publisher_did":"did:prometheus:…", "content_digest":"sha256:…",
+  "capabilities":["flint:db","flint:llm","wasi:http/outgoing"],
+  "version":"1.2.0", "not_before":"…", "not_after":"…" }     // granted = capabilities ∩ Cedar(publisher)</code></pre>
+  <p><strong>Storage</strong> is one <code>ComponentStore</code> port, content-addressed, with adapters: <strong>OCI registry</strong> (primary — wkg/cosign tooling, sign by digest never tag), <strong>IPFS</strong> (sovereign, CID-native), <strong>S3</strong> (pragmatic), <strong>filesystem</strong> (dev).</p>
+  <div class="callout warn"><span class="k">The admin surface is the platform's highest-value target</span><p>Whoever can register a component can run code in the edge plane. Signing-key custody (Kaia / Key Vault) and per-publisher Cedar gating are non-negotiable, and the admin listener (control plane) must be locked down harder than the invocation path — ideally a separate listener with separate auth and policy.</p></div>
+
+  <h3>Kiln components (C4 — Level 3) &amp; crate map</h3>
+  <figure>
+    <svg viewBox="0 0 880 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kiln C4 component diagram">
+      <rect x="20" y="20" width="840" height="210" rx="14" fill="#10171F"/>
+      <text x="40" y="46" class="d-label" font-size="13" fill="#FF6A3D">fke-server (Axum)</text>
+      <rect x="40" y="60" width="180" height="56" rx="9" class="d-node-2"/><text x="130" y="84" text-anchor="middle" class="d-label" font-size="11">Admin REST (control)</text><text x="130" y="100" text-anchor="middle" class="d-sub" font-size="9">register · version · activate</text>
+      <rect x="240" y="60" width="180" height="56" rx="9" class="d-node-2"/><text x="330" y="84" text-anchor="middle" class="d-label" font-size="11">/functions/v1 (data)</text><text x="330" y="100" text-anchor="middle" class="d-sub" font-size="9">deserialize + dispatch</text>
+      <rect x="440" y="60" width="180" height="56" rx="9" class="d-node"/><text x="530" y="84" text-anchor="middle" class="d-label" font-size="11">fke-runtime</text><text x="530" y="100" text-anchor="middle" class="d-sub" font-size="9">Wasmtime · linker · limits</text>
+      <rect x="640" y="60" width="200" height="56" rx="9" class="d-node"/><text x="740" y="84" text-anchor="middle" class="d-label" font-size="11">fke-registry</text><text x="740" y="100" text-anchor="middle" class="d-sub" font-size="9">name@version → digest/manifest</text>
+      <rect x="40" y="140" width="180" height="52" rx="9" class="d-node"/><text x="130" y="162" text-anchor="middle" class="d-label" font-size="11">Compiler (Cranelift)</text><text x="130" y="178" text-anchor="middle" class="d-sub" font-size="9">control plane only</text>
+      <rect x="240" y="140" width="180" height="52" rx="9" class="d-node"/><text x="330" y="162" text-anchor="middle" class="d-label" font-size="11">fke-sign-{did,cosign}</text><text x="330" y="178" text-anchor="middle" class="d-sub" font-size="9">verify before instantiate</text>
+      <rect x="440" y="140" width="400" height="52" rx="9" class="d-ext"/><text x="640" y="162" text-anchor="middle" class="d-label" font-size="11">fke-store-{oci,ipfs,s3,fs} — ComponentStore</text><text x="640" y="178" text-anchor="middle" class="d-sub" font-size="9">content-addressed artifacts + .cwasm cache</text>
+      <path d="M130,116 L130,140" class="d-edge"/><path d="M330,116 L330,140" class="d-edge"/><path d="M530,116 C 480,130 440,135 420,155" class="d-edge"/>
+      <path d="M740,116 C 700,130 660,135 640,140" class="d-edge"/>
+    </svg>
+    <figcaption><b>Fig 10.</b> Kiln component view. The compiler exists only in the control-plane build; the data-plane build omits it.</figcaption>
+  </figure>
+  <pre><code>fke-domain/   FunctionManifest · ContentId · Capability · CompilationStrategy · TargetArch
+fke-ports/    ComponentStore · SignatureVerifier · ComponentRegistry · Compiler
+fke-runtime/  Wasmtime engine · ProxyPre cache · Cedar-gated Linker · fuel/epoch/limits · (de)serialize
+fke-store-{oci,ipfs,s3,fs}/   ComponentStore adapters
+fke-sign-{did,cosign}/        SignatureVerifier adapters
+fke-registry/ name@version → (digest, manifest, cwasm cache)
+fke-server/   Axum: admin REST (control plane) + /functions/v1 (data plane)</code></pre>
+</section>
+<section id="workspace">
+  <div class="sec-num">08</div>
+  <h2>Workspace Layout</h2>
+  <p>One Cargo workspace. <code>forge-domain/identity/policy</code> are shared; everything else obeys the dependency rule. pgrx extension crates build via <code>cargo pgrx</code> and ship into the PG18 image, not the gateway binaries.</p>
+  <pre><code>flint-forge/
+├── Cargo.toml                      # [workspace]
+├── crates/
+│   ├── forge-domain/               # shared cross-cutting types
+│   ├── forge-identity/             # JWT verify · RlsContext · Option-3 outbound · claims
+│   ├── forge-policy/               # Cedar PEP — shared by Quarry mutations, Kiln linker, Ember
+│   │
+│   ├── fdb-domain/ fdb-ports/ fdb-app/                       # Flint Quarry
+│   ├── fdb-postgres/ fdb-realtime/ fdb-auth/ fdb-gateway/
+│   │
+│   ├── ext-flint-auth/             # Flint Anvil — pgrx: flint_auth
+│   ├── ext-flint-hooks/            #              pgrx: flint_hooks
+│   ├── ext-flint-llm/              # Flint Ember — pgrx: flint_llm + background worker
+│   ├── ext-flint-vault/            # Flint Vault — pgrx: flint_vault
+│   │
+│   ├── fke-domain/ fke-ports/ fke-runtime/                   # Flint Kiln
+│   ├── fke-store-oci/ fke-store-ipfs/ fke-store-s3/ fke-store-fs/
+│   ├── fke-sign-did/ fke-sign-cosign/ fke-registry/ fke-server/
+│   └── forge-cli/                  # ops + dev CLI
+├── wit/flint/host/                 # WIT: db · llm · kv · identity · secrets · edge-function world
+├── images/postgres18/              # Dockerfile: PG18 + pg_graphql + pgvector + pg_net + pgcrypto + Anvil
+├── openspec/changes/               # the change sets (§09)
+├── docs/                           # this spec + ADRs
+└── dagger/                         # CI pipelines</code></pre>
+</section>
+
+<section id="plan">
+  <div class="sec-num">09</div>
+  <h2>Development Plan — KBD / PMPO</h2>
+  <p>Each numbered change becomes one OpenSpec change set (<code>proposal.md</code> + <code>tasks.md</code>). Every change runs the PMPO loop; every phase ends at a hard gate.</p>
+  <figure>
+    <svg viewBox="0 0 880 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PMPO loop">
+      <rect x="40" y="70" width="150" height="60" rx="10" class="d-node-2"/><text x="115" y="96" text-anchor="middle" class="d-label" font-size="13">Spec</text><text x="115" y="114" text-anchor="middle" class="d-sub" font-size="9">contract + intent</text>
+      <rect x="270" y="70" width="150" height="60" rx="10" class="d-node-2"/><text x="345" y="96" text-anchor="middle" class="d-label" font-size="13">Plan</text><text x="345" y="114" text-anchor="middle" class="d-sub" font-size="9">tasks · halt points</text>
+      <rect x="500" y="70" width="150" height="60" rx="10" class="d-node-2"/><text x="575" y="96" text-anchor="middle" class="d-label" font-size="13">Execute</text><text x="575" y="114" text-anchor="middle" class="d-sub" font-size="9">build to gate</text>
+      <rect x="710" y="70" width="150" height="60" rx="10" class="d-ember" opacity="0.18"/><text x="785" y="96" text-anchor="middle" class="d-label" font-size="13" fill="#FF6A3D">Reflect</text><text x="785" y="114" text-anchor="middle" class="d-sub" font-size="9">isolated critic ctx</text>
+      <path d="M190,100 L270,100" class="d-edge-em"/><path d="M420,100 L500,100" class="d-edge-em"/><path d="M650,100 L710,100" class="d-edge-em"/>
+      <path d="M785,130 C 785,175 115,175 115,135" class="d-edge"/><text x="430" y="170" text-anchor="middle" class="d-elabel">anti-sycophancy correction feeds the next Spec</text>
+    </svg>
+    <figcaption><b>Fig 11.</b> The PMPO loop. Reflect runs in an isolated critic context (never the generation history); sycophancy correction is load-bearing, surfacing the trade-off that hurts Prometheus before the next change is specified.</figcaption>
+  </figure>
+
+  <div class="phase"><div class="ph-h"><b>Phase 0</b>Foundation</div>
+    <p><code>p0-c001-workspace</code> · <code>p0-c002-pg18-image</code> · <code>p0-c003-wit-contract</code> · <em>(fabric)</em> <code>frf-watch-entity-type</code> (add <code>WatchEntityType</code> RPC + SubscribePipeline filter + Keto gate).</p>
+    <div class="exit"><b>Exit</b> Workspace compiles; image builds &amp; reports extensions; WIT frozen; fabric change approved + proto-frozen.</div>
+  </div>
+  <div class="phase"><div class="ph-h"><b>Phase 1</b>Flint Anvil — auth + hooks</div>
+    <p><code>p1-c001-flint-auth</code> · <code>p1-c002-flint-hooks-standard</code> · <code>p1-c003-flint-hooks-durable</code>.</p>
+    <div class="exit"><b>Exit</b> An INSERT fires a signed Option-3 webhook through flint-gate; durable tier survives a dispatcher restart.</div>
+  </div>
+  <div class="phase"><div class="ph-h"><b>Phase 2</b>Flint Quarry — REST + RLS</div>
+    <p><code>p2-c001-fdb-auth</code> · <code>p2-c002-fdb-postgres</code> (pool + SET LOCAL context + SchemaProvider) · <code>p2-c003-rest-executor</code> (+ pgvector RPC).</p>
+    <div class="exit"><b>Exit</b> RLS-correct REST CRUD under a flint-gate JWT; vector search via /rpc.</div>
+  </div>
+  <div class="phase"><div class="ph-h"><b>Phase 3</b>Flint Quarry — GraphQL</div>
+    <p><code>p3-c001-graphql-passthrough</code> · <code>p3-c002-subscriptions</code> (fabric source + Keto gate + per-event RLS re-query + graphql-transport-ws) · <code>p3-c003-introspection-merge</code> · <code>p3-c004-predicate-pushdown</code>.</p>
+    <div class="exit"><b>Exit</b> A subscriber receives only RLS-permitted change payloads; one introspection returns the merged schema.</div>
+  </div>
+  <div class="phase"><div class="ph-h"><b>Phase 4</b>Flint Ember</div>
+    <p><code>p4-c001-liter-llm-binding</code> (route through flint-gate/UAR, no provider keys) · <code>p4-c002-async-embeddings</code> (BGW + queue + enable_embedding) · <code>p4-c003-sync-surface</code> (interrupt/timeout safety) · <code>p4-c004-summaries</code>.</p>
+    <div class="exit"><b>Exit</b> Embeddings stay synced via the worker without blocking inserts; sync calls honor statement_timeout/cancel.</div>
+  </div>
+  <div class="phase"><div class="ph-h"><b>Phase 5</b>Flint Kiln — runtime + invocation</div>
+    <p><code>p5-c001-component-host</code> (shared with UAR) · <code>p5-c002-host-capabilities</code> (flint:* routing through flint-gate; Cedar-gated linker) · <code>p5-c003-invocation</code> (data plane, compiler-off).</p>
+    <div class="exit"><b>Exit</b> A signed component handles a request and calls back into Quarry/Ember under origin identity, RLS-enforced.</div>
+  </div>
+  <div class="phase"><div class="ph-h"><b>Phase 6</b>Flint Kiln — registration · signing · AOT</div>
+    <p><code>p6-c001-signing</code> (DID-VC + cosign) · <code>p6-c002-storage</code> (OCI/IPFS/S3/fs) · <code>p6-c003-aot-control-plane</code> (cross-compile + .cwasm cache) · <code>p6-c004-admin-rest</code>.</p>
+    <div class="exit"><b>Exit</b> Register → verify → AOT per target → invoke pre-compiled with zero compile latency; unsigned/tampered artifacts refused.</div>
+  </div>
+  <div class="phase"><div class="ph-h"><b>Phase 7</b>Hardening &amp; convergence</div>
+    <p>Webhook↔Kiln wiring; shared outbox proven across hooks + LLM; shared component host proven across Kiln + UAR; backpressure contract with flint-gate; subscription cardinality limits; Keto cache invalidation; load tests; observability; Dagger end-to-end.</p>
+    <div class="exit"><b>Exit</b> The two convergence invariants demonstrated under load with full tracing.</div>
+  </div>
+  <div class="callout cyan"><span class="k">Phase gate protocol</span><p>Complete the phase → verify the exit criterion → <strong>stop and report</strong> → no auto-advance, no artifacts belonging to a future phase. This is not optional; it is how the KBD orchestrator stays honest.</p></div>
+</section>
+<section id="skills">
+  <div class="sec-num">10</div>
+  <h2>AI Skills to Apply During Development</h2>
+  <p>The build runs through the Prometheus KBD skills package. These skills are not optional tooling — they encode the discipline that keeps the architecture correct as it is assembled.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Skill</th><th>Where it applies</th><th>What it enforces</th></tr></thead>
+    <tbody>
+      <tr><td><strong>PMPO loop</strong> (Spec→Plan→Execute→Reflect)</td><td>every change set</td><td>phase discipline, halt points, isolated-critic Reflect</td></tr>
+      <tr><td><strong>sycophancy-correction</strong> (S-01…S-08)</td><td>Reflect phase of every change</td><td>surfaces the trade-off and the scenario that hurts Prometheus before the next Spec</td></tr>
+      <tr><td><strong>rust-perf-primitives</strong></td><td>per-event RLS re-query · ProxyPre pooling · BGW dequeue · FFI/host-call boundaries · liter-llm thread bridge</td><td>tail-latency &amp; allocation control on the hot paths (<code>#[cold]</code>, <code>MaybeUninit</code>, <code>Arc::clone</code> placement, <code>#[repr(transparent)]</code>)</td></tr>
+      <tr><td><strong>hybrid-mobile-architecture</strong></td><td>KnowMe / consumer SDKs that call Quarry &amp; invoke Kiln functions</td><td>gen_ui_core sharing, Tauri/Flutter + Rust FFI, A2UI/AG-UI wiring</td></tr>
+      <tr><td><strong>mcp-builder</strong></td><td>exposing Forge surfaces (and edge functions) as MCP tools</td><td>well-formed MCP servers in Rust/TS</td></tr>
+      <tr><td><strong>frontend-design</strong> · theme-factory · web-artifacts-builder</td><td>Quarry/Kiln admin UIs (React 19 · Base UI · Tailwind 4)</td><td>Flat 2.0, WCAG AA, brand tokens, TSX-only</td></tr>
+      <tr><td><strong>radix-to-base-ui-migration</strong></td><td>admin UI primitives</td><td>Base UI patterns, dropdown/combobox correctness</td></tr>
+      <tr><td><strong>html-to-pdf</strong></td><td>exporting this spec &amp; per-phase reports</td><td>pixel-faithful Chromium rendering</td></tr>
+      <tr><td><strong>skill-creator</strong></td><td>new capability skills as subsystems land</td><td>portable Tier-0 fallback invariant; cross-harness sync</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout"><span class="k">Portability invariant</span><p>Any skill authored for Forge must degrade to Tier-0 text — no skill hard-depends on substrate availability. The skill pack stays synced across <code>.claude/ .codex/ .opencode/ .cursor/ .windsurf/</code> so the build is harness-independent, mirroring the model-independence of the platform itself.</p></div>
+</section>
+
+<section id="patterns">
+  <div class="sec-num">11</div>
+  <h2>Patterns Reference</h2>
+  <p>The named patterns this architecture leans on, and why each was chosen.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Pattern</th><th>Used for</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Ports &amp; Adapters (Hexagonal)</strong></td><td>every subsystem</td><td>backend-swappable; the <code>GraphQlExecutor</code>/<code>DatabaseBackend</code> seams keep a second database a new adapter, not a rewrite</td></tr>
+      <tr><td><strong>Capability inversion at compile time</strong></td><td>edge components · in-DB LLM · Kiln data plane</td><td>the dependency graph physically excludes write actuators, provider keys, and the WASM compiler from the untrusted layers — a structural guarantee, not a runtime check</td></tr>
+      <tr><td><strong>Dynamic-schema passthrough</strong></td><td>GraphQL query/mutation</td><td>delegate the solved relational problem to pg_graphql in-session; spend effort only on the differentiated subscription path</td></tr>
+      <tr><td><strong>Transactional outbox</strong></td><td>durable webhooks · LLM jobs</td><td>capture intent (and identity) atomically with the row change; deliver out-of-band with ordering &amp; retry</td></tr>
+      <tr><td><strong>Queue on <code>FOR UPDATE SKIP LOCKED</code></strong></td><td>LLM jobs · durable webhooks</td><td>contention-free multi-worker dequeue using Postgres row locks (the PGMQ pattern)</td></tr>
+      <tr><td><strong>Sidecar background worker</strong></td><td>Flint Ember enrichment</td><td>decouple model latency/failure from the writing transaction — the universal "LLM-in-Postgres" pattern</td></tr>
+      <tr><td><strong>Per-event re-query (RLS)</strong></td><td>subscriptions</td><td>the WAL bypasses RLS; re-querying as the subscriber is the only faithful row-visibility filter</td></tr>
+      <tr><td><strong>Control / data-plane split</strong></td><td>Kiln compilation</td><td>the compiler lives only where trust is high; the request-facing plane cannot compile arbitrary code</td></tr>
+      <tr><td><strong>Content-addressing</strong></td><td>component storage · .cwasm cache</td><td>immutable artifacts, dedup, integrity, and a natural signing target (sign the digest)</td></tr>
+      <tr><td><strong>Anti-corruption layer</strong></td><td>flint-gate as the single ingress</td><td>identity is normalized once at the boundary; downstream never re-derives or trusts unverified claims</td></tr>
+    </tbody>
+  </table></div>
+</section>
+<section id="deps">
+  <div class="sec-num">12</div>
+  <h2>External Dependencies &amp; Open Items</h2>
+  <p>Mostly non-blocking for Phase 0; confirm at the noted gate.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Item</th><th>Gate</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td>Fabric <code>WatchEntityType</code> RPC</td><td>Phase 3 (not 0)</td><td>the one cross-repo change; add to <code>entity.proto</code> + EntityService + SubscribePipeline filter + Keto gate</td></tr>
+      <tr><td>Prebuilt PG18 image</td><td>Phase 0</td><td>confirm it ships/permits <code>pg_net</code>, <code>pgcrypto</code>, <code>pg_graphql</code> (PG18-current), pgrx extensions + <code>shared_preload_libraries</code> for BGWs, and <code>wal_level=logical</code> (else the fabric uses a NOTIFY source — transparent to Quarry)</td></tr>
+      <tr><td>Version currency</td><td>each phase kickoff</td><td>Wasmtime (wasi:http/proxy now; 0.3/service forthcoming), async-graphql 7, pgrx (PG18), pg_graphql, liter-llm, polyglot toolchains</td></tr>
+      <tr><td>flint-gate contract</td><td>Phase 1</td><td>pin the minted claim set (<code>sub</code>, <code>role</code>, traits) and the service-identity credential for Option-3 outbound + capability callbacks</td></tr>
+      <tr><td>Naming nit</td><td>non-blocking</td><td>Quarry retains the ratified <code>fdb-</code> prefix; rename to <code>fq-</code> is trivial if desired</td></tr>
+      <tr><td>Flint Vault open decisions</td><td>non-blocking</td><td>KEK provider (Azure KV managed identity v1), brokered-vs-delegated default, crypto lib (RustCrypto vs <code>dryoc</code>), wrapped-DEK location</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="nongoals">
+  <div class="sec-num">13</div>
+  <h2>Non-Goals</h2>
+  <ul>
+    <li>No end-user authentication (Kratos via flint-gate). No TLS termination (reverse proxy / flint-gate).</li>
+    <li>No second database backend <em>built</em> — the <code>GraphQlExecutor</code>/<code>DatabaseBackend</code> seams preserve the option.</li>
+    <li>No uniform cross-backend GraphQL dialect (deferred; reversible at the port).</li>
+    <li>No re-exposure of the fabric's own realtime client surface (the fabric owns it).</li>
+    <li>No synchronous LLM calls on the write hot path by default (Surface 2 async is the default; Surface 1 is gated/explicit).</li>
+    <li>No runtime-less "fully native" WASM execution — it would strip the sandbox, capability linker, and interruption; AOT keeps the runtime.</li>
+    <li>No secret of any kind stored in Postgres <strong>in plaintext</strong>, and no raw secret value exposed to edge components — secrets live encrypted in <code>flint_vault</code> (§4.4) under a KMS-wrapped DEK; inference still routes through flint-gate/UAR, and edge access is brokered or Cedar-gated <code>reveal</code>.</li>
+  </ul>
+  <div class="divider"></div>
+  <p style="margin-top:28px; color:var(--text-dim); font-size:13px;">This document is the single source of truth for the Flint Forge build. Each numbered change in §09 decomposes into one OpenSpec change set. Generate Phase 0 first; halt at every gate.</p>
+</section>
+</div>
+</main>
+</div>
+<footer>
+  <div class="fl">
+    <svg viewBox="0 0 200 200" width="30" height="30" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="10" width="180" height="180" rx="40" ry="40" fill="none" stroke="#97A1AE" stroke-width="5"/>
+      <g transform="translate(50,38)">
+        <rect x="0" y="0" width="20" height="124" rx="10" fill="#97A1AE"/>
+        <path d="M 16,62 C 26,52 44,32 62,18 C 72,10 80,8 84,14 C 86,18 82,24 76,28 C 60,40 40,56 28,66 C 22,70 18,68 16,64 Z" fill="#97A1AE"/>
+        <path d="M 16,62 C 26,72 44,92 62,106 C 72,114 80,116 84,110 C 86,106 82,100 76,96 C 60,84 40,68 28,58 C 22,54 18,56 16,60 Z" fill="#97A1AE"/>
+        <circle cx="18" cy="62" r="10" fill="#FF6A3D"/>
+      </g>
+    </svg>
+    <div><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; color:var(--text); font-size:15px;">KnowMe · Flint Forge</div><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-top:2px;">RFC-FORGE-001 · Functional Specification, Architecture &amp; Development Plan</div></div>
+  </div>
+  <p style="max-width:70ch;">Sovereign data &amp; edge-compute plane. Model-independent, harness-independent, governed at every boundary. Built with Knowledge-Driven Development and the PMPO loop.</p>
+</footer>
+<script>
+(function(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('.sidebar nav a'));
+  var ids = links.map(function(a){return a.getAttribute('href').slice(1);});
+  var secs = ids.map(function(id){return document.getElementById(id);}).filter(Boolean);
+  function onScroll(){
+    var y = window.scrollY + 120, cur = null;
+    secs.forEach(function(s){ if(s.offsetTop <= y) cur = s.id; });
+    links.forEach(function(a){ a.classList.toggle('active', a.getAttribute('href')==='#'+cur); });
+  }
+  window.addEventListener('scroll', onScroll, {passive:true}); onScroll();
+  document.querySelectorAll('.sidebar nav a').forEach(function(a){
+    a.addEventListener('click', function(){ document.querySelector('.sidebar').classList.remove('open'); });
+  });
+})();
+</script>
+</body>
+</html>

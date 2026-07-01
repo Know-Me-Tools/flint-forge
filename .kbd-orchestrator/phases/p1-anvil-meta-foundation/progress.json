@@ -1,0 +1,31 @@
+{
+  "phase": "p1-anvil-meta-foundation",
+  "status": "execution_complete",
+  "changes_completed": 11,
+  "changes_total": 11,
+  "assessment_complete": true,
+  "plan_complete": true,
+  "plan_file": ".kbd-orchestrator/phases/p1-anvil-meta-foundation/plan.md",
+  "previousPhase": "p0-workspace-foundation",
+  "children": [
+    { "id": "p1-c001", "name": "p1-c001-flint-auth",              "status": "done", "openspec_change": "openspec/changes/p1-c001-flint-auth",              "gate": "auth.tenant_id() added; schema lockdown SQL added; 5 pgrx tests written; jwt-contract.md role-claim warning added; cargo check clean" },
+    { "id": "p1-c002", "name": "p1-c002-flint-hooks-standard",    "status": "done", "openspec_change": "openspec/changes/p1-c002-flint-hooks-standard",    "gate": "dispatch_webhook() complete; SECURITY DEFINER + pinned search_path; HMAC-SHA256 pgcrypto; pg_net standard + outbox durable; target_url fix; COALESCE(NEW,OLD) DELETE fix; 2 pgrx tests; pgrx 0.12/pg17 unchanged" },
+    { "id": "p1-c003", "name": "p1-c003-flint-hooks-durable",     "status": "done", "openspec_change": "openspec/changes/p1-c003-flint-hooks-durable",     "gate": "process_webhook_outbox() SKIP LOCKED; exponential backoff 30s/60s/120s/300s/600s max 5 retries; updated_at migration; pg_cron webhook-outbox-processor job; 1 pgrx test; workspace check clean" },
+    { "id": "p1-c004", "name": "p1-c004-pg-cron",                 "status": "done", "openspec_change": "openspec/changes/p1-c004-pg-cron",                 "gate": "Dockerfile verified, Docker build passed, pg_cron in shared_preload_libraries" },
+    { "id": "p1-c005", "name": "p1-c005-jwt-contract-pin",        "status": "done", "openspec_change": "openspec/changes/p1-c005-jwt-contract-pin",        "gate": "docs/contracts/jwt-contract.md written and validated" },
+    { "id": "p1-c006", "name": "p1-c006-vault-kms",               "status": "done", "openspec_change": "openspec/changes/p1-c006-vault-kms",               "gate": "docs/contracts/vault-kms.md written; docs/operations/vault-init.sh with shred cleanup; api_key_roundtrip test added" },
+    { "id": "p1-c007", "name": "p1-c007-flint-meta-schema",       "status": "done", "openspec_change": "openspec/changes/p1-c007-flint-meta-schema",       "gate": "cargo check clean; pgrx 0.18.1 crate structure; SQL cache tables + keto_tuples + vault_keys" },
+    { "id": "p1-c008", "name": "p1-c008-flint-meta-triggers",     "status": "done", "openspec_change": "openspec/changes/p1-c008-flint-meta-triggers",     "gate": "triggers.rs (414 lines); refresh_cache + invalidate_cache + full_refresh() PL/pgSQL; meta-trigger-coverage.md" },
+    { "id": "p1-c009", "name": "p1-c009-flint-meta-functions",    "status": "done", "openspec_change": "openspec/changes/p1-c009-flint-meta-functions",    "gate": "functions.rs (239 lines); check_permission + set_identity Rust DatumWithOid pgrx 0.18.1; tables/columns/relationships/functions SQL SETOF; requires chain verified" },
+    { "id": "p1-c010", "name": "p1-c010-flint-meta-agui-descriptor", "status": "done", "openspec_change": "openspec/changes/p1-c010-flint-meta-agui-descriptor", "gate": "agui.rs (301 lines); agui_descriptor() + openapi() PL/pgSQL; service_role-only grants; 3 pg_tests" },
+    { "id": "p1-c011", "name": "p1-c011-flint-meta-listener-test","status": "done", "openspec_change": "openspec/changes/p1-c011-flint-meta-listener-test","gate": "PHASE GATE CLEARED: meta_listener.rs (184 lines); sqlx 0.8 PgListener; 2 tokio tests skip gracefully without DATABASE_URL; cargo test -p fdb-app --test meta_listener: 2 passed; cargo check --workspace clean" }
+  ],
+  "blockers": [],
+  "resolved_blockers": [
+    "OQ-4 (flint-gate claim shape): RESOLVED",
+    "OQ-5 (service-identity token format): RESOLVED",
+    "OQ-9 (ext-flint-hooks pgrx version): RESOLVED — stays pgrx 0.12/pg17",
+    "OQ-10 (pg_cron absent from Dockerfile): RESOLVED"
+  ],
+  "notes": "ALL 11 CHANGES COMPLETE. Phase gate p1-c011 cleared: meta_listener.rs compiles and both PgListener tests pass (skip gracefully without live DB). Ready for /kbd-reflect p1-anvil-meta-foundation."
+}

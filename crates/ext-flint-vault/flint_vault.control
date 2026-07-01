@@ -1,0 +1,6 @@
+comment = 'flint_vault — Flint Forge sovereign secret store (XChaCha20-Poly1305, KMS-wrapped DEK)'
+default_version = '0.1.0'
+module_pathname = '$libdir/flint_vault'
+relocatable = false
+superuser = true
+schema = 'vault'

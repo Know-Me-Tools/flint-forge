@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flint A2UI - EMR Interface</title>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0F14;--s1:#131A22;--s2:#1A232E;--s3:#0E141B;--s4:#202B38;--s5:#2A3542;
+--txt:#E8EDF3;--txtm:#B4BECB;--txtd:#97A1AE;--em:#FF6A3D;--emd:#E04E28;--cy:#34CFE6;
+--gr:#4FD18B;--yl:#F4B942;--rd:#F05D5D;--fd:'Space Grotesk';--fb:'Inter';--fm:'JetBrains Mono'}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font-family:var(--fb);font-size:14px;line-height:1.6;overflow-x:hidden}
+
+h1,h2,h3,h4{font-family:var(--fd);font-weight:600;letter-spacing:-0.02em}
+h1{font-size:2.8rem;margin-bottom:1rem}h2{font-size:1.8rem;margin:2rem 0 1rem}h3{font-size:1.3rem;margin:1.5rem 0 0.8rem}
+p{margin-bottom:1rem;color:var(--txtm)}
+
+.container{max-width:1400px;margin:0 auto;padding:0 24px}
+.grid{display:grid;gap:24px}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+
+.hero{background:var(--s1);border-bottom:1px solid var(--s4);padding:60px 0;text-align:center}
+.hero-b{display:inline-block;background:rgba(255,106,61,0.15);color:var(--em);padding:6px 16px;border-radius:20px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px}
+.hero p{max-width:700px;margin:0 auto 24px;color:var(--txtd)}
+
+.sec{background:var(--s1);border:1px solid var(--s4);border-radius:12px;padding:24px;margin-bottom:24px}
+.sec-h{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.sec-h .icon{width:36px;height:36px;background:var(--s3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.sec-h h3{margin:0}
+.sec-h .tag{font-size:11px;background:var(--s3);color:var(--txtd);padding:2px 8px;border-radius:4px;border:1px solid var(--s4)}
+
+.demo{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:20px;margin:16px 0}
+.demo-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--txtd);margin-bottom:8px;font-weight:600}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;border:none;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;text-decoration:none}
+.btn-p{background:var(--em);color:#fff}
+.btn-p:hover{background:var(--emd);transform:translateY(-1px)}
+.btn-s{background:var(--s3);color:var(--txt);border:1px solid var(--s4)}
+.btn-s:hover{border-color:var(--cy)}
+.btn-g{background:var(--s3);color:var(--gr);border:1px solid rgba(79,209,139,0.3)}
+.btn-r{background:var(--s3);color:var(--rd);border:1px solid rgba(240,93,93,0.3)}
+.btn-ghost{background:transparent;color:var(--txtm);border:1px solid var(--s4)}
+.btn-ghost:hover{color:var(--txt);border-color:var(--cy)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-lg{padding:12px 24px;font-size:14px}
+.btn-i{padding:8px}
+
+.inp{width:100%;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;transition:all 0.2s}
+.inp:focus{outline:none;border-color:var(--cy);box-shadow:0 0 0 3px rgba(52,207,230,0.1)}
+.inp::placeholder{color:var(--txtd)}
+.lbl{display:block;font-size:12px;font-weight:500;color:var(--txtm);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+.fg{margin-bottom:16px}
+.sel{width:100%;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;cursor:pointer}
+.sel:focus{outline:none;border-color:var(--cy)}
+.tx{width:100%;min-height:100px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;resize:vertical}
+
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 12px;background:var(--s3);color:var(--txtd);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--s4)}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--s4);color:var(--txtm)}
+.tbl tr:hover td{background:rgba(52,207,230,0.05)}
+.tbl tr:last-child td{border-bottom:none}
+
+.bd-g{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(79,209,139,0.15);color:var(--gr)}
+.bd-y{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(244,185,66,0.15);color:var(--yl)}
+.bd-r{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(240,93,93,0.15);color:var(--rd)}
+.bd-e{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(255,106,61,0.15);color:var(--em)}
+.bd-c{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(52,207,230,0.15);color:var(--cy)}
+.bd-d{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--s3);color:var(--txtd)}
+
+.card{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:20px;transition:all 0.2s}
+.card:hover{border-color:var(--cy);transform:translateY(-2px)}
+.card-h{font-size:14px;font-weight:600;margin-bottom:8px;color:var(--txt)}
+.card-d{font-size:13px;color:var(--txtd);margin-bottom:12px}
+
+.tbs{display:flex;border-bottom:1px solid var(--s4);gap:4px;margin-bottom:16px}
+.tb{padding:10px 16px;border:none;background:none;color:var(--txtd);font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s}
+.tb.on{color:var(--cy);border-bottom-color:var(--cy)}
+.tb:hover{color:var(--txt)}
+
+.tbar{display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--s1);border-bottom:1px solid var(--s4);position:sticky;top:0;z-index:100}
+.tbar-l{font-family:var(--fd);font-weight:700;font-size:18px;color:var(--em)}
+.tbar-n{display:flex;gap:4px}
+.tbar-n a{padding:6px 12px;border-radius:6px;color:var(--txtm);text-decoration:none;font-size:13px;transition:all 0.2s}
+.tbar-n a:hover,.tbar-n a.on{background:var(--s3);color:var(--txt)}
+.snav{width:260px;background:var(--s1);border-right:1px solid var(--s4);min-height:100vh;position:fixed;top:0;left:0;overflow-y:auto;z-index:99}
+.snav-h{padding:16px 20px;border-bottom:1px solid var(--s4);display:flex;align-items:center;gap:12px}
+.snav-l{display:flex;align-items:center;gap:10px;font-family:var(--fd);font-weight:700;font-size:16px}
+.snav-li{width:32px;height:32px;background:var(--em);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+.snav-i{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--txtm);text-decoration:none;font-size:13px;transition:all 0.2s;border-left:3px solid transparent}
+.snav-i:hover{background:var(--s2);color:var(--txt)}
+.snav-i.on{border-left-color:var(--em);background:var(--s2);color:var(--txt)}
+
+.av{width:36px;height:36px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--cy);border:2px solid var(--s4)}
+.av-sm{width:28px;height:28px;font-size:12px}
+
+.pb{height:6px;background:var(--s3);border-radius:3px;overflow:hidden}
+.pb-b{height:100%;background:var(--em);border-radius:3px;transition:width 0.5s ease}
+.pf{display:flex;align-items:center;gap:12px;margin:8px 0}
+.pf-l{font-size:12px;color:var(--txtd);min-width:80px}
+.pf-b{flex:1}
+.pf-v{font-size:12px;color:var(--txtm);min-width:40px;text-align:right}
+
+.tl{position:relative;padding-left:24px}
+.tl::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--s4)}
+.tl-i{position:relative;margin-bottom:20px}
+.tl-d{position:absolute;left:-24px;top:4px;width:16px;height:16px;border-radius:50%;background:var(--s3);border:2px solid var(--cy);z-index:1}
+.tl-c{font-size:12px;font-weight:600;color:var(--txt);margin-bottom:4px}
+.tl-t{font-size:11px;color:var(--txtd);margin-bottom:4px}
+.tl-x{font-size:13px;color:var(--txtm)}
+
+.mc{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:20px;transition:all 0.2s}
+.mc-v{font-size:28px;font-weight:700;font-family:var(--fd);color:var(--txt);margin-bottom:4px}
+.mc-l{font-size:12px;color:var(--txtd);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+.mc-d{display:flex;align-items:center;gap:6px;font-size:13px}
+.mc-d.up{color:var(--gr)}.mc-d.down{color:var(--rd)}
+
+.stp{display:flex;align-items:center;gap:8px;margin:24px 0}
+.st{display:flex;align-items:center;gap:8px}
+.stc{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;background:var(--s3);border:2px solid var(--s4);color:var(--txtd)}
+.stc.on{background:var(--em);border-color:var(--em);color:#fff}
+.stc.done{background:var(--gr);border-color:var(--gr);color:#fff}
+.stl{flex:1;height:2px;background:var(--s4);min-width:40px}
+.stl.on{background:var(--em)}
+
+.pg{display:flex;gap:4px;justify-content:center;align-items:center}
+.pg-b{padding:6px 12px;border:1px solid var(--s4);background:var(--s2);color:var(--txtm);border-radius:6px;cursor:pointer;font-size:13px;transition:all 0.2s}
+.pg-b:hover{border-color:var(--cy);color:var(--txt)}
+.pg-b.on{background:var(--em);border-color:var(--em);color:#fff}
+
+.fb{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:16px;background:var(--s2);border:1px solid var(--s4);border-radius:10px;margin-bottom:16px}
+.ft{flex:1;min-width:200px;position:relative}
+.ft-i{width:100%;padding:10px 14px 10px 36px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;color:var(--txt);font-size:13px}
+.ft::before{content:'🔍';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:12px;opacity:0.6}
+
+.htmx-added{animation:fadeIn 0.3s ease}
+.htmx-swapping{animation:fadeOut 0.2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+
+[x-cloak]{display:none !important}
+
+.page{display:flex;min-height:100vh}
+.page .main{flex:1;padding:24px;min-width:0;margin-left:260px}
+@media(max-width:900px){.snav{display:none}.page .main{margin-left:0}}
+
+.comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px}
+.comp-item{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:16px}
+.comp-item h4{font-size:13px;margin-bottom:12px;color:var(--txtd);text-transform:uppercase;letter-spacing:0.5px}
+.demo-code{background:var(--s3);border:1px solid var(--s4);border-radius:6px;padding:12px;margin-top:12px;font-family:var(--fm);font-size:11px;overflow-x:auto;color:var(--txtd)}
+
+.lst{border:1px solid var(--s4);border-radius:8px;overflow:hidden}
+.lst-i{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--s4);transition:all 0.15s}
+.lst-i:last-child{border-bottom:none}
+.lst-i:hover{background:var(--s3)}
+.lst-i-c{flex:1}
+.lst-i-t{font-size:13px;font-weight:500;color:var(--txt)}
+.lst-i-d{font-size:11px;color:var(--txtd);margin-top:2px}
+.lst-i-a{display:flex;gap:4px;opacity:0;transition:opacity 0.2s}
+.lst-i:hover .lst-i-a{opacity:1}
+
+/* EMR specific styles */
+.emr-vit{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.emr-vit-i{background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:12px;transition:all 0.2s}
+.emr-vit-i:hover{border-color:var(--cy)}
+.emr-vit-i-l{font-size:11px;color:var(--txtd);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
+.emr-vit-i-v{font-size:20px;font-weight:700;font-family:var(--fd);color:var(--txt)}
+.emr-vit-i-d{font-size:11px;color:var(--txtd);margin-top:4px}
+.emr-vit-i-warn .emr-vit-i-v{color:var(--rd)}
+.emr-vit-i-ok .emr-vit-i-v{color:var(--gr)}
+.emr-vit-i-info .emr-vit-i-v{color:var(--cy)}
+
+.emr-ch{background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:16px;margin-bottom:12px;transition:all 0.2s}
+.emr-ch:hover{border-color:var(--cy)}
+.emr-ch-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.emr-ch-t{font-size:14px;font-weight:600}
+.emr-ch-d{font-size:12px;color:var(--txtd);margin-bottom:12px}
+.emr-ch-r{display:flex;gap:8px;flex-wrap:wrap}
+
+.emr-diag{background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:16px;margin-bottom:12px}
+.emr-diag-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.emr-diag-t{font-size:14px;font-weight:600}
+.emr-diag-d{font-size:12px;color:var(--txtd);margin-bottom:8px}
+.emr-diag-c{font-size:13px;color:var(--txtm);padding:8px;background:var(--bg);border-radius:6px;border:1px solid var(--s4)}
+.emr-diag-b{display:flex;gap:8px;margin-top:12px}
+
+.emr-appt{display:flex;align-items:center;gap:12px;padding:12px;background:var(--s3);border:1px solid var(--s4);border-radius:8px;margin-bottom:8px;transition:all 0.2s}
+.emr-appt:hover{border-color:var(--cy)}
+.emr-appt-t{width:60px;text-align:center;font-size:11px;color:var(--txtd);font-family:var(--fm)}
+.emr-appt-c{flex:1}
+.emr-appt-n{font-size:13px;font-weight:600}
+.emr-appt-d{font-size:11px;color:var(--txtd);margin-top:2px}
+.emr-appt-r{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+
+.emr-rx{background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:16px;margin-bottom:12px;transition:all 0.2s}
+.emr-rx:hover{border-color:var(--cy)}
+.emr-rx-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.emr-rx-t{font-size:14px;font-weight:600}
+.emr-rx-d{font-size:12px;color:var(--txtd);margin-bottom:8px}
+.emr-rx-i{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.emr-rx-i-t{padding:4px 8px;background:var(--bg);border:1px solid var(--s4);border-radius:4px;font-size:11px;color:var(--txtd)}
+</style>
+</head>
+<body>
+
+<!-- Hero Section -->
+<div class="hero">
+<div class="container">
+<div class="hero-b">Electronic Medical Records</div>
+<h1>Flint EMR</h1>
+<p>A clinical EMR interface built with A2UI components. Patient vitals, chief complaints, diagnoses, prescriptions, appointments, and lab results with HIPAA-compliant design.</p>
+<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:24px;">
+<a href="FLINT-A2UI-REGISTRY-SPEC.html" class="btn btn-ghost">← Registry Spec</a>
+<a href="FLINT-A2UI-ERP.html" class="btn btn-ghost">← ERP</a>
+</div>
+</div>
+</div>
+
+<!-- Page Layout -->
+<div class="page">
+<!-- Sidebar Navigation -->
+<nav class="snav">
+<div class="snav-h">
+<div class="snav-l"><div class="snav-li">F</div><span>EMR</span></div>
+</div>
+<div style="padding:12px 0;">
+<a href="#dashboard" class="snav-i on">📊 Dashboard</a>
+<a href="#patients" class="snav-i">👤 Patients</a>
+<a href="#vitals" class="snav-i">🩺 Vitals</a>
+<a href="#diagnoses" class="snav-i">🩺 Diagnoses</a>
+<a href="#prescriptions" class="snav-i">💊 Prescriptions</a>
+<a href="#appointments" class="snav-i">📅 Appointments</a>
+</div>
+</nav>
+
+<!-- Main Content -->
+<main class="main">
+<div class="container">
+
+<!-- Dashboard Section -->
+<section id="dashboard" class="sec">
+<div class="sec-h"><div class="icon">📊</div><h3>EMR Dashboard</h3><span class="tag">Overview</span></div>
+
+<div class="grid grid-4" style="gap:16px;margin-bottom:24px;">
+<div class="mc"><div class="mc-v">1,247</div><div class="mc-l">Patients</div><div class="mc-d up">↑ 3.2%</div></div>
+<div class="mc"><div class="mc-v">42</div><div class="mc-l">Today</div><div class="mc-d up">↑ 5.1%</div></div>
+<div class="mc"><div class="mc-v">8</div><div class="mc-l">Admitted</div><div class="mc-d down">↓ 1.2%</div></div>
+<div class="mc"><div class="mc-v">156</div><div class="mc-l">Prescriptions</div><div class="mc-d up">↑ 8.3%</div></div>
+</div>
+
+<div class="grid grid-2" style="gap:16px;">
+<div class="card">
+<div class="card-h">Today's Appointments</div>
+<div class="card-d">Upcoming patient visits</div>
+<div class="emr-appt">
+<div class="emr-appt-t">09:00</div>
+<div class="emr-appt-c"><div class="emr-appt-n">John Smith</div><div class="emr-appt-d">Follow-up • Hypertension</div></div>
+<span class="emr-appt-r bd-g">Checked In</span>
+</div>
+<div class="emr-appt">
+<div class="emr-appt-t">09:30</div>
+<div class="emr-appt-c"><div class="emr-appt-n">Maria Garcia</div><div class="emr-appt-d">New Patient • Annual Physical</div></div>
+<span class="emr-appt-r bd-y">Waiting</span>
+</div>
+<div class="emr-appt">
+<div class="emr-appt-t">10:00</div>
+<div class="emr-appt-c"><div class="emr-appt-n">Robert Chen</div><div class="emr-appt-d">Follow-up • Diabetes</div></div>
+<span class="emr-appt-r bd-d">Scheduled</span>
+</div>
+<div class="emr-appt">
+<div class="emr-appt-t">10:30</div>
+<div class="emr-appt-c"><div class="emr-appt-n">Sarah Johnson</div><div class="emr-appt-d">Lab Review • Thyroid</div></div>
+<span class="emr-appt-r bd-d">Scheduled</span>
+</div>
+</div>
+<div class="card">
+<div class="card-h">Recent Alerts</div>
+<div class="card-d">Critical notifications requiring attention</div>
+<div class="emr-diag">
+<div class="emr-diag-h"><span class="bd-r">Critical</span><span style="font-size:12px;color:var(--txtd);">2 min ago</span></div>
+<div class="emr-diag-t">High BP Alert</div>
+<div class="emr-diag-d">Patient: John Smith</div>
+<div class="emr-diag-c">BP: 180/110 mmHg - Immediate attention required</div>
+<div class="emr-diag-b"><button class="btn btn-r btn-sm">Acknowledge</button><button class="btn btn-s btn-sm">View Patient</button></div>
+</div>
+<div class="emr-diag">
+<div class="emr-diag-h"><span class="bd-y">Warning</span><span style="font-size:12px;color:var(--txtd);">15 min ago</span></div>
+<div class="emr-diag-t">Drug Interaction</div>
+<div class="emr-diag-d">Patient: Maria Garcia</div>
+<div class="emr-diag-c">Potential interaction between Warfarin and new prescription</div>
+<div class="emr-diag-b"><button class="btn btn-y btn-sm">Review</button><button class="btn btn-s btn-sm">Override</button></div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Patients Section -->
+<section id="patients" class="sec">
+<div class="sec-h"><div class="icon">👤</div><h3>Patients</h3><span class="tag">Patient List</span></div>
+
+<div class="fb">
+<div class="ft"><input type="text" class="ft-i" placeholder="Search patients..."></div>
+<select class="sel" style="width:150px;"><option>All Status</option><option>Active</option><option>Inactive</option></select>
+<select class="sel" style="width:150px;"><option>All Departments</option><option>Cardiology</option><option>Internal Medicine</option><option>Pediatrics</option></select>
+<button class="btn btn-p">+ New Patient</button>
+</div>
+
+<div class="lst">
+<div class="lst-i">
+<div class="av" style="color:var(--cy);">JS</div>
+<div class="lst-i-c"><div class="lst-i-t">John Smith</div><div class="lst-i-d">ID: PT-1001 • 65 yrs • Male • Hypertension</div></div>
+<span class="bd-g">Active</span>
+<div class="lst-i-a"><button class="btn btn-s btn-i btn-sm">📋</button><button class="btn btn-s btn-i btn-sm">✏️</button></div>
+</div>
+<div class="lst-i">
+<div class="av" style="color:var(--gr);">MG</div>
+<div class="lst-i-c"><div class="lst-i-t">Maria Garcia</div><div class="lst-i-d">ID: PT-1002 • 34 yrs • Female • Annual Physical</div></div>
+<span class="bd-g">Active</span>
+<div class="lst-i-a"><button class="btn btn-s btn-i btn-sm">📋</button><button class="btn btn-s btn-i btn-sm">✏️</button></div>
+</div>
+<div class="lst-i">
+<div class="av" style="color:var(--yl);">RC</div>
+<div class="lst-i-c"><div class="lst-i-t">Robert Chen</div><div class="lst-i-d">ID: PT-1003 • 58 yrs • Male • Diabetes Type 2</div></div>
+<span class="bd-g">Active</span>
+<div class="lst-i-a"><button class="btn btn-s btn-i btn-sm">📋</button><button class="btn btn-s btn-i btn-sm">✏️</button></div>
+</div>
+<div class="lst-i">
+<div class="av" style="color:var(--rd);">SJ</div>
+<div class="lst-i-c"><div class="lst-i-t">Sarah Johnson</div><div class="lst-i-d">ID: PT-1004 • 42 yrs • Female • Thyroid Disorder</div></div>
+<span class="bd-g">Active</span>
+<div class="lst-i-a"><button class="btn btn-s btn-i btn-sm">📋</button><button class="btn btn-s btn-i btn-sm">✏️</button></div>
+</div>
+<div class="lst-i">
+<div class="av" style="color:var(--em);">DW</div>
+<div class="lst-i-c"><div class="lst-i-t">David Williams</div><div class="lst-i-d">ID: PT-1005 • 71 yrs • Male • Heart Disease</div></div>
+<span class="bd-y">Admitted</span>
+<div class="lst-i-a"><button class="btn btn-s btn-i btn-sm">📋</button><button class="btn btn-s btn-i btn-sm">✏️</button></div>
+</div>
+</div>
+<div class="pg" style="margin-top:16px;">
+<button class="pg-b" disabled>‹ Prev</button>
+<button class="pg-b on">1</button>
+<button class="pg-b">2</button>
+<button class="pg-b">3</button>
+<button class="pg-b">Next ›</button>
+</div>
+</section>
+
+<!-- Vitals Section -->
+<section id="vitals" class="sec">
+<div class="sec-h"><div class="icon">🩺</div><h3>Vital Signs</h3><span class="tag">Patient: John Smith</span></div>
+
+<div class="emr-vit">
+<div class="emr-vit-i emr-vit-i-warn">
+<div class="emr-vit-i-l">Blood Pressure</div>
+<div class="emr-vit-i-v">180/110</div>
+<div class="emr-vit-i-d">mmHg • Critical</div>
+</div>
+<div class="emr-vit-i emr-vit-i-ok">
+<div class="emr-vit-i-l">Heart Rate</div>
+<div class="emr-vit-i-v">72</div>
+<div class="emr-vit-i-d">bpm • Normal</div>
+</div>
+<div class="emr-vit-i emr-vit-i-ok">
+<div class="emr-vit-i-l">Temperature</div>
+<div class="emr-vit-i-v">98.6</div>
+<div class="emr-vit-i-d">°F • Normal</div>
+</div>
+<div class="emr-vit-i emr-vit-i-info">
+<div class="emr-vit-i-l">Respiratory</div>
+<div class="emr-vit-i-v">16</div>
+<div class="emr-vit-i-d">/min • Normal</div>
+</div>
+<div class="emr-vit-i emr-vit-i-ok">
+<div class="emr-vit-i-l">Oxygen Sat</div>
+<div class="emr-vit-i-v">98%</div>
+<div class="emr-vit-i-d">SpO2 • Normal</div>
+</div>
+<div class="emr-vit-i emr-vit-i-info">
+<div class="emr-vit-i-l">Weight</div>
+<div class="emr-vit-i-v">185</div>
+<div class="emr-vit-i-d">lbs • Stable</div>
+</div>
+<div class="emr-vit-i emr-vit-i-ok">
+<div class="emr-vit-i-l">Height</div>
+<div class="emr-vit-i-v">5'10"</div>
+<div class="emr-vit-i-d">ft • Static</div>
+</div>
+<div class="emr-vit-i emr-vit-i-info">
+<div class="emr-vit-i-l">BMI</div>
+<div class="emr-vit-i-v">26.5</div>
+<div class="emr-vit-i-d">Overweight</div>
+</div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+<div class="card-h">Vital History</div>
+<div class="card-d">Blood pressure trend over the last 7 days</div>
+<div style="height:200px;background:var(--s3);border-radius:8px;display:flex;align-items:end;gap:4px;padding:16px;">
+<div style="flex:1;background:var(--rd);border-radius:2px;height:75%;opacity:0.8;"></div>
+<div style="flex:1;background:var(--rd);border-radius:2px;height:78%;opacity:0.8;"></div>
+<div style="flex:1;background:var(--yl);border-radius:2px;height:70%;opacity:0.8;"></div>
+<div style="flex:1;background:var(--yl);border-radius:2px;height:72%;opacity:0.8;"></div>
+<div style="flex:1;background:var(--rd);border-radius:2px;height:80%;opacity:0.9;"></div>
+<div style="flex:1;background:var(--rd);border-radius:2px;height:85%;opacity:1;"></div>
+<div style="flex:1;background:var(--rd);border-radius:2px;height:82%;opacity:0.9;"></div>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--txtd);">
+<span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+</div>
+</div>
+</section>
+
+<!-- Diagnoses Section -->
+<section id="diagnoses" class="sec">
+<div class="sec-h"><div class="icon">🩺</div><h3>Diagnoses & Chief Complaints</h3><span class="tag">Patient: John Smith</span></div>
+
+<div class="emr-ch">
+<div class="emr-ch-h">
+<div class="emr-ch-t">Primary Diagnosis</div>
+<span class="bd-r">Active</span>
+</div>
+<div class="emr-ch-d">ICD-10: I10 • Essential (primary) hypertension</div>
+<div class="emr-ch-r"><span class="bd-c">Chronic</span><span class="bd-c">Monitored</span></div>
+</div>
+
+<div class="emr-ch">
+<div class="emr-ch-h">
+<div class="emr-ch-t">Secondary Diagnosis</div>
+<span class="bd-y">Managed</span>
+</div>
+<div class="emr-ch-d">ICD-10: E11.9 • Type 2 diabetes mellitus without complications</div>
+<div class="emr-ch-r"><span class="bd-c">Chronic</span><span class="bd-c">Diet Controlled</span></div>
+</div>
+
+<div class="emr-ch">
+<div class="emr-ch-h">
+<div class="emr-ch-t">Chief Complaint</div>
+<span class="bd-g">New</span>
+</div>
+<div class="emr-ch-d">Patient reports persistent headache and dizziness for the past 3 days. BP elevated at 180/110. No chest pain or shortness of breath.</div>
+<div class="emr-ch-r"><span class="bd-c">Headache</span><span class="bd-c">Dizziness</span><span class="bd-c">Hypertension</span></div>
+</div>
+</section>
+
+<!-- Prescriptions Section -->
+<section id="prescriptions" class="sec">
+<div class="sec-h"><div class="icon">💊</div><h3>Prescriptions</h3><span class="tag">Patient: John Smith</span></div>
+
+<div class="emr-rx">
+<div class="emr-rx-h">
+<div class="emr-rx-t">Lisinopril 10mg</div>
+<span class="bd-g">Active</span>
+</div>
+<div class="emr-rx-d">Take 1 tablet daily for hypertension. Monitor BP daily. Refills: 3 remaining.</div>
+<div class="emr-rx-i">
+<span class="emr-rx-i-t">1x daily</span>
+<span class="emr-rx-i-t">Morning</span>
+<span class="emr-rx-i-t">With food</span>
+<span class="emr-rx-i-t">Rx: 12345</span>
+<span class="emr-rx-i-t">Dr. Williams</span>
+</div>
+</div>
+
+<div class="emr-rx">
+<div class="emr-rx-h">
+<div class="emr-rx-t">Metformin 500mg</div>
+<span class="bd-g">Active</span>
+</div>
+<div class="emr-rx-d">Take 1 tablet twice daily for diabetes. Monitor glucose levels.</div>
+<div class="emr-rx-i">
+<span class="emr-rx-i-t">2x daily</span>
+<span class="emr-rx-i-t">With meals</span>
+<span class="emr-rx-i-t">Rx: 12346</span>
+<span class="emr-rx-i-t">Dr. Williams</span>
+</div>
+</div>
+
+<div class="emr-rx">
+<div class="emr-rx-h">
+<div class="emr-rx-t">Amlodipine 5mg</div>
+<span class="bd-y">New</span>
+</div>
+<div class="emr-rx-d">Added for BP control. Take 1 tablet daily. Monitor for edema.</div>
+<div class="emr-rx-i">
+<span class="emr-rx-i-t">1x daily</span>
+<span class="emr-rx-i-t">Bedtime</span>
+<span class="emr-rx-i-t">Rx: 12347</span>
+<span class="emr-rx-i-t">Dr. Williams</span>
+</div>
+</div>
+</section>
+
+<!-- Appointments Section -->
+<section id="appointments" class="sec">
+<div class="sec-h"><div class="icon">📅</div><h3>Appointments</h3><span class="tag">Schedule</span></div>
+
+<div class="grid grid-2" style="gap:16px;">
+<div class="card">
+<div class="card-h">Today's Schedule</div>
+<div class="card-d">Dr. Williams - Internal Medicine</div>
+<div class="emr-appt">
+<div class="emr-appt-t">09:00</div>
+<div class="emr-appt-c"><div class="emr-appt-n">John Smith</div><div class="emr-appt-d">Follow-up • Hypertension</div></div>
+<span class="emr-appt-r bd-g">In Room</span>
+</div>
+<div class="emr-appt">
+<div class="emr-appt-t">09:30</div>
+<div class="emr-appt-c"><div class="emr-appt-n">Maria Garcia</div><div class="emr-appt-d">New Patient • Physical</div></div>
+<span class="emr-appt-r bd-y">Waiting</span>
+</div>
+<div class="emr-appt">
+<div class="emr-appt-t">10:00</div>
+<div class="emr-appt-c"><div class="emr-appt-n">Robert Chen</div><div class="emr-appt-d">Follow-up • Diabetes</div></div>
+<span class="emr-appt-r bd-d">Scheduled</span>
+</div>
+<div class="emr-appt">
+<div class="emr-appt-t">10:30</div>
+<div class="emr-appt-c"><div class="emr-appt-n">Sarah Johnson</div><div class="emr-appt-d">Lab Review • Thyroid</div></div>
+<span class="emr-appt-r bd-d">Scheduled</span>
+</div>
+<div class="emr-appt">
+<div class="emr-appt-t">11:00</div>
+<div class="emr-appt-c"><div class="emr-appt-n">David Williams</div><div class="emr-appt-d">Follow-up • Heart Disease</div></div>
+<span class="emr-appt-r bd-d">Scheduled</span>
+</div>
+</div>
+<div class="card">
+<div class="card-h">Upcoming</div>
+<div class="card-d">Next 7 days</div>
+<div class="emr-appt">
+<div class="emr-appt-t">Mon</div>
+<div class="emr-appt-c"><div class="emr-appt-n">John Smith</div><div class="emr-appt-d">BP Check • 2 weeks</div></div>
+<span class="emr-appt-r bd-d">Scheduled</span>
+</div>
+<div class="emr-appt">
+<div class="emr-appt-t">Wed</div>
+<div class="emr-appt-c"><div class="emr-appt-n">Maria Garcia</div><div class="emr-appt-d">Lab Results • 1 week</div></div>
+<span class="emr-appt-r bd-d">Scheduled</span>
+</div>
+<div class="emr-appt">
+<div class="emr-appt-t">Fri</div>
+<div class="emr-appt-c"><div class="emr-appt-n">Robert Chen</div><div class="emr-appt-d">A1C Review • 3 months</div></div>
+<span class="emr-appt-r bd-d">Scheduled</span>
+</div>
+<div class="emr-appt">
+<div class="emr-appt-t">Tue</div>
+<div class="emr-appt-c"><div class="emr-appt-n">New Patient</div><div class="emr-appt-d">Annual Physical • 10:00</div></div>
+<span class="emr-appt-r bd-d">Scheduled</span>
+</div>
+</div>
+</div>
+</section>
+
+</div></main></div>
+</body></html>

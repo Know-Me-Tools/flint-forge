@@ -1,0 +1,20 @@
+{
+  "phase": "p0-workspace-foundation",
+  "status": "executing",
+  "changes_completed": 3,
+  "changes_total": 4,
+  "assessment_complete": true,
+  "previousPhase": null,
+  "children": [
+    { "id": "c001", "name": "p0-c001-workspace",                  "status": "complete",  "openspec_change": "openspec/changes/p0-c001-workspace",               "gate": "PASSED — cargo check + clippy::pedantic + fmt green (toolchain 1.90, 22 crates)" },
+    { "id": "c002", "name": "p0-c002-pg18-image",                 "status": "complete",  "openspec_change": "openspec/changes/p0-c002-pg18-image",               "gate": "PASSED (with deferred item) — image builds, extensions verified; pg_graphql deferred to Phase 3 per supabase/pg_graphql#614" },
+    { "id": "c003", "name": "p0-c003-wit-contract",               "status": "complete",  "openspec_change": "openspec/changes/p0-c003-wit-contract",              "gate": "PASSED — world.wit frozen at flint:host@0.1.0; wasi:http@0.2.12; bindings generate; hello-component WASM validates; docs/contracts/wit-freeze.md written" },
+    { "id": "c004", "name": "p0-c004-fabric-watch-entity-type",   "status": "not-started","openspec_change": "openspec/changes/p0-c004-fabric-watch-entity-type","gate": "NOT MET — cross-repo, no work begun; gates Phase 3 only, not Phase 1-2" }
+  ],
+  "blockers": [
+    "c004: cross-repo WatchEntityType RPC (flint-realtime-fabric) — gates Phase 3 subscriptions only; not a Phase 0 blocker",
+    "pg_graphql PG18: no released build (supabase/pg_graphql#614) — decision needed before Phase 3 kickoff",
+    "flint-gate contract (§8 #4): claim shape and service-identity credential format unpinned — blocks p2-c001 JWT verification (Phase 2)"
+  ],
+  "notes": "c001, c002, c003 gates passed. c004 (cross-repo WatchEntityType) not started — gates Phase 3 only, not Phase 0. Phase 0 is complete: workspace builds, PG18 image verified, WIT contract frozen. Overall project is ~5-8% of full implementation by functional surface area. flint_vault is the only production-complete subsystem."
+}

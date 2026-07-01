@@ -1,0 +1,15 @@
+[package]
+name = "forge-policy"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+forge-domain = { path = "../forge-domain" }
+forge-identity = { path = "../forge-identity" }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

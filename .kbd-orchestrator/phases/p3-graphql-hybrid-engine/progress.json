@@ -1,0 +1,28 @@
+{
+  "phase": "p3-graphql-hybrid-engine",
+  "status": "assessment_ready",
+  "changes_completed": 8,
+  "changes_total": 9,
+  "changes": [
+    { "id": "p3-c005-pg-graphql-pg18",           "status": "qa_passed", "priority": "P0", "note": "OQ-3 resolved: no PG18 release; strategy=pinned master SHA. Contract doc written: docs/contracts/pg-graphql-version.md" },
+    { "id": "p3-c008-extended-guc-propagation",  "status": "qa_passed", "priority": "P0", "note": "RlsContext extended (keto_subject, vault_key_id); #[instrument(skip(bearer),err)] added; 3 additional SET LOCAL in PgBackend::acquire(); all 9 tests pass" },
+    { "id": "p3-c001-graphql-passthrough",        "status": "qa_passed", "priority": "P0", "note": "POST /graphql route, PgGraphQl::execute() with graphql.resolve(), bearer extraction, BackendError::Internal variant added" },
+    { "id": "p3-c007-graphql-compiler",           "status": "qa_passed", "priority": "P0", "note": "async-graphql 7 dynamic schema; SubscriptionField per RLS table; 4 new unit tests; wired into StateManager::do_compile(); async-graphql-axum staged in fdb-gateway for p3-c004" },
+    { "id": "p3-c002-subscriptions",             "status": "qa_passed", "priority": "P0", "note": "FabricChangeSource: tonic channel, Keto HTTP check (fail-closed), OQ-FRF-1 stub (empty stream until WatchEntityType RPC lands); frf_op_to_domain mapping; full security invariants documented" },
+    { "id": "p3-c004-graphql-transport-ws",      "status": "qa_passed", "priority": "P0", "note": "GET /graphql WebSocket upgrade via GraphQLWebSocket; reads hot-swappable subscription_schema per connection; 503 when schema unavailable; combined with POST on same route" },
+    { "id": "p3-c003-introspection-merge",       "status": "qa_passed", "priority": "P0", "note": "IntrospectionMerger in fdb-app::graphql::introspection; is_introspection_query() heuristic; SDL-based type extraction; pg_graphql wins dedup; subscriptionType pointer set; wired into handle_graphql_query() via is_introspection check + conditional merge; 6 unit tests pass" },
+    { "id": "p3-c006-keto-sync",                 "status": "qa_passed", "priority": "P0", "note": "KetoSyncTask in fdb-gateway/src/keto_sync.rs; privileged pool (no SET LOCAL ROLE); polls flint_meta.keto_tuples every 30s (KETO_SYNC_INTERVAL_SECS override); fail-closed cache (stale on error, never empty); PII-safe spans (subject_id excluded); cache_check() ready for FabricChangeSource integration post OQ-Iggy; spawned in main() with _keto_sync_handle; 6 unit tests pass" },
+    { "id": "p3-c009-predicate-pushdown",        "status": "pending", "priority": "P2" }
+  ],
+  "mvp_changes": ["p3-c005","p3-c008","p3-c001","p3-c007","p3-c002","p3-c004","p3-c003","p3-c006"],
+  "assessment_complete": true,
+  "assessment_file": ".kbd-orchestrator/phases/p3-graphql-hybrid-engine/assessment.md",
+  "assessment_date": "2026-06-30",
+  "plan_complete": true,
+  "plan_file": ".kbd-orchestrator/phases/p3-graphql-hybrid-engine/plan.md",
+  "plan_date": "2026-06-30",
+  "execution_started": false,
+  "goals_file": ".kbd-orchestrator/phases/p3-graphql-hybrid-engine/goals.md",
+  "created_at": "2026-06-30",
+  "pre_kickoff_gate": "OQ-3: verify pg_graphql PG18 tagged release before any coding (p3-c005)"
+}

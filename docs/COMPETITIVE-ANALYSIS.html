@@ -1,0 +1,2464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flint Forge vs. Supabase — Competitive Analysis</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#0B0F14; --surface-1:#131A22; --surface-2:#1A232E; --surface-3:#0E141B;
+  --surface-4:#202B38;
+  --text:#E8EDF3; --text-muted:#B4BECB; --text-dim:#97A1AE;
+  --ember:#FF6A3D; --ember-deep:#E04E28; --ember-tint:rgba(255,106,61,0.10);
+  --ember-tint-2:rgba(255,106,61,0.16);
+  --cyan:#34CFE6; --cyan-tint:rgba(52,207,230,0.10);
+  --green:#4FD18B; --green-tint:rgba(79,209,139,0.10);
+  --yellow:#F4B942; --yellow-tint:rgba(244,185,66,0.10);
+  --red:#F05D5D; --red-tint:rgba(240,93,93,0.10);
+  --code-bg:#0E141B; --code-text:#D8E4F0;
+  --line:#28333F; --good:#4FD18B; --warn:#F4B942;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Inter',sans-serif; background:var(--bg); color:var(--text-muted);
+  font-size:15.5px; line-height:1.72; -webkit-font-smoothing:antialiased;
+}
+.layout{display:grid; grid-template-columns:300px 1fr; max-width:1500px; margin:0 auto;}
+
+/<em> ---- Sidebar TOC ---- </em>/
+.sidebar{
+  position:sticky; top:0; align-self:start; height:100vh; overflow-y:auto;
+  background:var(--surface-3); padding:30px 22px 60px; border-right:1px solid var(--line);
+}
+.sidebar .brand{display:flex; align-items:center; gap:12px; margin-bottom:26px;}
+.sidebar .brand .wm{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:21px; color:var(--text); letter-spacing:-0.03em; line-height:1;}
+.sidebar .brand .sub{font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-dim); letter-spacing:0.1em; margin-top:3px; text-transform:uppercase;}
+.toc-label{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-dim); margin:22px 0 10px;}
+.sidebar nav a{
+  display:block; font-size:13px; color:var(--text-dim); text-decoration:none;
+  padding:5px 10px; border-radius:6px; line-height:1.4; transition:all .15s;
+}
+.sidebar nav a:hover{color:var(--text); background:var(--surface-1);}
+.sidebar nav a.sub{padding-left:22px; font-size:12px;}
+.sidebar nav a.active{color:var(--ember); background:var(--ember-tint);}
+
+/<em> ---- Main ---- </em>/
+main{padding:0; min-width:0;}
+.cover{padding:64px 60px 48px; background:linear-gradient(160deg,#11181F 0%,#0B0F14 70%);}
+.cover .eyebrow{font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:var(--ember); margin-bottom:18px;}
+.cover .lockup{display:flex; align-items:center; gap:18px; margin-bottom:30px;}
+.cover h1{font-family:'Space Grotesk',sans-serif; font-size:54px; font-weight:700; letter-spacing:-0.035em; line-height:1.02; color:var(--text); margin-bottom:18px;}
+.cover .lede{font-size:18px; font-weight:300; line-height:1.6; max-width:680px; color:var(--text-muted);}
+.cover .metarow{display:flex; flex-wrap:wrap; gap:10px; margin-top:30px;}
+.cover .chip{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-muted); background:var(--surface-2); padding:7px 13px; border-radius:6px;}
+.cover .chip b{color:var(--ember);}
+.cover .verdict-bar{display:flex; gap:8px; margin-top:24px; flex-wrap:wrap;}
+.cover .verdict-chip{font-family:'JetBrains Mono',monospace; font-size:10px; padding:4px 10px; border-radius:20px; font-weight:600;}
+.verdict-flint{background:var(--green-tint); color:var(--green); border:1px solid rgba(79,209,139,0.25);}
+.verdict-sb{background:var(--cyan-tint); color:var(--cyan); border:1px solid rgba(52,207,230,0.25);}
+.verdict-tie{background:var(--surface-2); color:var(--text-dim); border:1px solid var(--line);}
+
+.content{padding:8px 60px 80px; max-width:980px;}
+section{padding:40px 0 8px; scroll-margin-top:20px;}
+.sec-num{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ember); letter-spacing:0.1em; font-weight:600;}
+h2{font-family:'Space Grotesk',sans-serif; font-size:32px; font-weight:700; letter-spacing:-0.03em; color:var(--text); margin:6px 0 18px; line-height:1.1;}
+h3{font-family:'Space Grotesk',sans-serif; font-size:21px; font-weight:600; letter-spacing:-0.02em; color:var(--text); margin:34px 0 12px;}
+h4{font-family:'Space Grotesk',sans-serif; font-size:16px; font-weight:600; color:var(--text); margin:24px 0 8px;}
+p{margin:0 0 14px; max-width:74ch;}
+strong{color:var(--text); font-weight:600;}
+a{color:var(--ember);}
+ul,ol{margin:0 0 16px; padding-left:22px; max-width:74ch;}
+li{margin-bottom:7px;}
+code{font-family:'JetBrains Mono',monospace; font-size:0.86em; background:var(--surface-2); color:var(--code-text); padding:2px 6px; border-radius:4px;}
+pre{background:var(--code-bg); border-radius:10px; padding:18px 20px; overflow-x:auto; margin:0 0 18px;}
+pre code{background:none; padding:0; font-size:13px; line-height:1.6; color:var(--code-text); white-space:pre;}
+
+/<em> ---- Callouts (tinted bg, no borders) ---- </em>/
+.callout{background:var(--surface-1); border-radius:10px; padding:18px 22px; margin:0 0 18px; position:relative; overflow:hidden;}
+.callout::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--ember);}
+.callout .k{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ember); font-weight:600; display:block; margin-bottom:7px;}
+.callout.warn::before{background:var(--warn);} .callout.warn .k{color:var(--warn);}
+.callout.good::before{background:var(--good);} .callout.good .k{color:var(--good);}
+.callout.cyan::before{background:var(--cyan);} .callout.cyan .k{color:var(--cyan);}
+.callout p:last-child{margin-bottom:0;}
+
+/<em> ---- Tables (zebra, no borders) ---- </em>/
+.tw{overflow-x:auto; margin:0 0 20px; border-radius:10px;}
+table{border-collapse:collapse; width:100%; font-size:13.5px; background:var(--surface-1);}
+th{background:var(--surface-4); color:var(--text); text-align:left; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:12.5px; padding:11px 14px; white-space:nowrap;}
+td{padding:10px 14px; color:var(--text-muted); vertical-align:top;}
+tbody tr:nth-child(even){background:var(--surface-2);}
+td code{font-size:12px; background:var(--code-bg);}
+
+/<em> ---- Figures ---- </em>/
+figure{margin:24px 0 26px; background:var(--surface-1); border-radius:12px; padding:24px 22px 14px;}
+figure svg{display:block; width:100%; height:auto;}
+figcaption{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); margin-top:12px; letter-spacing:0.04em;}
+figcaption b{color:var(--ember); font-weight:600;}
+
+/<em> ---- Pills / kicker ---- </em>/
+.kicker{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ember); font-weight:600; margin-bottom:6px;}
+.pill{display:inline-block; font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 9px; border-radius:20px; background:var(--surface-2); color:var(--text-muted); margin:0 4px 4px 0;}
+.pill.em{background:var(--ember-tint); color:var(--ember);}
+.pill.green{background:var(--green-tint); color:var(--green);}
+.pill.cyan{background:var(--cyan-tint); color:var(--cyan);}
+.pill.yellow{background:var(--yellow-tint); color:var(--yellow);}
+.pill.red{background:var(--red-tint); color:var(--red);}
+.divider{height:3px; width:54px; background:var(--ember); border-radius:2px; margin:46px 0 0;}
+
+/<em> Verdict table row highlights </em>/
+.flint-win td:first-child{color:var(--green); font-weight:600;}
+.sb-win td:first-child{color:var(--cyan); font-weight:600;}
+
+footer{background:var(--surface-3); padding:40px 60px; color:var(--text-dim); font-size:13px; border-top:1px solid var(--line);}
+footer .fl{display:flex; align-items:center; gap:14px; margin-bottom:14px;}
+
+/<em> ---- Mobile ---- </em>/
+.toc-toggle{display:none;}
+@media(max-width:860px){
+  .layout{grid-template-columns:1fr;}
+  .sidebar{position:fixed; top:0; left:0; right:0; height:auto; max-height:80vh; z-index:50; padding:16px 20px; display:none; border-right:none; border-bottom:1px solid var(--line);}
+  .sidebar.open{display:block;}
+  .toc-toggle{display:flex; position:sticky; top:0; z-index:40; align-items:center; gap:10px; background:var(--surface-3); color:var(--text); padding:12px 20px; font-family:'JetBrains Mono',monospace; font-size:12px; cursor:pointer; letter-spacing:0.08em; border-bottom:1px solid var(--line);}
+  .cover{padding:40px 24px 32px;} .cover h1{font-size:38px;}
+  .content{padding:8px 24px 60px;} footer{padding:30px 24px;}
+}
+@media(max-width:540px){
+  body{font-size:14.5px;} .cover h1{font-size:30px;} h2{font-size:25px;} h3{font-size:18px;}
+  .content{padding:8px 16px 50px;} pre code{font-size:12px;} table{font-size:12.5px;}
+  th,td{padding:8px 10px;}
+}
+</style>
+</head>
+<body>
+<div class="toc-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰ Contents</div>
+<div class="layout">
+<aside class="sidebar">
+  <div class="brand">
+    <svg viewBox="0 0 200 200" width="38" height="38" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="10" width="180" height="180" rx="40" ry="40" fill="none" stroke="#E8EDF3" stroke-width="4.5"/>
+      <g transform="translate(50,38)">
+        <rect x="0" y="0" width="20" height="124" rx="10" fill="#E8EDF3"/>
+        <path d="M 16,62 C 26,52 44,32 62,18 C 72,10 80,8 84,14 C 86,18 82,24 76,28 C 60,40 40,56 28,66 C 22,70 18,68 16,64 Z" fill="#E8EDF3"/>
+        <path d="M 16,62 C 26,72 44,92 62,106 C 72,114 80,116 84,110 C 86,106 82,100 76,96 C 60,84 40,68 28,58 C 22,54 18,56 16,60 Z" fill="#E8EDF3"/>
+        <circle cx="18" cy="62" r="15" fill="#FF6A3D" opacity="0.12"/>
+        <circle cx="18" cy="62" r="10" fill="#FF6A3D"/>
+      </g>
+    </svg>
+    <div><div class="wm">KnowMe</div><div class="sub">Competitive Analysis</div></div>
+  </div>
+  <div class="toc-label">Contents</div>
+  <nav>
+    <a href="#summary">Executive Summary</a>
+    <a href="#architecture">01 · Architecture</a>
+    <a href="#features" class="sub">Feature Comparison</a>
+    <a href="#auth" class="sub">Auth & Authorization</a>
+    <a href="#rest" class="sub">REST & GraphQL</a>
+    <a href="#realtime" class="sub">Realtime</a>
+    <a href="#edge" class="sub">Edge Functions</a>
+    <a href="#storage" class="sub">Storage</a>
+    <a href="#ai" class="sub">AI / ML / Vector</a>
+    <a href="#ops" class="sub">Management & Ops</a>
+    <a href="#agents">02 · AI Agents</a>
+    <a href="#deployment">03 · Deployment</a>
+    <a href="#security">04 · Security</a>
+    <a href="#microsandbox" class="sub">Microsandbox</a>
+    <a href="#database">05 · Database</a>
+    <a href="#performance">06 · Performance</a>
+    <a href="#recommendations">07 · Recommendations</a>
+    <a href="#landscape">08 · Landscape</a>
+  </nav>
+</aside>
+<main>
+<div class="cover">
+  <div class="eyebrow">RFC-FORGE-COMP-001 · June 2026</div>
+  <div class="lockup">
+    <svg viewBox="0 0 200 200" width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="10" width="180" height="180" rx="40" ry="40" fill="none" stroke="#E8EDF3" stroke-width="4.5"/>
+      <g transform="translate(50,38)">
+        <rect x="0" y="0" width="20" height="124" rx="10" fill="#E8EDF3"/>
+        <path d="M 16,62 C 26,52 44,32 62,18 C 72,10 80,8 84,14 C 86,18 82,24 76,28 C 60,40 40,56 28,66 C 22,70 18,68 16,64 Z" fill="#E8EDF3"/>
+        <path d="M 16,62 C 26,72 44,92 62,106 C 72,114 80,116 84,110 C 86,106 82,100 76,96 C 60,84 40,68 28,58 C 22,54 18,56 16,60 Z" fill="#E8EDF3"/>
+        <circle cx="18" cy="62" r="15" fill="#FF6A3D" opacity="0.12"/>
+        <circle cx="18" cy="62" r="10" fill="#FF6A3D"/>
+      </g>
+    </svg>
+    <div>
+      <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:24px; color:#E8EDF3; letter-spacing:-0.03em; line-height:1;">KnowMe</div>
+      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#97A1AE; margin-top:4px; letter-spacing:0.06em;">a Prometheus AGS platform</div>
+    </div>
+  </div>
+  <h1>Flint Forge vs. Supabase</h1>
+  <p class="lede">A comprehensive competitive analysis across architecture, feature parity, AI agent support, deployment flexibility, realtime capabilities, performance, and security — with evaluation of the microsandbox alternative for edge compute.</p>
+  <div class="metarow">
+    <span class="chip"><b>Flint Forge</b> Data + Edge Compute</span>
+    <span class="chip"><b>Flint Gate</b> AI-Native Auth Proxy</span>
+    <span class="chip"><b>Flint Fabric</b> Realtime Spine</span>
+    <span class="chip">vs. <b>Supabase</b> Firebase Alternative</span>
+  </div>
+  <div class="verdict-bar">
+    <span class="verdict-chip verdict-flint">Flint Wins: 6</span>
+    <span class="verdict-chip verdict-sb">Supabase Wins: 3</span>
+    <span class="verdict-chip verdict-tie">Parity / Trade-off: 5</span>
+  </div>
+</div>
+<div class="content">
+<section id="summary"><div class="sec-num">Summary</div><h2>Flint Forge vs. Supabase: Competitive Analysis</h2>
+<p><strong>Document ID:</strong> RFC-FORGE-COMP-001</p>
+<p><strong>Date:</strong> June 2026</p>
+<p><strong>Status:</strong> Strategic Analysis</p>
+<p><strong>Scope:</strong> Flint Forge + Flint Gate + Flint Realtime Fabric vs. Supabase complete platform stack</p>
+<div class="divider"></div>
+</section>
+<section id="executive-summary"><div class="sec-num">##</div><h2>Executive Summary</h2>
+<p>This document compares the <strong>Flint platform</strong> (Flint Forge, Flint Gate, Flint Realtime Fabric) against <strong>Supabase</strong>, the leading open-source Firebase alternative, across eight critical dimensions: feature parity, AI agent development support, deployment flexibility, multi-database backend support, realtime functionality, REST/GraphQL capabilities, performance, and security.</p>
+<h3>The Bottom Line</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Dimension</th>
+<th>Winner</th>
+<th>Margin</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Web-app time-to-market</td>
+<td>Supabase</td>
+<td>Significant — single-stack simplicity, managed hosting, generous free tier</td>
+</tr>
+<tr>
+<td>AI agent infrastructure</td>
+<td><strong>Flint</strong></td>
+<td>Decisive — in-DB LLM, token metering, polyglot WASM edge, sovereign inference</td>
+</tr>
+<tr>
+<td>Deployment flexibility</td>
+<td><strong>Flint</strong></td>
+<td>Decisive — cloud → desktop → mobile → embedded from same artifact</td>
+</tr>
+<tr>
+<td>Realtime sophistication</td>
+<td><strong>Flint</strong></td>
+<td>Moderate — dedicated fabric spine, per-event RLS re-query, AG-UI/A2UI streaming</td>
+</tr>
+<tr>
+<td>Security & governance</td>
+<td><strong>Flint</strong></td>
+<td>Decisive — 4-layer auth, KMS-wrapped secrets, signed WASM, Cedar policy</td>
+</tr>
+<tr>
+<td>Performance at edge</td>
+<td><strong>Flint</strong></td>
+<td>Moderate — Rust-native, WASM AOT, sub-millisecond cold starts</td>
+</tr>
+<tr>
+<td>Ecosystem maturity</td>
+<td>Supabase</td>
+<td>Significant — 30+ years Postgres ecosystem, thousands of extensions</td>
+</tr>
+<tr>
+<td>Cost efficiency (small scale)</td>
+<td>Supabase</td>
+<td>Moderate — free tier covers prototyping</td>
+</tr>
+<tr>
+<td>Cost efficiency (large scale)</td>
+<td><strong>Flint</strong></td>
+<td>Moderate — self-hosted, no per-user fees, compute-optimized</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Supabase</strong> is the pragmatic choice for web-first applications that need to ship fast, leverage mature ecosystems, and operate at small-to-medium scale with human users as the primary actors.</p>
+<p><strong>Flint</strong> is the architectural choice for AI-native platforms that require sovereign inference, polyglot edge compute, cross-device deployment, fine-grained governance, and compliance-heavy environments where data must never leave the trust boundary.</p>
+<p>The two platforms are not direct competitors for the same use cases — they represent different trade-offs on the <strong>velocity vs. sovereignty</strong> spectrum.</p>
+<div class="divider"></div>
+</section>
+<section id="1-architecture-overview"><div class="sec-num">1.</div><h2>1. Architecture Overview</h2>
+<h3>1.1 Supabase Architecture</h3>
+<p>Supabase is a <strong>managed platform</strong> built around PostgreSQL, wrapping it with services that provide Firebase-like developer experience:</p>
+<figure>
+<svg viewBox="0 0 860 420" xmlns="http://www.w3.org/2000/svg" style="max-width:860px">
+  <defs>
+    <filter id="sh1" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+    <linearGradient id="grad-sb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1A232E"/>
+      <stop offset="100%" stop-color="#131A22"/>
+    </linearGradient>
+    <linearGradient id="grad-db" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1A232E"/>
+      <stop offset="100%" stop-color="#0E141B"/>
+    </linearGradient>
+  </defs>
+  <!-- Outer container -->
+  <rect x="10" y="10" width="840" height="400" rx="12" fill="url(#grad-sb)" stroke="#28333F" stroke-width="1.5"/>
+  <text x="430" y="38" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="15" font-weight="700" fill="#E8EDF3" letter-spacing="0.08em">SUPABASE PLATFORM</text>
+
+  <!-- Top row: 4 service boxes -->
+  <g transform="translate(0,0)">
+    <!-- Auth -->
+    <rect x="40" y="55" width="170" height="70" rx="8" fill="#131A22" stroke="#34CFE6" stroke-width="1.5" filter="url(#sh1)"/>
+    <text x="125" y="82" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="600" fill="#E8EDF3">Auth</text>
+    <text x="125" y="100" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#34CFE6">GoTrue (Go)</text>
+    <text x="125" y="114" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">JWT-based</text>
+
+    <!-- REST/GraphQL -->
+    <rect x="235" y="55" width="170" height="70" rx="8" fill="#131A22" stroke="#34CFE6" stroke-width="1.5" filter="url(#sh1)"/>
+    <text x="320" y="82" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="600" fill="#E8EDF3">REST / GraphQL</text>
+    <text x="320" y="100" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#34CFE6">PostgREST</text>
+    <text x="320" y="114" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">Auto-generated</text>
+
+    <!-- Realtime -->
+    <rect x="430" y="55" width="170" height="70" rx="8" fill="#131A22" stroke="#34CFE6" stroke-width="1.5" filter="url(#sh1)"/>
+    <text x="515" y="82" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="600" fill="#E8EDF3">Realtime</text>
+    <text x="515" y="100" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#34CFE6">Phoenix (Elixir)</text>
+    <text x="515" y="114" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">WAL polling</text>
+
+    <!-- Edge Functions -->
+    <rect x="625" y="55" width="170" height="70" rx="8" fill="#131A22" stroke="#34CFE6" stroke-width="1.5" filter="url(#sh1)"/>
+    <text x="710" y="82" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="600" fill="#E8EDF3">Edge Functions</text>
+    <text x="710" y="100" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#34CFE6">Deno Runtime</text>
+    <text x="710" y="114" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">V8 isolate</text>
+  </g>
+
+  <!-- Connector lines down to Postgres -->
+  <line x1="125" y1="125" x2="125" y2="155" stroke="#28333F" stroke-width="1.5"/>
+  <line x1="320" y1="125" x2="320" y2="155" stroke="#28333F" stroke-width="1.5"/>
+  <line x1="515" y1="125" x2="515" y2="155" stroke="#28333F" stroke-width="1.5"/>
+  <line x1="710" y1="125" x2="710" y2="155" stroke="#28333F" stroke-width="1.5"/>
+  <line x1="125" y1="155" x2="710" y2="155" stroke="#28333F" stroke-width="1.5"/>
+  <!-- Vertical down to Postgres -->
+  <line x1="430" y1="155" x2="430" y2="175" stroke="#28333F" stroke-width="1.5"/>
+  <!-- Arrow -->
+  <polygon points="426,170 430,178 434,170" fill="#28333F"/>
+
+  <!-- PostgreSQL box -->
+  <rect x="210" y="178" width="440" height="90" rx="10" fill="url(#grad-db)" stroke="#FF6A3D" stroke-width="2" filter="url(#sh1)"/>
+  <text x="430" y="208" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="16" font-weight="700" fill="#E8EDF3">PostgreSQL</text>
+  <text x="430" y="228" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#FF6A3D">+ Supavisor Pooler</text>
+  <text x="430" y="250" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#97A1AE">50+ extensions · pgvector · pg_graphql · pg_net · pgsodium</text>
+
+  <!-- Connector down to Storage -->
+  <line x1="430" y1="268" x2="430" y2="298" stroke="#28333F" stroke-width="1.5"/>
+  <polygon points="426,293 430,301 434,293" fill="#28333F"/>
+
+  <!-- Storage box -->
+  <rect x="305" y="301" width="250" height="60" rx="8" fill="#131A22" stroke="#34CFE6" stroke-width="1.5" filter="url(#sh1)"/>
+  <text x="430" y="328" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="600" fill="#E8EDF3">Storage</text>
+  <text x="430" y="346" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#97A1AE">S3-compatible · CDN · Node/TS</text>
+
+  <!-- Key characteristic label -->
+  <text x="430" y="390" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#97A1AE"><tspan font-style="italic">Service-oriented</tspan> — Postgres is the integration hub</text>
+</svg>
+<figcaption><b>Figure 1.1</b> Supabase platform architecture — four services atop PostgreSQL with Storage below.</figcaption>
+</figure>
+<p><strong>Key characteristic:</strong> Everything is a separate service communicating through PostgreSQL. Auth data lives in <code>auth.users</code>. Config lives in tables. Realtime polls WAL. Edge functions are Deno isolates on separate nodes. The platform is <strong>service-oriented</strong> with Postgres as the integration hub.</p>
+<h3>1.2 Flint Architecture</h3>
+<p>Flint is a <strong>sovereign compute plane</strong> built in Rust, designed as a unified governance boundary where data, compute, and identity are co-located:</p>
+<figure>
+<svg viewBox="0 0 900 480" xmlns="http://www.w3.org/2000/svg" style="max-width:900px">
+  <defs>
+    <filter id="sh2" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+    <linearGradient id="grad-flint" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1A232E"/>
+      <stop offset="100%" stop-color="#131A22"/>
+    </linearGradient>
+    <linearGradient id="grad-pg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1A232E"/>
+      <stop offset="100%" stop-color="#0E141B"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="880" height="460" rx="12" fill="url(#grad-flint)" stroke="#28333F" stroke-width="1.5"/>
+  <text x="450" y="38" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="15" font-weight="700" fill="#E8EDF3" letter-spacing="0.08em">FLINT PLATFORM</text>
+
+  <!-- Flint Gate (left column) -->
+  <rect x="35" y="55" width="190" height="200" rx="10" fill="#131A22" stroke="#FF6A3D" stroke-width="2" filter="url(#sh2)"/>
+  <text x="130" y="80" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="700" fill="#E8EDF3">Flint Gate</text>
+  <text x="130" y="96" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#FF6A3D">Axum / Rust</text>
+  <text x="50" y="120" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• Kratos auth</text>
+  <text x="50" y="138" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• JWT mint</text>
+  <text x="50" y="156" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• SSE streaming</text>
+  <text x="50" y="174" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• AG-UI / A2UI</text>
+  <text x="50" y="192" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• Token metering</text>
+  <text x="50" y="210" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• Backpressure</text>
+  <text x="50" y="228" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• Cedar policy</text>
+
+  <!-- Connection: Gate → Forge (horizontal) -->
+  <line x1="225" y1="125" x2="265" y2="125" stroke="#FF6A3D" stroke-width="2" stroke-dasharray="4,3"/>
+  <text x="245" y="118" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#FF6A3D">RLS JWT</text>
+  <polygon points="260,121 268,125 260,129" fill="#FF6A3D"/>
+
+  <!-- Flint Forge (right block) -->
+  <rect x="270" y="55" width="595" height="200" rx="10" fill="#131A22" stroke="#34CFE6" stroke-width="1.5" filter="url(#sh2)"/>
+  <text x="567" y="80" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="700" fill="#E8EDF3">Flint Forge</text>
+  <text x="567" y="96" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#34CFE6">Data + Edge Compute Plane</text>
+
+  <!-- Quarry -->
+  <rect x="290" y="110" width="170" height="60" rx="8" fill="#0E141B" stroke="#34CFE6" stroke-width="1.2" filter="url(#sh2)"/>
+  <text x="375" y="135" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="12" font-weight="600" fill="#E8EDF3">Quarry</text>
+  <text x="375" y="153" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#34CFE6">REST / GraphQL Gateway</text>
+
+  <!-- Kiln -->
+  <rect x="480" y="110" width="170" height="60" rx="8" fill="#0E141B" stroke="#FF6A3D" stroke-width="1.2" filter="url(#sh2)"/>
+  <text x="565" y="135" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="12" font-weight="600" fill="#E8EDF3">Kiln</text>
+  <text x="565" y="153" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#FF6A3D">WASM Edge Functions</text>
+
+  <!-- Postgres 18 (wide box) -->
+  <rect x="290" y="185" width="555" height="55" rx="8" fill="url(#grad-pg)" stroke="#FF6A3D" stroke-width="2" filter="url(#sh2)"/>
+  <text x="380" y="210" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="700" fill="#E8EDF3">PostgreSQL 18</text>
+  <text x="380" y="228" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">+ pgrx extensions</text>
+  <!-- Extension pills inside Postgres -->
+  <rect x="470" y="200" width="50" height="22" rx="4" fill="#0E141B" stroke="#34CFE6" stroke-width="0.8"/>
+  <text x="495" y="215" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#34CFE6">Auth</text>
+  <rect x="530" y="200" width="50" height="22" rx="4" fill="#0E141B" stroke="#34CFE6" stroke-width="0.8"/>
+  <text x="555" y="215" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#34CFE6">Hooks</text>
+  <rect x="590" y="200" width="50" height="22" rx="4" fill="#0E141B" stroke="#FF6A3D" stroke-width="0.8"/>
+  <text x="615" y="215" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#FF6A3D">LLM</text>
+  <rect x="650" y="200" width="55" height="22" rx="4" fill="#0E141B" stroke="#FF6A3D" stroke-width="0.8"/>
+  <text x="677" y="215" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#FF6A3D">Ember</text>
+  <rect x="715" y="200" width="50" height="22" rx="4" fill="#0E141B" stroke="#4FD18B" stroke-width="0.8"/>
+  <text x="740" y="215" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#4FD18B">Vault</text>
+  <rect x="775" y="200" width="55" height="22" rx="4" fill="#0E141B" stroke="#4FD18B" stroke-width="0.8"/>
+  <text x="802" y="215" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#4FD18B">pgvector</text>
+
+  <!-- Connection: Gate → Realtime Fabric (vertical then horizontal) -->
+  <line x1="130" y1="255" x2="130" y2="295" stroke="#FF6A3D" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="145" y="280" font-family="JetBrains Mono, monospace" font-size="9" fill="#FF6A3D">WatchEntityType (gRPC)</text>
+  <polygon points="126,288 130,296 134,288" fill="#FF6A3D"/>
+
+  <!-- Realtime Fabric (bottom left) -->
+  <rect x="35" y="300" width="260" height="130" rx="10" fill="#131A22" stroke="#4FD18B" stroke-width="2" filter="url(#sh2)"/>
+  <text x="165" y="325" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="700" fill="#E8EDF3">Realtime Fabric</text>
+  <text x="165" y="343" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#4FD18B">Iggy spine · WebSocket mux</text>
+  <text x="50" y="370" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• CRDT synchronization</text>
+  <text x="50" y="388" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• Federation gateways</text>
+  <text x="50" y="406" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• Per-event RLS re-query</text>
+  <text x="50" y="424" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• AG-UI / A2UI streaming</text>
+
+  <!-- Connection: Forge → Realtime Fabric (not directly, but implied via Postgres) -->
+  <!-- Actually, no direct line in the ASCII. Let's add a subtle one. -->
+  <line x1="567" y1="240" x2="567" y2="270" stroke="#28333F" stroke-width="1" opacity="0.5"/>
+  <line x1="295" y1="270" x2="567" y2="270" stroke="#28333F" stroke-width="1" opacity="0.5"/>
+  <line x1="295" y1="270" x2="295" y2="365" stroke="#28333F" stroke-width="1" opacity="0.5"/>
+  <polygon points="291,357 295,365 299,357" fill="#28333F" opacity="0.5"/>
+
+  <!-- Key characteristic label -->
+  <text x="450" y="465" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#97A1AE"><tspan font-style="italic">Plane-oriented</tspan> — one identity model, one governance boundary</text>
+</svg>
+<figcaption><b>Figure 1.2</b> Flint platform architecture — three co-designed planes sharing one identity model and WASM host substrate.</figcaption>
+</figure>
+<p><strong>Key characteristic:</strong> Flint is <strong>plane-oriented</strong> — three co-designed planes (ingress, data/edge, realtime) sharing one identity model and one governance boundary. Everything routes through <code>flint-gate</code>; everything is governed by the same 4-layer authorization stack. The platform is <strong>monorepo-native</strong> — one Cargo workspace, one identity injection, one WASM host substrate.</p>
+<div class="divider"></div>
+</section>
+<section id="2-feature-for-feature-comparison"><div class="sec-num">2.</div><h2>2. Feature-for-Feature Comparison</h2>
+<h3>2.1 Database & Data Layer</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Feature</th>
+<th>Supabase</th>
+<th>Flint Forge</th>
+<th>Assessment</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Core database</strong></td>
+<td>PostgreSQL (full, unabstracted)</td>
+<td>PostgreSQL 18 (full, unabstracted)</td>
+<td>Parity — both are native Postgres</td>
+</tr>
+<tr>
+<td><strong>Connection pooling</strong></td>
+<td>Supavisor (Elixir, cloud-native)</td>
+<td>deadpool-postgres + tokio-postgres</td>
+<td>Supavisor has more multi-tenant optimizations</td>
+</tr>
+<tr>
+<td><strong>Read replicas</strong></td>
+<td>✅ Physical replicas, GA</td>
+<td>Planned via ports-and-adapters</td>
+<td>Supabase leads — managed infrastructure</td>
+</tr>
+<tr>
+<td><strong>Database branching</strong></td>
+<td>✅ Late 2024, paid</td>
+<td>Not yet planned</td>
+<td>Supabase advantage for schema testing</td>
+</tr>
+<tr>
+<td><strong>Extensions</strong></td>
+<td>50+ pre-installed</td>
+<td>pg_graphql, pgvector, pg_net, pgcrypto + custom pgrx</td>
+<td>Supabase wins on breadth; Flint wins on custom extensibility (pgrx)</td>
+</tr>
+<tr>
+<td><strong>Schema migrations</strong></td>
+<td>CLI (`db diff`, `db push`)</td>
+<td>OpenSpec change sets + PMPO loop</td>
+<td>Different philosophies — Supabase is operational, Flint is specification-driven</td>
+</tr>
+<tr>
+<td><strong>Type-safe clients</strong></td>
+<td>Auto-generated from schema</td>
+<td>Planned via WIT + SDK generation</td>
+<td>Supabase has working tooling today</td>
+</tr>
+<tr>
+<td><strong>Vector search</strong></td>
+<td>pgvector (HNSW, IVFFlat)</td>
+<td>pgvector (HNSW) + future SurrealDB backend</td>
+<td>Parity today; Flint has roadmap advantage with multi-backend</td>
+</tr>
+<tr>
+<td><strong>Graph queries</strong></td>
+<td>❌ Not native (needs AGE or separate DB)</td>
+<td>Planned via SurrealDB 3.x backend</td>
+<td>Flint will support native graph traversal</td>
+</tr>
+<tr>
+<td><strong>Full-text search</strong></td>
+<td>tsvector + tsquery</td>
+<td>tsvector + pg_search (planned)</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>Geospatial</strong></td>
+<td>PostGIS</td>
+<td>Planned via SurrealDB backend</td>
+<td>Supabase wins today</td>
+</tr>
+<tr>
+<td><strong>Time-series</strong></td>
+<td>TimescaleDB extension</td>
+<td>Not yet planned</td>
+<td>Supabase wins</td>
+</tr>
+<tr>
+<td><strong>Scheduled jobs</strong></td>
+<td>pg_cron</td>
+<td>pg_cron or external scheduler</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>Backups / PITR</strong></td>
+<td>Managed daily + PITR on paid</td>
+<td>Self-managed (WAL-E, Barman)</td>
+<td>Supabase wins on managed convenience</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Verdict:</strong> Supabase has a broader set of pre-installed extensions and managed operational features (branching, PITR). Flint's advantage is in <strong>custom extensibility</strong> via pgrx (Rust-based Postgres extensions) and the <strong>ports-and-adapters architecture</strong> that makes swapping backends (SurrealDB) a matter of implementing a new adapter, not a rewrite.</p>
+<h3>2.2 Authentication & Authorization</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Feature</th>
+<th>Supabase</th>
+<th>Flint</th>
+<th>Assessment</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Auth protocol</strong></td>
+<td>JWT (GoTrue)</td>
+<td>JWT (Kratos via flint-gate)</td>
+<td>Parity — both JWT-based</td>
+</tr>
+<tr>
+<td><strong>OAuth providers</strong></td>
+<td>50+ native</td>
+<td>Via Kratos (20+ native, extensible)</td>
+<td>Supabase wins on breadth; Kratos is enterprise-grade</td>
+</tr>
+<tr>
+<td><strong>MFA / TOTP</strong></td>
+<td>✅</td>
+<td>Via Kratos</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>SSO / SAML</strong></td>
+<td>✅ Enterprise</td>
+<td>Via Kratos Enterprise</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>Password hashing</strong></td>
+<td>bcrypt</td>
+<td>Argon2id (Kratos)</td>
+<td>Flint — Argon2id is stronger than bcrypt</td>
+</tr>
+<tr>
+<td><strong>Passkeys / WebAuthn</strong></td>
+<td>❌ Not yet (2025)</td>
+<td>Via Kratos</td>
+<td>Flint wins — Kratos supports passkeys</td>
+</tr>
+<tr>
+<td><strong>Session management</strong></td>
+<td>Client-side refresh</td>
+<td>Server-side with session watchdog</td>
+<td>Flint — session expiry mid-stream is handled</td>
+</tr>
+<tr>
+<td><strong>Auth layers</strong></td>
+<td>2 (Kratos + RLS)</td>
+<td><strong>4</strong> (Kratos + Keto + RLS + Cedar)</td>
+<td><strong>Flint decisively</strong> — coarse → row → action → capability</td>
+</tr>
+<tr>
+<td><strong>RBAC / ABAC</strong></td>
+<td>❌ Manual via RLS</td>
+<td>Keto (ReBAC/Zanzibar) + Cedar</td>
+<td>Flint wins — native RBAC/ABAC</td>
+</tr>
+<tr>
+<td><strong>JWT scopes</strong></td>
+<td>❌ No access scopes</td>
+<td>Custom claims + Cedar gating</td>
+<td>Flint wins — fine-grained capability grants</td>
+</tr>
+<tr>
+<td><strong>Anonymous auth</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>API keys</strong></td>
+<td>✅ Header-based</td>
+<td>✅ SHA-256 hashed, scoped</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>RLS policies</strong></td>
+<td>SQL policies in Postgres</td>
+<td>SQL policies + `auth.*` helpers</td>
+<td>Parity — Flint's helpers are more ergonomic</td>
+</tr>
+<tr>
+<td><strong>Audit logging</strong></td>
+<td>Dashboard + GoTrue logs</td>
+<td>`vault.access_log` + tracing spans</td>
+<td>Flint wins — structured, queryable, per-row</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Verdict:</strong> Supabase's auth is simpler to set up and has more out-of-the-box OAuth providers. Flint's auth is <strong>architecturally deeper</strong> — 4 layers instead of 2, with Keto for relationship-based access and Cedar for action/capability policy. For multi-tenant SaaS and compliance-heavy environments, Flint's model is superior. For rapid prototyping, Supabase is faster.</p>
+<h3>2.3 REST API</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Feature</th>
+<th>Supabase</th>
+<th>Flint Quarry</th>
+<th>Assessment</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Auto-generation</strong></td>
+<td>✅ PostgREST (Haskell)</td>
+<td>Custom Axum implementation</td>
+<td>Supabase wins — no code generation step needed</td>
+</tr>
+<tr>
+<td><strong>Filter operators</strong></td>
+<td>eq, neq, gt, gte, lt, lte, like, ilike, in, is, cs, cd, fts, match</td>
+<td>Same set + planned extensions</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>Embedding related tables</strong></td>
+<td>✅ Foreign key traversal</td>
+<td>Planned</td>
+<td>Supabase wins — proven feature</td>
+</tr>
+<tr>
+<td><strong>Bulk operations</strong></td>
+<td>✅ Upserts, bulk inserts</td>
+<td>Planned</td>
+<td>Supabase wins</td>
+</tr>
+<tr>
+<td><strong>RPC functions</strong></td>
+<td>✅ `POST /rpc/<fn>`</td>
+<td>✅ `POST /rpc/<fn>`</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>OpenAPI docs</strong></td>
+<td>✅ Auto-generated</td>
+<td>Planned</td>
+<td>Supabase wins</td>
+</tr>
+<tr>
+<td><strong>Pagination</strong></td>
+<td>limit/offset + cursor</td>
+<td>Same</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>Range headers</strong></td>
+<td>✅ Content-Range</td>
+<td>Planned</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>Performance</strong></td>
+<td>20-50ms typical</td>
+<td>Target: <20ms (Rust + deadpool)</td>
+<td>Flint should win — Rust is faster than Haskell for I/O-bound workloads</td>
+</tr>
+<tr>
+<td><strong>Schema hot-reload</strong></td>
+<td>PostgREST auto-refreshes</td>
+<td>`SchemaRegistry` with `ArcSwap`</td>
+<td>Parity</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Verdict:</strong> Supabase's REST layer is more mature and feature-complete today. Flint Quarry is a <strong>clean-room implementation</strong> that aims for PostgREST compatibility but is built in Rust with explicit ports-and-adapters design. The architectural advantage is backend-swappability (SurrealDB adapter in the future); the practical disadvantage is that it needs to be built and tested.</p>
+<h3>2.4 GraphQL</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Feature</th>
+<th>Supabase</th>
+<th>Flint Quarry</th>
+<th>Assessment</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Implementation</strong></td>
+<td>pg_graphql (Rust extension, in-DB)</td>
+<td>pg_graphql passthrough + async-graphql for subscriptions</td>
+<td>Supabase wins on simplicity</td>
+</tr>
+<tr>
+<td><strong>Schema reflection</strong></td>
+<td>✅ Auto from SQL</td>
+<td>✅ Auto from SQL</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>Subscriptions</strong></td>
+<td>❌ Not native (use Realtime instead)</td>
+<td>✅ `async-graphql` + fabric `WatchEntityType`</td>
+<td><strong>Flint wins</strong> — native GraphQL subscriptions</td>
+</tr>
+<tr>
+<td><strong>Relay connections</strong></td>
+<td>✅ Via pg_graphql</td>
+<td>Via pg_graphql</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>Nested relationships</strong></td>
+<td>✅ FK-based auto</td>
+<td>Same</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>Introspection</strong></td>
+<td>✅ `__schema` / `__type`</td>
+<td>Merged pg_graphql ∪ subscription SDL</td>
+<td>Flint — unified introspection</td>
+</tr>
+<tr>
+<td><strong>Custom resolvers</strong></td>
+<td>❌ Not supported</td>
+<td>Via sibling schema</td>
+<td>Flint wins — extensible</td>
+</tr>
+<tr>
+<td><strong>File uploads</strong></td>
+<td>❌ Workaround required</td>
+<td>Planned</td>
+<td>Parity — both limited</td>
+</tr>
+<tr>
+<td><strong>GraphQL mutations</strong></td>
+<td>✅ Via pg_graphql</td>
+<td>Via pg_graphql</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>Performance</strong></td>
+<td>Single SQL statement per query</td>
+<td>Same + subscription overhead</td>
+<td>Parity for queries; Flint adds subscription capability</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Verdict:</strong> Supabase's GraphQL is simpler — one extension, one RPC call. Flint's approach is <strong>hybrid</strong>: queries/mutations pass through to pg_graphql (same as Supabase), but subscriptions are served by a separate <code>async-graphql</code> schema sourced from the realtime fabric. This is more complex but enables <strong>true GraphQL subscriptions</strong> that Supabase lacks. For applications that need real-time GraphQL, Flint is the only option.</p>
+<h3>2.5 Realtime</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Feature</th>
+<th>Supabase Realtime</th>
+<th>Flint Realtime Fabric</th>
+<th>Assessment</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Architecture</strong></td>
+<td>Elixir/Phoenix + WAL polling</td>
+<td>Rust + Apache Iggy + gRPC</td>
+<td>Both are solid; Rust has memory safety, Elixir has OTP</td>
+</tr>
+<tr>
+<td><strong>Postgres Changes</strong></td>
+<td>✅ INSERT/UPDATE/DELETE via logical replication</td>
+<td>✅ `WatchEntityType` gRPC stream</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>Broadcast</strong></td>
+<td>✅ Ephemeral messages (<50ms)</td>
+<td>Planned via WebSocket mux</td>
+<td>Supabase wins — purpose-built</td>
+</tr>
+<tr>
+<td><strong>Presence</strong></td>
+<td>✅ CRDT-based (<100ms)</td>
+<td>Planned via CRDT engine (Loro/automerge)</td>
+<td>Supabase wins — proven</td>
+</tr>
+<tr>
+<td><strong>RLS enforcement</strong></td>
+<td>✅ For Postgres Changes; Public Beta for Broadcast/Presence</td>
+<td><strong>Per-event re-query</strong> for all events</td>
+<td><strong>Flint wins</strong> — RLS on every event, not just subscription time</td>
+</tr>
+<tr>
+<td><strong>Latency (Postgres)</strong></td>
+<td>50-200ms</td>
+<td>Target: <50ms</td>
+<td>Flint should win — gRPC + direct streaming vs. WAL polling</td>
+</tr>
+<tr>
+<td><strong>Connection limits</strong></td>
+<td>500 concurrent (Pro)</td>
+<td>Unbounded (self-hosted)</td>
+<td>Flint wins — no artificial limits</td>
+</tr>
+<tr>
+<td><strong>Message delivery</strong></td>
+<td>Best-effort (no guarantees)</td>
+<td>Planned: exactly-once via Iggy</td>
+<td>Flint wins — durable spine</td>
+</tr>
+<tr>
+<td><strong>Scale to zero</strong></td>
+<td>❌ Connection must stay open</td>
+<td>❌ Same</td>
+<td>Parity — neither scales WebSocket to zero</td>
+</tr>
+<tr>
+<td><strong>AG-UI / A2UI</strong></td>
+<td>❌ Not supported</td>
+<td>✅ First-class in flint-gate</td>
+<td><strong>Flint wins</strong> — AI-native streaming protocols</td>
+</tr>
+<tr>
+<td><strong>Backpressure</strong></td>
+<td>❌ No built-in</td>
+<td>✅ In flint-gate StreamProcessor</td>
+<td>Flint wins</td>
+</tr>
+<tr>
+<td><strong>Token metering mid-stream</strong></td>
+<td>❌</td>
+<td>✅ Counts TEXT_MESSAGE_CONTENT deltas</td>
+<td><strong>Flint wins</strong> — AI-specific</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Verdict:</strong> Supabase Realtime is more <strong>mature and feature-complete</strong> for traditional web apps (Broadcast, Presence). Flint Realtime Fabric is <strong>architecturally deeper</strong> for AI-native workloads: per-event RLS re-query (not just subscription-time), durable event spine with delivery guarantees, AG-UI/A2UI streaming support, and backpressure management. For chat apps and live cursors, Supabase is proven. For agent state streaming and collaborative AI, Flint is purpose-built.</p>
+<h3>2.6 Edge Functions</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Feature</th>
+<th>Supabase Edge Functions</th>
+<th>Flint Kiln</th>
+<th>Assessment</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Runtime</strong></td>
+<td>Deno (V8 isolate)</td>
+<td><strong>Wasmtime (Component Model)</strong></td>
+<td>Fundamental difference — see §5</td>
+</tr>
+<tr>
+<td><strong>Languages</strong></td>
+<td>TypeScript, JavaScript</td>
+<td><strong>Rust, JS, Python, Go, C#, C/C++</strong></td>
+<td><strong>Flint wins</strong> — polyglot via WASM</td>
+</tr>
+<tr>
+<td><strong>Cold start</strong></td>
+<td>200-400ms</td>
+<td><strong>~0.5ms</strong> (AOT compiled)</td>
+<td><strong>Flint wins</strong> — 400-800x faster</td>
+</tr>
+<tr>
+<td><strong>Warm invocation</strong></td>
+<td><100ms</td>
+<td><strong><1ms</strong></td>
+<td><strong>Flint wins</strong></td>
+</tr>
+<tr>
+<td><strong>Isolation</strong></td>
+<td>V8 isolate (process-level)</td>
+<td><strong>Instruction-level (WASM sandbox)</strong></td>
+<td>Different trade-offs — see §5</td>
+</tr>
+<tr>
+<td><strong>Memory/instance</strong></td>
+<td>~5-10 MB (V8 heap)</td>
+<td><strong>~300KB-1MB</strong></td>
+<td><strong>Flint wins</strong> — 5-10x denser multi-tenancy</td>
+</tr>
+<tr>
+<td><strong>Max instances/host</strong></td>
+<td>Hundreds</td>
+<td><strong>10,000+</strong></td>
+<td><strong>Flint wins</strong> — higher density</td>
+</tr>
+<tr>
+<td><strong>Signing / provenance</strong></td>
+<td>❌ None</td>
+<td><strong>Ed25519 + DID-VC + Cosign</strong></td>
+<td><strong>Flint wins</strong> — every component signed</td>
+</tr>
+<tr>
+<td><strong>Capability model</strong></td>
+<td>Deno permissions (coarse)</td>
+<td><strong>WASI preopens + Cedar gating</strong></td>
+<td><strong>Flint wins</strong> — fine-grained</td>
+</tr>
+<tr>
+<td><strong>Secrets in functions</strong></td>
+<td>Environment variables</td>
+<td><strong>Brokered injection — never enters WASM memory</strong></td>
+<td><strong>Flint wins</strong> — secrets never in guest</td>
+</tr>
+<tr>
+<td><strong>Control/data-plane split</strong></td>
+<td>❌ Single runtime</td>
+<td><strong>Yes — compiler only in admin plane</strong></td>
+<td><strong>Flint wins</strong> — RCE surface minimized</td>
+</tr>
+<tr>
+<td><strong>AOT compilation</strong></td>
+<td>❌ JIT (V8)</td>
+<td><strong>Yes — Cranelift AOT to .cwasm</strong></td>
+<td><strong>Flint wins</strong> — native speed</td>
+</tr>
+<tr>
+<td><strong>Cross-platform artifacts</strong></td>
+<td>❌ Deno-specific</td>
+<td><strong>.cwasm runs on x86_64, aarch64, RISC-V, s390x</strong></td>
+<td><strong>Flint wins</strong> — one artifact, all platforms</td>
+</tr>
+<tr>
+<td><strong>WebSocket support</strong></td>
+<td>✅ (Dec 2024)</td>
+<td>✅ via `wasi:http`</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>npm imports</strong></td>
+<td>✅</td>
+<td>JS via `jco` / `componentize-js`</td>
+<td>Supabase wins on npm ecosystem breadth</td>
+</tr>
+<tr>
+<td><strong>Background tasks</strong></td>
+<td>✅</td>
+<td>Planned via async host calls</td>
+<td>Supabase wins — proven</td>
+</tr>
+<tr>
+<td><strong>Static files</strong></td>
+<td>✅ (Jan 2025)</td>
+<td>Planned via host filesystem</td>
+<td>Supabase wins — shipped</td>
+</tr>
+<tr>
+<td><strong>GPU inference</strong></td>
+<td>❌ (Llamafile only, limited)</td>
+<td>Via UAR / candle-vllm / RunPod</td>
+<td><strong>Flint wins</strong> — sovereign inference plane</td>
+</tr>
+<tr>
+<td><strong>Deployment</strong></td>
+<td>Dashboard + CLI</td>
+<td>Admin REST API + registry</td>
+<td>Supabase wins on DX maturity</td>
+</tr>
+<tr>
+<td><strong>Free tier</strong></td>
+<td>500K invocations/month</td>
+<td>Self-hosted — no limits</td>
+<td>Flint wins on scale; Supabase wins on convenience</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Verdict:</strong> This is the most <strong>architecturally significant difference</strong> between the two platforms. Supabase chose Deno for <strong>developer experience</strong> — TypeScript is familiar, npm is vast, setup is easy. Flint chose WASM Component Model for <strong>sovereignty, performance, and polyglot reach</strong> — any language compiles to the same sandboxed artifact that runs at native speed on any architecture. For rapid prototyping in TypeScript, Supabase is faster. For production-grade, signed, governed, cross-platform edge compute, Flint is in a different category entirely. See §5 for deep security analysis.</p>
+<h3>2.7 Storage</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Feature</th>
+<th>Supabase Storage</th>
+<th>Flint (planned)</th>
+<th>Assessment</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>S3 compatibility</strong></td>
+<td>✅ Alpha</td>
+<td>Planned</td>
+<td>Supabase wins — shipped</td>
+</tr>
+<tr>
+<td><strong>CDN</strong></td>
+<td>✅ Global (285+ cities)</td>
+<td>Not planned</td>
+<td>Supabase wins</td>
+</tr>
+<tr>
+<td><strong>Image optimization</strong></td>
+<td>✅ Resize, compress, WebP</td>
+<td>Not planned</td>
+<td>Supabase wins</td>
+</tr>
+<tr>
+<td><strong>Resumable uploads</strong></td>
+<td>✅ TUS protocol</td>
+<td>Planned</td>
+<td>Supabase wins — proven</td>
+</tr>
+<tr>
+<td><strong>RLS for files</strong></td>
+<td>✅ Policy-based</td>
+<td>Planned</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>Bucket types</strong></td>
+<td>File, Analytics, Vector</td>
+<td>Not planned</td>
+<td>Supabase wins</td>
+</tr>
+<tr>
+<td><strong>Max file size</strong></td>
+<td>500GB (paid)</td>
+<td>TBD</td>
+<td>Supabase wins</td>
+</tr>
+<tr>
+<td><strong>Metadata in DB</strong></td>
+<td>✅</td>
+<td>Planned</td>
+<td>Parity</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Verdict:</strong> Storage is a <strong>Supabase strength</strong> — it's a full S3-compatible service with CDN, image optimization, and multiple bucket types. Flint does not currently have a storage plane; users would bring their own (MinIO, S3, etc.). This is a genuine gap in the Flint stack.</p>
+<h3>2.8 AI / ML / Vector</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Feature</th>
+<th>Supabase</th>
+<th>Flint Forge</th>
+<th>Assessment</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Vector database</strong></td>
+<td>pgvector (HNSW, IVFFlat)</td>
+<td>pgvector (HNSW) + future SurrealDB (HNSW + DiskANN)</td>
+<td>Parity today; Flint has multi-backend roadmap</td>
+</tr>
+<tr>
+<td><strong>Dimension limits</strong></td>
+<td>~2000 (F32), ~4000 (halfvec)</td>
+<td>Same (pgvector) / unlimited (SurrealDB)</td>
+<td><strong>Flint wins</strong> with SurrealDB — no dim limit</td>
+</tr>
+<tr>
+<td><strong>Hybrid search</strong></td>
+<td>Manual (vector + tsvector)</td>
+<td>Native (SurrealDB)</td>
+<td><strong>Flint wins</strong> with SurrealDB — single query</td>
+</tr>
+<tr>
+<td><strong>Embedding generation</strong></td>
+<td>External API calls only</td>
+<td><strong>In-DB via Flint Ember (liter-llm)</strong></td>
+<td><strong>Flint wins decisively</strong> — sovereign inference</td>
+</tr>
+<tr>
+<td><strong>LLM execution</strong></td>
+<td>Edge Functions → OpenAI/Anthropic</td>
+<td><strong>In-DB (Flint Ember) + edge (Kiln)</strong></td>
+<td><strong>Flint wins decisively</strong> — no external calls needed</td>
+</tr>
+<tr>
+<td><strong>Token metering</strong></td>
+<td>❌ None native</td>
+<td><strong>Rate-limit governor in BGW</strong></td>
+<td><strong>Flint wins</strong> — cost governance</td>
+</tr>
+<tr>
+<td><strong>Model routing</strong></td>
+<td>Manual</td>
+<td><strong>Cedar-gated per-tenant</strong></td>
+<td><strong>Flint wins</strong> — policy-driven</td>
+</tr>
+<tr>
+<td><strong>GPU inference</strong></td>
+<td>❌ (Llamafile only)</td>
+<td><strong>candle-vllm / RunPod via UAR</strong></td>
+<td><strong>Flint wins</strong> — sovereign GPU inference</td>
+</tr>
+<tr>
+<td><strong>Async LLM jobs</strong></td>
+<td>❌ (must build queue)</td>
+<td><strong>`llm.jobs` + pgrx BGW</strong></td>
+<td><strong>Flint wins</strong> — built-in</td>
+</tr>
+<tr>
+<td><strong>RAG pipeline</strong></td>
+<td>Manual (vector search + external LLM)</td>
+<td><strong>In-DB vector + in-DB LLM</strong></td>
+<td><strong>Flint wins</strong> — single query boundary</td>
+</tr>
+<tr>
+<td><strong>GraphRAG</strong></td>
+<td>❌ (needs separate graph DB)</td>
+<td><strong>Native with SurrealDB</strong></td>
+<td><strong>Flint wins</strong> — graph + vector in one query</td>
+</tr>
+<tr>
+<td><strong>Agent memory</strong></td>
+<td>Manual tables</td>
+<td><strong>Spectron-class with SurrealDB</strong></td>
+<td><strong>Flint wins</strong> — temporal fact tracking</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Verdict:</strong> AI/ML is where Flint's architectural decisions compound into <strong>decisive advantages</strong>. Supabase provides the database primitives (pgvector) but requires all inference to happen externally. Flint provides <strong>in-database LLM execution</strong> (Flint Ember), <strong>sovereign inference routing</strong> (UAR), <strong>token metering</strong> (governor), and <strong>async job queues</strong> — all inside the same trust boundary. For AI-native applications, this eliminates data egress, reduces latency, and enables cost governance that Supabase cannot provide.</p>
+<h3>2.9 Management & Operations</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Feature</th>
+<th>Supabase</th>
+<th>Flint</th>
+<th>Assessment</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Managed hosting</strong></td>
+<td>✅ Free/Pro/Team/Enterprise</td>
+<td>Self-hosted only</td>
+<td>Supabase wins — zero ops</td>
+</tr>
+<tr>
+<td><strong>Self-hosted</strong></td>
+<td>✅ Docker Compose</td>
+<td>✅ Docker + K8s + bare metal</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td><strong>Self-hosted min specs</strong></td>
+<td>4GB RAM, 2 cores, 40GB SSD</td>
+<td><strong>~1GB RAM, 1 core, 10GB SSD</strong></td>
+<td><strong>Flint wins</strong> — Rust is leaner</td>
+</tr>
+<tr>
+<td><strong>Database dashboard</strong></td>
+<td>✅ Studio (rich UI)</td>
+<td>Planned admin UI</td>
+<td>Supabase wins — shipped</td>
+</tr>
+<tr>
+<td><strong>CLI</strong></td>
+<td>✅ Rich CLI (migrations, types, seed)</td>
+<td>`forge-cli` (planned)</td>
+<td>Supabase wins — mature</td>
+</tr>
+<tr>
+<td><strong>CI/CD</strong></td>
+<td>GitHub Actions integration</td>
+<td>Dagger pipelines (planned)</td>
+<td>Supabase wins — ready today</td>
+</tr>
+<tr>
+<td><strong>Monitoring</strong></td>
+<td>Dashboard + Logflare</td>
+<td>OpenTelemetry + tracing</td>
+<td>Supabase wins — managed; Flint is BYO</td>
+</tr>
+<tr>
+<td><strong>Log aggregation</strong></td>
+<td>✅</td>
+<td>tracing + planned Loki</td>
+<td>Supabase wins — managed</td>
+</tr>
+<tr>
+<td><strong>Metrics</strong></td>
+<td>✅</td>
+<td>OpenTelemetry + Prometheus</td>
+<td>Supabase wins — managed</td>
+</tr>
+<tr>
+<td><strong>Hot config reload</strong></td>
+<td>❌ (requires restart for some)</td>
+<td>✅ flint-gate: ~200ms</td>
+<td>Flint wins</td>
+</tr>
+<tr>
+<td><strong>SDKs</strong></td>
+<td>JS, TS, Dart, Python, C#, Go, Swift, Kotlin, Rust</td>
+<td>Planned: Go, TS, C#, Swift, Kotlin, Dart, Rust (all from proto)</td>
+<td>Supabase wins — shipped</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Verdict:</strong> Supabase is a <strong>managed platform</strong> with rich operational tooling. Flint is a <strong>self-hosted compute plane</strong> that requires operational investment. The trade-off is control: Supabase manages uptime, backups, scaling; Flint gives you full control over every layer. For teams with DevOps capacity, Flint's lean resource footprint (1GB RAM vs. 4GB) is significant. For teams that want zero ops, Supabase is the clear choice.</p>
+<div class="divider"></div>
+</section>
+<section id="3-ai-agent-development-support"><div class="sec-num">3.</div><h2>3. AI Agent Development Support</h2>
+<h3>3.1 The Agent Infrastructure Gap</h3>
+<p>Current AI agent frameworks (LangGraph, CrewAI, AutoGen) are <strong>orchestration libraries</strong> — they define how agents reason, plan, and call tools. But they are <strong>not infrastructure platforms</strong> — they require you to bring your own database, auth, vector store, memory, and deployment target.</p>
+<p>Supabase and Flint represent two different approaches to <strong>agent infrastructure</strong>:</p>
+<div class="tw"><table>
+<thead><tr>
+<th>Layer</th>
+<th>What Agents Need</th>
+<th>Supabase Provides</th>
+<th>Flint Provides</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Identity</strong></td>
+<td>Per-agent credentials, user attribution, session isolation</td>
+<td>Kratos + RLS</td>
+<td>Kratos + Keto + RLS + Cedar</td>
+</tr>
+<tr>
+<td><strong>Memory</strong></td>
+<td>Vector store + episodic memory + tool call history</td>
+<td>pgvector + manual tables</td>
+<td>pgvector + SurrealDB graph + `llm.jobs`</td>
+</tr>
+<tr>
+<td><strong>Tools</strong></td>
+<td>Sandboxed execution, capability gating, audit</td>
+<td>Deno (TypeScript only)</td>
+<td><strong>WASM (any language)</strong> + Cedar gating</td>
+</tr>
+<tr>
+<td><strong>Streaming</strong></td>
+<td>Token-by-token output, tool call progress, state updates</td>
+<td>SSE via Realtime</td>
+<td><strong>AG-UI/A2UI native</strong> + backpressure</td>
+</tr>
+<tr>
+<td><strong>Cost governance</strong></td>
+<td>Per-tenant model limits, token budgets, rate limiting</td>
+<td>❌ None</td>
+<td><strong>Rate-limit governor + Cedar</strong></td>
+</tr>
+<tr>
+<td><strong>Inference</strong></td>
+<td>LLM calls with attribution, retry, fallback</td>
+<td>External APIs only</td>
+<td><strong>In-DB (Flint Ember) + UAR</strong></td>
+</tr>
+<tr>
+<td><strong>Collaboration</strong></td>
+<td>Multi-agent shared state, conflict resolution</td>
+<td>Manual (Broadcast)</td>
+<td><strong>CRDT + Realtime Fabric</strong></td>
+</tr>
+<tr>
+<td><strong>Offline</strong></td>
+<td>Run on-device without cloud connectivity</td>
+<td>❌</td>
+<td><strong>WASM + local LLM</strong></td>
+</tr>
+</tbody>
+</table></div>
+<h3>3.2 Supabase for Agents: Strengths & Limitations</h3>
+<p><strong>Strengths:</strong></p>
+<ul>
+<li><strong>Single-stack prototyping</strong>: One platform gives you DB, vectors, auth, and edge functions. An agent with RAG can be built in hours.</li>
+<li><strong>MCP ecosystem</strong>: Supabase's MCP server and skills dramatically improve AI editor success rates.</li>
+<li><strong>Web UI integration</strong>: Realtime + RLS + Auth is a proven stack for human-in-the-loop agents.</li>
+</ul>
+<p><strong>Limitations:</strong></p>
+<ul>
+<li><strong>No in-DB inference</strong>: Every LLM call leaves the trust boundary. For sensitive data, this is a compliance risk.</li>
+<li><strong>No token metering</strong>: Teams must build custom middleware for cost attribution.</li>
+<li><strong>No per-agent sandboxing</strong>: Agents share the same Postgres instance; RLS provides tenant isolation but not sandbox isolation.</li>
+<li><strong>Deno-only tools</strong>: Agent tools must be written in TypeScript. Python ML libraries, Rust performance code, or Go system tools cannot run as edge functions.</li>
+<li><strong>No offline capability</strong>: Agents cannot run on mobile or embedded devices without connectivity.</li>
+<li><strong>CPU-bound vector search</strong>: At scale (>1M vectors), pgvector latency becomes a bottleneck without GPU acceleration.</li>
+</ul>
+<h3>3.3 Flint for Agents: Architectural Advantages</h3>
+<p><strong>Flint Ember (In-DB LLM)</strong>:</p>
+<ul>
+<li>Agents can call `llm.complete()` or `llm.embed()` from inside a Postgres transaction.</li>
+<li>The output can <strong>gate the write</strong> — e.g., a trigger classifies content before allowing INSERT.</li>
+<li>Async worker (`llm.jobs`) handles bulk inference without blocking transactions.</li>
+<li>No API keys in application code — all routing through flint-gate/UAR with Cedar policy.</li>
+</ul>
+<p><strong>Flint Kiln (WASM Edge Tools)</strong>:</p>
+<ul>
+<li>Agent tools can be written in any language: Rust for performance, Python for ML, Go for systems, JS for web APIs.</li>
+<li>Each tool is a <strong>signed, sandboxed component</strong> with fuel/epoch limits — a runaway agent cannot consume infinite resources.</li>
+<li><strong>Capability-gated</strong>: The host only links interfaces the manifest requests ∩ Cedar allows.</li>
+<li><strong>Cross-platform</strong>: The same tool runs on cloud edge, mobile, desktop, and embedded.</li>
+</ul>
+<p><strong>Flint Gate (Streaming & Metering)</strong>:</p>
+<ul>
+<li><strong>AG-UI event validation</strong>: Ensures only allowed event types flow through the stream.</li>
+<li><strong>Token metering</strong>: Counts `TEXT_MESSAGE_CONTENT` deltas mid-stream for cost attribution.</li>
+<li><strong>Session watchdog</strong>: Terminates streams when sessions expire — prevents runaway costs.</li>
+<li><strong>Backpressure</strong>: Prevents agents from overwhelming downstream consumers.</li>
+</ul>
+<p><strong>Flint Realtime Fabric (Agent Collaboration)</strong>:</p>
+<ul>
+<li><strong>CRDT-based presence</strong>: Agents can share state with conflict-free resolution.</li>
+<li><strong>CDC spine</strong>: Every database change streams to subscribers with per-event RLS.</li>
+<li><strong>Federation</strong>: Agents across different Flint deployments can communicate via standard protocols.</li>
+</ul>
+<h3>3.4 Comparison with Dedicated Agent Frameworks</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Framework</th>
+<th>What It Does</th>
+<th>What It Needs</th>
+<th>How Flint Helps</th>
+<th>How Supabase Helps</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>LangGraph</strong></td>
+<td>Stateful agent orchestration (graphs, cycles, HITL)</td>
+<td>Postgres, vector store, auth</td>
+<td>All provided + in-DB LLM + WASM tools</td>
+<td>Provides DB + vectors; no native LLM or tool sandbox</td>
+</tr>
+<tr>
+<td><strong>CrewAI</strong></td>
+<td>Multi-agent role-based teams</td>
+<td>K8s, 14GB RAM, external memory</td>
+<td>Replaces K8s with WASM edge; replaces memory with SurrealDB</td>
+<td>Provides DB; not enough for CrewAI's infra needs</td>
+</tr>
+<tr>
+<td><strong>AutoGen</strong></td>
+<td>Conversational agents, group chat</td>
+<td>Azure (primarily), state backend</td>
+<td>Sovereign alternative to Azure; same patterns</td>
+<td>Not applicable — too cloud-specific</td>
+</tr>
+<tr>
+<td><strong>Semantic Kernel</strong></td>
+<td>.NET/Python agent framework</td>
+<td>Enterprise backend</td>
+<td>WASM components for .NET tools; Cedar for policy</td>
+<td>Limited .NET support</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Key insight:</strong> Agent frameworks are <strong>orchestration layers</strong>. They need infrastructure underneath. Supabase provides <strong>some</strong> of that infrastructure (DB, vectors, auth). Flint provides <strong>all</strong> of it, plus capabilities no other platform has: in-DB LLM, polyglot WASM tools, token metering, and cross-platform deployment.</p>
+<div class="divider"></div>
+</section>
+<section id="4-deployment-flexibility-cloud-to-desktop-to-mobile"><div class="sec-num">4.</div><h2>4. Deployment Flexibility: Cloud to Desktop to Mobile</h2>
+<h3>4.1 The Deployment Spectrum</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Environment</th>
+<th>Resource Profile</th>
+<th>Supabase</th>
+<th>Flint</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Cloud (managed)</strong></td>
+<td>Unlimited</td>
+<td>✅ Supabase Cloud</td>
+<td>Self-hosted on any cloud</td>
+</tr>
+<tr>
+<td><strong>Cloud (self-hosted)</strong></td>
+<td>4GB+ RAM, 2+ cores</td>
+<td>✅ Docker Compose</td>
+<td>✅ Docker + K8s + bare metal</td>
+</tr>
+<tr>
+<td><strong>Desktop (developer)</strong></td>
+<td>8GB RAM, 4 cores</td>
+<td>❌ Not supported</td>
+<td>✅ Full stack runs locally</td>
+</tr>
+<tr>
+<td><strong>Desktop (end-user)</strong></td>
+<td>4GB RAM, 2 cores</td>
+<td>❌ Not supported</td>
+<td>✅ Tauri + embedded Flint</td>
+</tr>
+<tr>
+<td><strong>Mobile (iOS/Android)</strong></td>
+<td>2-4GB RAM, ARM64</td>
+<td>❌ Client SDK only</td>
+<td>✅ WASM components + embedded DB</td>
+</tr>
+<tr>
+<td><strong>Embedded / IoT</strong></td>
+<td>512MB RAM, ARM/RISC-V</td>
+<td>❌ Not supported</td>
+<td>✅ Wasmtime on RISC-V/ARM</td>
+</tr>
+<tr>
+<td><strong>Browser (PWA)</strong></td>
+<td>Tab memory, WASM</td>
+<td>❌ Not supported</td>
+<td>✅ WASM components in browser</td>
+</tr>
+<tr>
+<td><strong>Air-gapped / offline</strong></td>
+<td>Any of above</td>
+<td>❌ Requires connectivity</td>
+<td>✅ Full offline capability</td>
+</tr>
+</tbody>
+</table></div>
+<h3>4.2 Why Supabase Cannot Deploy to Edge</h3>
+<p>Supabase is <strong>cloud-native by design</strong>:</p>
+<ul>
+<li><strong>GoTrue</strong> requires a network-accessible Postgres instance.</li>
+<li><strong>PostgREST</strong> requires a network-accessible Postgres instance.</li>
+<li><strong>Realtime</strong> requires a persistent WebSocket connection to the server.</li>
+<li><strong>Edge Functions</strong> run on Supabase's Deno infrastructure — you cannot download them to run locally.</li>
+<li><strong>Vector search</strong> requires pgvector in a running Postgres instance.</li>
+</ul>
+<p>There is no path to run a Supabase stack on a mobile device, desktop offline, or embedded sensor. The client SDKs (JS, Flutter, Swift) are <strong>thin wrappers</strong> around the cloud API.</p>
+<h3>4.3 How Flint Deploys Everywhere</h3>
+<p><strong>Cloud</strong>: Full stack on any VPS, K8s cluster, or bare metal. No vendor lock-in.</p>
+<p><strong>Desktop</strong>: Flint Forge + SurrealDB embedded + Tauri frontend = a sovereign desktop application. The entire data plane runs in-process; no network required after installation.</p>
+<p><strong>Mobile</strong>:</p>
+<ul>
+<li><strong>WASM components</strong> compile to ARM64 and run inside the app via Wasmtime or Wasmer.</li>
+<li><strong>SurrealDB</strong> embeds in the app (Rust crate) for local data.</li>
+<li><strong>Small LLMs</strong> (Phi-3, Gemma 2B) run via candle or ONNX Runtime on-device.</li>
+<li><strong>Sync</strong> to cloud happens when connectivity is available (CRDT merge via Realtime Fabric).</li>
+</ul>
+<p><strong>Embedded / IoT</strong>:</p>
+<ul>
+<li><strong>Wasmtime</strong> runs on RISC-V and ARM Cortex-M (with appropriate memory limits).</li>
+<li><strong>Sensor data preprocessing</strong> happens locally; only aggregated insights sync to cloud.</li>
+<li><strong>Fuel limits</strong> prevent runaway computation on battery-powered devices.</li>
+</ul>
+<p><strong>Browser</strong>:</p>
+<ul>
+<li><strong>WASM components</strong> run directly in the browser (same `wasi:http/proxy` target).</li>
+<li><strong>jco</strong> / <strong>componentize-js</strong> enables JS components that work in both Kiln and browser.</li>
+<li><strong>Local-first</strong> data via SurrealDB browser backend (IndexedDB) with CRDT sync.</li>
+</ul>
+<h3>4.4 Resource Efficiency: The Rust Advantage</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Component</th>
+<th>Supabase Stack</th>
+<th>Flint Stack</th>
+<th>Savings</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Minimum RAM</strong></td>
+<td>4GB (Postgres + GoTrue + PostgREST + Realtime + Storage + Edge Runtime)</td>
+<td><strong>~1GB</strong> (Postgres + Axum + Wasmtime)</td>
+<td><strong>75% reduction</strong></td>
+</tr>
+<tr>
+<td><strong>Binary size</strong></td>
+<td>Multiple services (GBs of containers)</td>
+<td><strong>Single-digit MB</strong> for each plane</td>
+<td><strong>Orders of magnitude</strong></td>
+</tr>
+<tr>
+<td><strong>CPU overhead</strong></td>
+<td>Elixir, Go, Haskell, Node.js — multiple runtimes</td>
+<td><strong>Rust throughout</strong> — zero runtime overhead</td>
+<td><strong>Significant</strong></td>
+</tr>
+<tr>
+<td><strong>Cold start (edge function)</strong></td>
+<td>200-400ms (Deno)</td>
+<td><strong>~0.5ms</strong> (WASM AOT)</td>
+<td><strong>400-800x faster</strong></td>
+</tr>
+<tr>
+<td><strong>Memory per edge instance</strong></td>
+<td>~5-10 MB</td>
+<td><strong>~300KB-1MB</strong></td>
+<td><strong>5-10x denser</strong></td>
+</tr>
+<tr>
+<td><strong>Multi-tenancy density</strong></td>
+<td>Hundreds per node</td>
+<td><strong>10,000+ per node</strong></td>
+<td><strong>10-50x denser</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Strategic implication:</strong> For resource-constrained environments (mobile, embedded, edge gateways), Flint's Rust architecture is not just an advantage — it is <strong>the only viable option</strong>. Supabase's multi-service stack is designed for cloud servers with abundant RAM and CPU. Flint's single-binary, low-memory footprint is designed for deployment anywhere.</p>
+<div class="divider"></div>
+</section>
+<section id="5-safety-and-security-edge-functions-deep-dive"><div class="sec-num">5.</div><h2>5. Safety and Security: Edge Functions Deep Dive</h2>
+<h3>5.1 The Threat Model for Edge Functions</h3>
+<p>Edge functions run <strong>untrusted code</strong> — code written by users, customers, or AI agents. The platform must guarantee:</p>
+<ol>
+<li><strong>Isolation</strong>: One function cannot access another's memory, files, or network.</li>
+<li><strong>Resource limits</strong>: A function cannot consume infinite CPU, memory, or execution time.</li>
+<li><strong>Capability restriction</strong>: A function can only access what it is explicitly granted.</li>
+<li><strong>Provenance</strong>: The platform knows exactly what code is running and who published it.</li>
+<li><strong>Secret safety</strong>: API keys and credentials never leak to untrusted code.</li>
+</ol>
+<h3>5.2 Supabase Edge Functions: Deno Runtime</h3>
+<p><strong>Architecture</strong>: Deno is a V8-based JavaScript runtime with a permission model:</p>
+<figure>
+<svg viewBox="0 0 800 100" xmlns="http://www.w3.org/2000/svg" style="max-width:800px">
+  <defs><filter id="shp" x="-3%" y="-10%" width="106%" height="120%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.3"/></filter></defs>
+  <!-- Pipeline stages -->
+  <g transform="translate(0,20)">
+    <rect x="0" y="0" width="110" height="42" rx="6" fill="#131A22" stroke="#F4B942" stroke-width="1.5" filter="url(#shp)"/>
+    <text x="55" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">Request</text>
+    <text x="55" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">HTTP</text>
+  </g>
+  <line x1="115" y1="41" x2="140" y2="41" stroke="#F4B942" stroke-width="2"/><polygon points="134,37 142,41 134,45" fill="#F4B942"/>
+
+  <g transform="translate(145,20)">
+    <rect x="0" y="0" width="130" height="42" rx="6" fill="#131A22" stroke="#F4B942" stroke-width="1.5" filter="url(#shp)"/>
+    <text x="65" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">Deno Isolate</text>
+    <text x="65" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">V8 process</text>
+  </g>
+  <line x1="280" y1="41" x2="305" y2="41" stroke="#F4B942" stroke-width="2"/><polygon points="299,37 307,41 299,45" fill="#F4B942"/>
+
+  <g transform="translate(310,20)">
+    <rect x="0" y="0" width="100" height="42" rx="6" fill="#131A22" stroke="#F4B942" stroke-width="1.5" filter="url(#shp)"/>
+    <text x="50" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">V8 JIT</text>
+    <text x="50" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">JIT compiler</text>
+  </g>
+  <line x1="415" y1="41" x2="440" y2="41" stroke="#F4B942" stroke-width="2"/><polygon points="434,37 442,41 434,45" fill="#F4B942"/>
+
+  <g transform="translate(445,20)">
+    <rect x="0" y="0" width="90" height="42" rx="6" fill="#131A22" stroke="#F4B942" stroke-width="1.5" filter="url(#shp)"/>
+    <text x="45" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">Syscall</text>
+    <text x="45" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">permission</text>
+  </g>
+  <line x1="540" y1="41" x2="565" y2="41" stroke="#F4B942" stroke-width="2"/><polygon points="559,37 567,41 559,45" fill="#F4B942"/>
+
+  <g transform="translate(570,20)">
+    <rect x="0" y="0" width="110" height="42" rx="6" fill="#131A22" stroke="#F4B942" stroke-width="1.5" filter="url(#shp)"/>
+    <text x="55" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">Host OS</text>
+    <text x="55" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">full access</text>
+  </g>
+
+  <!-- Warning label -->
+  <text x="340" y="85" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#F4B942">⚠ Large attack surface · V8 CVEs · JIT spraying · Spectre</text>
+</svg>
+<figcaption><b>Figure 5.1</b> Deno runtime execution pipeline — V8-based with permission-model syscall gating.</figcaption>
+</figure>
+<p><strong>Security properties:</strong></p>
+<ul>
+<li><strong>Isolation</strong>: V8 isolates are memory-isolated within a single process. No shared state between isolates.</li>
+<li><strong>Resource limits</strong>: Deno enforces memory limits and timeouts, but these are process-level, not hardware-enforced.</li>
+<li><strong>Capabilities</strong>: Deno permissions (`--allow-net`, `--allow-read`, `--allow-env`) are coarse — all-or-nothing per category.</li>
+<li><strong>Provenance</strong>: No signing or verification. Any code deployed to Supabase runs.</li>
+<li><strong>Secrets</strong>: Environment variables are passed to the Deno process. They are visible to the function.</li>
+</ul>
+<p><strong>Attack surface:</strong></p>
+<ul>
+<li><strong>V8 CVEs</strong>: V8 is a large, complex engine with a history of vulnerabilities. A V8 exploit can compromise the entire Deno runtime process.</li>
+<li><strong>JIT spraying</strong>: V8's JIT compiler can be exploited for code execution.</li>
+<li><strong>Spectre</strong>: V8 isolates share the same process address space, making Spectre-style side-channel attacks theoretically possible.</li>
+<li><strong>Deno escape</strong>: A vulnerability in Deno's Rust runtime (file system, network bindings) could allow escape from the isolate.</li>
+</ul>
+<p><strong>Production track record</strong>: Supabase Edge Functions are widely used but relatively new. Deno itself has fewer CVEs than Node.js but the isolation model is less battle-tested than V8 in Chrome (which has a massive security team).</p>
+<h3>5.3 Flint Kiln: WASM Component Model + Wasmtime</h3>
+<p><strong>Architecture</strong>: Wasmtime is a standalone WASM runtime (no V8, no JS engine):</p>
+<figure>
+<svg viewBox="0 0 900 100" xmlns="http://www.w3.org/2000/svg" style="max-width:900px">
+  <defs><filter id="shp2" x="-3%" y="-10%" width="106%" height="120%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.3"/></filter></defs>
+  <g transform="translate(0,20)">
+    <rect x="0" y="0" width="100" height="42" rx="6" fill="#131A22" stroke="#4FD18B" stroke-width="1.5" filter="url(#shp2)"/>
+    <text x="50" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">Request</text>
+    <text x="50" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">signed</text>
+  </g>
+  <line x1="105" y1="41" x2="125" y2="41" stroke="#4FD18B" stroke-width="2"/><polygon points="119,37 127,41 119,45" fill="#4FD18B"/>
+
+  <g transform="translate(130,20)">
+    <rect x="0" y="0" width="110" height="42" rx="6" fill="#131A22" stroke="#4FD18B" stroke-width="1.5" filter="url(#shp2)"/>
+    <text x="55" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">Wasmtime</text>
+    <text x="55" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">runtime</text>
+  </g>
+  <line x1="245" y1="41" x2="265" y2="41" stroke="#4FD18B" stroke-width="2"/><polygon points="259,37 267,41 259,45" fill="#4FD18B"/>
+
+  <g transform="translate(270,20)">
+    <rect x="0" y="0" width="130" height="42" rx="6" fill="#131A22" stroke="#4FD18B" stroke-width="1.5" filter="url(#shp2)"/>
+    <text x="65" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">Cranelift AOT</text>
+    <text x="65" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">no JIT in data plane</text>
+  </g>
+  <line x1="405" y1="41" x2="425" y2="41" stroke="#4FD18B" stroke-width="2"/><polygon points="419,37 427,41 419,45" fill="#4FD18B"/>
+
+  <g transform="translate(430,20)">
+    <rect x="0" y="0" width="170" height="42" rx="6" fill="#131A22" stroke="#4FD18B" stroke-width="1.5" filter="url(#shp2)"/>
+    <text x="85" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">Native Machine Code</text>
+    <text x="85" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">hardware sandbox</text>
+  </g>
+  <line x1="605" y1="41" x2="625" y2="41" stroke="#4FD18B" stroke-width="2"/><polygon points="619,37 627,41 619,45" fill="#4FD18B"/>
+
+  <g transform="translate(630,20)">
+    <rect x="0" y="0" width="200" height="42" rx="6" fill="#131A22" stroke="#4FD18B" stroke-width="1.5" filter="url(#shp2)"/>
+    <text x="100" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">Host OS (via WASI)</text>
+    <text x="100" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">preopen capabilities only</text>
+  </g>
+
+  <!-- Good label -->
+  <text x="415" y="85" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#4FD18B">✓ No JIT in data plane · hardware bounds · signed components · fuel/epoch limits</text>
+</svg>
+<figcaption><b>Figure 5.2</b> Wasmtime execution pipeline — AOT compilation with hardware-enforced sandbox and capability-based WASI.</figcaption>
+</figure>
+<p><strong>Security properties:</strong></p>
+<ul>
+<li><strong>Isolation</strong>: Each function runs in its own linear memory space with hardware-enforced bounds checking. Memory access outside the sandbox traps immediately.</li>
+<li><strong>Resource limits</strong>:</li>
+<li><strong>Fuel</strong>: Instruction-level counting (like Ethereum gas). When fuel runs out, execution halts.</li>
+<li><strong>Epoch</strong>: Time-based interruption. Functions cannot run longer than allowed.</li>
+<li><strong>Memory ceilings</strong>: `StoreLimits` cap per-invocation RAM.</li>
+<li><strong>Stack limits</strong>: Prevent stack overflow attacks.</li>
+<li><strong>Capabilities</strong>: WASI 0.2 preopens — the host explicitly grants per-directory, per-file, per-network capabilities. No ambient authority. A function with no network preopen cannot make any network calls.</li>
+<li><strong>Cedar gating</strong>: Even if WASI grants a capability, Cedar policy may deny it based on the publisher's identity and the function's manifest.</li>
+<li><strong>Provenance</strong>: Every component is signed (Ed25519 + DID-VC + Cosign/Sigstore). Unsigned or tampered components are refused instantiation.</li>
+<li><strong>Secrets</strong>: High-value secrets are <strong>brokered</strong> — the host injects them at the boundary. They never enter WASM linear memory. The function calls `flint:db` or `flint:llm`; the host resolves credentials internally.</li>
+<li><strong>Control/data-plane split</strong>: The compiler (Cranelift) exists only in the admin plane. The data plane deserializes pre-verified `.cwasm` — it cannot compile arbitrary code.</li>
+</ul>
+<p><strong>Attack surface:</strong></p>
+<ul>
+<li><strong>Wasmtime CVEs</strong>: Wasmtime is a smaller, more focused runtime than V8. The Rust codebase has strong memory safety guarantees. Historical CVEs have been in the Cranelift compiler (not the runtime), which is why the control/data-plane split is critical.</li>
+<li><strong>Linear memory escape</strong>: No known escapes from WASM linear memory in production runtimes. Bounds checking is hardware-assisted (segment registers or virtual memory guard pages).</li>
+<li><strong>Spectre</strong>: Each WASM instance has its own memory space. Spectre attacks between co-tenant instances are theoretically possible but require specific side-channels that WASM's simplified model makes harder than V8's JIT.</li>
+<li><strong>Host function escape</strong>: The only escape path is through host functions (WASI or custom). Flint's host functions are minimal, audited, and Cedar-gated.</li>
+</ul>
+<p><strong>Production track record</strong>: Wasmtime powers Fastly Compute@Edge (billions of requests/day), Fermyon/Akamai (4,000+ PoPs), and wasmCloud (Adobe, BMW). It is the most production-proven WASM runtime.</p>
+<h3>5.4 Microsandbox: Could It Help?</h3>
+<p><strong>Microsandbox</strong> (github.com/microsandbox/microsandbox) is an open-source Rust project that uses microVMs (via <code>libkrun</code> / KVM / HVF) for hardware-level isolation:</p>
+<figure>
+<svg viewBox="0 0 900 100" xmlns="http://www.w3.org/2000/svg" style="max-width:900px">
+  <defs><filter id="shp3" x="-3%" y="-10%" width="106%" height="120%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.3"/></filter></defs>
+  <g transform="translate(0,20)">
+    <rect x="0" y="0" width="100" height="42" rx="6" fill="#131A22" stroke="#34CFE6" stroke-width="1.5" filter="url(#shp3)"/>
+    <text x="50" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">Request</text>
+  </g>
+  <line x1="105" y1="41" x2="125" y2="41" stroke="#34CFE6" stroke-width="2"/><polygon points="119,37 127,41 119,45" fill="#34CFE6"/>
+
+  <g transform="translate(130,20)">
+    <rect x="0" y="0" width="100" height="42" rx="6" fill="#131A22" stroke="#34CFE6" stroke-width="1.5" filter="url(#shp3)"/>
+    <text x="50" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">libkrun</text>
+    <text x="50" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">Rust lib</text>
+  </g>
+  <line x1="235" y1="41" x2="255" y2="41" stroke="#34CFE6" stroke-width="2"/><polygon points="249,37 257,41 249,45" fill="#34CFE6"/>
+
+  <g transform="translate(260,20)">
+    <rect x="0" y="0" width="110" height="42" rx="6" fill="#131A22" stroke="#34CFE6" stroke-width="1.5" filter="url(#shp3)"/>
+    <text x="55" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">KVM / HVF</text>
+    <text x="55" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">hypervisor</text>
+  </g>
+  <line x1="375" y1="41" x2="395" y2="41" stroke="#34CFE6" stroke-width="2"/><polygon points="389,37 397,41 389,45" fill="#34CFE6"/>
+
+  <g transform="translate(400,20)">
+    <rect x="0" y="0" width="100" height="42" rx="6" fill="#131A22" stroke="#34CFE6" stroke-width="1.5" filter="url(#shp3)"/>
+    <text x="50" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">MicroVM</text>
+    <text x="50" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">hardware iso</text>
+  </g>
+  <line x1="505" y1="41" x2="525" y2="41" stroke="#34CFE6" stroke-width="2"/><polygon points="519,37 527,41 519,45" fill="#34CFE6"/>
+
+  <g transform="translate(530,20)">
+    <rect x="0" y="0" width="140" height="42" rx="6" fill="#131A22" stroke="#34CFE6" stroke-width="1.5" filter="url(#shp3)"/>
+    <text x="70" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">Linux Kernel</text>
+    <text x="70" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">guest OS</text>
+  </g>
+  <line x1="675" y1="41" x2="695" y2="41" stroke="#34CFE6" stroke-width="2"/><polygon points="689,37 697,41 689,45" fill="#34CFE6"/>
+
+  <g transform="translate(700,20)">
+    <rect x="0" y="0" width="130" height="42" rx="6" fill="#131A22" stroke="#34CFE6" stroke-width="1.5" filter="url(#shp3)"/>
+    <text x="65" y="20" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#E8EDF3">User Code</text>
+    <text x="65" y="34" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">any binary</text>
+  </g>
+
+  <!-- Note label -->
+  <text x="415" y="85" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#34CFE6">~100-200ms cold start · hardware isolation · any language binary</text>
+</svg>
+<figcaption><b>Figure 5.3</b> Microsandbox execution pipeline — microVM-based hardware isolation via KVM/HVF.</figcaption>
+</figure>
+<p><strong>Comparison with WASM:</strong></p>
+<div class="tw"><table>
+<thead><tr>
+<th>Dimension</th>
+<th>WASM + Wasmtime</th>
+<th>Microsandbox</th>
+<th>Winner</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Cold start</strong></td>
+<td>~0.5ms</td>
+<td>~100-200ms</td>
+<td><strong>WASM</strong> — 200-400x faster</td>
+</tr>
+<tr>
+<td><strong>Memory/instance</strong></td>
+<td>~300KB-1MB</td>
+<td>~5MB+</td>
+<td><strong>WASM</strong> — 5-10x leaner</td>
+</tr>
+<tr>
+<td><strong>Max instances</strong></td>
+<td>10,000+</td>
+<td>Hundreds</td>
+<td><strong>WASM</strong> — 10-50x denser</td>
+</tr>
+<tr>
+<td><strong>Isolation</strong></td>
+<td>Instruction-level</td>
+<td>Hardware-level</td>
+<td><strong>Microsandbox</strong> — stronger boundary</td>
+</tr>
+<tr>
+<td><strong>Kernel exploit risk</strong></td>
+<td>Could compromise host</td>
+<td>Contained in VM</td>
+<td><strong>Microsandbox</strong> — VM boundary</td>
+</tr>
+<tr>
+<td><strong>Capability granularity</strong></td>
+<td>Per-file, per-socket</td>
+<td>Network policy, volumes</td>
+<td><strong>WASM</strong> — finer-grained</td>
+</tr>
+<tr>
+<td><strong>Polyglot</strong></td>
+<td>WASM-compileable</td>
+<td>Any Linux binary</td>
+<td><strong>Microsandbox</strong> — any language without recompilation</td>
+</tr>
+<tr>
+<td><strong>Confidential computing</strong></td>
+<td>Not native</td>
+<td>AMD SEV / Intel TDX</td>
+<td><strong>Microsandbox</strong> — hardware encryption</td>
+</tr>
+<tr>
+<td><strong>Production maturity</strong></td>
+<td>High (Fastly, Akamai)</td>
+<td>Beta (v0.5.x)</td>
+<td><strong>WASM</strong> — proven at scale</td>
+</tr>
+<tr>
+<td><strong>Platform requirements</strong></td>
+<td>Any OS</td>
+<td>Linux KVM or macOS HVF</td>
+<td><strong>WASM</strong> — more portable</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Verdict</strong>: Microsandbox is <strong>complementary</strong>, not competitive with WASM. For Flint Kiln, the recommendation is:</p>
+<ul>
+<li><strong>Primary tier (default)</strong>: WASM Component Model + Wasmtime — for all standard edge functions, agent tools, and request handlers. Sub-millisecond cold starts, fine-grained capabilities, proven at scale.</li>
+<li><strong>Secondary tier (opt-in)</strong>: Microsandbox — for:</li>
+<li>Untrusted/AI-generated code that requires hardware-level isolation</li>
+<li>Native binary workloads that cannot compile to WASM (Python with C extensions, Node.js with native modules)</li>
+<li>Long-running plugins with persistent state</li>
+<li>CI/CD job execution requiring full OS toolchain</li>
+<li>Confidential computing requirements (SEV/TDX)</li>
+</ul>
+<p>Microsandbox's ~100-200ms cold start is unacceptable for per-request edge functions but perfectly acceptable for agent tool calls, plugin execution, or background jobs. The two technologies can coexist on the same platform: <code>#[flint::edge]</code> for WASM, <code>#[flint::sandboxed]</code> for microVM.</p>
+<h3>5.5 Security Comparison Summary</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Concern</th>
+<th>Supabase (Deno)</th>
+<th>Flint Kiln (WASM)</th>
+<th>Assessment</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Memory isolation</strong></td>
+<td>V8 isolate (process)</td>
+<td>Linear memory (hardware bounds)</td>
+<td>Both strong; WASM has simpler attack surface</td>
+</tr>
+<tr>
+<td><strong>Resource exhaustion</strong></td>
+<td>Timeouts + memory limits</td>
+<td>Fuel + epoch + memory + stack</td>
+<td><strong>Flint wins</strong> — instruction-level accounting</td>
+</tr>
+<tr>
+<td><strong>Capability model</strong></td>
+<td>Coarse (Deno permissions)</td>
+<td>Fine-grained (WASI preopens + Cedar)</td>
+<td><strong>Flint wins decisively</strong></td>
+</tr>
+<tr>
+<td><strong>Code signing</strong></td>
+<td>❌ None</td>
+<td>Ed25519 + DID + Cosign</td>
+<td><strong>Flint wins decisively</strong></td>
+</tr>
+<tr>
+<td><strong>Secret handling</strong></td>
+<td>Env vars (visible to function)</td>
+<td>Brokered (never enters guest)</td>
+<td><strong>Flint wins decisively</strong></td>
+</tr>
+<tr>
+<td><strong>Compiler in request path</strong></td>
+<td>Yes (V8 JIT)</td>
+<td>No (AOT .cwasm only)</td>
+<td><strong>Flint wins</strong> — smaller RCE surface</td>
+</tr>
+<tr>
+<td><strong>Spectre mitigation</strong></td>
+<td>Degraded timers, no shared buffers</td>
+<td>Separate memory spaces</td>
+<td>Parity — both have theoretical risks</td>
+</tr>
+<tr>
+<td><strong>Kernel escape risk</strong></td>
+<td>V8/Deno CVE</td>
+<td>Wasmtime CVE (rare)</td>
+<td><strong>Flint wins</strong> — smaller, Rust codebase</td>
+</tr>
+<tr>
+<td><strong>Audit logging</strong></td>
+<td>Basic</td>
+<td>Per-call via `vault.access_log`</td>
+<td><strong>Flint wins</strong> — comprehensive</td>
+</tr>
+<tr>
+<td><strong>Zero-day response</strong></td>
+<td>Patch Deno/V8</td>
+<td>Patch Wasmtime</td>
+<td>Parity — both require upstream patches</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Verdict:</strong> Flint Kiln's security model is <strong>architecturally superior</strong> for running untrusted code. The combination of instruction-level resource limits, fine-grained capability gating, code signing, brokered secrets, and control/data-plane separation creates a defense-in-depth posture that Deno/V8 isolates cannot match. The trade-off is complexity: WASM requires compilation, manifest authoring, and capability declaration. Deno is simpler because it is less secure.</p>
+<div class="divider"></div>
+</section>
+<section id="6-multi-database-backend-surrealdb-roadmap"><div class="sec-num">6.</div><h2>6. Multi-Database Backend: SurrealDB Roadmap</h2>
+<h3>6.1 Why a Second Backend?</h3>
+<p>Flint's ports-and-adapters architecture enables <strong>backend-swappability</strong>. PostgreSQL is the primary backend today, but SurrealDB 3.x is on the roadmap for specific workloads:</p>
+<div class="tw"><table>
+<thead><tr>
+<th>Workload</th>
+<th>PostgreSQL</th>
+<th>SurrealDB</th>
+<th>Winner</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Relational OLTP</strong></td>
+<td>✅ Native, 30+ years proven</td>
+<td>⚠️ SQL-like but not SQL</td>
+<td>Postgres</td>
+</tr>
+<tr>
+<td><strong>Graph traversal</strong></td>
+<td>❌ Recursive CTEs are verbose</td>
+<td>✅ Native `->edge->vertex`</td>
+<td>SurrealDB</td>
+</tr>
+<tr>
+<td><strong>Real-time subscriptions</strong></td>
+<td>❌ Needs external layer</td>
+<td>✅ `LIVE SELECT` over WebSocket</td>
+<td>SurrealDB</td>
+</tr>
+<tr>
+<td><strong>Vector + graph hybrid</strong></td>
+<td>❌ Multiple tools needed</td>
+<td>✅ Single query</td>
+<td>SurrealDB</td>
+</tr>
+<tr>
+<td><strong>Embedded/edge</strong></td>
+<td>❌ Cannot run in browser/mobile</td>
+<td>✅ In-process, in-browser</td>
+<td>SurrealDB</td>
+</tr>
+<tr>
+<td><strong>Agent memory (temporal)</strong></td>
+<td>❌ Manual implementation</td>
+<td>✅ Spectron (when GA)</td>
+<td>SurrealDB</td>
+</tr>
+<tr>
+<td><strong>Complex analytics</strong></td>
+<td>✅ Window functions, CTEs, planner</td>
+<td>⚠️ Less mature</td>
+<td>Postgres</td>
+</tr>
+<tr>
+<td><strong>Deep pagination</strong></td>
+<td>✅ Fast `OFFSET ... LIMIT`</td>
+<td>❌ Slow deep offsets</td>
+<td>Postgres</td>
+</tr>
+<tr>
+<td><strong>Ecosystem</strong></td>
+<td>✅ Thousands of tools, ORMs, monitors</td>
+<td>⚠️ Growing but smaller</td>
+<td>Postgres</td>
+</tr>
+<tr>
+<td><strong>License</strong></td>
+<td>✅ PostgreSQL (true open source)</td>
+<td>⚠️ BSL 1.1 (4-year rolling)</td>
+<td>Postgres</td>
+</tr>
+</tbody>
+</table></div>
+<h3>6.2 Implementation Strategy</h3>
+<p>Flint's <code>DatabaseBackend</code> and <code>GraphQlExecutor</code> ports make this swappable:</p>
+<figure>
+<svg viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg" style="max-width:800px">
+  <defs>
+    <filter id="sha" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.35"/></filter>
+    <marker id="arrow-ember" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><polygon points="0,0 8,4 0,8" fill="#FF6A3D"/></marker>
+    <marker id="arrow-cyan" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><polygon points="0,0 8,4 0,8" fill="#34CFE6"/></marker>
+  </defs>
+  <rect x="10" y="10" width="780" height="500" rx="12" fill="#131A22" stroke="#28333F" stroke-width="1.5"/>
+
+  <!-- Quarry -->
+  <rect x="300" y="30" width="200" height="55" rx="8" fill="#0E141B" stroke="#FF6A3D" stroke-width="2" filter="url(#sha)"/>
+  <text x="400" y="55" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="700" fill="#E8EDF3">Quarry</text>
+  <text x="400" y="74" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#FF6A3D">Axum Gateway</text>
+
+  <!-- Incoming requests label -->
+  <text x="140" y="60" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#B4BECB">REST / GraphQL</text>
+  <text x="140" y="78" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#97A1AE">requests</text>
+  <line x1="210" y1="58" x2="290" y2="58" stroke="#B4BECB" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+
+  <!-- Arrow down to fdb-ports -->
+  <line x1="400" y1="85" x2="400" y2="115" stroke="#FF6A3D" stroke-width="2" marker-end="url(#arrow-ember)"/>
+
+  <!-- fdb-ports (traits) -->
+  <rect x="250" y="120" width="300" height="70" rx="8" fill="#0E141B" stroke="#FF6A3D" stroke-width="1.5" stroke-dasharray="6,4" filter="url(#sha)"/>
+  <text x="400" y="145" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="600" fill="#E8EDF3">fdb-ports</text>
+  <text x="400" y="163" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#FF6A3D">Trait seams</text>
+  <text x="400" y="180" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#97A1AE">DatabaseBackend · SchemaProvider · RestExecutor · GraphQlExecutor · ChangeStreamSource</text>
+
+  <!-- Arrow down to fdb-app -->
+  <line x1="400" y1="190" x2="400" y2="220" stroke="#FF6A3D" stroke-width="2" marker-end="url(#arrow-ember)"/>
+
+  <!-- fdb-app -->
+  <rect x="300" y="225" width="200" height="55" rx="8" fill="#0E141B" stroke="#FF6A3D" stroke-width="1.5" filter="url(#sha)"/>
+  <text x="400" y="250" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="600" fill="#E8EDF3">fdb-app</text>
+  <text x="400" y="268" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#FF6A3D">Use-cases layer</text>
+
+  <!-- Arrow down to split -->
+  <line x1="400" y1="280" x2="400" y2="310" stroke="#FF6A3D" stroke-width="2" marker-end="url(#arrow-ember)"/>
+  <line x1="200" y1="310" x2="600" y2="310" stroke="#FF6A3D" stroke-width="1.5"/>
+
+  <!-- Left branch: fdb-postgres -->
+  <line x1="200" y1="310" x2="200" y2="340" stroke="#FF6A3D" stroke-width="1.5" marker-end="url(#arrow-ember)"/>
+  <rect x="110" y="345" width="180" height="55" rx="8" fill="#0E141B" stroke="#34CFE6" stroke-width="1.5" filter="url(#sha)"/>
+  <text x="200" y="370" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="12" font-weight="600" fill="#E8EDF3">fdb-postgres</text>
+  <text x="200" y="388" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#34CFE6">Adapter</text>
+
+  <line x1="200" y1="400" x2="200" y2="430" stroke="#34CFE6" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+  <rect x="80" y="435" width="240" height="55" rx="8" fill="#0E141B" stroke="#4FD18B" stroke-width="2" filter="url(#sha)"/>
+  <text x="200" y="460" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="700" fill="#E8EDF3">PostgreSQL</text>
+  <text x="200" y="478" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#4FD18B">+ pgrx extensions</text>
+
+  <!-- Right branch: fdb-surrealdb -->
+  <line x1="600" y1="310" x2="600" y2="340" stroke="#FF6A3D" stroke-width="1.5" marker-end="url(#arrow-ember)"/>
+  <rect x="510" y="345" width="180" height="55" rx="8" fill="#0E141B" stroke="#34CFE6" stroke-width="1.5" filter="url(#sha)"/>
+  <text x="600" y="370" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="12" font-weight="600" fill="#E8EDF3">fdb-surrealdb</text>
+  <text x="600" y="388" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#34CFE6">Adapter (future)</text>
+
+  <line x1="600" y1="400" x2="600" y2="430" stroke="#34CFE6" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+  <rect x="480" y="435" width="240" height="55" rx="8" fill="#0E141B" stroke="#F4B942" stroke-width="2" filter="url(#sha)"/>
+  <text x="600" y="460" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="700" fill="#E8EDF3">SurrealDB 3.x</text>
+  <text x="600" y="478" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#F4B942">Graph · Real-time · Edge · AI</text>
+
+  <!-- Adapter label -->
+  <text x="400" y="510" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#97A1AE">One adapter per port — backend-swappable without rewriting business logic</text>
+</svg>
+<figcaption><b>Figure 6.1</b> Ports-and-adapters database architecture — trait seams enable backend-swappability.</figcaption>
+</figure>
+<p><strong>Deployment model</strong>: Dual-backend — Postgres for relational transactions, SurrealDB for graph, real-time, and edge workloads. The application layer (and edge functions) use the same WIT interfaces regardless of backend.</p>
+<h3>6.3 What This Means for Supabase Comparison</h3>
+<p>Supabase is <strong>PostgreSQL-only</strong>. Adding a graph database, a real-time layer, or an embedded database requires separate services (Neo4j, Redis, SQLite, etc.) with their own operational overhead.</p>
+<p>Flint's architecture allows <strong>multi-model data within the same platform</strong> — relational, graph, vector, document, key-value — without operational fragmentation. This is a long-term strategic advantage as AI workloads increasingly require hybrid data patterns (GraphRAG, temporal memory, multi-modal retrieval).</p>
+<div class="divider"></div>
+</section>
+<section id="7-performance-analysis"><div class="sec-num">7.</div><h2>7. Performance Analysis</h2>
+<h3>7.1 Edge Function Cold Starts</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Platform</th>
+<th>Cold Start</th>
+<th>Warm Start</th>
+<th>Architecture</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Cloudflare Workers (V8)</td>
+<td>~1-5ms</td>
+<td>~0.5ms</td>
+<td>V8 isolate</td>
+</tr>
+<tr>
+<td>Fastly Compute@Edge (Wasmtime)</td>
+<td><strong><1ms</strong></td>
+<td>~0.1ms</td>
+<td>Wasmtime AOT</td>
+</tr>
+<tr>
+<td>Fermyon Spin (Wasmtime)</td>
+<td><strong><1ms</strong></td>
+<td>~0.5ms</td>
+<td>Wasmtime AOT</td>
+</tr>
+<tr>
+<td><strong>Flint Kiln (Wasmtime)</strong></td>
+<td><strong>~0.5ms</strong></td>
+<td>~0.1ms</td>
+<td>Cranelift AOT</td>
+</tr>
+<tr class="sb-win">
+<td><strong>Supabase Edge (Deno)</strong></td>
+<td>200-400ms</td>
+<td><100ms</td>
+<td>V8 JIT</td>
+</tr>
+<tr>
+<td>AWS Lambda</td>
+<td>~50-200ms</td>
+<td>~5ms</td>
+<td>Firecracker microVM</td>
+</tr>
+<tr>
+<td>Microsandbox</td>
+<td>~100-200ms</td>
+<td>~50ms</td>
+<td>libkrun microVM</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Flint Kiln is in the same tier as Fastly and Fermyon</strong> — sub-millisecond cold starts. Supabase Edge Functions are 200-800x slower because Deno's V8 JIT compilation cannot be pre-computed. For latency-sensitive endpoints (auth, routing, AI preprocessing), this difference is decisive.</p>
+<h3>7.2 Database Query Performance</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Query Type</th>
+<th>Supabase (PostgREST)</th>
+<th>Flint Quarry (Axum)</th>
+<th>Notes</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Simple indexed SELECT</td>
+<td>~20-50ms</td>
+<td>Target: ~10-30ms</td>
+<td>Rust's async I/O should be faster than Haskell's</td>
+</tr>
+<tr>
+<td>Complex JOIN (5 tables)</td>
+<td>~50-150ms</td>
+<td>Target: ~40-120ms</td>
+<td>Same Postgres backend — query plan dominates</td>
+</tr>
+<tr>
+<td>Vector search (HNSW, 100K)</td>
+<td>~20-50ms</td>
+<td>Same</td>
+<td>pgvector is the same extension</td>
+</tr>
+<tr>
+<td>Vector search (HNSW, 1M+)</td>
+<td>~100-500ms</td>
+<td>Same</td>
+<td>CPU-bound; neither has GPU acceleration yet</td>
+</tr>
+<tr>
+<td>Graph traversal (recursive CTE)</td>
+<td>~100-500ms</td>
+<td>N/A (SurrealDB: ~50-200ms)</td>
+<td>SurrealDB native graph should outperform Postgres CTEs</td>
+</tr>
+<tr>
+<td>Subscription (per-event)</td>
+<td>~50-200ms</td>
+<td>Target: ~20-100ms</td>
+<td>Flint's fabric should be faster than WAL polling</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Verdict</strong>: For traditional relational queries, performance will be similar (same Postgres backend). Flint's Rust stack should have lower overhead than PostgREST's Haskell runtime. For real-time and graph workloads, SurrealDB (Flint's future backend) should outperform Postgres + external services.</p>
+<h3>7.3 Resource Efficiency</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Metric</th>
+<th>Supabase Stack</th>
+<th>Flint Stack</th>
+<th>Factor</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Minimum RAM (self-hosted)</td>
+<td>4GB</td>
+<td>~1GB</td>
+<td><strong>4x leaner</strong></td>
+</tr>
+<tr>
+<td>Idle CPU</td>
+<td>~5-10% (multiple services)</td>
+<td>~1-2% (Rust + Postgres)</td>
+<td><strong>5x leaner</strong></td>
+</tr>
+<tr>
+<td>Disk footprint</td>
+<td>~2-5GB (containers)</td>
+<td>~200MB (binaries) + Postgres</td>
+<td><strong>10x leaner</strong></td>
+</tr>
+<tr>
+<td>Edge function memory</td>
+<td>~5-10MB/instance</td>
+<td>~300KB-1MB/instance</td>
+<td><strong>5-10x denser</strong></td>
+</tr>
+<tr>
+<td>Max edge instances/node</td>
+<td>~500</td>
+<td>~10,000+</td>
+<td><strong>20x denser</strong></td>
+</tr>
+<tr>
+<td>Compile time (edge function)</td>
+<td>JIT at runtime</td>
+<td>AOT in admin plane</td>
+<td><strong>Flint: zero request-time compile</strong></td>
+</tr>
+<tr>
+<td>Network hops (REST → DB)</td>
+<td>1 (PostgREST → Postgres)</td>
+<td>1 (Axum → Postgres)</td>
+<td>Parity</td>
+</tr>
+<tr>
+<td>Network hops (GraphQL → DB)</td>
+<td>2 (PostgREST → pg_graphql → Postgres)</td>
+<td>1 (Axum → pg_graphql in Postgres)</td>
+<td><strong>Flint: one fewer hop</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Verdict</strong>: Flint's Rust architecture is <strong>dramatically more resource-efficient</strong> than Supabase's multi-service, multi-runtime stack. This matters for:</p>
+<ul>
+<li><strong>Self-hosting on small VPS</strong> (1GB RAM vs. 4GB)</li>
+<li><strong>Edge deployment</strong> (10,000 tenants per node vs. 500)</li>
+<li><strong>Battery-powered devices</strong> (lower CPU = longer battery)</li>
+<li><strong>Cost optimization</strong> (fewer servers for same load)</li>
+</ul>
+<div class="divider"></div>
+</section>
+<section id="8-strategic-recommendations"><div class="sec-num">8.</div><h2>8. Strategic Recommendations</h2>
+<h3>8.1 Choose Supabase If...</h3>
+<ul>
+<li>You are building a <strong>web-first application</strong> with human users (SaaS, marketplace, content platform).</li>
+<li>You need to <strong>ship fast</strong> — days, not months — and value operational simplicity over architectural control.</li>
+<li>Your team is <strong>TypeScript/JavaScript-centric</strong> and values Deno's developer experience.</li>
+<li>You need <strong>managed hosting</strong> — zero operational overhead, automatic backups, CDN, and scaling.</li>
+<li>Your AI needs are <strong>RAG-based</strong> (vector search + external LLM calls) rather than sovereign inference.</li>
+<li>You are building <strong>human-in-the-loop agents</strong> (chat UIs, collaborative tools) where real-time UI updates are primary.</li>
+<li>You need <strong>broad extension support</strong> (PostGIS, TimescaleDB, pg_cron, etc.) out of the box.</li>
+<li>Your scale is <strong>small-to-medium</strong> (< 1M vectors, < 100 concurrent agents, < 500K edge invocations/month).</li>
+</ul>
+<h3>8.2 Choose Flint If...</h3>
+<ul>
+<li>You are building an <strong>AI-native platform</strong> where agents are first-class citizens, not afterthoughts.</li>
+<li>You need <strong>sovereign inference</strong> — LLMs running on infrastructure you control, not external APIs.</li>
+<li>You require <strong>polyglot edge compute</strong> — agent tools in Rust, Python, Go, C#, JS, all sandboxed and signed.</li>
+<li>You must deploy to <strong>mobile, desktop, embedded, or air-gapped environments</strong> — not just cloud.</li>
+<li>You need <strong>fine-grained cost governance</strong> — per-tenant token budgets, model routing, rate limiting.</li>
+<li>You operate in a <strong>compliance-heavy environment</strong> (healthcare, finance, defense) where data must never leave the trust boundary.</li>
+<li>You need <strong>4-layer authorization</strong> (Kratos + Keto + RLS + Cedar) for multi-tenant SaaS or zero-trust architectures.</li>
+<li>You value <strong>architectural sovereignty</strong> — the ability to swap backends, runtimes, and deployment targets without rewriting.</li>
+<li>You have <strong>DevOps capacity</strong> to self-host and manage the stack.</li>
+<li>You are building <strong>the next generation of infrastructure</strong> — not just consuming it.</li>
+</ul>
+<h3>8.3 Hybrid Strategy: Using Both</h3>
+<p>Many teams may benefit from a <strong>hybrid approach</strong>:</p>
+<figure>
+<svg viewBox="0 0 700 380" xmlns="http://www.w3.org/2000/svg" style="max-width:700px">
+  <defs>
+    <filter id="shh" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.35"/></filter>
+    <marker id="arr-ember" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><polygon points="0,0 8,4 0,8" fill="#FF6A3D"/></marker>
+    <marker id="arr-cyan" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><polygon points="0,0 8,4 0,8" fill="#34CFE6"/></marker>
+  </defs>
+  <rect x="10" y="10" width="680" height="360" rx="12" fill="#131A22" stroke="#28333F" stroke-width="1.5"/>
+
+  <!-- User-Facing App -->
+  <rect x="150" y="30" width="400" height="55" rx="8" fill="#0E141B" stroke="#E8EDF3" stroke-width="2" filter="url(#shh)"/>
+  <text x="350" y="55" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="700" fill="#E8EDF3">User-Facing App</text>
+  <text x="350" y="74" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#97A1AE">Next.js · React · Flutter · etc.</text>
+
+  <!-- Split arrow -->
+  <line x1="350" y1="85" x2="350" y2="115" stroke="#E8EDF3" stroke-width="1.5" marker-end="url(#arr-cyan)"/>
+  <line x1="200" y1="115" x2="500" y2="115" stroke="#E8EDF3" stroke-width="1.5"/>
+
+  <!-- Supabase branch (left) -->
+  <line x1="200" y1="115" x2="200" y2="145" stroke="#34CFE6" stroke-width="1.5" marker-end="url(#arr-cyan)"/>
+  <rect x="100" y="150" width="200" height="110" rx="8" fill="#0E141B" stroke="#34CFE6" stroke-width="2" filter="url(#shh)"/>
+  <text x="200" y="175" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="700" fill="#E8EDF3">Supabase</text>
+  <text x="200" y="195" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#34CFE6">Auth · basic DB · storage</text>
+  <text x="120" y="220" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• Authentication</text>
+  <text x="120" y="238" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• User data CRUD</text>
+  <text x="120" y="256" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• File storage</text>
+
+  <!-- Flint branch (right) -->
+  <line x1="500" y1="115" x2="500" y2="145" stroke="#FF6A3D" stroke-width="1.5" marker-end="url(#arr-ember)"/>
+  <rect x="400" y="150" width="200" height="110" rx="8" fill="#0E141B" stroke="#FF6A3D" stroke-width="2" filter="url(#shh)"/>
+  <text x="500" y="175" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="700" fill="#E8EDF3">Flint</text>
+  <text x="500" y="195" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#FF6A3D">AI agent · edge · inference</text>
+  <text x="420" y="220" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• AI orchestration</text>
+  <text x="420" y="238" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• In-DB inference</text>
+  <text x="420" y="256" font-family="Inter, sans-serif" font-size="10" fill="#B4BECB">• WASM edge tools</text>
+
+  <!-- Merge arrows -->
+  <line x1="200" y1="260" x2="200" y2="290" stroke="#34CFE6" stroke-width="1.5" marker-end="url(#arr-cyan)"/>
+  <line x1="500" y1="260" x2="500" y2="290" stroke="#FF6A3D" stroke-width="1.5" marker-end="url(#arr-ember)"/>
+  <line x1="200" y1="290" x2="500" y2="290" stroke="#28333F" stroke-width="1.5"/>
+  <line x1="350" y1="290" x2="350" y2="320" stroke="#28333F" stroke-width="1.5" marker-end="url(#arr-cyan)"/>
+
+  <!-- Shared PostgreSQL -->
+  <rect x="200" y="325" width="300" height="50" rx="8" fill="#0E141B" stroke="#4FD18B" stroke-width="2" filter="url(#shh)"/>
+  <text x="350" y="348" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="700" fill="#E8EDF3">PostgreSQL</text>
+  <text x="350" y="366" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#4FD18B">+ pgvector (shared or separate)</text>
+</svg>
+<figcaption><b>Figure 8.1</b> Hybrid deployment strategy — Supabase velocity for standard features, Flint sovereignty for AI-native infrastructure.</figcaption>
+</figure>
+<p><strong>Use Supabase for</strong>: Authentication, user data, file storage, basic CRUD, and web UI real-time updates.</p>
+<p><strong>Use Flint for</strong>: AI agent orchestration, in-DB inference, WASM edge tools, token metering, and cross-platform deployment.</p>
+<p>This hybrid gives you <strong>Supabase's velocity</strong> for the 80% of standard web app functionality and <strong>Flint's sovereignty</strong> for the 20% of AI-native, edge-deployed, governance-critical features.</p>
+<h3>8.4 Risk Assessment</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Risk</th>
+<th>Supabase</th>
+<th>Flint</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Vendor lock-in</strong></td>
+<td>Low (Postgres, open source)</td>
+<td>Very low (Rust, open source, self-hosted)</td>
+</tr>
+<tr>
+<td><strong>Operational complexity</strong></td>
+<td>Low (managed)</td>
+<td>High (self-hosted, multi-plane)</td>
+</tr>
+<tr>
+<td><strong>Maturity gaps</strong></td>
+<td>Few (proven platform)</td>
+<td>Many (early development, not all features built)</td>
+</tr>
+<tr>
+<td><strong>Team expertise required</strong></td>
+<td>TypeScript, SQL, Postgres</td>
+<td>Rust, WASM, pgrx, gRPC, K8s</td>
+</tr>
+<tr>
+<td><strong>Community / ecosystem</strong></td>
+<td>Massive (Postgres, Deno, etc.)</td>
+<td>Small (growing, but early)</td>
+</tr>
+<tr>
+<td><strong>Documentation / DX</strong></td>
+<td>Excellent</td>
+<td>In development</td>
+</tr>
+<tr>
+<td><strong>Production hardening</strong></td>
+<td>SOC 2 Type II, enterprise support</td>
+<td>Self-certified, community support</td>
+</tr>
+<tr>
+<td><strong>Hiring</strong></td>
+<td>Easy (JS/Postgres devs are abundant)</td>
+<td>Harder (Rust/WASM specialists are scarce)</td>
+</tr>
+<tr>
+<td><strong>Migration cost (away from)</strong></td>
+<td>Low (standard Postgres)</td>
+<td>Low (ports-and-adapters)</td>
+</tr>
+<tr>
+<td><strong>Migration cost (to)</strong></td>
+<td>Low (standard Postgres)</td>
+<td>Higher (new patterns, WASM, Rust)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="divider"></div>
+</section>
+<section id="9-appendix-competitive-landscape"><div class="sec-num">9.</div><h2>9. Appendix: Competitive Landscape</h2>
+<h3>9.1 Beyond Supabase: The Full Field</h3>
+<div class="tw"><table>
+<thead><tr>
+<th>Platform</th>
+<th>Category</th>
+<th>Strength</th>
+<th>Weakness</th>
+<th>vs. Flint</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Firebase</strong></td>
+<td>BaaS</td>
+<td>Google integration, real-time</td>
+<td>Proprietary, no SQL, vendor lock-in</td>
+<td>Flint: sovereign, SQL, WASM</td>
+</tr>
+<tr>
+<td><strong>Neon</strong></td>
+<td>Serverless Postgres</td>
+<td>Branching, scale-to-zero</td>
+<td>No auth, no edge functions, no vectors</td>
+<td>Flint: full platform, not just DB</td>
+</tr>
+<tr>
+<td><strong>PlanetScale</strong></td>
+<td>Serverless MySQL</td>
+<td>Vitess scaling, deploy requests</td>
+<td>MySQL (not Postgres), no edge functions</td>
+<td>Flint: Postgres + WASM edge</td>
+</tr>
+<tr>
+<td><strong>Cloudflare Workers</strong></td>
+<td>Edge compute</td>
+<td>5ms cold start, 300+ locations</td>
+<td>No database (D1 is limited), no auth</td>
+<td>Flint: integrated DB + auth + AI</td>
+</tr>
+<tr>
+<td><strong>Fastly Compute@Edge</strong></td>
+<td>Edge compute (WASM)</td>
+<td><1ms cold start, Wasmtime</td>
+<td>No database, no auth, complex</td>
+<td>Flint: full platform on same architecture</td>
+</tr>
+<tr>
+<td><strong>Fermyon / Akamai</strong></td>
+<td>Edge compute (WASM)</td>
+<td>Spin framework, K8s (SpinKube)</td>
+<td>No database, no auth, no AI</td>
+<td>Flint: full platform</td>
+</tr>
+<tr>
+<td><strong>AWS Bedrock AgentCore</strong></td>
+<td>Enterprise AI</td>
+<td>Per-session microVM isolation, Cognito</td>
+<td>AWS lock-in, ~$1,456/mo, complexity</td>
+<td>Flint: sovereign, cross-cloud, leaner</td>
+</tr>
+<tr>
+<td><strong>Azure AI Foundry</strong></td>
+<td>Enterprise AI</td>
+<td>AutoGen + Semantic Kernel, Entra</td>
+<td>Azure lock-in, no self-hosted</td>
+<td>Flint: sovereign, offline-capable</td>
+</tr>
+<tr>
+<td><strong>Google Vertex AI</strong></td>
+<td>Enterprise AI</td>
+<td>ADK, Model Armor, 7M+ downloads</td>
+<td>GCP lock-in, Agent Engine limitations</td>
+<td>Flint: sovereign, multi-cloud</td>
+</tr>
+<tr>
+<td><strong>LangGraph Cloud</strong></td>
+<td>Agent orchestration</td>
+<td>Visual debugging, state management</td>
+<td>Medium lock-in, 10-min runtime limit</td>
+<td>Flint: infrastructure + orchestration</td>
+</tr>
+<tr>
+<td><strong>CrewAI Platform</strong></td>
+<td>Agent orchestration</td>
+<td>Multi-agent roles, hierarchy</td>
+<td>K8s-only, 14GB RAM, no ARM64</td>
+<td>Flint: leaner, polyglot, cross-platform</td>
+</tr>
+<tr>
+<td><strong>PocketBase</strong></td>
+<td>Lightweight BaaS</td>
+<td>Single binary, Go, simple</td>
+<td>No vectors, no AI, no WASM edge</td>
+<td>Flint: Rust, AI-native, WASM</td>
+</tr>
+</tbody>
+</table></div>
+<h3>9.2 Flint's Unique Position</h3>
+<p>Flint occupies a <strong>unique position</strong> in this landscape:</p>
+<ol>
+<li><strong>The only sovereign AI platform</strong>: In-DB LLM + sovereign inference + token metering + KMS-wrapped secrets.</li>
+<li><strong>The only polyglot edge platform</strong>: WASM Component Model with Rust, Python, Go, C#, JS, C/C++ — all signed, sandboxed, and portable.</li>
+<li><strong>The only cross-device platform</strong>: Same artifact runs on cloud, desktop, mobile, embedded, and browser.</li>
+<li><strong>The only 4-layer auth platform</strong>: Kratos + Keto + RLS + Cedar — from session to capability.</li>
+<li><strong>The only spec-driven platform</strong>: OpenSpec change sets + PMPO loop + KBD orchestration — architecture as code.</li>
+</ol>
+<p>No other platform combines all five of these properties. Supabase has velocity. Cloudflare has scale. AWS has enterprise features. But none have Flint's <strong>sovereign, cross-platform, AI-native architecture</strong>.</p>
+<div class="divider"></div>
+</section>
+<section id="document-information"><div class="sec-num">##</div><h2>Document Information</h2>
+<p><strong>Compiled:</strong> June 2026</p>
+<p><strong>Sources:</strong> Supabase documentation (2024-2025), Flint Forge RFC-FORGE-001, Flint Gate README, Flint Realtime Fabric RFC-FRF-002, SurrealDB documentation (3.1.5), web research on edge function platforms (Cloudflare, Fastly, Fermyon, wasmCloud), AI agent frameworks (LangGraph, CrewAI, AutoGen, AWS Bedrock, Azure AI Foundry, Google Vertex AI), microsandbox research (github.com/microsandbox/microsandbox).</p>
+<p><strong>Classification:</strong> Strategic analysis — for internal planning and competitive positioning.</p>
+<p><strong>Next review:</strong> After Phase 2 of Flint Forge (REST + RLS proven) and Phase 4 (Flint Ember proven).</p>
+</div>
+<footer>
+  <div class="fl">
+    <svg viewBox="0 0 200 200" width="28" height="28" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="10" width="180" height="180" rx="40" ry="40" fill="none" stroke="#97A1AE" stroke-width="4.5"/>
+      <g transform="translate(50,38)">
+        <rect x="0" y="0" width="20" height="124" rx="10" fill="#97A1AE"/>
+        <path d="M 16,62 C 26,52 44,32 62,18 C 72,10 80,8 84,14 C 86,18 82,24 76,28 C 60,40 40,56 28,66 C 22,70 18,68 16,64 Z" fill="#97A1AE"/>
+        <path d="M 16,62 C 26,72 44,92 62,106 C 72,114 80,116 84,110 C 86,106 82,100 76,96 C 60,84 40,68 28,58 C 22,54 18,56 16,60 Z" fill="#97A1AE"/>
+        <circle cx="18" cy="62" r="15" fill="#FF6A3D" opacity="0.12"/>
+        <circle cx="18" cy="62" r="10" fill="#FF6A3D"/>
+      </g>
+    </svg>
+    <div style="font-family:'Space Grotesk',sans-serif; font-size:16px; color:#E8EDF3; font-weight:600;">KnowMe</div>
+  </div>
+  <p>Flint Forge vs. Supabase Competitive Analysis · RFC-FORGE-COMP-001 · June 2026</p>
+  <p>Generated by Prometheus AGS Platform Intelligence. This analysis reflects research current as of June 2026. Platform capabilities are subject to change. Refer to the latest documentation for each platform.</p>
+</footer>
+</main>
+</div>
+</body>
+</html>

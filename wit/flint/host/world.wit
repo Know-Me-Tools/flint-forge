@@ -1,0 +1,87 @@
+package flint:host@0.1.0;
+
+/// Governed DB access — routes through flint-gate under the origin JWT.
+///
+/// WIT type notes:
+///   - WIT has no native `json` type; all JSON values travel as `string`
+///     (JSON-encoded). The host encodes/decodes at the boundary.
+///   - `host-error` carries a machine-readable `code` and a human-readable
+///     `message`. Neither field ever contains JWT payloads or secret values.
+///   - `params` is a list of JSON-encoded parameter values (one per `$N`
+///     placeholder in the SQL). `rows` on success are JSON-encoded row objects.
+interface db {
+    record host-error {
+        code:    string,
+        message: string,
+    }
+
+    query: func(sql: string, params: list<string>) -> result<list<string>, host-error>;
+}
+
+/// Governed inference — routes through flint-gate / UAR (never directly to
+/// providers). The component never holds a provider key; the host injects
+/// credentials at the boundary via Flint Vault.
+///
+/// `opts` is a JSON-encoded options object (model, temperature, max-tokens, …).
+interface llm {
+    record host-error {
+        code:    string,
+        message: string,
+    }
+
+    embed:    func(input: string, model: option<string>) -> result<list<f32>, host-error>;
+    complete: func(prompt: string, opts: string)         -> result<string, host-error>;
+}
+
+/// Ephemeral per-invocation key-value store. Not durable across invocations.
+/// Use `flint:db` for persistent state.
+interface kv {
+    get: func(k: string) -> option<list<u8>>;
+    set: func(k: string, v: list<u8>);
+}
+
+/// Identity context injected by Flint Kiln from the verified origin JWT.
+/// `claims` is a JSON-encoded object of the claim set. Neither function
+/// returns raw signing-key material.
+interface identity {
+    origin-jwt: func() -> option<string>;
+    claims:     func() -> string;
+}
+
+/// Cedar-gated secret access backed by flint_vault (§4.4).
+///
+/// `get` returns an opaque `secret` resource handle — NOT the raw value.
+/// The raw value is only accessible via `reveal`, which is:
+///   - Cedar-gated (the publisher must hold an explicit Cedar grant)
+///   - audited (every call is logged in vault.access_log)
+///   - default-deny (no grant → reveal returns an error)
+///
+/// High-value secrets are brokered at the host boundary (host injects
+/// them into outbound calls; the secret never enters WASM linear memory).
+/// `reveal` is the escape hatch for secrets a component genuinely must read.
+interface secrets {
+    record host-error {
+        code:    string,
+        message: string,
+    }
+
+    resource secret {
+        reveal: func() -> result<string, host-error>;
+    }
+
+    get: func(name: string) -> result<secret, host-error>;
+}
+
+/// The edge-function world: every deployed WASM component targets this world.
+/// Components export incoming-handler and import governed host capabilities.
+/// The host Linker adds only the interfaces the component's signed manifest
+/// requests AND Cedar allows for that publisher (default-deny).
+world edge-function {
+    export wasi:http/incoming-handler@0.2.12;
+    import wasi:http/outgoing-handler@0.2.12;
+    import db;
+    import llm;
+    import kv;
+    import identity;
+    import secrets;
+}

@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flint A2UI Situational Examples</title>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0F14;--s1:#131A22;--s2:#1A232E;--s3:#0E141B;--s4:#202B38;--s5:#2A3542;
+--txt:#E8EDF3;--txtm:#B4BECB;--txtd:#97A1AE;--em:#FF6A3D;--emd:#E04E28;--cy:#34CFE6;
+--gr:#4FD18B;--yl:#F4B942;--rd:#F05D5D;--fd:'Space Grotesk';--fb:'Inter';--fm:'JetBrains Mono'}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font-family:var(--fb);font-size:14px;line-height:1.6;overflow-x:hidden}
+
+h1,h2,h3,h4{font-family:var(--fd);font-weight:600;letter-spacing:-0.02em}
+h1{font-size:2.8rem;margin-bottom:1rem}h2{font-size:1.8rem;margin:2rem 0 1rem}h3{font-size:1.3rem;margin:1.5rem 0 0.8rem}
+p{margin-bottom:1rem;color:var(--txtm)}
+
+.container{max-width:1400px;margin:0 auto;padding:0 24px}
+.grid{display:grid;gap:24px}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+.hero{background:var(--s1);border-bottom:1px solid var(--s4);padding:60px 0;text-align:center}
+.hero-b{display:inline-block;background:rgba(255,106,61,0.15);color:var(--em);padding:6px 16px;border-radius:20px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px}
+.hero p{max-width:700px;margin:0 auto 24px;color:var(--txtd)}
+
+.sec{background:var(--s1);border:1px solid var(--s4);border-radius:12px;padding:24px;margin-bottom:24px}
+.sec-h{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.sec-h .icon{width:36px;height:36px;background:var(--s3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.sec-h h3{margin:0}
+.sec-h .tag{font-size:11px;background:var(--s3);color:var(--txtd);padding:2px 8px;border-radius:4px;border:1px solid var(--s4)}
+
+.demo{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:20px;margin:16px 0}
+.demo-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--txtd);margin-bottom:8px;font-weight:600}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;border:none;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;text-decoration:none}
+.btn-p{background:var(--em);color:#fff}
+.btn-p:hover{background:var(--emd);transform:translateY(-1px)}
+.btn-s{background:var(--s3);color:var(--txt);border:1px solid var(--s4)}
+.btn-s:hover{border-color:var(--cy)}
+.btn-g{background:var(--s3);color:var(--gr);border:1px solid rgba(79,209,139,0.3)}
+.btn-r{background:var(--s3);color:var(--rd);border:1px solid rgba(240,93,93,0.3)}
+.btn-ghost{background:transparent;color:var(--txtm);border:1px solid var(--s4)}
+.btn-ghost:hover{color:var(--txt);border-color:var(--cy)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-lg{padding:12px 24px;font-size:14px}
+.btn-i{padding:8px}
+
+.inp{width:100%;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;transition:all 0.2s}
+.inp:focus{outline:none;border-color:var(--cy);box-shadow:0 0 0 3px rgba(52,207,230,0.1)}
+.inp::placeholder{color:var(--txtd)}
+.lbl{display:block;font-size:12px;font-weight:500;color:var(--txtm);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+.fg{margin-bottom:16px}
+.sel{width:100%;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;cursor:pointer}
+.sel:focus{outline:none;border-color:var(--cy)}
+.tx{width:100%;min-height:100px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:13px;resize:vertical}
+.tx:focus{outline:none;border-color:var(--cy)}
+.chk,.rd{display:flex;align-items:center;gap:8px;cursor:pointer;margin:8px 0;font-size:13px;color:var(--txtm)}
+.chk input,.rd input{accent-color:var(--em)}
+
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:10px 12px;background:var(--s3);color:var(--txtd);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--s4)}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--s4);color:var(--txtm)}
+.tbl tr:hover td{background:rgba(52,207,230,0.05)}
+.tbl tr:last-child td{border-bottom:none}
+
+.bd-g{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(79,209,139,0.15);color:var(--gr)}
+.bd-y{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(244,185,66,0.15);color:var(--yl)}
+.bd-r{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(240,93,93,0.15);color:var(--rd)}
+.bd-e{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(255,106,61,0.15);color:var(--em)}
+.bd-c{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(52,207,230,0.15);color:var(--cy)}
+.bd-d{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--s3);color:var(--txtd)}
+
+.card{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:20px;transition:all 0.2s}
+.card:hover{border-color:var(--cy);transform:translateY(-2px)}
+.card-h{font-size:14px;font-weight:600;margin-bottom:8px;color:var(--txt)}
+.card-d{font-size:13px;color:var(--txtd);margin-bottom:12px}
+
+.tbs{display:flex;border-bottom:1px solid var(--s4);gap:4px;margin-bottom:16px}
+.tb{padding:10px 16px;border:none;background:none;color:var(--txtd);font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s}
+.tb.on{color:var(--cy);border-bottom-color:var(--cy)}
+.tb:hover{color:var(--txt)}
+
+.acc{border:1px solid var(--s4);border-radius:8px;margin-bottom:8px;overflow:hidden}
+.acc-h{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--s2);cursor:pointer;font-weight:500;font-size:13px}
+.acc-h:hover{background:var(--s3)}
+.acc-b{padding:12px 16px;background:var(--bg);border-top:1px solid var(--s4);font-size:13px;color:var(--txtm)}
+
+.mod-o{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}
+.mod-c{background:var(--s2);border:1px solid var(--s4);border-radius:12px;max-width:600px;width:90%;max-height:80vh;overflow:auto}
+.mod-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--s4)}
+.mod-h h4{margin:0}
+.mod-b{padding:20px}
+.mod-f{display:flex;justify-content:flex-end;gap:8px;padding:16px 20px;border-top:1px solid var(--s4)}
+
+.drw{position:fixed;top:0;right:0;width:400px;max-width:90vw;height:100%;background:var(--s2);border-left:1px solid var(--s4);z-index:1001;display:flex;flex-direction:column}
+.drw-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--s4)}
+.drw-b{flex:1;overflow:auto;padding:20px}
+.drw-f{padding:16px 20px;border-top:1px solid var(--s4)}
+
+.tbar{display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--s1);border-bottom:1px solid var(--s4);position:sticky;top:0;z-index:100}
+.tbar-l{font-family:var(--fd);font-weight:700;font-size:18px;color:var(--em)}
+.tbar-n{display:flex;gap:4px}
+.tbar-n a{padding:6px 12px;border-radius:6px;color:var(--txtm);text-decoration:none;font-size:13px;transition:all 0.2s}
+.tbar-n a:hover,.tbar-n a.on{background:var(--s3);color:var(--txt)}
+.snav{width:260px;background:var(--s1);border-right:1px solid var(--s4);height:100vh;position:sticky;top:0;align-self:flex-start;flex:0 0 260px;overflow-y:auto;z-index:40}
+.snav-h{padding:16px 20px;border-bottom:1px solid var(--s4);display:flex;align-items:center;gap:12px}
+.snav-l{display:flex;align-items:center;gap:10px;font-family:var(--fd);font-weight:700;font-size:16px}
+.snav-li{width:32px;height:32px;background:var(--em);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+.snav-i{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--txtm);text-decoration:none;font-size:13px;transition:all 0.2s;border-left:3px solid transparent}
+.snav-i:hover{background:var(--s2);color:var(--txt)}
+.snav-i.on{border-left-color:var(--em);background:var(--s2);color:var(--txt)}
+
+.av{width:36px;height:36px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--cy);border:2px solid var(--s4)}
+.av-sm{width:28px;height:28px;font-size:12px}
+.av-lg{width:48px;height:48px;font-size:16px}
+.av-g{border-radius:8px}
+
+.pb{height:6px;background:var(--s3);border-radius:3px;overflow:hidden}
+.pb-b{height:100%;background:var(--em);border-radius:3px;transition:width 0.5s ease}
+.pb-g .pb-b{background:var(--gr)}
+.pb-c .pb-b{background:var(--cy)}
+.pf{display:flex;align-items:center;gap:12px;margin:8px 0}
+.pf-l{font-size:12px;color:var(--txtd);min-width:80px}
+.pf-b{flex:1}
+.pf-v{font-size:12px;color:var(--txtm);min-width:40px;text-align:right}
+
+.chat{display:flex;flex-direction:column;gap:16px;max-height:500px;overflow-y:auto;padding:16px;background:var(--bg);border-radius:8px}
+.chat-m{display:flex;gap:12px;align-items:flex-start}
+.chat-m.own{flex-direction:row-reverse}
+.chat-b{padding:10px 14px;border-radius:12px;max-width:70%;font-size:13px}
+.chat-m:not(.own) .chat-b{background:var(--s2);border:1px solid var(--s4);color:var(--txtm)}
+.chat-m.own .chat-b{background:var(--em);color:#fff}
+.chat-t{font-size:11px;color:var(--txtd);margin-top:4px}
+
+.tl{position:relative;padding-left:24px}
+.tl::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--s4)}
+.tl-i{position:relative;margin-bottom:20px}
+.tl-d{position:absolute;left:-24px;top:4px;width:16px;height:16px;border-radius:50%;background:var(--s3);border:2px solid var(--cy);z-index:1}
+.tl-c{font-size:12px;font-weight:600;color:var(--txt);margin-bottom:4px}
+.tl-t{font-size:11px;color:var(--txtd);margin-bottom:4px}
+.tl-x{font-size:13px;color:var(--txtm)}
+
+.kb{display:flex;gap:16px;overflow-x:auto;padding-bottom:8px}
+.kc{min-width:280px;background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:16px}
+.kc-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.kc-t{font-size:13px;font-weight:600}
+.kc-n{font-size:11px;background:var(--s3);padding:2px 8px;border-radius:4px;color:var(--txtd)}
+.kcd{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:12px;margin-bottom:8px;cursor:grab;transition:all 0.2s}
+.kcd:hover{border-color:var(--cy)}
+.kcd-h{font-size:13px;font-weight:500;margin-bottom:4px}
+.kcd-t{font-size:11px;color:var(--txtd);margin-bottom:8px}
+.kcd-b{display:flex;gap:6px;flex-wrap:wrap}
+
+.mc{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:20px;transition:all 0.2s}
+.mc:hover{border-color:var(--cy)}
+.mc-v{font-size:28px;font-weight:700;font-family:var(--fd);color:var(--txt);margin-bottom:4px}
+.mc-l{font-size:12px;color:var(--txtd);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+.mc-d{display:flex;align-items:center;gap:6px;font-size:13px}
+.mc-d.up{color:var(--gr)}.mc-d.down{color:var(--rd)}
+.mv{display:flex;align-items:center;gap:12px;padding:16px;background:var(--s2);border:1px solid var(--s4);border-radius:10px}
+.mv-i{width:40px;height:40px;border-radius:10px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:20px}
+.mv-c{flex:1}
+.mv-v{font-size:18px;font-weight:700;font-family:var(--fd)}
+.mv-l{font-size:12px;color:var(--txtd)}
+
+.stp{display:flex;align-items:center;gap:8px;margin:24px 0}
+.st{display:flex;align-items:center;gap:8px}
+.stc{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;background:var(--s3);border:2px solid var(--s4);color:var(--txtd)}
+.stc.on{background:var(--em);border-color:var(--em);color:#fff}
+.stc.done{background:var(--gr);border-color:var(--gr);color:#fff}
+.stl{flex:1;height:2px;background:var(--s4);min-width:40px}
+.stl.on{background:var(--em)}
+.stt{font-size:12px;color:var(--txtd);margin-top:4px;white-space:nowrap}
+
+.pg{display:flex;gap:4px;justify-content:center;align-items:center}
+.pg-b{padding:6px 12px;border:1px solid var(--s4);background:var(--s2);color:var(--txtm);border-radius:6px;cursor:pointer;font-size:13px;transition:all 0.2s}
+.pg-b:hover{border-color:var(--cy);color:var(--txt)}
+.pg-b.on{background:var(--em);border-color:var(--em);color:#fff}
+.pg-b:disabled{opacity:0.4;cursor:not-allowed}
+
+.fb{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:16px;background:var(--s2);border:1px solid var(--s4);border-radius:10px;margin-bottom:16px}
+.ft{flex:1;min-width:200px;position:relative}
+.ft-i{width:100%;padding:10px 14px 10px 36px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;color:var(--txt);font-size:13px}
+.ft-i:focus{outline:none;border-color:var(--cy)}
+.ft::before{content:'';width:13px;height:13px;position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:0.6;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") center/contain no-repeat}
+
+.tt-c{position:fixed;bottom:24px;right:24px;z-index:1002;display:flex;flex-direction:column;gap:8px}
+.tt{background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);min-width:300px;animation:slideIn 0.3s ease}
+.tt-g{border-left:3px solid var(--gr)}.tt-r{border-left:3px solid var(--rd)}.tt-y{border-left:3px solid var(--yl)}
+.tt-h{font-weight:600;font-size:13px}.tt-b{font-size:12px;color:var(--txtd)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+.cp-o{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1003;display:flex;align-items:start;justify-content:center;padding-top:120px;backdrop-filter:blur(4px)}
+.cp{background:var(--s2);border:1px solid var(--s4);border-radius:12px;width:600px;max-width:90%;overflow:hidden}
+.cp-i{padding:16px 20px;border-bottom:1px solid var(--s4);display:flex;align-items:center;gap:12px}
+.cp-i input{flex:1;background:none;border:none;color:var(--txt);font-size:16px;outline:none}
+.cp-i input::placeholder{color:var(--txtd)}
+.cp-l{max-height:400px;overflow-y:auto}
+.cp-r{padding:10px 20px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.15s}
+.cp-r:hover{background:var(--s3)}
+.cp-r.on{background:var(--s3);border-left:2px solid var(--em)}
+.cp-ri{width:32px;height:32px;background:var(--s3);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.cp-rt{flex:1}
+.cp-rt h5{font-size:13px;font-weight:500;margin-bottom:2px}
+.cp-rt p{font-size:11px;color:var(--txtd)}
+.cp-rs{font-size:11px;color:var(--txtd);font-family:var(--fm)}
+
+.htmx-added{animation:fadeIn 0.3s ease}
+.htmx-swapping{animation:fadeOut 0.2s ease}
+.fade-me-in{animation:fadeIn 0.4s ease}
+.slide-me-in{animation:slideIn 0.4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+
+[x-cloak]{display:none !important}
+
+.page{display:flex;min-height:100vh}
+.page .main{flex:1 1 auto;padding:24px;min-width:0;margin-left:0;position:relative}
+@media(max-width:900px){.snav{position:fixed;top:0;left:0;height:100vh;transform:translateX(-100%);transition:transform .2s ease;box-shadow:0 12px 40px rgba(0,0,0,.55);z-index:1200}.page.snav-open .snav{transform:translateX(0)}.page .main{margin-left:0}.snav-burger{display:inline-flex}}
+
+.comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px}
+.comp-item{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:16px}
+.comp-item h4{font-size:13px;margin-bottom:12px;color:var(--txtd);text-transform:uppercase;letter-spacing:0.5px}
+.demo-code{background:var(--s3);border:1px solid var(--s4);border-radius:6px;padding:12px;margin-top:12px;font-family:var(--fm);font-size:11px;overflow-x:auto;color:var(--txtd)}
+
+.sw{display:flex;align-items:center;gap:10px;cursor:pointer}
+.sw-i{position:relative;width:44px;height:24px;background:var(--s4);border-radius:12px;transition:all 0.2s}
+.sw-i.on{background:var(--em)}
+.sw-i::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:all 0.2s}
+.sw-i.on::after{left:22px}
+.sw-l{font-size:13px;color:var(--txtm)}
+
+.ttp{position:relative;display:inline-block}
+.ttp-b{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);padding:6px 10px;background:var(--s2);border:1px solid var(--s4);border-radius:6px;font-size:11px;white-space:nowrap;opacity:0;visibility:hidden;transition:all 0.2s;margin-bottom:6px;z-index:50}
+.ttp:hover .ttp-b{opacity:1;visibility:visible}
+
+.fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--em);color:#fff;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 16px rgba(255,106,61,0.4);z-index:100;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+.fab:hover{transform:scale(1.1)}
+
+.mn{position:relative;display:inline-block}
+.mn-c{position:absolute;top:100%;left:0;min-width:200px;background:var(--s2);border:1px solid var(--s4);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:50;overflow:hidden;margin-top:4px}
+.mn-i{padding:10px 14px;font-size:13px;color:var(--txtm);cursor:pointer;transition:all 0.15s;border-bottom:1px solid var(--s4)}
+.mn-i:last-child{border-bottom:none}
+.mn-i:hover{background:var(--s3);color:var(--txt)}
+.mn-i-k{font-size:11px;color:var(--txtd);float:right;font-family:var(--fm)}
+
+.ctx-mn{background:var(--s2);border:1px solid var(--s4);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.4);overflow:hidden;min-width:180px}
+.ctx-i{padding:8px 14px;font-size:13px;color:var(--txtm);cursor:pointer;border-bottom:1px solid var(--s4);display:flex;align-items:center;gap:8px;transition:all 0.15s}
+.ctx-i:last-child{border-bottom:none}
+.ctx-i:hover{background:var(--s3);color:var(--txt)}
+.ctx-i-rd{color:var(--rd)}
+
+.sb{display:inline-flex;align-items:center}
+.sb-m{padding:8px 16px;border-radius:8px 0 0 8px;background:var(--em);color:#fff;border:none;font-size:13px;font-weight:500;cursor:pointer}
+.sb-d{padding:8px 10px;border-radius:0 8px 8px 0;background:var(--emd);color:#fff;border:none;font-size:13px;cursor:pointer;border-left:1px solid rgba(0,0,0,0.2)}
+
+.rng{width:100%;-webkit-appearance:none;appearance:none;height:6px;background:var(--s4);border-radius:3px;outline:none}
+.rng::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--cy);cursor:pointer;border:2px solid var(--s2);box-shadow:0 2px 6px rgba(0,0,0,0.3)}
+
+.tgi{display:flex;flex-wrap:wrap;gap:6px;padding:6px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;align-items:center}
+.tgi-t{display:flex;align-items:center;gap:4px;padding:4px 8px;background:var(--s3);border:1px solid var(--s4);border-radius:4px;font-size:12px;color:var(--txtm)}
+.tgi-t button{background:none;border:none;color:var(--txtd);cursor:pointer;font-size:14px;padding:0 2px}
+.tgi-t button:hover{color:var(--rd)}
+
+.csw{width:32px;height:32px;border-radius:6px;border:2px solid var(--s4);cursor:pointer;transition:all 0.2s}
+.csw:hover{border-color:var(--cy);transform:scale(1.1)}
+.csw.on{border-color:var(--em);box-shadow:0 0 0 2px rgba(255,106,61,0.3)}
+
+.ag-sug{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.ag-sug-b{padding:6px 12px;background:var(--s3);border:1px solid var(--s4);border-radius:16px;font-size:12px;color:var(--txtm);cursor:pointer;transition:all 0.2s}
+.ag-sug-b:hover{border-color:var(--cy);color:var(--txt)}
+.ag-sug-b.on{background:rgba(52,207,230,0.15);border-color:var(--cy);color:var(--cy)}
+
+.ag-conf{padding:16px;background:var(--s2);border:1px solid var(--s4);border-radius:10px;margin:8px 0}
+.ag-conf-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:8px}
+.ag-conf-b{font-size:12px;color:var(--txtd)}
+
+.ag-res{border:1px solid var(--s4);border-radius:8px;overflow:hidden;margin:8px 0}
+.ag-res-h{padding:10px 14px;background:var(--s3);font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--s4)}
+.ag-res-b{padding:14px;background:var(--bg);font-size:13px;color:var(--txtm);font-family:var(--fm);white-space:pre-wrap}
+
+.ag-typing{display:flex;align-items:center;gap:8px;padding:8px 14px;color:var(--txtd);font-size:13px;font-style:italic}
+.ag-typing span{animation:blink 1.4s infinite both}
+.ag-typing span:nth-child(2){animation-delay:0.2s}
+.ag-typing span:nth-child(3){animation-delay:0.4s}
+@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
+
+.ag-act{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;font-size:12px;color:var(--txtd);margin:4px 0}
+.ag-act-i{font-size:14px;animation:spin 1s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+.ag-snd{background:var(--s2);border:1px solid var(--s4);border-radius:8px;padding:8px;font-size:12px;color:var(--txtd);margin:8px 0}
+.ag-snd-h{font-weight:600;margin-bottom:4px;color:var(--txtm)}
+
+.ag-rat{display:flex;gap:8px;align-items:center;margin:8px 0}
+.ag-rat-b{padding:4px 10px;background:var(--s3);border:1px solid var(--s4);border-radius:4px;font-size:12px;cursor:pointer;transition:all 0.2s}
+.ag-rat-b:hover{border-color:var(--cy)}
+.ag-rat-b.on{background:var(--em);border-color:var(--em);color:#fff}
+
+.ag-st{padding:12px;background:var(--s3);border:1px solid var(--s4);border-radius:8px;margin:8px 0}
+.ag-st-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;margin-bottom:8px}
+.ag-st-b{display:flex;flex-direction:column;gap:6px}
+.ag-st-r{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.ag-st-r-l{color:var(--txtd)}
+.ag-st-r-v{color:var(--txtm);font-family:var(--fm)}
+
+.ag-poll{border:1px solid var(--s4);border-radius:8px;overflow:hidden;margin:8px 0}
+.ag-poll-h{padding:10px 14px;background:var(--s3);font-size:13px;font-weight:500;border-bottom:1px solid var(--s4)}
+.ag-poll-o{padding:8px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:all 0.15s;border-bottom:1px solid var(--s4)}
+.ag-poll-o:last-child{border-bottom:none}
+.ag-poll-o:hover{background:var(--s3)}
+.ag-poll-o-bar{flex:1;height:6px;background:var(--s4);border-radius:3px;overflow:hidden}
+.ag-poll-o-bar-f{height:100%;background:var(--em);border-radius:3px}
+.ag-poll-o-v{font-size:12px;color:var(--txtd);min-width:40px;text-align:right}
+
+.ag-snd-m{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0}
+.ag-snd-mi{flex:1;min-width:120px;padding:8px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;text-align:center;cursor:pointer;transition:all 0.2s;font-size:12px}
+.ag-snd-mi:hover{border-color:var(--cy)}
+.ag-snd-mi img{max-width:100%;border-radius:4px;margin-bottom:4px}
+
+/* Matrix specific */
+.mx-msg{background:var(--s2);border:1px solid var(--s4);border-radius:8px;padding:12px;margin-bottom:8px;transition:all 0.2s}
+.mx-msg:hover{border-color:var(--cy)}
+.mx-msg-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.mx-msg-n{font-weight:600;font-size:13px;color:var(--cy)}
+.mx-msg-t{font-size:11px;color:var(--txtd)}
+.mx-msg-b{font-size:13px;color:var(--txtm)}
+.mx-msg-r{display:inline-block;padding:2px 6px;border-radius:4px;font-size:11px;background:rgba(79,209,139,0.15);color:var(--gr);margin-left:6px}
+
+/* Video specific */
+.vp{aspect-ratio:16/9;background:var(--s3);border-radius:12px;position:relative;overflow:hidden;border:1px solid var(--s4);display:flex;align-items:center;justify-content:center}
+.vp-b{position:absolute;bottom:0;left:0;right:0;padding:16px;background:linear-gradient(transparent,rgba(0,0,0,0.8));display:flex;align-items:center;gap:12px}
+.vp-ct{color:#fff;font-size:13px;font-family:var(--fm)}
+.vp-btn{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;opacity:0.8;transition:opacity 0.2s}
+.vp-btn:hover{opacity:1}
+.vp-bar{flex:1;height:4px;background:rgba(255,255,255,0.3);border-radius:2px;cursor:pointer}
+.vp-bar-f{height:100%;background:var(--em);border-radius:2px;width:35%}
+
+/* Image gallery */
+.ig{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.ig-i{aspect-ratio:1;background:var(--s3);border:1px solid var(--s4);border-radius:8px;overflow:hidden;cursor:pointer;transition:all 0.2s;position:relative}
+.ig-i:hover{border-color:var(--cy);transform:scale(1.02)}
+.ig-i-o{position:absolute;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s}
+.ig-i:hover .ig-i-o{opacity:1}
+.ig-i-b{display:flex;gap:8px}
+.ig-i-b button{background:none;border:none;color:#fff;font-size:16px;cursor:pointer}
+
+/* Image editor toolbar */
+.ie-t{display:flex;gap:8px;padding:10px;background:var(--s2);border:1px solid var(--s4);border-radius:8px;margin-bottom:12px;flex-wrap:wrap}
+.ie-t-b{padding:6px 12px;background:var(--s3);border:1px solid var(--s4);border-radius:6px;font-size:12px;color:var(--txtm);cursor:pointer;transition:all 0.2s}
+.ie-t-b:hover{border-color:var(--cy);color:var(--txt)}
+.ie-t-b.on{background:rgba(52,207,230,0.15);border-color:var(--cy);color:var(--cy)}
+.ie-c{aspect-ratio:16/9;background:var(--s3);border:1px solid var(--s4);border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+
+/* Video editor timeline */
+.ve-tl{display:flex;align-items:center;gap:8px;padding:12px;background:var(--s2);border:1px solid var(--s4);border-radius:8px;margin-top:12px}
+.ve-tl-t{display:flex;gap:2px;flex:1;align-items:end;height:40px}
+.ve-tl-s{width:8px;background:var(--cy);border-radius:2px;opacity:0.6}
+.ve-tl-c{position:absolute;width:2px;height:56px;background:var(--em);top:-8px}
+.ve-tl-w{position:relative;flex:1}
+
+/* Form validation states */
+.fg.ok .inp{border-color:var(--gr)}
+.fg.err .inp{border-color:var(--rd);box-shadow:0 0 0 3px rgba(240,93,93,0.1)}
+.fg-msg{font-size:11px;margin-top:4px}
+.fg-msg.ok{color:var(--gr)}
+.fg-msg.err{color:var(--rd)}
+
+/* Admin shell */
+.adm{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.adm-s{background:var(--s1);border-right:1px solid var(--s4);padding:16px}
+.adm-m{padding:24px;min-width:0}
+.adm-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.adm-h h2{margin:0}
+.adm-c{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+
+/* Chat interface */
+.cht{display:grid;grid-template-columns:280px 1fr;min-height:100vh;border:1px solid var(--s4);border-radius:12px;overflow:hidden}
+.cht-s{background:var(--s1);border-right:1px solid var(--s4);padding:16px}
+.cht-m{display:flex;flex-direction:column;min-height:0}
+.cht-h{padding:12px 16px;border-bottom:1px solid var(--s4);display:flex;align-items:center;justify-content:space-between}
+.cht-b{flex:1;overflow-y:auto;padding:16px;min-height:0}
+.cht-f{padding:12px 16px;border-top:1px solid var(--s4);display:flex;gap:8px;align-items:center}
+.cht-fi{flex:1}
+.cht-fi input{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;color:var(--txt);font-size:13px}
+.cht-fi input:focus{outline:none;border-color:var(--cy)}
+
+/* List with actions */
+.lst{border:1px solid var(--s4);border-radius:8px;overflow:hidden}
+.lst-i{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--s4);transition:all 0.15s}
+.lst-i:last-child{border-bottom:none}
+.lst-i:hover{background:var(--s3)}
+.lst-i-c{flex:1}
+.lst-i-t{font-size:13px;font-weight:500;color:var(--txt)}
+.lst-i-d{font-size:11px;color:var(--txtd);margin-top:2px}
+.lst-i-a{display:flex;gap:4px;opacity:0;transition:opacity 0.2s}
+.lst-i:hover .lst-i-a{opacity:1}
+
+/* Tabbed interface with content */
+.tbc{background:var(--bg);border:1px solid var(--s4);border-radius:8px;padding:20px;min-height:200px}
+
+/* Wizard form */
+.wz-f{padding:20px;background:var(--bg);border:1px solid var(--s4);border-radius:8px;min-height:300px}
+
+/* ===== A2UI shadcn/base-ui shell + lucide icons (a2ui-fix) ===== */
+.page{display:flex;align-items:flex-start}
+[x-cloak]{display:none!important}
+.ic{display:inline-block;width:1em;height:1em;vertical-align:-0.125em;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.snav-i .ic{width:16px;height:16px}
+.snav-l .ic{width:18px;height:18px}
+.sec-h .icon .ic,.icon>.ic{width:22px;height:22px}
+.btn .ic{width:15px;height:15px}
+h1 .ic,h2 .ic,h3 .ic,h4 .ic,h5 .ic{width:1em;height:1em}
+.demo,.comp-item,.sec,.card,.hero{position:relative}
+.snav-burger{display:none;position:fixed;top:14px;left:14px;z-index:1300;width:40px;height:40px;border:1px solid var(--s4);background:var(--s2);color:var(--txt);border-radius:10px;align-items:center;justify-content:center;cursor:pointer}
+.snav-burger .ic{width:18px;height:18px}
+/* a2ui-fix v1 burger-cascade-patch */
+@media(max-width:900px){.snav-burger{display:inline-flex!important}}
+</style>
+</head>
+<body><!--a2ui-fix v1--><svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><symbol id="ic-align-justify" viewBox="0 0 24 24"><path d="M3 5h18" />
+  <path d="M3 12h18" />
+  <path d="M3 19h18" /></symbol><symbol id="ic-arrow-big-up" viewBox="0 0 24 24"><path d="M9 19a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-6a1 1 0 0 1 1-1h3.293a.707.707 0 0 0 .5-1.207l-7.086-7.086a1 1 0 0 0-1.414 0l-7.086 7.086a.707.707 0 0 0 .5 1.207H8a1 1 0 0 1 1 1z" /></symbol><symbol id="ic-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14" />
+  <path d="m19 12-7 7-7-7" /></symbol><symbol id="ic-arrow-down-right" viewBox="0 0 24 24"><path d="m7 7 10 10" />
+  <path d="M17 7v10H7" /></symbol><symbol id="ic-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7" />
+  <path d="M19 12H5" /></symbol><symbol id="ic-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14" />
+  <path d="m12 5 7 7-7 7" /></symbol><symbol id="ic-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7" />
+  <path d="M12 19V5" /></symbol><symbol id="ic-arrow-up-right" viewBox="0 0 24 24"><path d="M7 7h10v10" />
+  <path d="M7 17 17 7" /></symbol><symbol id="ic-bar-chart-3" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16" />
+  <path d="M18 17V9" />
+  <path d="M13 17V5" />
+  <path d="M8 17v-3" /></symbol><symbol id="ic-battery" viewBox="0 0 24 24"><path d="M 22 14 L 22 10" />
+  <rect x="2" y="6" width="16" height="12" rx="2" /></symbol><symbol id="ic-bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0" />
+  <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></symbol><symbol id="ic-bot" viewBox="0 0 24 24"><path d="M12 8V4H8" />
+  <rect width="16" height="12" x="4" y="8" rx="2" />
+  <path d="M2 14h2" />
+  <path d="M20 14h2" />
+  <path d="M15 13v2" />
+  <path d="M9 13v2" /></symbol><symbol id="ic-building-2" viewBox="0 0 24 24"><path d="M10 12h4" />
+  <path d="M10 8h4" />
+  <path d="M14 21v-3a2 2 0 0 0-4 0v3" />
+  <path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2" />
+  <path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" /></symbol><symbol id="ic-calendar" viewBox="0 0 24 24"><path d="M8 2v4" />
+  <path d="M16 2v4" />
+  <rect width="18" height="18" x="3" y="4" rx="2" />
+  <path d="M3 10h18" /></symbol><symbol id="ic-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol><symbol id="ic-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol><symbol id="ic-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol><symbol id="ic-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol><symbol id="ic-chevron-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6" /></symbol><symbol id="ic-chevrons-up-down" viewBox="0 0 24 24"><path d="m7 15 5 5 5-5" />
+  <path d="m7 9 5-5 5 5" /></symbol><symbol id="ic-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" />
+  <path d="m9 12 2 2 4-4" /></symbol><symbol id="ic-circle-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" />
+  <circle cx="12" cy="12" r="1" /></symbol><symbol id="ic-clapperboard" viewBox="0 0 24 24"><path d="m12.296 3.464 3.02 3.956" />
+  <path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3z" />
+  <path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+  <path d="m6.18 5.276 3.1 3.899" /></symbol><symbol id="ic-clipboard-list" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+  <path d="M12 11h4" />
+  <path d="M12 16h4" />
+  <path d="M8 11h.01" />
+  <path d="M8 16h.01" /></symbol><symbol id="ic-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" />
+  <path d="M12 6v6l4 2" /></symbol><symbol id="ic-command" viewBox="0 0 24 24"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" /></symbol><symbol id="ic-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" />
+  <path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z" /></symbol><symbol id="ic-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3" />
+  <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+  <path d="M3 12A9 3 0 0 0 21 12" /></symbol><symbol id="ic-delete" viewBox="0 0 24 24"><path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z" />
+  <path d="m12 9 6 6" />
+  <path d="m18 9-6 6" /></symbol><symbol id="ic-dices" viewBox="0 0 24 24"><rect width="12" height="12" x="2" y="10" rx="2" ry="2" />
+  <path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6" />
+  <path d="M6 18h.01" />
+  <path d="M10 14h.01" />
+  <path d="M15 6h.01" />
+  <path d="M18 9h.01" /></symbol><symbol id="ic-dollar-sign" viewBox="0 0 24 24"><line x1="12" x2="12" y1="2" y2="22" />
+  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></symbol><symbol id="ic-download" viewBox="0 0 24 24"><path d="M12 15V3" />
+  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+  <path d="m7 10 5 5 5-5" /></symbol><symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+  <circle cx="12" cy="12" r="3" /></symbol><symbol id="ic-eye-off" viewBox="0 0 24 24"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+  <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+  <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
+  <path d="m2 2 20 20" /></symbol><symbol id="ic-factory" viewBox="0 0 24 24"><path d="M12 16h.01" />
+  <path d="M16 16h.01" />
+  <path d="M3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5a.5.5 0 0 0-.769-.422l-4.462 2.844A.5.5 0 0 1 15 10.5v-2a.5.5 0 0 0-.769-.422L9.77 10.922A.5.5 0 0 1 9 10.5V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2z" />
+  <path d="M8 16h.01" /></symbol><symbol id="ic-file-text" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+  <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+  <path d="M10 9H8" />
+  <path d="M16 13H8" />
+  <path d="M16 17H8" /></symbol><symbol id="ic-film" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" />
+  <path d="M7 3v18" />
+  <path d="M3 7.5h4" />
+  <path d="M3 12h18" />
+  <path d="M3 16.5h4" />
+  <path d="M17 3v18" />
+  <path d="M17 7.5h4" />
+  <path d="M17 16.5h4" /></symbol><symbol id="ic-filter" viewBox="0 0 24 24"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z" /></symbol><symbol id="ic-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></symbol><symbol id="ic-folder-open" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></symbol><symbol id="ic-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" />
+  <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+  <path d="M2 12h20" /></symbol><symbol id="ic-grip-vertical" viewBox="0 0 24 24"><circle cx="9" cy="12" r="1" />
+  <circle cx="9" cy="5" r="1" />
+  <circle cx="9" cy="19" r="1" />
+  <circle cx="15" cy="12" r="1" />
+  <circle cx="15" cy="5" r="1" />
+  <circle cx="15" cy="19" r="1" /></symbol><symbol id="ic-handshake" viewBox="0 0 24 24"><path d="m11 17 2 2a1 1 0 1 0 3-3" />
+  <path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4" />
+  <path d="m21 3 1 11h-2" />
+  <path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3" />
+  <path d="M3 4h8" /></symbol><symbol id="ic-hash" viewBox="0 0 24 24"><line x1="4" x2="20" y1="9" y2="9" />
+  <line x1="4" x2="20" y1="15" y2="15" />
+  <line x1="10" x2="8" y1="3" y2="21" />
+  <line x1="16" x2="14" y1="3" y2="21" /></symbol><symbol id="ic-hourglass" viewBox="0 0 24 24"><path d="M5 22h14" />
+  <path d="M5 2h14" />
+  <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
+  <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" /></symbol><symbol id="ic-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+  <circle cx="9" cy="9" r="2" />
+  <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></symbol><symbol id="ic-laptop" viewBox="0 0 24 24"><path d="M18 5a2 2 0 0 1 2 2v8.526a2 2 0 0 0 .212.897l1.068 2.127a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45l1.068-2.127A2 2 0 0 0 4 15.526V7a2 2 0 0 1 2-2z" />
+  <path d="M20.054 15.987H3.946" /></symbol><symbol id="ic-library" viewBox="0 0 24 24"><path d="m16 6 4 14" />
+  <path d="M12 6v14" />
+  <path d="M8 8v12" />
+  <path d="M4 4v16" /></symbol><symbol id="ic-lightbulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+  <path d="M9 18h6" />
+  <path d="M10 22h4" /></symbol><symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></symbol><symbol id="ic-list-tree" viewBox="0 0 24 24"><path d="M8 5h13" />
+  <path d="M13 12h8" />
+  <path d="M13 19h8" />
+  <path d="M3 10a2 2 0 0 0 2 2h3" />
+  <path d="M3 5v12a2 2 0 0 0 2 2h3" /></symbol><symbol id="ic-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+  <path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol><symbol id="ic-lock-keyhole" viewBox="0 0 24 24"><circle cx="12" cy="16" r="1" />
+  <rect x="3" y="10" width="18" height="12" rx="2" />
+  <path d="M7 10V7a5 5 0 0 1 10 0v3" /></symbol><symbol id="ic-mail" viewBox="0 0 24 24"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7" />
+  <rect x="2" y="4" width="20" height="16" rx="2" /></symbol><symbol id="ic-map" viewBox="0 0 24 24"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" />
+  <path d="M15 5.764v15" />
+  <path d="M9 3.236v15" /></symbol><symbol id="ic-maximize" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3" />
+  <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+  <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+  <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></symbol><symbol id="ic-menu" viewBox="0 0 24 24"><path d="M4 5h16" />
+  <path d="M4 12h16" />
+  <path d="M4 19h16" /></symbol><symbol id="ic-message-square" viewBox="0 0 24 24"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" /></symbol><symbol id="ic-minus" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol><symbol id="ic-monitor" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2" />
+  <line x1="8" x2="16" y1="21" y2="21" />
+  <line x1="12" x2="12" y1="17" y2="21" /></symbol><symbol id="ic-more-horizontal" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" />
+  <circle cx="19" cy="12" r="1" />
+  <circle cx="5" cy="12" r="1" /></symbol><symbol id="ic-more-vertical" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" />
+  <circle cx="12" cy="5" r="1" />
+  <circle cx="12" cy="19" r="1" /></symbol><symbol id="ic-mouse-pointer-2" viewBox="0 0 24 24"><path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z" /></symbol><symbol id="ic-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13" />
+  <circle cx="6" cy="18" r="3" />
+  <circle cx="18" cy="16" r="3" /></symbol><symbol id="ic-package" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" />
+  <path d="M12 22V12" />
+  <polyline points="3.29 7 12 12 20.71 7" />
+  <path d="m7.5 4.27 9 5.15" /></symbol><symbol id="ic-palette" viewBox="0 0 24 24"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" />
+  <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+  <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+  <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+  <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" /></symbol><symbol id="ic-panel-left" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" />
+  <path d="M9 3v18" /></symbol><symbol id="ic-paperclip" viewBox="0 0 24 24"><path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551" /></symbol><symbol id="ic-party-popper" viewBox="0 0 24 24"><path d="M5.8 11.3 2 22l10.7-3.79" />
+  <path d="M4 3h.01" />
+  <path d="M22 8h.01" />
+  <path d="M15 2h.01" />
+  <path d="M22 20h.01" />
+  <path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10" />
+  <path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17" />
+  <path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7" />
+  <path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z" /></symbol><symbol id="ic-pause" viewBox="0 0 24 24"><rect x="14" y="3" width="5" height="18" rx="1" />
+  <rect x="5" y="3" width="5" height="18" rx="1" /></symbol><symbol id="ic-pen-line" viewBox="0 0 24 24"><path d="M13 21h8" />
+  <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /></symbol><symbol id="ic-phone" viewBox="0 0 24 24"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" /></symbol><symbol id="ic-pill" viewBox="0 0 24 24"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+  <path d="m8.5 8.5 7 7" /></symbol><symbol id="ic-plug" viewBox="0 0 24 24"><path d="M12 22v-5" />
+  <path d="M15 8V2" />
+  <path d="M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z" />
+  <path d="M9 8V2" /></symbol><symbol id="ic-plus" viewBox="0 0 24 24"><path d="M5 12h14" />
+  <path d="M12 5v14" /></symbol><symbol id="ic-puzzle" viewBox="0 0 24 24"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z" /></symbol><symbol id="ic-refresh-cw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+  <path d="M21 3v5h-5" />
+  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+  <path d="M8 16H3v5" /></symbol><symbol id="ic-satellite-dish" viewBox="0 0 24 24"><path d="M4 10a7.31 7.31 0 0 0 10 10Z" />
+  <path d="m9 15 3-3" />
+  <path d="M17 13a6 6 0 0 0-6-6" />
+  <path d="M21 13A10 10 0 0 0 11 3" /></symbol><symbol id="ic-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3" />
+  <path d="M8.12 8.12 12 12" />
+  <path d="M20 4 8.12 15.88" />
+  <circle cx="6" cy="18" r="3" />
+  <path d="M14.8 14.8 20 20" /></symbol><symbol id="ic-scroll-text" viewBox="0 0 24 24"><path d="M15 12h-5" />
+  <path d="M15 8h-5" />
+  <path d="M19 17V5a2 2 0 0 0-2-2H4" />
+  <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" /></symbol><symbol id="ic-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34" />
+  <circle cx="11" cy="11" r="8" /></symbol><symbol id="ic-settings" viewBox="0 0 24 24"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+  <circle cx="12" cy="12" r="3" /></symbol><symbol id="ic-shopping-bag" viewBox="0 0 24 24"><path d="M16 10a4 4 0 0 1-8 0" />
+  <path d="M3.103 6.034h17.794" />
+  <path d="M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z" /></symbol><symbol id="ic-shuffle" viewBox="0 0 24 24"><path d="m18 14 4 4-4 4" />
+  <path d="m18 2 4 4-4 4" />
+  <path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22" />
+  <path d="M2 6h1.972a4 4 0 0 1 3.6 2.2" />
+  <path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45" /></symbol><symbol id="ic-signal" viewBox="0 0 24 24"><path d="M2 20h.01" />
+  <path d="M7 20v-4" />
+  <path d="M12 20v-8" />
+  <path d="M17 20V8" />
+  <path d="M22 4v16" /></symbol><symbol id="ic-sliders-horizontal" viewBox="0 0 24 24"><path d="M10 5H3" />
+  <path d="M12 19H3" />
+  <path d="M14 3v4" />
+  <path d="M16 17v4" />
+  <path d="M21 12h-9" />
+  <path d="M21 19h-5" />
+  <path d="M21 5h-7" />
+  <path d="M8 10v4" />
+  <path d="M8 12H3" /></symbol><symbol id="ic-sliders-vertical" viewBox="0 0 24 24"><path d="M10 8h4" />
+  <path d="M12 21v-9" />
+  <path d="M12 8V3" />
+  <path d="M17 16h4" />
+  <path d="M19 12V3" />
+  <path d="M19 21v-5" />
+  <path d="M3 14h4" />
+  <path d="M5 10V3" />
+  <path d="M5 21v-7" /></symbol><symbol id="ic-smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+  <path d="M12 18h.01" /></symbol><symbol id="ic-square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /></symbol><symbol id="ic-square-check-big" viewBox="0 0 24 24"><path d="M21 10.656V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12.344" />
+  <path d="m9 11 3 3L22 4" /></symbol><symbol id="ic-square-pen" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+  <path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" /></symbol><symbol id="ic-star" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></symbol><symbol id="ic-stethoscope" viewBox="0 0 24 24"><path d="M11 2v2" />
+  <path d="M5 2v2" />
+  <path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1" />
+  <path d="M8 15a6 6 0 0 0 12 0v-3" />
+  <circle cx="20" cy="10" r="2" /></symbol><symbol id="ic-tag" viewBox="0 0 24 24"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
+  <circle cx="7.5" cy="7.5" r=".5" fill="currentColor" /></symbol><symbol id="ic-timer" viewBox="0 0 24 24"><line x1="10" x2="14" y1="2" y2="2" />
+  <line x1="12" x2="15" y1="14" y2="11" />
+  <circle cx="12" cy="14" r="8" /></symbol><symbol id="ic-trash-2" viewBox="0 0 24 24"><path d="M10 11v6" />
+  <path d="M14 11v6" />
+  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+  <path d="M3 6h18" />
+  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol><symbol id="ic-trending-up" viewBox="0 0 24 24"><path d="M16 7h6v6" />
+  <path d="m22 7-8.5 8.5-5-5L2 17" /></symbol><symbol id="ic-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+  <path d="M12 9v4" />
+  <path d="M12 17h.01" /></symbol><symbol id="ic-upload" viewBox="0 0 24 24"><path d="M12 3v12" />
+  <path d="m17 8-5-5-5 5" />
+  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /></symbol><symbol id="ic-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+  <circle cx="12" cy="7" r="4" /></symbol><symbol id="ic-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+  <path d="M16 3.128a4 4 0 0 1 0 7.744" />
+  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+  <circle cx="9" cy="7" r="4" /></symbol><symbol id="ic-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z" /></symbol><symbol id="ic-x" viewBox="0 0 24 24"><path d="M18 6 6 18" />
+  <path d="m6 6 12 12" /></symbol><symbol id="ic-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" /></symbol></svg><button class="snav-burger" aria-label="Toggle navigation" onclick="window.__a2uiToggle&&window.__a2uiToggle()"><svg class="ic" aria-hidden="true"><use href="#ic-align-justify"></use></svg></button>
+
+<!-- Hero Section -->
+<div class="hero">
+<div class="container">
+<div class="hero-b">Situational Examples</div>
+<h1>A2UI Component Combinations</h1>
+<p>Real-world examples of A2UI primitives combined into forms, lists, tabs, admin shells, chat interfaces, Matrix messaging, video streaming, and image editing.</p>
+<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:24px;">
+<a href="FLINT-A2UI-REGISTRY-SPEC.html" class="btn btn-ghost"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-left"></use></svg> Registry Spec</a>
+<a href="FLINT-A2UI-DOCS.html" class="btn btn-s">Document Mgmt <svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"></use></svg></a>
+<a href="FLINT-A2UI-CRM.html" class="btn btn-s">CRM <svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"></use></svg></a>
+<a href="FLINT-A2UI-ERP.html" class="btn btn-s">ERP <svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"></use></svg></a>
+<a href="FLINT-A2UI-EMR.html" class="btn btn-s">EMR <svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"></use></svg></a>
+</div>
+</div>
+</div>
+
+<!-- Page Layout -->
+<div class="page">
+<!-- Sidebar Navigation -->
+<nav class="snav">
+<div class="snav-h">
+<div class="snav-l"><div class="snav-li">F</div><span>A2UI Examples</span></div>
+</div>
+<div style="padding:12px 0;">
+<a href="#forms" class="snav-i on"><svg class="ic" aria-hidden="true"><use href="#ic-square-pen"></use></svg> Forms</a>
+<a href="#lists" class="snav-i"><svg class="ic" aria-hidden="true"><use href="#ic-align-justify"></use></svg> Lists</a>
+<a href="#tabs" class="snav-i"><svg class="ic" aria-hidden="true"><use href="#ic-panel-left"></use></svg> Tabs</a>
+<a href="#admin" class="snav-i"><svg class="ic" aria-hidden="true"><use href="#ic-monitor"></use></svg> Admin Shell</a>
+<a href="#chat" class="snav-i"><svg class="ic" aria-hidden="true"><use href="#ic-message-square"></use></svg> Chat</a>
+<a href="#matrix" class="snav-i"><svg class="ic" aria-hidden="true"><use href="#ic-globe"></use></svg> Matrix</a>
+<a href="#video" class="snav-i"><svg class="ic" aria-hidden="true"><use href="#ic-clapperboard"></use></svg> Video</a>
+<a href="#image" class="snav-i"><svg class="ic" aria-hidden="true"><use href="#ic-image"></use></svg> Image</a>
+</div>
+</nav>
+
+<!-- Main Content -->
+<main class="main">
+<div class="container">
+
+<!-- Forms Section -->
+<section id="forms" class="sec">
+<div class="sec-h"><div class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-square-pen"></use></svg></div><h3>Forms with Validation</h3><span class="tag">Combined</span></div>
+
+<div class="comp-grid">
+<div class="comp-item" style="grid-column:1/-1;">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-clipboard-list"></use></svg> User Registration Form</h4>
+<div class="demo">
+<div class="demo-label">Interactive Form</div>
+<div class="wz-f" x-data="{step:1,form:{name:'',email:'',password:'',role:'developer'},errors:{}}">
+<div class="stp">
+<div class="st"><div class="stc" :class="step>=1?'on':''">1</div><div class="stt">Account</div></div>
+<div class="stl" :class="step>=2?'on':''"></div>
+<div class="st"><div class="stc" :class="step>=2?'on':''">2</div><div class="stt">Profile</div></div>
+<div class="stl" :class="step>=3?'on':''"></div>
+<div class="st"><div class="stc" :class="step>=3?'on':''">3</div><div class="stt">Review</div></div>
+</div>
+
+<div x-show="step==1" x-transition>
+<div class="fg" :class="errors.name?'err':'ok'">
+<label class="lbl">Full Name</label>
+<input type="text" class="inp" x-model="form.name" placeholder="John Doe" hx-validate="required|min:2">
+<div class="fg-msg" :class="errors.name?'err':'ok'" x-text="errors.name||'✓ Valid'"></div>
+</div>
+<div class="fg" :class="errors.email?'err':'ok'">
+<label class="lbl">Email</label>
+<input type="email" class="inp" x-model="form.email" placeholder="john@example.com" hx-validate="required|email">
+<div class="fg-msg" :class="errors.email?'err':'ok'" x-text="errors.email||'✓ Valid'"></div>
+</div>
+<div class="fg">
+<label class="lbl">Password</label>
+<input type="password" class="inp" x-model="form.password" placeholder="Min 8 characters" hx-validate="required|min:8">
+<div style="margin-top:6px;height:4px;background:var(--s4);border-radius:2px;overflow:hidden;">
+<div style="height:100%;border-radius:2px;transition:all 0.3s;" :style="'width:'+(form.password.length*10)+'%;background:'+(form.password.length<8?'var(--rd)':form.password.length<12?'var(--yl)':'var(--gr)')"></div>
+</div>
+</div>
+<div style="display:flex;justify-content:flex-end;margin-top:16px;">
+<button class="btn btn-p" @click="step=2">Next <svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"></use></svg></button>
+</div>
+</div>
+
+<div x-show="step==2" x-transition style="display:none;">
+<div class="fg">
+<label class="lbl">Role</label>
+<select class="sel" x-model="form.role">
+<option value="developer">Developer</option>
+<option value="designer">Designer</option>
+<option value="product">Product Manager</option>
+<option value="admin">Admin</option>
+</select>
+</div>
+<div class="fg">
+<label class="lbl">Bio</label>
+<textarea class="tx" rows="3" placeholder="Tell us about yourself..."></textarea>
+</div>
+<div class="fg" x-data="{tags:['UI','A2UI'],newTag:''}">
+<label class="lbl">Skills</label>
+<div class="tgi">
+<template x-for="tag in tags" :key="tag">
+<div class="tgi-t"><span x-text="tag"></span><button @click="tags = tags.filter(t => t !== tag)">×</button></div>
+</template>
+<input type="text" class="inp" style="border:none;padding:4px 8px;flex:1;min-width:80px;" placeholder="Add skill..." x-model="newTag" @keydown.enter="if(newTag.trim()){tags.push(newTag.trim());newTag=''}">
+</div>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:16px;">
+<button class="btn btn-ghost" @click="step=1"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-left"></use></svg> Back</button>
+<button class="btn btn-p" @click="step=3">Next <svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"></use></svg></button>
+</div>
+</div>
+
+<div x-show="step==3" x-transition style="display:none;">
+<div style="background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:16px;">
+<h4 style="margin-bottom:12px;font-size:14px;">Review Your Information</h4>
+<div style="display:grid;grid-template-columns:120px 1fr;gap:8px;font-size:13px;color:var(--txtm);">
+<div style="color:var(--txtd);">Name:</div><div x-text="form.name||'—'"></div>
+<div style="color:var(--txtd);">Email:</div><div x-text="form.email||'—'"></div>
+<div style="color:var(--txtd);">Role:</div><div x-text="form.role"></div>
+</div>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:16px;">
+<button class="btn btn-ghost" @click="step=2"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-left"></use></svg> Back</button>
+<button class="btn btn-p" hx-post="/api/register" hx-vals="js:{form}" hx-target="#reg-result">Submit Registration</button>
+</div>
+<div id="reg-result" style="margin-top:12px;"></div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"form_wizard","steps":3,"fields":[{"name":"email","type":"email","validation":"required|email"},...],"hx_post":"/api/register"}</div>
+</div>
+</div>
+
+<div class="comp-grid">
+<div class="comp-item">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-lock-keyhole"></use></svg> Login Form</h4>
+<div class="demo">
+<div class="demo-label">Compact</div>
+<div class="fg">
+<label class="lbl">Email</label>
+<input type="email" class="inp" placeholder="user@example.com" hx-validate="required|email">
+</div>
+<div class="fg">
+<label class="lbl">Password</label>
+<input type="password" class="inp" placeholder="••••••••" hx-validate="required|min:8">
+</div>
+<div class="fg" style="display:flex;align-items:center;justify-content:space-between;">
+<label class="chk" style="margin:0;"><input type="checkbox"> Remember me</label>
+<a href="#" style="font-size:12px;color:var(--cy);text-decoration:none;">Forgot password?</a>
+</div>
+<button class="btn btn-p" style="width:100%;" hx-post="/api/login" hx-target="#login-result">Sign In</button>
+<div id="login-result" style="margin-top:8px;"></div>
+</div>
+<div class="demo-code">{"type":"login_form","fields":["email","password"],"remember_me":true,"hx_post":"/api/login"}</div>
+</div>
+
+<div class="comp-item">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-search"></use></svg> Filter & Search</h4>
+<div class="demo">
+<div class="demo-label">Search with Filters</div>
+<div class="fb">
+<div class="ft" style="flex:2;">
+<input type="text" class="ft-i" placeholder="Search users, projects, or components..." hx-get="/api/search" hx-trigger="keyup changed delay:300ms" hx-target="#filter-results" hx-indicator="#filter-indicator">
+</div>
+<select class="sel" style="width:150px;" hx-get="/api/filter" hx-target="#filter-results" hx-trigger="change">
+<option>All Status</option><option>Active</option><option>Pending</option><option>Archived</option>
+</select>
+<select class="sel" style="width:150px;" hx-get="/api/filter" hx-target="#filter-results" hx-trigger="change">
+<option>All Types</option><option>Component</option><option>Application</option><option>Design</option>
+</select>
+<button class="btn btn-s" hx-get="/api/reset" hx-target="#filter-results">Reset</button>
+</div>
+<div id="filter-indicator" class="htmx-indicator" style="font-size:11px;color:var(--cy);margin-bottom:8px;">Searching...</div>
+<div id="filter-results" style="border:1px solid var(--s4);border-radius:8px;overflow:hidden;">
+<div class="lst-i"><div class="lst-i-c"><div class="lst-i-t">User Profile Component</div><div class="lst-i-d">Layout • Active</div></div><span class="bd-g">Active</span></div>
+<div class="lst-i"><div class="lst-i-c"><div class="lst-i-t">Dashboard Application</div><div class="lst-i-d">Application • Active</div></div><span class="bd-g">Active</div>
+<div class="lst-i"><div class="lst-i-c"><div class="lst-i-t">Dark Theme System</div><div class="lst-i-d">Design • Active</div></div><span class="bd-g">Active</span></div>
+</div>
+</div>
+<div class="demo-code">{"type":"filter_search","fields":["query","status","type"],"hx_get":"/api/search","hx_trigger":"keyup changed delay:300ms"}</div>
+</div>
+</div>
+</section>
+
+<!-- Lists Section -->
+<section id="lists" class="sec">
+<div class="sec-h"><div class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-align-justify"></use></svg></div><h3>Lists with Actions</h3><span class="tag">Data Display</span></div>
+
+<div class="comp-grid">
+<div class="comp-item" style="grid-column:1/-1;">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-file-text"></use></svg> Interactive List</h4>
+<div class="demo">
+<div class="demo-label">List with Inline Actions</div>
+<div class="lst">
+<div class="lst-i">
+<div class="av" style="color:var(--cy);">AC</div>
+<div class="lst-i-c"><div class="lst-i-t">Alice Chen</div><div class="lst-i-d">alice@example.com • Admin</div></div>
+<span class="bd-g">Active</span>
+<div class="lst-i-a">
+<button class="btn btn-s btn-i btn-sm" title="Edit"><svg class="ic" aria-hidden="true"><use href="#ic-square-pen"></use></svg></button>
+<button class="btn btn-s btn-i btn-sm" title="Delete"><svg class="ic" aria-hidden="true"><use href="#ic-trash-2"></use></svg></button>
+</div>
+</div>
+<div class="lst-i">
+<div class="av" style="color:var(--gr);">BS</div>
+<div class="lst-i-c"><div class="lst-i-t">Bob Smith</div><div class="lst-i-d">bob@example.com • Editor</div></div>
+<span class="bd-y">Pending</span>
+<div class="lst-i-a">
+<button class="btn btn-s btn-i btn-sm" title="Edit"><svg class="ic" aria-hidden="true"><use href="#ic-square-pen"></use></svg></button>
+<button class="btn btn-s btn-i btn-sm" title="Delete"><svg class="ic" aria-hidden="true"><use href="#ic-trash-2"></use></svg></button>
+</div>
+</div>
+<div class="lst-i">
+<div class="av" style="color:var(--yl);">CW</div>
+<div class="lst-i-c"><div class="lst-i-t">Carol Wu</div><div class="lst-i-d">carol@example.com • Viewer</div></div>
+<span class="bd-r">Inactive</span>
+<div class="lst-i-a">
+<button class="btn btn-s btn-i btn-sm" title="Edit"><svg class="ic" aria-hidden="true"><use href="#ic-square-pen"></use></svg></button>
+<button class="btn btn-s btn-i btn-sm" title="Delete"><svg class="ic" aria-hidden="true"><use href="#ic-trash-2"></use></svg></button>
+</div>
+</div>
+<div class="lst-i">
+<div class="av" style="color:var(--rd);">DJ</div>
+<div class="lst-i-c"><div class="lst-i-t">David Johnson</div><div class="lst-i-d">david@example.com • Developer</div></div>
+<span class="bd-g">Active</span>
+<div class="lst-i-a">
+<button class="btn btn-s btn-i btn-sm" title="Edit"><svg class="ic" aria-hidden="true"><use href="#ic-square-pen"></use></svg></button>
+<button class="btn btn-s btn-i btn-sm" title="Delete"><svg class="ic" aria-hidden="true"><use href="#ic-trash-2"></use></svg></button>
+</div>
+</div>
+</div>
+<div class="pg" style="margin-top:12px;">
+<button class="pg-b" disabled>‹ Prev</button>
+<button class="pg-b on">1</button>
+<button class="pg-b">2</button>
+<button class="pg-b">3</button>
+<button class="pg-b">Next ›</button>
+</div>
+</div>
+<div class="demo-code">{"type":"interactive_list","items":[...],"actions":["edit","delete"],"pagination":true,"hx_get":"/api/users?page={page}"}</div>
+</div>
+</div>
+
+<div class="comp-grid">
+<div class="comp-item">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-bar-chart-3"></use></svg> Sortable Data Table</h4>
+<div class="demo">
+<div class="demo-label">Table with Sort</div>
+<table class="tbl">
+<thead><tr>
+<th style="cursor:pointer;">Name <svg class="ic" aria-hidden="true"><use href="#ic-chevrons-up-down"></use></svg></th>
+<th style="cursor:pointer;">Role <svg class="ic" aria-hidden="true"><use href="#ic-chevrons-up-down"></use></svg></th>
+<th style="cursor:pointer;">Status <svg class="ic" aria-hidden="true"><use href="#ic-chevrons-up-down"></use></svg></th>
+<th style="cursor:pointer;text-align:right;">Revenue <svg class="ic" aria-hidden="true"><use href="#ic-chevrons-up-down"></use></svg></th>
+</tr></thead>
+<tbody>
+<tr><td>Alice Chen</td><td>Admin</td><td><span class="bd-g">Active</span></td><td style="text-align:right;">$12,450</td></tr>
+<tr><td>Bob Smith</td><td>Editor</td><td><span class="bd-g">Active</span></td><td style="text-align:right;">$8,320</td></tr>
+<tr><td>Carol Wu</td><td>Viewer</td><td><span class="bd-y">Pending</span></td><td style="text-align:right;">$0</td></tr>
+<tr><td>David Johnson</td><td>Developer</td><td><span class="bd-g">Active</span></td><td style="text-align:right;">$23,100</td></tr>
+</tbody>
+</table>
+</div>
+<div class="demo-code">{"type":"data_table","columns":["Name","Role","Status","Revenue"],"sortable":true,"hx_get":"/api/data?sort={col}&order={dir}"}</div>
+</div>
+
+<div class="comp-item">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-folder"></use></svg> Kanban Board</h4>
+<div class="demo">
+<div class="demo-label">Drag & Drop Board</div>
+<div class="kb">
+<div class="kc">
+<div class="kc-h"><span class="kc-t">To Do</span><span class="kc-n">3</span></div>
+<div class="kcd"><div class="kcd-h">Design System</div><div class="kcd-t">Create color tokens</div><div class="kcd-b"><span class="bd-e">High</span><span class="bd-c">Design</span></div></div>
+<div class="kcd"><div class="kcd-h">API Integration</div><div class="kcd-t">Connect to CRM</div><div class="kcd-b"><span class="bd-g">Medium</span><span class="bd-c">Dev</span></div></div>
+<div class="kcd"><div class="kcd-h">User Testing</div><div class="kcd-t">Recruit participants</div><div class="kcd-b"><span class="bd-y">Low</span><span class="bd-c">Research</span></div></div>
+</div>
+<div class="kc">
+<div class="kc-h"><span class="kc-t">In Progress</span><span class="kc-n">2</span></div>
+<div class="kcd"><div class="kcd-h">Component Registry</div><div class="kcd-t">Build base primitives</div><div class="kcd-b"><span class="bd-e">High</span><span class="bd-c">Dev</span></div></div>
+<div class="kcd"><div class="kcd-h">Documentation</div><div class="kcd-t">Write API docs</div><div class="kcd-b"><span class="bd-g">Medium</span><span class="bd-c">Docs</span></div></div>
+</div>
+<div class="kc">
+<div class="kc-h"><span class="kc-t">Done</span><span class="kc-n">1</span></div>
+<div class="kcd"><div class="kcd-h">Project Setup</div><div class="kcd-t">Initialize repo</div><div class="kcd-b"><span class="bd-g">Done</span></div></div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"kanban","columns":["To Do","In Progress","Done"],"items":[...],"hx_post":"/api/kanban/move"}</div>
+</div>
+</div>
+</section>
+
+<!-- Tabs Section -->
+<section id="tabs" class="sec">
+<div class="sec-h"><div class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-panel-left"></use></svg></div><h3>Tabbed Interfaces</h3><span class="tag">Navigation</span></div>
+
+<div class="comp-grid">
+<div class="comp-item" style="grid-column:1/-1;">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-panel-left"></use></svg> Complex Tabbed Panel</h4>
+<div class="demo">
+<div class="demo-label">Tabs with Content</div>
+<div x-data="{tab:'overview'}">
+<div class="tbs">
+<button class="tb" :class="tab=='overview'?'on':''" @click="tab='overview'">Overview</button>
+<button class="tb" :class="tab=='analytics'?'on':''" @click="tab='analytics'">Analytics</button>
+<button class="tb" :class="tab=='settings'?'on':''" @click="tab='settings'">Settings</button>
+<button class="tb" :class="tab=='logs'?'on':''" @click="tab='logs'">Logs</button>
+</div>
+<div class="tbc">
+<div x-show="tab=='overview'" x-transition>
+<div class="grid grid-3" style="gap:12px;margin-bottom:16px;">
+<div class="mc"><div class="mc-v">12,847</div><div class="mc-l">Users</div><div class="mc-d up"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-up"></use></svg> 12.5%</div></div>
+<div class="mc"><div class="mc-v">$84.2K</div><div class="mc-l">Revenue</div><div class="mc-d up"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-up"></use></svg> 8.3%</div></div>
+<div class="mc"><div class="mc-v">99.9%</div><div class="mc-l">Uptime</div><div class="mc-d up"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-up"></use></svg> 0.1%</div></div>
+</div>
+<div class="card"><div class="card-h">Recent Activity</div><div class="card-d">Last 24 hours of system activity and user interactions.</div>
+<div class="tl">
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">New user registered</div><div class="tl-t">2 min ago</div><div class="tl-x">Alice Chen joined the platform</div></div>
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">Component updated</div><div class="tl-t">15 min ago</div><div class="tl-x">Button variant "ghost" added</div></div>
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">Deployment completed</div><div class="tl-t">1 hour ago</div><div class="tl-x">v2.1.0 deployed to production</div></div>
+</div>
+</div>
+</div>
+<div x-show="tab=='analytics'" x-transition style="display:none;">
+<div class="card"><div class="card-h">Traffic Analytics</div><div class="card-d">Page views and user sessions over the last 30 days.</div>
+<div style="height:200px;background:var(--s3);border-radius:8px;display:flex;align-items:end;gap:4px;padding:16px;">
+<div style="flex:1;background:var(--em);border-radius:2px;height:40%;opacity:0.7;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:55%;opacity:0.8;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:45%;opacity:0.7;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:70%;opacity:0.9;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:60%;opacity:0.8;"></div>
+<div style="flex:1;background:var(--em);border-radius:2px;height:85%;opacity:1;"></div>
+<div style="flex:1;background:var(--cy);border-radius:2px;height:75%;opacity:0.9;"></div>
+</div>
+</div>
+</div>
+<div x-show="tab=='settings'" x-transition style="display:none;">
+<div class="fg"><label class="lbl">Site Name</label><input type="text" class="inp" value="Flint Platform"></div>
+<div class="fg"><label class="lbl">Timezone</label><select class="sel"><option>UTC</option><option>EST</option><option>PST</option></select></div>
+<div class="fg" x-data="{on:true}"><label class="lbl">Maintenance Mode</label><div class="sw" @click="on=!on"><div class="sw-i" :class="on?'on':''"></div><span class="sw-l" x-text="on?'Enabled':'Disabled'"></span></div></div>
+<div style="display:flex;gap:8px;margin-top:16px;"><button class="btn btn-p">Save Settings</button><button class="btn btn-ghost">Reset</button></div>
+</div>
+<div x-show="tab=='logs'" x-transition style="display:none;">
+<div style="background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:16px;font-family:var(--fm);font-size:12px;max-height:300px;overflow:auto;">
+<div style="margin-bottom:4px;"><span style="color:var(--gr);">[INFO]</span> <span style="color:var(--txtd);">2024-03-15 10:23:45</span> <span style="color:var(--txtm);">Server started on port 3000</span></div>
+<div style="margin-bottom:4px;"><span style="color:var(--cy);">[DEBUG]</span> <span style="color:var(--txtd);">2024-03-15 10:23:46</span> <span style="color:var(--txtm);">Database connection established</span></div>
+<div style="margin-bottom:4px;"><span style="color:var(--yl);">[WARN]</span> <span style="color:var(--txtd);">2024-03-15 10:24:12</span> <span style="color:var(--txtm);">Slow query detected: 340ms</span></div>
+<div style="margin-bottom:4px;"><span style="color:var(--gr);">[INFO]</span> <span style="color:var(--txtd);">2024-03-15 10:25:01</span> <span style="color:var(--txtm);">User login: alice@example.com</span></div>
+<div style="margin-bottom:4px;"><span style="color:var(--rd);">[ERROR]</span> <span style="color:var(--txtd);">2024-03-15 10:26:33</span> <span style="color:var(--txtm);">Failed to connect to external API</span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"tabbed_panel","tabs":["Overview","Analytics","Settings","Logs"],"content_type":"dynamic","hx_get":"/api/tab/{id}"}</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Admin Shell Section -->
+<section id="admin" class="sec">
+<div class="sec-h"><div class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-monitor"></use></svg></div><h3>Admin Shell Interface</h3><span class="tag">Full Application</span></div>
+
+<div class="comp-item" style="margin-bottom:16px;">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-monitor"></use></svg> Dashboard Admin Shell</h4>
+<div class="demo" style="padding:0;overflow:hidden;border-radius:8px;">
+<div class="demo-label">Full Layout</div>
+<div style="display:grid;grid-template-columns:200px 1fr;min-height:500px;background:var(--bg);">
+<!-- Sidebar -->
+<div style="background:var(--s1);border-right:1px solid var(--s4);padding:16px;">
+<div style="font-family:var(--fd);font-weight:700;font-size:18px;color:var(--em);margin-bottom:24px;">Flint Admin</div>
+<div style="display:flex;flex-direction:column;gap:4px;">
+<a href="#" style="padding:10px 12px;border-radius:6px;background:var(--s3);color:var(--txt);text-decoration:none;font-size:13px;display:flex;align-items:center;gap:8px;"><svg class="ic" aria-hidden="true"><use href="#ic-bar-chart-3"></use></svg> Dashboard</a>
+<a href="#" style="padding:10px 12px;border-radius:6px;color:var(--txtm);text-decoration:none;font-size:13px;display:flex;align-items:center;gap:8px;"><svg class="ic" aria-hidden="true"><use href="#ic-users"></use></svg> Users</a>
+<a href="#" style="padding:10px 12px;border-radius:6px;color:var(--txtm);text-decoration:none;font-size:13px;display:flex;align-items:center;gap:8px;"><svg class="ic" aria-hidden="true"><use href="#ic-puzzle"></use></svg> Components</a>
+<a href="#" style="padding:10px 12px;border-radius:6px;color:var(--txtm);text-decoration:none;font-size:13px;display:flex;align-items:center;gap:8px;"><svg class="ic" aria-hidden="true"><use href="#ic-palette"></use></svg> Design</a>
+<a href="#" style="padding:10px 12px;border-radius:6px;color:var(--txtm);text-decoration:none;font-size:13px;display:flex;align-items:center;gap:8px;"><svg class="ic" aria-hidden="true"><use href="#ic-settings"></use></svg> Settings</a>
+</div>
+<div style="margin-top:auto;padding-top:16px;border-top:1px solid var(--s4);">
+<div style="display:flex;align-items:center;gap:8px;">
+<div class="av" style="width:28px;height:28px;font-size:11px;">A</div>
+<div><div style="font-size:13px;font-weight:500;">Admin User</div><div style="font-size:11px;color:var(--txtd);">admin@flint.dev</div></div>
+</div>
+</div>
+</div>
+<!-- Main Content -->
+<div style="padding:24px;overflow:auto;">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+<div>
+<div style="font-size:12px;color:var(--txtd);margin-bottom:4px;">Dashboard</div>
+<h3 style="margin:0;">Overview</h3>
+</div>
+<div style="display:flex;gap:8px;">
+<button class="btn btn-s btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-refresh-cw"></use></svg> Refresh</button>
+<button class="btn btn-p btn-sm">+ New</button>
+</div>
+</div>
+<div class="grid grid-4" style="gap:12px;margin-bottom:24px;">
+<div class="mc" style="padding:16px;"><div class="mc-v">2,847</div><div class="mc-l">Users</div><div class="mc-d up"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-up"></use></svg> 12.5%</div></div>
+<div class="mc" style="padding:16px;"><div class="mc-v">156</div><div class="mc-l">Components</div><div class="mc-d up"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-up"></use></svg> 8.3%</div></div>
+<div class="mc" style="padding:16px;"><div class="mc-v">42</div><div class="mc-l">Apps</div><div class="mc-d up"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-up"></use></svg> 5.1%</div></div>
+<div class="mc" style="padding:16px;"><div class="mc-v">99.9%</div><div class="mc-l">Uptime</div><div class="mc-d up"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-up"></use></svg> 0.1%</div></div>
+</div>
+<div style="background:var(--s2);border:1px solid var(--s4);border-radius:10px;padding:16px;">
+<div style="font-weight:600;margin-bottom:12px;font-size:14px;">Recent Activity</div>
+<div class="tl">
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">New component registered</div><div class="tl-t">2 min ago</div><div class="tl-x">ChatMessage component added to registry</div></div>
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">User role updated</div><div class="tl-t">15 min ago</div><div class="tl-x">Alice Chen promoted to Admin</div></div>
+<div class="tl-i"><div class="tl-d"></div><div class="tl-c">Design system imported</div><div class="tl-t">1 hour ago</div><div class="tl-x">Flint Dark theme imported from ODSF</div></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"admin_shell","sidebar_items":["Dashboard","Users","Components","Design","Settings"],"main_content":"dashboard","hx_get":"/api/admin/{section}"}</div>
+</div>
+</section>
+
+<!-- Chat Section -->
+<section id="chat" class="sec">
+<div class="sec-h"><div class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-message-square"></use></svg></div><h3>Agent Chat Interface</h3><span class="tag">Agent UI</span></div>
+
+<div class="comp-item" style="margin-bottom:16px;">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-message-square"></use></svg> AI Agent Chat</h4>
+<div class="demo" style="padding:0;overflow:hidden;">
+<div class="demo-label">Interactive Chat</div>
+<div class="cht" style="min-height:400px;grid-template-columns:1fr;">
+<div class="cht-m" style="display:flex;flex-direction:column;">
+<div class="cht-h">
+<div style="display:flex;align-items:center;gap:8px;">
+<div class="av" style="background:rgba(255,106,61,0.2);color:var(--em);border-color:rgba(255,106,61,0.3);"><svg class="ic" aria-hidden="true"><use href="#ic-bot"></use></svg></div>
+<div><div style="font-weight:600;font-size:13px;">Flint Assistant</div><div style="font-size:11px;color:var(--gr);">● Online</div></div>
+</div>
+<div style="display:flex;gap:4px;">
+<button class="btn btn-s btn-i btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-settings"></use></svg></button>
+<button class="btn btn-s btn-i btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"></use></svg></button>
+</div>
+</div>
+<div class="cht-b" style="flex:1;overflow-y:auto;padding:16px;background:var(--bg);">
+<div class="chat-m" style="margin-bottom:12px;">
+<div class="av" style="color:var(--cy);">U</div>
+<div><div class="chat-b">Can you show me the component registry for our new project?</div><div class="chat-t">10:23 AM</div></div>
+</div>
+<div class="chat-m" style="margin-bottom:12px;">
+<div class="av" style="background:rgba(255,106,61,0.2);color:var(--em);border-color:rgba(255,106,61,0.3);"><svg class="ic" aria-hidden="true"><use href="#ic-bot"></use></svg></div>
+<div><div class="chat-b">Sure! Here are the available components for your project:</div><div class="chat-t">10:23 AM</div></div>
+</div>
+<div class="ag-snd" style="margin-left:48px;margin-bottom:12px;">
+<div class="ag-snd-h"><svg class="ic" aria-hidden="true"><use href="#ic-paperclip"></use></svg> Context: Project Alpha</div>
+<div style="font-size:12px;color:var(--txtd);margin-top:4px;">Components: 24 | Status: Active | Last updated: 2h ago</div>
+</div>
+<div class="chat-m" style="margin-bottom:12px;margin-left:48px;">
+<div><div class="chat-b">I've found 24 components matching your project. Would you like me to generate a dashboard with the most relevant ones?</div><div class="chat-t">10:24 AM</div></div>
+</div>
+<div class="ag-sug" style="margin-left:48px;margin-bottom:12px;">
+<button class="ag-sug-b on">Generate Dashboard</button>
+<button class="ag-sug-b">Show All Components</button>
+<button class="ag-sug-b">Filter by Category</button>
+</div>
+<div class="chat-m" style="margin-bottom:12px;">
+<div class="av" style="color:var(--cy);">U</div>
+<div><div class="chat-b">Yes, generate a dashboard with layout, data display, and action components.</div><div class="chat-t">10:25 AM</div></div>
+</div>
+<div class="ag-act" style="margin-left:48px;margin-bottom:12px;">
+<span class="ag-act-i">⟳</span>
+<span>Composing dashboard layout...</span>
+</div>
+<div class="chat-m" style="margin-bottom:12px;margin-left:48px;">
+<div><div class="chat-b">Done! I've composed a dashboard with Stack, Grid, Card, Table, Button, and Modal components. Here's the preview:</div><div class="chat-t">10:26 AM</div></div>
+</div>
+<div class="ag-snd-m" style="margin-left:48px;margin-bottom:12px;">
+<div class="ag-snd-mi"><svg class="ic" aria-hidden="true"><use href="#ic-bar-chart-3"></use></svg><div style="font-size:11px;margin-top:4px;">Dashboard</div></div>
+<div class="ag-snd-mi"><svg class="ic" aria-hidden="true"><use href="#ic-file-text"></use></svg><div style="font-size:11px;margin-top:4px;">JSON</div></div>
+<div class="ag-snd-mi"><svg class="ic" aria-hidden="true"><use href="#ic-palette"></use></svg><div style="font-size:11px;margin-top:4px;">Preview</div></div>
+</div>
+<div class="ag-typing" style="margin-left:48px;">
+<span style="width:8px;height:8px;border-radius:50%;background:var(--cy);display:inline-block;"></span>
+<span style="width:8px;height:8px;border-radius:50%;background:var(--cy);display:inline-block;"></span>
+<span style="width:8px;height:8px;border-radius:50%;background:var(--cy);display:inline-block;"></span>
+<span>Agent is thinking...</span>
+</div>
+</div>
+<div class="cht-f">
+<div class="cht-fi"><input type="text" placeholder="Type a message..." hx-post="/api/chat" hx-trigger="keydown[key=='Enter']" hx-target="#chat-response"></div>
+<button class="btn btn-p">Send</button>
+</div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"agent_chat","agent":"Flint Assistant","suggestions":["Generate Dashboard","Show All Components"],"hx_post":"/api/chat","hx_trigger":"keydown[key=='Enter']"}</div>
+</div>
+</section>
+
+<!-- Matrix Section -->
+<section id="matrix" class="sec">
+<div class="sec-h"><div class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-globe"></use></svg></div><h3>Matrix-Style Messaging</h3><span class="tag">Real-time</span></div>
+
+<div class="comp-item" style="margin-bottom:16px;">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-globe"></use></svg> Matrix Room Interface</h4>
+<div class="demo" style="padding:0;overflow:hidden;">
+<div class="demo-label">Matrix Protocol UI</div>
+<div class="cht" style="min-height:400px;">
+<div class="cht-s" style="padding:0;">
+<div style="padding:16px;border-bottom:1px solid var(--s4);">
+<div class="ft"><input type="text" class="ft-i" placeholder="Search rooms..." style="padding-left:14px;"></div>
+</div>
+<div style="padding:8px 0;">
+<div style="padding:10px 16px;display:flex;align-items:center;gap:8px;background:var(--s3);border-left:3px solid var(--em);">
+<div class="av av-sm" style="color:var(--cy);">#g</div>
+<div style="flex:1;"><div style="font-size:13px;font-weight:500;">#general:flint.dev</div><div style="font-size:11px;color:var(--txtd);">Alice: Latest update...</div></div>
+<span class="bd-g" style="font-size:10px;">12</span>
+</div>
+<div style="padding:10px 16px;display:flex;align-items:center;gap:8px;">
+<div class="av av-sm" style="color:var(--gr);">#d</div>
+<div style="flex:1;"><div style="font-size:13px;">#design:flint.dev</div><div style="font-size:11px;color:var(--txtd);">Bob: Color tokens...</div></div>
+</div>
+<div style="padding:10px 16px;display:flex;align-items:center;gap:8px;">
+<div class="av av-sm" style="color:var(--yl);">#d</div>
+<div style="flex:1;"><div style="font-size:13px;">#dev:flint.dev</div><div style="font-size:11px;color:var(--txtd);">Carol: PR merged</div></div>
+<span class="bd-g" style="font-size:10px;">3</span>
+</div>
+</div>
+</div>
+<div class="cht-m" style="display:flex;flex-direction:column;">
+<div class="cht-h">
+<div style="display:flex;align-items:center;gap:8px;">
+<div class="av" style="color:var(--cy);">#g</div>
+<div><div style="font-weight:600;font-size:13px;">#general:flint.dev</div><div style="font-size:11px;color:var(--txtd);">24 members • 12 online</div></div>
+</div>
+<div style="display:flex;gap:4px;">
+<button class="btn btn-s btn-i btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-search"></use></svg></button>
+<button class="btn btn-s btn-i btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-users"></use></svg></button>
+<button class="btn btn-s btn-i btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-settings"></use></svg></button>
+</div>
+</div>
+<div class="cht-b" style="flex:1;overflow-y:auto;padding:16px;background:var(--bg);">
+<div class="mx-msg">
+<div class="mx-msg-h"><span class="mx-msg-n">Alice</span><span class="mx-msg-t">10:23 AM</span><span class="mx-msg-r">Mod</span></div>
+<div class="mx-msg-b">Hey team, the new component registry is live! <svg class="ic" aria-hidden="true"><use href="#ic-party-popper"></use></svg></div>
+</div>
+<div class="mx-msg">
+<div class="mx-msg-h"><span class="mx-msg-n" style="color:var(--gr);">Bob</span><span class="mx-msg-t">10:24 AM</span></div>
+<div class="mx-msg-b">Awesome! I can see the new Button and Card primitives. Great work on the dark theme.</div>
+</div>
+<div class="mx-msg">
+<div class="mx-msg-h"><span class="mx-msg-n" style="color:var(--yl);">Carol</span><span class="mx-msg-t">10:25 AM</span></div>
+<div class="mx-msg-b">Can we add a Timeline component to the registry? I need it for the admin dashboard.</div>
+</div>
+<div class="mx-msg">
+<div class="mx-msg-h"><span class="mx-msg-n">Alice</span><span class="mx-msg-t">10:26 AM</span><span class="mx-msg-r">Mod</span></div>
+<div class="mx-msg-b">Sure! I'll add it to the backlog. The Timeline is already in the base primitives, just needs to be registered.</div>
+</div>
+<div class="mx-msg" style="background:rgba(52,207,230,0.05);border-color:var(--cy);">
+<div class="mx-msg-h"><span class="mx-msg-n" style="color:var(--em);"><svg class="ic" aria-hidden="true"><use href="#ic-bot"></use></svg> Bot</span><span class="mx-msg-t">10:26 AM</span><span class="mx-msg-r" style="background:rgba(255,106,61,0.15);color:var(--em);">Bot</span></div>
+<div class="mx-msg-b"><svg class="ic" aria-hidden="true"><use href="#ic-paperclip"></use></svg> <strong>Component Request Logged</strong><br>Request: Timeline component registration<br>Status: Added to backlog<br>Priority: Medium</div>
+</div>
+</div>
+<div class="cht-f">
+<div class="cht-fi"><input type="text" placeholder="Message #general..." hx-post="/matrix/send" hx-trigger="keydown[key=='Enter']" hx-vals='{"room":"#general:flint.dev"}'></div>
+<button class="btn btn-p">Send</button>
+</div>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"matrix_chat","room":"#general:flint.dev","members":24,"online":12,"hx_post":"/matrix/send","hx_vals":{"room":"#general:flint.dev"}}</div>
+</div>
+</section>
+
+<!-- Video Section -->
+<section id="video" class="sec">
+<div class="sec-h"><div class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-clapperboard"></use></svg></div><h3>Video Streaming</h3><span class="tag">Media</span></div>
+
+<div class="comp-grid">
+<div class="comp-item" style="grid-column:1/-1;">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-clapperboard"></use></svg> Video Player</h4>
+<div class="demo">
+<div class="demo-label">Streaming Interface</div>
+<div class="vp">
+<div style="font-size:48px;opacity:0.3;">▶</div>
+<div class="vp-b">
+<button class="vp-btn">▶</button>
+<button class="vp-btn"><svg class="ic" aria-hidden="true"><use href="#ic-pause"></use></svg></button>
+<div class="vp-bar"><div class="vp-bar-f" style="width:35%"></div></div>
+<div class="vp-ct">04:23 / 12:45</div>
+<button class="vp-btn"><svg class="ic" aria-hidden="true"><use href="#ic-settings"></use></svg></button>
+<button class="vp-btn"><svg class="ic" aria-hidden="true"><use href="#ic-maximize"></use></svg></button>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"video_player","src":"/stream/video.mp4","controls":true,"progress":35,"hx_get":"/api/video/progress"}</div>
+</div>
+
+<div class="comp-item">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-clapperboard"></use></svg> Video Editor Timeline</h4>
+<div class="demo">
+<div class="demo-label">Timeline Interface</div>
+<div class="ie-t">
+<button class="ie-t-b on">Select</button><button class="ie-t-b">Split</button><button class="ie-t-b">Delete</button>
+<button class="ie-t-b">Undo</button><button class="ie-t-b">Redo</button>
+<div style="width:1px;background:var(--s4);margin:0 4px;"></div>
+<button class="ie-t-b"><svg class="ic" aria-hidden="true"><use href="#ic-music"></use></svg></button><button class="ie-t-b"><svg class="ic" aria-hidden="true"><use href="#ic-clapperboard"></use></svg></button><button class="ie-t-b"><svg class="ic" aria-hidden="true"><use href="#ic-palette"></use></svg></button>
+</div>
+<div class="ie-c" style="aspect-ratio:16/9;background:var(--s3);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border-radius:8px;">
+<div style="font-size:48px;opacity:0.3;"><svg class="ic" aria-hidden="true"><use href="#ic-clapperboard"></use></svg></div>
+</div>
+<div class="ve-tl">
+<div class="ve-tl-w" style="position:relative;flex:1;">
+<div class="ve-tl-t">
+<div class="ve-tl-s" style="height:60%"></div><div class="ve-tl-s" style="height:80%"></div><div class="ve-tl-s" style="height:40%"></div>
+<div class="ve-tl-s" style="height:90%"></div><div class="ve-tl-s" style="height:55%"></div><div class="ve-tl-s" style="height:70%"></div>
+<div class="ve-tl-s" style="height:45%"></div><div class="ve-tl-s" style="height:85%"></div><div class="ve-tl-s" style="height:60%"></div>
+<div class="ve-tl-s" style="height:75%"></div><div class="ve-tl-s" style="height:50%"></div><div class="ve-tl-s" style="height:80%"></div>
+<div class="ve-tl-s" style="height:65%"></div><div class="ve-tl-s" style="height:90%"></div><div class="ve-tl-s" style="height:55%"></div>
+<div class="ve-tl-s" style="height:70%"></div><div class="ve-tl-s" style="height:45%"></div><div class="ve-tl-s" style="height:85%"></div>
+<div class="ve-tl-s" style="height:60%"></div><div class="ve-tl-s" style="height:75%"></div>
+</div>
+<div class="ve-tl-c" style="left:35%"></div>
+</div>
+<div style="font-size:11px;color:var(--txtd);font-family:var(--fm);min-width:60px;text-align:right;">04:23</div>
+</div>
+</div>
+<div class="demo-code">{"type":"video_editor","tracks":["Video","Audio"],"duration":"12:45","playhead":"04:23","hx_post":"/api/video/edit"}</div>
+</div>
+</div>
+</section>
+
+<!-- Image Section -->
+<section id="image" class="sec">
+<div class="sec-h"><div class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-image"></use></svg></div><h3>Image Display & Editing</h3><span class="tag">Media</span></div>
+
+<div class="comp-grid">
+<div class="comp-item" style="grid-column:1/-1;">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-image"></use></svg> Image Gallery</h4>
+<div class="demo">
+<div class="demo-label">Grid Gallery</div>
+<div class="ig">
+<div class="ig-i"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--s3);"><svg class="ic" aria-hidden="true"><use href="#ic-image"></use></svg></div><div class="ig-i-o"><div class="ig-i-b"><button><svg class="ic" aria-hidden="true"><use href="#ic-search"></use></svg></button><button><svg class="ic" aria-hidden="true"><use href="#ic-square-pen"></use></svg></button><button><svg class="ic" aria-hidden="true"><use href="#ic-trash-2"></use></svg></button></div></div></div>
+<div class="ig-i"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--s3);"><svg class="ic" aria-hidden="true"><use href="#ic-bar-chart-3"></use></svg></div><div class="ig-i-o"><div class="ig-i-b"><button><svg class="ic" aria-hidden="true"><use href="#ic-search"></use></svg></button><button><svg class="ic" aria-hidden="true"><use href="#ic-square-pen"></use></svg></button><button><svg class="ic" aria-hidden="true"><use href="#ic-trash-2"></use></svg></button></div></div></div>
+<div class="ig-i"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--s3);"><svg class="ic" aria-hidden="true"><use href="#ic-palette"></use></svg></div><div class="ig-i-o"><div class="ig-i-b"><button><svg class="ic" aria-hidden="true"><use href="#ic-search"></use></svg></button><button><svg class="ic" aria-hidden="true"><use href="#ic-square-pen"></use></svg></button><button><svg class="ic" aria-hidden="true"><use href="#ic-trash-2"></use></svg></button></div></div></div>
+<div class="ig-i"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--s3);"><svg class="ic" aria-hidden="true"><use href="#ic-file-text"></use></svg></div><div class="ig-i-o"><div class="ig-i-b"><button><svg class="ic" aria-hidden="true"><use href="#ic-search"></use></svg></button><button><svg class="ic" aria-hidden="true"><use href="#ic-square-pen"></use></svg></button><button><svg class="ic" aria-hidden="true"><use href="#ic-trash-2"></use></svg></button></div></div></div>
+<div class="ig-i"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--s3);"><svg class="ic" aria-hidden="true"><use href="#ic-map"></use></svg></div><div class="ig-i-o"><div class="ig-i-b"><button><svg class="ic" aria-hidden="true"><use href="#ic-search"></use></svg></button><button><svg class="ic" aria-hidden="true"><use href="#ic-square-pen"></use></svg></button><button><svg class="ic" aria-hidden="true"><use href="#ic-trash-2"></use></svg></button></div></div></div>
+<div class="ig-i" style="border-style:dashed;border-color:var(--txtd);display:flex;align-items:center;justify-content:center;cursor:pointer;"><div style="text-align:center;"><div style="font-size:24px;margin-bottom:4px;">+</div><div style="font-size:12px;color:var(--txtd);">Upload</div></div></div>
+</div>
+</div>
+<div class="demo-code">{"type":"image_gallery","images":[...],"actions":["view","edit","delete"],"hx_post":"/api/gallery/upload"}</div>
+</div>
+
+<div class="comp-item">
+<h4><svg class="ic" aria-hidden="true"><use href="#ic-image"></use></svg> Image Editor</h4>
+<div class="demo">
+<div class="demo-label">Editing Interface</div>
+<div class="ie-t">
+<button class="ie-t-b on">Crop</button><button class="ie-t-b">Rotate</button><button class="ie-t-b">Resize</button>
+<div style="width:1px;background:var(--s4);margin:0 4px;"></div>
+<button class="ie-t-b">Brightness</button><button class="ie-t-b">Contrast</button><button class="ie-t-b">Saturation</button>
+<div style="width:1px;background:var(--s4);margin:0 4px;"></div>
+<button class="ie-t-b"><svg class="ic" aria-hidden="true"><use href="#ic-palette"></use></svg> Filters</button>
+</div>
+<div class="ie-c" style="aspect-ratio:4/3;">
+<div style="font-size:48px;opacity:0.3;"><svg class="ic" aria-hidden="true"><use href="#ic-image"></use></svg></div>
+<div style="position:absolute;bottom:12px;left:12px;right:12px;display:flex;gap:8px;">
+<div class="fg" style="flex:1;margin:0;"><label class="lbl" style="font-size:10px;">Brightness</label><input type="range" class="rng" min="0" max="200" value="100"></div>
+<div class="fg" style="flex:1;margin:0;"><label class="lbl" style="font-size:10px;">Contrast</label><input type="range" class="rng" min="0" max="200" value="100"></div>
+</div>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:12px;">
+<button class="btn btn-ghost btn-sm">Reset</button>
+<div style="display:flex;gap:8px;">
+<button class="btn btn-s btn-sm">Download</button>
+<button class="btn btn-p btn-sm">Save</button>
+</div>
+</div>
+</div>
+<div class="demo-code">{"type":"image_editor","tools":["crop","rotate","brightness","contrast"],"hx_post":"/api/image/edit"}</div>
+</div>
+</div>
+</div>
+</section>
+
+</div></main><script>
+(function(){
+  function pg(){return document.querySelector('.page');}
+  window.__a2uiToggle=function(){var p=pg();if(p)p.classList.toggle('snav-open');};
+  document.addEventListener('click',function(e){
+    var ni=e.target.closest('.snav-i');
+    if(ni&&window.matchMedia('(max-width:900px)').matches){var p=pg();if(p)p.classList.remove('snav-open');}
+  });
+  var links=[].slice.call(document.querySelectorAll('.snav-i[href^="#"]'));
+  var secs=links.map(function(a){try{return document.querySelector(a.getAttribute('href'));}catch(e){return null;}}).filter(Boolean);
+  function spy(){var y=window.scrollY+140,cur=null;secs.forEach(function(s){if(s.offsetTop<=y)cur=s;});
+    links.forEach(function(a){a.classList.toggle('on',!!cur&&a.getAttribute('href')==='#'+cur.id);});}
+  if(secs.length){window.addEventListener('scroll',spy,{passive:true});window.addEventListener('load',spy);spy();}
+  document.addEventListener('htmx:beforeRequest',function(evt){
+    try{var cfg=evt.detail.requestConfig||{};var path=cfg.path||'';
+      if(path.charAt(0)==='/'){evt.preventDefault();var t=evt.detail.target;
+        if(t){t.innerHTML='<div style="padding:14px;border-radius:10px;background:var(--s2);color:var(--txtm);font-size:13px">'
+          +'<strong style="color:var(--txt)">Demo response</strong> &middot; '+((cfg.verb||'get')+'').toUpperCase()
+          +' <code style="color:var(--em)">'+path+'</code><div style="margin-top:6px;opacity:.75">'
+          +'Bound to the A2UI registry endpoint in production; mocked here for the static showcase.</div></div>';}}
+    }catch(e){}
+  });
+})();
+</script></body></html>
