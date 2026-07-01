@@ -17,7 +17,7 @@ exclude = ["crates/ext-flint-auth", "crates/ext-flint-hooks", "crates/ext-flint-
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.85"
-license = "Proprietary"
+license = "MIT"
 authors = ["Prometheus AGS"]
 
 [workspace.dependencies]
@@ -42,6 +42,7 @@ async-graphql = { version = "7", features = ["dynamic-schema"] }
 async-graphql-axum = "7"
 tonic = { version = "0.12", features = ["transport"] }
 pgvector = { version = "0.4", features = ["postgres", "sqlx"] }
+cedar-policy = "4"
 
 [workspace.lints.clippy]
 # Pedantic is the CI gate (run with -D warnings). Allows below are scaffold-stage

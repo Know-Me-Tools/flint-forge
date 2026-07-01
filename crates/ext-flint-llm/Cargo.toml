@@ -2,7 +2,7 @@
 name = "flint_llm"
 version = "0.1.0"
 edition = "2021"
-license = "Proprietary"
+license = "MIT"
 # Built standalone in the Docker anvil stage (no workspace root present), so no
 # workspace inheritance here. pgrx 0.18.1 requires rustc >= 1.96 (builder base matches).
 

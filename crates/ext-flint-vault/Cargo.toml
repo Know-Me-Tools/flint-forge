@@ -2,7 +2,7 @@
 name = "flint_vault"
 version = "0.1.0"
 edition = "2021"
-license = "Proprietary"
+license = "MIT"
 description = "Flint Forge sovereign secret store. XChaCha20-Poly1305 AEAD; the data key is held in process memory, unwrapped at startup from an external KMS (KEK), and is never selectable from SQL. Plaintext secrets are never returned to SQL clients or WASM sandboxes."
 
 # Built standalone in the Docker anvil stage (no workspace root present) → no inheritance.

@@ -2,7 +2,7 @@
 name = "ext-flint-meta"
 version = "0.1.0"
 edition = "2021"
-license = "Proprietary"
+license = "MIT"
 description = "Flint Forge schema-cache layer for the flint_meta extension. Holds pre-computed catalog tables that the Rust reflection engine reads instead of querying pg_catalog directly."
 
 # Built standalone with `cargo pgrx` (no workspace root present) → no inheritance.
