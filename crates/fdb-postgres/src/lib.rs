@@ -209,6 +209,7 @@ fn rest_query_to_filter(q: &RestQuery) -> Result<fdb_query::FilterTree, BackendE
             value: value.clone(),
             negate: false,
             quantifier: None,
+            fts_config: None,
         });
     }
     Ok(fdb_query::FilterTree::And(leaves))

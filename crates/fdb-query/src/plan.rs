@@ -6,8 +6,9 @@
 
 use crate::clause::{CountStrategy, Limits, Order, Select};
 use crate::filter::{FilterError, FilterTree};
+use crate::fts::FtsConfig;
 use crate::ident::{IdentError, validate_identifier};
-use crate::operator::{Operator, Quantifier};
+use crate::operator::{Operator, Quantifier, RenderError};
 use crate::param::QueryParam;
 
 /// Reserved query-parameter keys that are NOT column filters.
@@ -119,16 +120,7 @@ fn parse_leaf(column: &str, raw: &str) -> Result<FilterTree, ParseError> {
         .split_once('.')
         .ok_or_else(|| ParseError::MalformedFilter(column.to_owned()))?;
 
-    // Strip an optional `(any)`/`(all)` quantifier suffix from the op token.
-    let (op_name, quantifier) = if let Some(base) = op_token.strip_suffix("(any)") {
-        (base, Some(Quantifier::Any))
-    } else if let Some(base) = op_token.strip_suffix("(all)") {
-        (base, Some(Quantifier::All))
-    } else {
-        (op_token, None)
-    };
-
-    let op = Operator::parse(op_name).ok_or_else(|| ParseError::UnknownOp(op_name.to_owned()))?;
+    let (op, quantifier, fts_config) = parse_op_token(op_token)?;
 
     Ok(FilterTree::Leaf {
         column: column.to_owned(),
@@ -136,7 +128,54 @@ fn parse_leaf(column: &str, raw: &str) -> Result<FilterTree, ParseError> {
         value: value.to_owned(),
         negate,
         quantifier,
+        fts_config,
     })
+}
+
+/// Parse an operator token that may carry an optional `(payload)` suffix, e.g.
+/// `eq`, `eq(any)`, `like(all)`, `fts`, `fts(english)`.
+///
+/// The suffix is interpreted by the *parsed operator kind*, not by its syntax:
+/// for the four FTS operators the payload is a text-search [`FtsConfig`]; for all
+/// other operators it is an `(any)`/`(all)` [`Quantifier`]. This keeps
+/// `fts(english)` and `eq(any)` unambiguous. Exactly one of the returned options
+/// is ever `Some`.
+///
+/// # Errors
+/// Returns [`ParseError::UnknownOp`] for an unrecognized operator,
+/// [`ParseError::MalformedFilter`] for a non-FTS operator carrying a payload that
+/// is not `(any)`/`(all)`, or a wrapped [`RenderError::InvalidFtsConfig`] when an
+/// FTS config fails identifier validation.
+fn parse_op_token(
+    op_token: &str,
+) -> Result<(Operator, Option<Quantifier>, Option<FtsConfig>), ParseError> {
+    // Split an optional trailing `(payload)` generically, before deciding meaning.
+    let (base, payload) = match op_token.strip_suffix(')').and_then(|s| s.split_once('(')) {
+        Some((base, payload)) => (base, Some(payload)),
+        None => (op_token, None),
+    };
+
+    let op = Operator::parse(base).ok_or_else(|| ParseError::UnknownOp(base.to_owned()))?;
+
+    if op.fts_kind().is_some() {
+        // FTS operator: the payload (if any) is a text-search config.
+        let cfg = payload
+            .map(FtsConfig::parse)
+            .transpose()
+            .map_err(|e| ParseError::Filter(FilterError::Render(RenderError::InvalidFtsConfig(
+                e.to_string(),
+            ))))?;
+        return Ok((op, None, cfg));
+    }
+
+    // Non-FTS operator: the payload (if any) is an `(any)`/`(all)` quantifier.
+    let quantifier = match payload {
+        Some("any") => Some(Quantifier::Any),
+        Some("all") => Some(Quantifier::All),
+        Some(_) => return Err(ParseError::MalformedFilter(op_token.to_owned())),
+        None => None,
+    };
+    Ok((op, quantifier, None))
 }
 
 /// Parse a logical group value `(cond,cond,...)` into an And/Or node. Each member
@@ -154,10 +193,12 @@ fn parse_logical_group(kind: &str, raw: &str) -> Result<FilterTree, ParseError> 
         if member.is_empty() {
             continue;
         }
-        if let Some(sub) = member.strip_prefix("and") {
-            children.push(parse_logical_group("and", sub)?);
-        } else if let Some(sub) = member.strip_prefix("or") {
-            children.push(parse_logical_group("or", sub)?);
+        // Only treat a member as a nested group when the connective keyword is
+        // immediately followed by `(` (`and(...)` / `or(...)`). A column that merely
+        // *starts* with the text `and`/`or` (e.g. `android.eq.1`, `origin.eq.x`) is a
+        // leaf, not a group — `split_group_prefix` enforces that boundary.
+        if let Some((connective, sub)) = split_group_prefix(member) {
+            children.push(parse_logical_group(connective, sub)?);
         } else {
             children.push(parse_group_member(member)?);
         }
@@ -166,6 +207,24 @@ fn parse_logical_group(kind: &str, raw: &str) -> Result<FilterTree, ParseError> 
         "or" => FilterTree::Or(children),
         _ => FilterTree::And(children),
     })
+}
+
+/// Detect a nested logical-group member. Returns `(connective, "(...)")` only when
+/// `member` begins with the connective keyword *immediately followed by* `(` — i.e.
+/// `and(` or `or(`. Otherwise returns `None` so the member is parsed as a leaf,
+/// preventing a spurious group match for columns like `android` or `origin`.
+fn split_group_prefix(member: &str) -> Option<(&'static str, &str)> {
+    if let Some(rest) = member.strip_prefix("and") {
+        if rest.starts_with('(') {
+            return Some(("and", rest));
+        }
+    }
+    if let Some(rest) = member.strip_prefix("or") {
+        if rest.starts_with('(') {
+            return Some(("or", rest));
+        }
+    }
+    None
 }
 
 /// A group member is `column.op.value` (dotted form inside a logical group),
@@ -183,14 +242,7 @@ fn parse_group_member(member: &str) -> Result<FilterTree, ParseError> {
         .split_once('.')
         .ok_or_else(|| ParseError::MalformedGroup(member.to_owned()))?;
 
-    let (op_name, quantifier) = if let Some(base) = op_token.strip_suffix("(any)") {
-        (base, Some(Quantifier::Any))
-    } else if let Some(base) = op_token.strip_suffix("(all)") {
-        (base, Some(Quantifier::All))
-    } else {
-        (op_token, None)
-    };
-    let op = Operator::parse(op_name).ok_or_else(|| ParseError::UnknownOp(op_name.to_owned()))?;
+    let (op, quantifier, fts_config) = parse_op_token(op_token)?;
 
     Ok(FilterTree::Leaf {
         column: column.to_owned(),
@@ -198,6 +250,7 @@ fn parse_group_member(member: &str) -> Result<FilterTree, ParseError> {
         value: value.to_owned(),
         negate,
         quantifier,
+        fts_config,
     })
 }
 
@@ -355,5 +408,93 @@ mod tests {
             parse_select_request("t", &[p("a", "bogus.1")], None, None).unwrap_err(),
             ParseError::UnknownOp(_)
         ));
+    }
+
+    #[test]
+    fn fts_without_config_parses_to_to_tsquery() {
+        let plan = parse_select_request("t", &[p("body", "fts.friend")], None, None).unwrap();
+        let (sql, params) = plan.render().unwrap();
+        assert_eq!(sql, "SELECT * FROM t WHERE body @@ to_tsquery($1)");
+        assert_eq!(params, vec![QueryParam::Text("friend".into())]);
+    }
+
+    #[test]
+    fn fts_with_config_parses_to_quoted_regconfig() {
+        let plan = parse_select_request("t", &[p("body", "fts(english).friend")], None, None)
+            .unwrap();
+        let (sql, params) = plan.render().unwrap();
+        assert_eq!(sql, "SELECT * FROM t WHERE body @@ to_tsquery('english', $1)");
+        assert_eq!(params, vec![QueryParam::Text("friend".into())]);
+    }
+
+    #[test]
+    fn all_four_fts_ops_parse_at_request_level() {
+        for (tok, func) in [
+            ("fts", "to_tsquery"),
+            ("plfts", "plainto_tsquery"),
+            ("phfts", "phraseto_tsquery"),
+            ("wfts", "websearch_to_tsquery"),
+        ] {
+            let plan =
+                parse_select_request("t", &[p("c", &format!("{tok}(english).q"))], None, None)
+                    .unwrap();
+            assert_eq!(
+                plan.render().unwrap().0,
+                format!("SELECT * FROM t WHERE c @@ {func}('english', $1)")
+            );
+        }
+    }
+
+    #[test]
+    fn not_prefix_negates_fts() {
+        let plan =
+            parse_select_request("t", &[p("body", "not.fts(english).q")], None, None).unwrap();
+        assert_eq!(
+            plan.render().unwrap().0,
+            "SELECT * FROM t WHERE NOT (body @@ to_tsquery('english', $1))"
+        );
+    }
+
+    #[test]
+    fn fts_config_rejects_injection_at_parse() {
+        let err = parse_select_request("t", &[p("c", "fts(english'); DROP).x")], None, None)
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                ParseError::Filter(FilterError::Render(RenderError::InvalidFtsConfig(_)))
+            ),
+            "injection config must be rejected, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn quantifier_path_still_works_for_non_fts() {
+        // The generic-suffix reorder must NOT break the `(any)`/`(all)` path.
+        let plan = parse_select_request("t", &[p("id", "eq(any).(1,2)")], None, None).unwrap();
+        let (sql, params) = plan.render().unwrap();
+        assert_eq!(sql, "SELECT * FROM t WHERE id = ANY($1)");
+        assert_eq!(
+            params,
+            vec![QueryParam::TextArray(vec!["1".into(), "2".into()])]
+        );
+    }
+
+    #[test]
+    fn bad_quantifier_payload_on_non_fts_is_rejected() {
+        // A non-`(any)`/`(all)` paren payload on a non-FTS op is malformed, not a config.
+        let err = parse_select_request("t", &[p("id", "eq(english).1")], None, None).unwrap_err();
+        assert!(matches!(err, ParseError::MalformedFilter(_)), "got {err:?}");
+    }
+
+    #[test]
+    fn fts_inside_logical_group_uses_config() {
+        let plan =
+            parse_select_request("t", &[p("or", "(body.fts(english).cat,title.fts.dog)")], None, None)
+                .unwrap();
+        assert_eq!(
+            plan.render().unwrap().0,
+            "SELECT * FROM t WHERE (body @@ to_tsquery('english', $1) OR title @@ to_tsquery($2))"
+        );
     }
 }

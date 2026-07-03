@@ -65,18 +65,29 @@ tests are the authoritative correctness gate and run cheaply on `cargo test -p f
 
 ## Phase 2 — Parity
 
-### T10 — Resource embedding
-- [ ] FK-join planner from `DatabaseModel` FK metadata; `select=*,rel(*)`.
-- [ ] `!fk` disambiguation, `!inner`, embedded filter/order, top-level-by-embedded,
-      `...spread`, nested embedding.
+### T10 — Resource embedding ✅
+- [x] FK-join planner from a caller-supplied `EmbedSchema` (fdb-query stays pure;
+      fdb-reflection will map `DatabaseModel` -> `EmbedSchema`). `select=*,rel(*)`.
+- [x] `!fk` disambiguation, `!inner`, embedded filter/order, top-level-by-embedded,
+      `...spread`, nested embedding. Correlated json_agg / json_build_object subselects;
+      `EXISTS` guards for `!inner` and top-level-by-embedded.
+- [x] SECURITY: adversarial review found + fixed an unvalidated `parent_alias`/
+      `parent_table` path; `resolve_embeds` now validates them (regression test added).
 
-### T11 — Full-text search
-- [ ] `fts`/`plfts`/`phfts`/`wfts` → to_tsquery/plainto/phraseto/websearch mapping,
-      language option `fts(english)`, escaping tests.
+### T11 — Full-text search ✅
+- [x] `fts`/`plfts`/`phfts`/`wfts` → to_tsquery/plainto/phraseto/websearch mapping via
+      the `@@` operator; language option `fts(english)`; tsquery text bound as a param,
+      regconfig validated; escaping tests.
 
-### T12 — Edge-case hardening
-- [ ] Empty `in`, null in `is`/`in`, composite PK, reserved-char values, `limit=0`,
-      large offset, order-by-embedded. Property tests where valuable.
+### T12 — Edge-case hardening ✅
+- [x] Empty `in`, null in `is`/`in`, composite PK, reserved-char values, `limit=0`,
+      large offset, quoted commas, order-by-embedded — covered in the edge test suite.
+- [x] SECURITY: adversarial review found + fixed unvalidated relation/SET-column in
+      `UpdatePlan`/`DeletePlan::render`; both now validate (regression tests added).
 
-### T13 — Parity verification (integration checkpoint)
-- [ ] Full suite green; parity checklist in proposal.md satisfied.
+### T13 — Parity verification (integration checkpoint) ✅
+- [x] Full suite green: `cargo test -p fdb-query` (128 lib + 29 integration),
+      `-p fdb-postgres` (4), `-p fdb-reflection` (46 + gates); `cargo check --workspace`
+      clean; `cargo clippy -p fdb-query -p fdb-postgres -p fdb-reflection --all-targets
+      -- -D warnings` clean. (Built via multi-agent workflow; every claim re-verified
+      against the compiler by the orchestrator, incl. 2 adversarial-review security fixes.)
