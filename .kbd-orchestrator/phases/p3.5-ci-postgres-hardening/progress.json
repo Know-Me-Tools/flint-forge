@@ -2,8 +2,49 @@
   "phase": "p3.5-ci-postgres-hardening",
   "status": "assessment_ready",
   "changes_completed": 0,
-  "changes_total": 0,
-  "changes": [],
-  "change_order": [],
-  "assessment_complete": true
+  "changes_total": 5,
+  "changes": [
+    {
+      "id": "p35-c001-clippy-unblock-hello-component",
+      "status": "pending",
+      "goal": "G4",
+      "priority": "P0"
+    },
+    {
+      "id": "p35-c002-gateway-test-debt",
+      "status": "pending",
+      "goal": "G3",
+      "priority": "P0",
+      "depends_on": "p35-c001"
+    },
+    {
+      "id": "p35-c003-ci-postgres-service",
+      "status": "pending",
+      "goal": "G1",
+      "priority": "P0",
+      "depends_on": "p35-c001"
+    },
+    {
+      "id": "p35-c004-db-integration-tests",
+      "status": "pending",
+      "goal": "G2",
+      "priority": "P1",
+      "depends_on": "p35-c003"
+    },
+    {
+      "id": "p35-c005-p3-bookkeeping-reconcile",
+      "status": "pending",
+      "goal": "G5",
+      "priority": "P2"
+    }
+  ],
+  "change_order": [
+    "p35-c001-clippy-unblock-hello-component",
+    "p35-c002-gateway-test-debt",
+    "p35-c003-ci-postgres-service",
+    "p35-c004-db-integration-tests",
+    "p35-c005-p3-bookkeeping-reconcile"
+  ],
+  "assessment_complete": true,
+  "plan_complete": true
 }

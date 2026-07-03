@@ -1,11 +1,11 @@
 {
   "phase": "p3.5-ci-postgres-hardening",
   "previousPhase": "p3-auth-rls-keto",
-  "status": "assessment_ready",
+  "status": "plan_ready",
   "updatedAt": "2026-07-03",
-  "next_action": "/kbd-assess p3.5-ci-postgres-hardening",
+  "next_action": "/kbd-apply p35-c001-clippy-unblock-hello-component",
   "changes_completed": 0,
-  "changes_total": 0,
+  "changes_total": 5,
   "goals_file": ".kbd-orchestrator/phases/p3.5-ci-postgres-hardening/goals.md",
   "spec_files": [
     "docs/FLINT-FORGE-SPEC.md",
