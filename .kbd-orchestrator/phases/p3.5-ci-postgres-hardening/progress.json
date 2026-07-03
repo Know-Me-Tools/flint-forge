@@ -1,7 +1,7 @@
 {
   "phase": "p3.5-ci-postgres-hardening",
   "status": "in_progress",
-  "changes_completed": 1,
+  "changes_completed": 2,
   "changes_total": 5,
   "changes": [
     {
@@ -14,10 +14,12 @@
     },
     {
       "id": "p35-c002-gateway-test-debt",
-      "status": "pending",
+      "status": "qa_passed",
       "goal": "G3",
       "priority": "P0",
-      "depends_on": "p35-c001"
+      "depends_on": "p35-c001",
+      "completed": "2026-07-03",
+      "completed_by": "claude-code"
     },
     {
       "id": "p35-c003-ci-postgres-service",
