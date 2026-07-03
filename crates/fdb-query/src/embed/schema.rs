@@ -10,7 +10,6 @@ use crate::clause::{Order, OrderError};
 use crate::filter::{FilterError, FilterTree};
 use crate::ident::IdentError;
 
-
 /// Caller-supplied, serde-free schema descriptor. `fdb-reflection` maps its
 /// `DatabaseModel` → `EmbedSchema`; `fdb-query` never depends on `fdb-reflection`.
 #[derive(Debug, Clone, Default)]

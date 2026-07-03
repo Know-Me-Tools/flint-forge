@@ -41,8 +41,8 @@ const MAX_IDENTIFIER_LEN: usize = 63;
 /// punctuation, so any surviving candidate is a lone word — the keywords here
 /// are the dangerous lone words.
 const RESERVED_KEYWORDS: &[&str] = &[
-    "select", "insert", "update", "delete", "drop", "alter", "create", "grant",
-    "revoke", "truncate", "union", "where", "from", "join", "table", "into",
+    "select", "insert", "update", "delete", "drop", "alter", "create", "grant", "revoke",
+    "truncate", "union", "where", "from", "join", "table", "into",
 ];
 
 /// Validate a SQL identifier (table or column name) before it is interpolated
@@ -131,7 +131,7 @@ mod identifier_tests {
         assert!(!is_safe_identifier("DROP"));
         assert!(!is_safe_identifier("Delete"));
         assert!(!is_safe_identifier("public.select")); // any segment reserved => reject
-        // A reserved word as a substring of a longer name is fine.
+                                                       // A reserved word as a substring of a longer name is fine.
         assert!(is_safe_identifier("selected"));
         assert!(is_safe_identifier("user_table"));
     }

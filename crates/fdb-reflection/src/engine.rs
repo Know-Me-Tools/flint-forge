@@ -35,7 +35,12 @@ impl ReflectionEngine {
             table.columns = self.fetch_columns(&table.schema, &table.name).await?;
         }
 
-        let mut model = DatabaseModel { tables, functions, views, version };
+        let mut model = DatabaseModel {
+            tables,
+            functions,
+            views,
+            version,
+        };
 
         passes::normalization::run(&mut model);
         passes::validation::run(&model)?;
@@ -52,11 +57,10 @@ impl ReflectionEngine {
     }
 
     async fn fetch_tables(&self) -> Result<Vec<Table>, ReflectionError> {
-        let rows: Vec<(String, String, bool)> = sqlx::query_as(
-            "SELECT schema_name, table_name, rls_enabled FROM flint_meta.tables()",
-        )
-        .fetch_all(&self.pool)
-        .await?;
+        let rows: Vec<(String, String, bool)> =
+            sqlx::query_as("SELECT schema_name, table_name, rls_enabled FROM flint_meta.tables()")
+                .fetch_all(&self.pool)
+                .await?;
 
         Ok(rows
             .into_iter()
@@ -118,7 +122,9 @@ impl ReflectionEngine {
 
         // Fetch args for each function, capturing vector types like "vector(N)"
         for fn_meta in &mut functions {
-            fn_meta.args = self.fetch_function_args(&fn_meta.schema, &fn_meta.name).await?;
+            fn_meta.args = self
+                .fetch_function_args(&fn_meta.schema, &fn_meta.name)
+                .await?;
         }
 
         Ok(functions)
@@ -181,7 +187,9 @@ impl ReflectionEngine {
         .unwrap_or(false);
 
         if !exists {
-            tracing::warn!("flint_a2ui schema not found; A2UI catalog will be empty until migration 0002 runs");
+            tracing::warn!(
+                "flint_a2ui schema not found; A2UI catalog will be empty until migration 0002 runs"
+            );
             return Ok(A2uiCatalog::empty());
         }
 
@@ -198,13 +206,15 @@ impl ReflectionEngine {
 
         let components = rows
             .into_iter()
-            .map(|(slug, primitive_type, category, schema, description)| A2uiCatalogEntry {
-                slug,
-                primitive_type,
-                category,
-                schema,
-                description,
-            })
+            .map(
+                |(slug, primitive_type, category, schema, description)| A2uiCatalogEntry {
+                    slug,
+                    primitive_type,
+                    category,
+                    schema,
+                    description,
+                },
+            )
             .collect();
 
         Ok(A2uiCatalog {

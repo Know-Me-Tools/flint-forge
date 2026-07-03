@@ -23,8 +23,8 @@
 //! wrong-SQL / wrong-error bugs, and the tests assert the exact `(sql, params)`.
 
 use fdb_query::{
-    Limits, Operator, Order, ParseError, Quantifier, QueryParam, RenderError, Select,
-    parse_select_request, render_condition,
+    parse_select_request, render_condition, Limits, Operator, Order, ParseError, Quantifier,
+    QueryParam, RenderError, Select,
 };
 
 /// Build a `(key, value)` query-param pair.

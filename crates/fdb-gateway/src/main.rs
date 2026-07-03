@@ -9,24 +9,24 @@ use std::sync::Arc;
 
 use async_graphql_axum::{GraphQLProtocol, GraphQLWebSocket};
 use axum::{
-    Router,
     extract::{State, WebSocketUpgrade},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Json, Response},
     routing::get,
+    Router,
 };
 use serde::Deserialize;
 use serde_json::json;
 
+use fdb_app::graphql::introspection::{is_introspection_query, IntrospectionMerger};
 use fdb_app::Quarry;
-use fdb_app::graphql::introspection::{IntrospectionMerger, is_introspection_query};
 use fdb_auth::rls_from_bearer;
 use fdb_domain::{GraphQlRequest, SubscriptionSpec, TableMeta, VectorRpcRequest};
 use fdb_ports::GraphQlExecutor;
 use fdb_postgres::{PgGraphQl, PgRest, PgVectorRpc};
 use fdb_realtime::{FabricChangeSource, FrfConfig, KetoConfig, ListenChangeSource, ListenConfig};
-use fdb_reflection::MutationGates;
 use fdb_reflection::compilers::graphql::SubStreamFactory;
+use fdb_reflection::MutationGates;
 use fdb_reflection::{ReflectionEngine, StateManager};
 use forge_identity::RlsContext;
 use forge_policy::CedarPolicyEngine;
@@ -67,8 +67,7 @@ struct GraphQlBody {
 async fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .init();
 
@@ -143,8 +142,7 @@ async fn main() {
     // Cedar policy enforcement point, backed by flint_meta.cedar_policies via
     // the privileged pool. Starts deny-all until the first successful load.
     let policy_source = Arc::new(policy_source::DbPolicySource::new(pool.clone()));
-    let pep: Arc<dyn forge_policy::Pep> =
-        Arc::new(CedarPolicyEngine::new(policy_source).await);
+    let pep: Arc<dyn forge_policy::Pep> = Arc::new(CedarPolicyEngine::new(policy_source).await);
 
     // Thread both gates into the reflection compiler so initial + hot-swapped
     // routers enforce Keto + Cedar on every mutation.
@@ -265,11 +263,9 @@ async fn rpc_vector_handler(
     };
     match state.vector_rpc.execute_similarity(&body, &rls).await {
         Ok(rows) => Json(rows).into_response(),
-        Err(fdb_ports::BackendError::Query(msg)) => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error": msg})),
-        )
-            .into_response(),
+        Err(fdb_ports::BackendError::Query(msg)) => {
+            (StatusCode::BAD_REQUEST, Json(json!({"error": msg}))).into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, "vector similarity error");
             (
@@ -334,7 +330,8 @@ async fn build_subscription_factory(
         };
         Arc::new(FabricChangeSource::new(frf_cfg, realtime_keto_cfg).expect("fabric change source"))
     };
-    let quarry = Arc::new(Quarry::new(sub_rest, sub_graphql, change_source).with_keto(keto_adapter));
+    let quarry =
+        Arc::new(Quarry::new(sub_rest, sub_graphql, change_source).with_keto(keto_adapter));
 
     Arc::new(
         move |mut spec: SubscriptionSpec, table_meta: TableMeta, who: RlsContext| {
@@ -343,13 +340,17 @@ async fn build_subscription_factory(
             // Defer to the use-case; flatten the "failed to open stream" error into a
             // single GraphQL error event so the field terminates cleanly.
             futures::stream::once(async move {
-                quarry.subscribe_graphql_values(spec, table_meta, &who).await
+                quarry
+                    .subscribe_graphql_values(spec, table_meta, &who)
+                    .await
             })
             .flat_map(|opened| match opened {
                 Ok(s) => s,
                 Err(e) => {
-                    futures::stream::once(async move { Err(async_graphql::Error::new(e.to_string())) })
-                        .boxed()
+                    futures::stream::once(
+                        async move { Err(async_graphql::Error::new(e.to_string())) },
+                    )
+                    .boxed()
                 }
             })
             .boxed()

@@ -761,6 +761,9 @@ mod tests {
                 yielded_err = true;
             }
         }
-        assert!(!yielded_err, "lag must not surface as an Err to the subscriber");
+        assert!(
+            !yielded_err,
+            "lag must not surface as an Err to the subscriber"
+        );
     }
 }

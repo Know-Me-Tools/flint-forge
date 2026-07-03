@@ -191,9 +191,7 @@ impl Quarry {
                                 };
                                 match rest.execute(query, &who).await {
                                     Ok(result) => match result.rows {
-                                        Json::Array(rows) if !rows.is_empty() => {
-                                            Some(Ok(event))
-                                        }
+                                        Json::Array(rows) if !rows.is_empty() => Some(Ok(event)),
                                         _ => None,
                                     },
                                     Err(e) => Some(Err(SubscriptionError::Backend(e))),
@@ -229,9 +227,7 @@ impl Quarry {
         who: &RlsContext,
     ) -> Result<BoxStream<'static, async_graphql::Result<async_graphql::Value>>, SubscriptionError>
     {
-        let stream = self
-            .subscribe_rls_filtered(spec, table_meta, who)
-            .await?;
+        let stream = self.subscribe_rls_filtered(spec, table_meta, who).await?;
         Ok(stream
             .map(|res| match res {
                 Ok(event) => Ok(change_event_to_value(&event)),
@@ -257,7 +253,10 @@ fn change_event_to_value(event: &ChangeEvent) -> async_graphql::Value {
         // Preserve a stable field order for deterministic output.
         let ordered: BTreeMap<&String, &Json> = obj.iter().collect();
         for (k, v) in ordered {
-            map.insert(Name::new(k), Value::from_json(v.clone()).unwrap_or(Value::Null));
+            map.insert(
+                Name::new(k),
+                Value::from_json(v.clone()).unwrap_or(Value::Null),
+            );
         }
     }
     Value::Object(map)

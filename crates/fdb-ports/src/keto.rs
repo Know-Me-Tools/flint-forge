@@ -30,11 +30,5 @@ use async_trait::async_trait;
 /// * `subject` — the subject identifier (PII — never logged).
 #[async_trait]
 pub trait KetoCheck: Send + Sync {
-    async fn check(
-        &self,
-        namespace: &str,
-        object: &str,
-        relation: &str,
-        subject: &str,
-    ) -> bool;
+    async fn check(&self, namespace: &str, object: &str, relation: &str, subject: &str) -> bool;
 }

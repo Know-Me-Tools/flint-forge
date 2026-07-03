@@ -151,7 +151,11 @@ mod tests {
     fn fk_name_is_deterministic_and_safe() {
         let schema = embed_schema_from_model(&model());
         let orders = schema.table("orders").expect("orders");
-        let edge = orders.fks.iter().find(|e| e.to_table == "customers").expect("edge");
+        let edge = orders
+            .fks
+            .iter()
+            .find(|e| e.to_table == "customers")
+            .expect("edge");
         assert_eq!(edge.fk_name, "orders_customer_id_fkey");
         assert!(forge_domain::is_safe_identifier(&edge.fk_name));
     }

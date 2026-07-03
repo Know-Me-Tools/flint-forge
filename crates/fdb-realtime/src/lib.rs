@@ -178,11 +178,13 @@ async fn keto_check_via_http(
     match resp.status() {
         s if s.is_success() => {
             // Parse `{"allowed": true/false}`
-            let body: serde_json::Value = resp
-                .json()
-                .await
-                .map_err(|_| StreamError::Unavailable)?;
-            if body.get("allowed").and_then(serde_json::Value::as_bool).unwrap_or(false) {
+            let body: serde_json::Value =
+                resp.json().await.map_err(|_| StreamError::Unavailable)?;
+            if body
+                .get("allowed")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false)
+            {
                 Ok(())
             } else {
                 Err(StreamError::Denied)

@@ -43,11 +43,7 @@ struct MockRest {
 
 #[async_trait]
 impl RestExecutor for MockRest {
-    async fn execute(
-        &self,
-        q: RestQuery,
-        _: &RlsContext,
-    ) -> Result<RestResult, BackendError> {
+    async fn execute(&self, q: RestQuery, _: &RlsContext) -> Result<RestResult, BackendError> {
         let rows = self
             .rows_by_table
             .get(&q.table)
@@ -190,12 +186,9 @@ async fn test_keto_check_gates_mutation() {
 async fn test_keto_allow_reaches_executor() {
     let quarry = make_quarry(
         MockRest {
-            rows_by_table: [(
-                "orders".into(),
-                json!([{"id": 42, "status": "confirmed"}]),
-            )]
-            .into_iter()
-            .collect(),
+            rows_by_table: [("orders".into(), json!([{"id": 42, "status": "confirmed"}]))]
+                .into_iter()
+                .collect(),
         },
         MockChanges { events: vec![] },
     )
@@ -217,8 +210,5 @@ async fn test_keto_allow_reaches_executor() {
         .await
         .expect("allowed keto check should reach the executor");
 
-    assert_eq!(
-        result.rows,
-        json!([{"id": 42, "status": "confirmed"}])
-    );
+    assert_eq!(result.rows, json!([{"id": 42, "status": "confirmed"}]));
 }

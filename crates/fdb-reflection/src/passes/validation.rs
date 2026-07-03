@@ -59,11 +59,24 @@ mod tests {
     use crate::model::{Column, ForeignKey, Table};
 
     fn col(name: &str) -> Column {
-        Column { name: name.to_string(), pg_type: "text".to_string(), nullable: true, default: None }
+        Column {
+            name: name.to_string(),
+            pg_type: "text".to_string(),
+            nullable: true,
+            default: None,
+        }
     }
 
     fn table(schema: &str, name: &str, columns: Vec<Column>, fk: Vec<ForeignKey>) -> Table {
-        Table { schema: schema.to_string(), name: name.to_string(), columns, pk: vec![], fk, rls_enabled: true, vault_key: None }
+        Table {
+            schema: schema.to_string(),
+            name: name.to_string(),
+            columns,
+            pk: vec![],
+            fk,
+            rls_enabled: true,
+            vault_key: None,
+        }
     }
 
     #[test]
@@ -97,7 +110,12 @@ mod tests {
     #[test]
     fn accepts_valid_model() {
         let model = DatabaseModel {
-            tables: vec![table("public", "items", vec![col("id"), col("name")], vec![])],
+            tables: vec![table(
+                "public",
+                "items",
+                vec![col("id"), col("name")],
+                vec![],
+            )],
             functions: vec![],
             views: vec![],
             version: 1,

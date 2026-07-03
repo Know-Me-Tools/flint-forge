@@ -1,4 +1,4 @@
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 use crate::model::{ArgMeta, Column, DatabaseModel, FnMeta, Table};
 
@@ -59,7 +59,15 @@ fn pg_type_to_json_schema(pg_type: &str) -> Value {
     let t = pg_type.trim().to_lowercase();
     if matches!(
         t.as_str(),
-        "integer" | "int" | "int4" | "int8" | "bigint" | "smallint" | "int2" | "serial" | "bigserial"
+        "integer"
+            | "int"
+            | "int4"
+            | "int8"
+            | "bigint"
+            | "smallint"
+            | "int2"
+            | "serial"
+            | "bigserial"
     ) {
         return json!({"type": "integer"});
     }
@@ -75,7 +83,10 @@ fn pg_type_to_json_schema(pg_type: &str) -> Value {
     if t == "uuid" {
         return json!({"type": "string", "format": "uuid"});
     }
-    if matches!(t.as_str(), "timestamp" | "timestamptz" | "timestamp with time zone" | "timestamp without time zone") {
+    if matches!(
+        t.as_str(),
+        "timestamp" | "timestamptz" | "timestamp with time zone" | "timestamp without time zone"
+    ) {
         return json!({"type": "string", "format": "date-time"});
     }
     if t == "date" {
@@ -87,7 +98,10 @@ fn pg_type_to_json_schema(pg_type: &str) -> Value {
     if t.starts_with("vector") {
         return json!({"type": "array", "items": {"type": "number"}, "description": "pgvector embedding"});
     }
-    if matches!(t.as_str(), "text" | "varchar" | "character varying" | "char" | "name" | "citext") {
+    if matches!(
+        t.as_str(),
+        "text" | "varchar" | "character varying" | "char" | "name" | "citext"
+    ) {
         return json!({"type": "string"});
     }
     json!({"type": "string", "description": format!("Postgres type: {pg_type}")})
@@ -120,8 +134,7 @@ fn table_to_schema(table: &Table) -> Value {
 /// Build filter query parameters for a GET list endpoint (one per column per operator).
 fn filter_params(columns: &[Column]) -> Vec<Value> {
     const OPERATORS: &[&str] = &[
-        "eq", "neq", "gt", "gte", "lt", "lte",
-        "like", "ilike", "is", "in", "cs", "cd",
+        "eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "is", "in", "cs", "cd",
     ];
 
     let mut params: Vec<Value> = Vec::new();
@@ -273,9 +286,24 @@ mod tests {
                 schema: "public".into(),
                 name: "items".into(),
                 columns: vec![
-                    Column { name: "id".into(), pg_type: "uuid".into(), nullable: false, default: Some("gen_random_uuid()".into()) },
-                    Column { name: "name".into(), pg_type: "text".into(), nullable: false, default: None },
-                    Column { name: "score".into(), pg_type: "integer".into(), nullable: true, default: None },
+                    Column {
+                        name: "id".into(),
+                        pg_type: "uuid".into(),
+                        nullable: false,
+                        default: Some("gen_random_uuid()".into()),
+                    },
+                    Column {
+                        name: "name".into(),
+                        pg_type: "text".into(),
+                        nullable: false,
+                        default: None,
+                    },
+                    Column {
+                        name: "score".into(),
+                        pg_type: "integer".into(),
+                        nullable: true,
+                        default: None,
+                    },
                 ],
                 pk: vec!["id".into()],
                 fk: vec![],
@@ -286,8 +314,14 @@ mod tests {
                 schema: "public".into(),
                 name: "find_similar".into(),
                 args: vec![
-                    ArgMeta { name: "query_vec".into(), pg_type: "vector(3)".into() },
-                    ArgMeta { name: "max_results".into(), pg_type: "integer".into() },
+                    ArgMeta {
+                        name: "query_vec".into(),
+                        pg_type: "vector(3)".into(),
+                    },
+                    ArgMeta {
+                        name: "max_results".into(),
+                        pg_type: "integer".into(),
+                    },
                 ],
                 return_type: "SETOF items".into(),
                 security_definer: false,
@@ -313,8 +347,14 @@ mod tests {
     fn test_every_table_has_collection_and_item_paths() {
         let doc = OpenApiCompiler::compile(&minimal_model());
         let paths = doc["paths"].as_object().unwrap();
-        assert!(paths.contains_key("/public/items"), "collection path missing");
-        assert!(paths.contains_key("/public/items/{id}"), "item path missing");
+        assert!(
+            paths.contains_key("/public/items"),
+            "collection path missing"
+        );
+        assert!(
+            paths.contains_key("/public/items/{id}"),
+            "item path missing"
+        );
     }
 
     #[test]
@@ -337,7 +377,10 @@ mod tests {
     fn test_function_has_post_path() {
         let doc = OpenApiCompiler::compile(&minimal_model());
         let paths = doc["paths"].as_object().unwrap();
-        assert!(paths.contains_key("/rpc/public/find_similar"), "rpc path missing");
+        assert!(
+            paths.contains_key("/rpc/public/find_similar"),
+            "rpc path missing"
+        );
         let entry = &doc["paths"]["/rpc/public/find_similar"];
         assert!(entry["post"].is_object());
     }
@@ -365,7 +408,10 @@ mod tests {
     fn test_schema_component_created_for_table() {
         let doc = OpenApiCompiler::compile(&minimal_model());
         let schemas = doc["components"]["schemas"].as_object().unwrap();
-        assert!(schemas.contains_key("public_items"), "schema component missing");
+        assert!(
+            schemas.contains_key("public_items"),
+            "schema component missing"
+        );
         let schema = &doc["components"]["schemas"]["public_items"];
         assert_eq!(schema["type"], "object");
         assert!(schema["properties"]["id"].is_object());
@@ -375,25 +421,35 @@ mod tests {
     #[test]
     fn test_rls_extension_field_on_schema() {
         let doc = OpenApiCompiler::compile(&minimal_model());
-        assert_eq!(doc["components"]["schemas"]["public_items"]["x-flint-rls-enabled"], true);
+        assert_eq!(
+            doc["components"]["schemas"]["public_items"]["x-flint-rls-enabled"],
+            true
+        );
     }
 
     #[test]
     fn test_filter_params_include_operators_for_columns() {
         let doc = OpenApiCompiler::compile(&minimal_model());
-        let params = doc["paths"]["/public/items"]["get"]["parameters"].as_array().unwrap();
-        let param_names: Vec<&str> = params.iter()
-            .filter_map(|p| p["name"].as_str())
-            .collect();
-        assert!(param_names.contains(&"name.eq"), "name.eq filter param missing");
-        assert!(param_names.contains(&"score.gt"), "score.gt filter param missing");
+        let params = doc["paths"]["/public/items"]["get"]["parameters"]
+            .as_array()
+            .unwrap();
+        let param_names: Vec<&str> = params.iter().filter_map(|p| p["name"].as_str()).collect();
+        assert!(
+            param_names.contains(&"name.eq"),
+            "name.eq filter param missing"
+        );
+        assert!(
+            param_names.contains(&"score.gt"),
+            "score.gt filter param missing"
+        );
         assert!(param_names.contains(&"order"), "order param missing");
     }
 
     #[test]
     fn test_vector_arg_in_function_schema() {
         let doc = OpenApiCompiler::compile(&minimal_model());
-        let body_schema = &doc["paths"]["/rpc/public/find_similar"]["post"]["requestBody"]["content"]["application/json"]["schema"];
+        let body_schema = &doc["paths"]["/rpc/public/find_similar"]["post"]["requestBody"]
+            ["content"]["application/json"]["schema"];
         let props = body_schema["properties"].as_object().unwrap();
         assert!(props.contains_key("query_vec"), "query_vec missing");
         assert_eq!(props["query_vec"]["type"], "array");

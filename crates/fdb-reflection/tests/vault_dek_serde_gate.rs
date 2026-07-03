@@ -90,6 +90,9 @@ fn test_model_without_vault_key_has_no_key_fields() {
     let json = serde_json::to_string(&model).expect("serializes");
     let lower = json.to_ascii_lowercase();
     for frag in FORBIDDEN_KEY_FRAGMENTS {
-        assert!(!lower.contains(frag), "leaked `{frag}` with no vault key set");
+        assert!(
+            !lower.contains(frag),
+            "leaked `{frag}` with no vault key set"
+        );
     }
 }

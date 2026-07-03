@@ -7,8 +7,8 @@
 //! predicate, reusing [`crate::operator::render_condition`] for leaves.
 
 use crate::fts::FtsConfig;
-use crate::ident::{IdentError, parse_column_ref};
-use crate::operator::{Operator, Quantifier, RenderError, render_condition};
+use crate::ident::{parse_column_ref, IdentError};
+use crate::operator::{render_condition, Operator, Quantifier, RenderError};
 use crate::param::QueryParam;
 
 /// A node in the filter tree.
@@ -44,7 +44,10 @@ impl FilterTree {
     ///
     /// # Errors
     /// Propagates [`FilterError`] from identifier validation or condition rendering.
-    pub fn render(&self, start_index: usize) -> Result<(String, Vec<QueryParam>, usize), FilterError> {
+    pub fn render(
+        &self,
+        start_index: usize,
+    ) -> Result<(String, Vec<QueryParam>, usize), FilterError> {
         match self {
             Self::Leaf {
                 column,
@@ -158,7 +161,10 @@ mod tests {
         assert_eq!(sql, "(age >= $1 AND status = $2)");
         assert_eq!(
             params,
-            vec![QueryParam::Text("18".into()), QueryParam::Text("active".into())]
+            vec![
+                QueryParam::Text("18".into()),
+                QueryParam::Text("active".into())
+            ]
         );
         assert_eq!(next, 3);
     }
@@ -177,7 +183,10 @@ mod tests {
         // and(a.gt.1, or(b.eq.2, c.eq.3))
         let tree = FilterTree::And(vec![
             leaf("a", Operator::Gt, "1"),
-            FilterTree::Or(vec![leaf("b", Operator::Eq, "2"), leaf("c", Operator::Eq, "3")]),
+            FilterTree::Or(vec![
+                leaf("b", Operator::Eq, "2"),
+                leaf("c", Operator::Eq, "3"),
+            ]),
         ]);
         let (sql, params, next) = tree.render(1).unwrap();
         assert_eq!(sql, "(a > $1 AND (b = $2 OR c = $3))");

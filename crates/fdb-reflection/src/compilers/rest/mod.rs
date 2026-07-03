@@ -1,12 +1,12 @@
 use axum::{
-    Json, Router,
     extract::{Path, Query, State},
-    http::{HeaderMap, StatusCode, header},
+    http::{header, HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{delete, get, patch, post},
+    Json, Router,
 };
 use forge_domain::is_safe_identifier;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -18,13 +18,16 @@ use forge_policy::Pep;
 mod mutations;
 mod rpc;
 
+use fdb_query::embed::{
+    parse_embed_select, render_inner_guards, render_projection, resolve_embeds,
+    route_embedded_param,
+};
 use fdb_query::QueryParam;
-use fdb_query::embed::{parse_embed_select, render_inner_guards, render_projection, resolve_embeds, route_embedded_param};
 
 use crate::compilers::embed_schema::embed_schema_from_model;
 use crate::compilers::filters::{bind_param, parse_filter_tree, render_where};
 use crate::model::DatabaseModel;
-use crate::passes::endpoint_generation::{EndpointKind, generate};
+use crate::passes::endpoint_generation::{generate, EndpointKind};
 
 /// Default page size when no `Range` header is supplied (PostgREST-style cap).
 const DEFAULT_LIMIT: i64 = 1000;
@@ -91,9 +94,7 @@ impl RestCompiler {
         for endpoint in &endpoints {
             let path = endpoint.path.clone();
             router = match (&endpoint.kind, endpoint.method) {
-                (EndpointKind::TableList { .. }, "GET") => {
-                    router.route(&path, get(handle_list))
-                }
+                (EndpointKind::TableList { .. }, "GET") => router.route(&path, get(handle_list)),
                 (EndpointKind::TableList { .. }, "POST") => {
                     router.route(&path, post(mutations::handle_insert))
                 }
@@ -103,9 +104,7 @@ impl RestCompiler {
                 (EndpointKind::TableById { .. }, "DELETE") => {
                     router.route(&path, delete(mutations::handle_delete))
                 }
-                (EndpointKind::Rpc { .. }, "POST") => {
-                    router.route(&path, post(rpc::handle_rpc))
-                }
+                (EndpointKind::Rpc { .. }, "POST") => router.route(&path, post(rpc::handle_rpc)),
                 _ => router,
             };
         }
@@ -208,17 +207,17 @@ fn build_inner_query(
     }
 
     // Top-level filters: every non-reserved, non-embed-routed param.
-    let filter_tree = parse_filter_tree_excluding_embeds(params, &embed_select)
-        .map_err(|e| e.to_string())?;
+    let filter_tree =
+        parse_filter_tree_excluding_embeds(params, &embed_select).map_err(|e| e.to_string())?;
 
     // No embeds → the simple, previously-shipped shape (no parent alias).
     if embed_select.embeds.is_empty() {
         let where_clause = render_where(&filter_tree, 1)?;
-        let sql = format!(
-            "SELECT * FROM {schema}.{table} {}",
-            where_clause.sql
-        );
-        return Ok(InnerQuery { sql, binds: where_clause.binds });
+        let sql = format!("SELECT * FROM {schema}.{table} {}", where_clause.sql);
+        return Ok(InnerQuery {
+            sql,
+            binds: where_clause.binds,
+        });
     }
 
     // Embedded path: alias the parent so correlation predicates can reference it.
@@ -254,9 +253,7 @@ fn build_inner_query(
         format!("WHERE {}", where_terms.join(" AND "))
     };
 
-    let sql = format!(
-        "SELECT {projection} FROM {schema}.{table} {parent_alias} {where_sql}"
-    );
+    let sql = format!("SELECT {projection} FROM {schema}.{table} {parent_alias} {where_sql}");
 
     let mut binds = proj_params;
     binds.extend(where_clause.binds);
@@ -418,12 +415,11 @@ pub(super) fn internal_error() -> axum::response::Response {
         .into_response()
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::model::{Column, DatabaseModel, ForeignKey, Table};
     use super::RestCompiler;
     use super::{build_inner_query, embed_schema_from_model};
+    use crate::model::{Column, DatabaseModel, ForeignKey, Table};
     use std::collections::HashMap;
 
     fn minimal_model() -> DatabaseModel {
@@ -444,7 +440,12 @@ mod tests {
     }
 
     fn col(name: &str) -> Column {
-        Column { name: name.into(), pg_type: "text".into(), nullable: true, default: None }
+        Column {
+            name: name.into(),
+            pg_type: "text".into(),
+            nullable: true,
+            default: None,
+        }
     }
 
     /// customers 1—* orders (orders.customer_id -> customers.id).
@@ -482,7 +483,10 @@ mod tests {
     }
 
     fn params(pairs: &[(&str, &str)]) -> HashMap<String, String> {
-        pairs.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect()
+        pairs
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect()
     }
 
     #[test]
@@ -509,8 +513,16 @@ mod tests {
         .expect("inner");
         // Parent star qualified to the alias; embed rendered as a subselect; aliased FROM.
         assert!(inner.sql.contains("customers.*"), "sql: {}", inner.sql);
-        assert!(inner.sql.contains("FROM public.customers customers"), "sql: {}", inner.sql);
-        assert!(inner.sql.contains("json_agg"), "to-many embed uses json_agg: {}", inner.sql);
+        assert!(
+            inner.sql.contains("FROM public.customers customers"),
+            "sql: {}",
+            inner.sql
+        );
+        assert!(
+            inner.sql.contains("json_agg"),
+            "to-many embed uses json_agg: {}",
+            inner.sql
+        );
     }
 
     #[test]
@@ -525,7 +537,11 @@ mod tests {
             &es,
         )
         .expect("inner");
-        assert!(!inner.sql.contains("50"), "embed filter value must be bound: {}", inner.sql);
+        assert!(
+            !inner.sql.contains("50"),
+            "embed filter value must be bound: {}",
+            inner.sql
+        );
         assert!(!inner.binds.is_empty(), "embed filter contributes a bind");
     }
 
@@ -534,7 +550,12 @@ mod tests {
         let m = embed_model();
         let es = embed_schema_from_model(&m);
         // An unsafe parent table must be rejected by resolve_embeds validation.
-        let r = build_inner_query("public", "customers; DROP", &params(&[("select", "*,orders(*)")]), &es);
+        let r = build_inner_query(
+            "public",
+            "customers; DROP",
+            &params(&[("select", "*,orders(*)")]),
+            &es,
+        );
         assert!(r.is_err(), "unsafe parent table must error");
     }
 
@@ -542,8 +563,7 @@ mod tests {
     async fn compiles_without_panic_for_minimal_model() {
         // compile() must not panic during route registration.
         // Uses a disconnected lazy pool — compilation never touches the DB.
-        let pool = sqlx::PgPool::connect_lazy("postgres://localhost/test")
-            .expect("lazy pool");
+        let pool = sqlx::PgPool::connect_lazy("postgres://localhost/test").expect("lazy pool");
         let model = minimal_model();
         let _router = RestCompiler::compile(&model, pool);
     }
@@ -582,5 +602,4 @@ mod tests {
         // rows=20- → offset 20, default limit
         assert_eq!(parse_range(&range_header("rows=20-")), (20, DEFAULT_LIMIT));
     }
-
 }

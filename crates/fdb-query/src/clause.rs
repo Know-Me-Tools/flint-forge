@@ -5,7 +5,7 @@
 //! fragment. Identifiers go through [`crate::ident`]; nothing user-controlled is
 //! interpolated unvalidated.
 
-use crate::ident::{IdentError, parse_column_ref, validate_identifier};
+use crate::ident::{parse_column_ref, validate_identifier, IdentError};
 
 /// A `select` projection: a list of output columns, each optionally renamed.
 ///
@@ -40,7 +40,11 @@ impl Select {
             // of a `::cast`. We look for a single ':' not followed by another ':'.
             let (alias, col_part) = split_alias(token);
             let alias = match alias {
-                Some(a) => Some(validate_identifier(a).map_err(|_| IdentError::Unsafe(a.to_owned()))?.to_owned()),
+                Some(a) => Some(
+                    validate_identifier(a)
+                        .map_err(|_| IdentError::Unsafe(a.to_owned()))?
+                        .to_owned(),
+                ),
                 None => None,
             };
             let expr_sql = parse_column_ref(col_part)?.to_sql();
@@ -204,7 +208,10 @@ impl Limits {
         let (start, end) = range
             .split_once('-')
             .ok_or_else(|| RangeError::Malformed(range.to_owned()))?;
-        let start: u64 = start.trim().parse().map_err(|_| RangeError::Malformed(range.to_owned()))?;
+        let start: u64 = start
+            .trim()
+            .parse()
+            .map_err(|_| RangeError::Malformed(range.to_owned()))?;
         if end.trim().is_empty() {
             // Open-ended range `start-`: offset only.
             return Ok(Self {
@@ -212,7 +219,10 @@ impl Limits {
                 offset: Some(start),
             });
         }
-        let end: u64 = end.trim().parse().map_err(|_| RangeError::Malformed(range.to_owned()))?;
+        let end: u64 = end
+            .trim()
+            .parse()
+            .map_err(|_| RangeError::Malformed(range.to_owned()))?;
         if end < start {
             return Err(RangeError::Inverted { start, end });
         }
@@ -364,15 +374,33 @@ mod tests {
     #[test]
     fn range_header_inclusive() {
         let l = Limits::from_range_header("0-24").unwrap();
-        assert_eq!(l, Limits { limit: Some(25), offset: Some(0) });
+        assert_eq!(
+            l,
+            Limits {
+                limit: Some(25),
+                offset: Some(0)
+            }
+        );
         let l = Limits::from_range_header("10-19").unwrap();
-        assert_eq!(l, Limits { limit: Some(10), offset: Some(10) });
+        assert_eq!(
+            l,
+            Limits {
+                limit: Some(10),
+                offset: Some(10)
+            }
+        );
     }
 
     #[test]
     fn range_open_ended_offset_only() {
         let l = Limits::from_range_header("50-").unwrap();
-        assert_eq!(l, Limits { limit: None, offset: Some(50) });
+        assert_eq!(
+            l,
+            Limits {
+                limit: None,
+                offset: Some(50)
+            }
+        );
     }
 
     #[test]
@@ -397,6 +425,9 @@ mod tests {
 
     #[test]
     fn top_level_comma_split_respects_parens() {
-        assert_eq!(split_top_level_commas("a,b(c,d),e"), vec!["a", "b(c,d)", "e"]);
+        assert_eq!(
+            split_top_level_commas("a,b(c,d),e"),
+            vec!["a", "b(c,d)", "e"]
+        );
     }
 }

@@ -22,7 +22,10 @@ fn one(column: &str, raw: &str) -> HashMap<String, String> {
 }
 
 /// Render a single `column=raw` filter to its `WHERE` clause.
-fn where_of(column: &str, raw: &str) -> Result<fdb_reflection::compilers::filters::WhereClause, String> {
+fn where_of(
+    column: &str,
+    raw: &str,
+) -> Result<fdb_reflection::compilers::filters::WhereClause, String> {
     let tree = parse_filter_tree(&one(column, raw)).map_err(|e| e.to_string())?;
     render_where(&tree, 1)
 }
@@ -31,7 +34,10 @@ fn where_of(column: &str, raw: &str) -> Result<fdb_reflection::compilers::filter
 #[test]
 fn test_rest_select_with_eq_filter() {
     let wc = where_of("status", "eq.active").expect("eq renders");
-    assert_eq!(wc.sql, "WHERE status = $1", "eq must render a bound placeholder");
+    assert_eq!(
+        wc.sql, "WHERE status = $1",
+        "eq must render a bound placeholder"
+    );
     assert_eq!(
         wc.binds,
         vec![QueryParam::Text("active".to_owned())],
@@ -130,5 +136,8 @@ fn valid_identifiers_still_accepted() {
         wc.binds,
         vec![QueryParam::Text("Robert'); DROP TABLE--".to_owned())]
     );
-    assert!(!wc.sql.contains("DROP"), "dangerous value must be bound, not in SQL");
+    assert!(
+        !wc.sql.contains("DROP"),
+        "dangerous value must be bound, not in SQL"
+    );
 }

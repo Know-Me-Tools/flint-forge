@@ -140,13 +140,20 @@ async fn listen_change_source_watch_delivers_event() {
     // Keto stub that ALLOWS the coarse check.
     let keto = MockServer::start().await;
     Mock::given(method("GET"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"allowed": true})))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({"allowed": true})),
+        )
         .mount(&keto)
         .await;
 
     let source = ListenChangeSource::new(
-        ListenConfig { database_url: url.clone(), broadcast_capacity: 64 },
-        KetoConfig { base_url: keto.uri() },
+        ListenConfig {
+            database_url: url.clone(),
+            broadcast_capacity: 64,
+        },
+        KetoConfig {
+            base_url: keto.uri(),
+        },
     )
     .await
     .expect("listen source");
@@ -177,7 +184,14 @@ async fn listen_change_source_watch_delivers_event() {
         .expect("ok change event");
     assert_eq!(event.schema, "flint_listen_it2");
     assert_eq!(event.table, "doc");
-    assert_eq!(event.record.as_ref().and_then(|r| r.get("id")).and_then(serde_json::Value::as_i64), Some(7));
+    assert_eq!(
+        event
+            .record
+            .as_ref()
+            .and_then(|r| r.get("id"))
+            .and_then(serde_json::Value::as_i64),
+        Some(7)
+    );
 
     pool.execute("DROP SCHEMA flint_listen_it2 CASCADE;")
         .await

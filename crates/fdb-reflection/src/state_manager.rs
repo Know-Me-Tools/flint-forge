@@ -126,8 +126,7 @@ impl StateManager {
     }
 
     async fn run_listener(&self) -> Result<(), sqlx::Error> {
-        let mut listener =
-            sqlx::postgres::PgListener::connect(&self.db_url).await?;
+        let mut listener = sqlx::postgres::PgListener::connect(&self.db_url).await?;
         listener.listen("meta_runtime").await?;
         tracing::info!("PgListener connected; listening on meta_runtime");
 
@@ -167,15 +166,13 @@ impl StateManager {
         sub_stream_factory: Option<&SubStreamFactory>,
     ) -> Result<CompiledState, ReflectionError> {
         let model = engine.reflect().await?;
-        let router = RestCompiler::compile_with_gates(
-            &model,
-            pool,
-            gates.keto.clone(),
-            gates.pep.clone(),
-        );
+        let router =
+            RestCompiler::compile_with_gates(&model, pool, gates.keto.clone(), gates.pep.clone());
         let openapi_doc = OpenApiCompiler::compile(&model);
-        let subscription_schema = match GraphQlCompiler::compile(&model, sub_stream_factory.cloned())
-        {
+        let subscription_schema = match GraphQlCompiler::compile(
+            &model,
+            sub_stream_factory.cloned(),
+        ) {
             Ok(schema) => Some(schema),
             Err(e) => {
                 tracing::warn!(error = %e, "GraphQlCompiler failed; subscription schema unavailable");

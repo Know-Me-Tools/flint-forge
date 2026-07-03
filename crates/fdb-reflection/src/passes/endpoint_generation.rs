@@ -25,22 +25,30 @@ pub fn generate(model: &DatabaseModel) -> Vec<Endpoint> {
         endpoints.push(Endpoint {
             method: "GET",
             path: prefix.clone(),
-            kind: EndpointKind::TableList { table: table.clone() },
+            kind: EndpointKind::TableList {
+                table: table.clone(),
+            },
         });
         endpoints.push(Endpoint {
             method: "POST",
             path: prefix.clone(),
-            kind: EndpointKind::TableList { table: table.clone() },
+            kind: EndpointKind::TableList {
+                table: table.clone(),
+            },
         });
         endpoints.push(Endpoint {
             method: "PATCH",
             path: format!("{}/{{id}}", prefix),
-            kind: EndpointKind::TableById { table: table.clone() },
+            kind: EndpointKind::TableById {
+                table: table.clone(),
+            },
         });
         endpoints.push(Endpoint {
             method: "DELETE",
             path: format!("{}/{{id}}", prefix),
-            kind: EndpointKind::TableById { table: table.clone() },
+            kind: EndpointKind::TableById {
+                table: table.clone(),
+            },
         });
     }
 

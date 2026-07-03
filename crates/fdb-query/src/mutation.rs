@@ -70,7 +70,8 @@ impl InsertPlan {
             .map_err(|_| ParseError::UnsafeRelation(relation.to_owned()))?
             .to_owned();
         for c in &columns {
-            validate_identifier(c).map_err(|_| ParseError::Ident(crate::IdentError::Unsafe(c.clone())))?;
+            validate_identifier(c)
+                .map_err(|_| ParseError::Ident(crate::IdentError::Unsafe(c.clone())))?;
         }
         for oc in &options.on_conflict {
             validate_identifier(oc)
@@ -345,11 +346,22 @@ mod tests {
     fn insert_rejects_empty_rows_and_unsafe_ident() {
         assert!(InsertPlan::new("t", vec!["a".into()], vec![], InsertOptions::default()).is_err());
         assert!(matches!(
-            InsertPlan::new("t; DROP", vec!["a".into()], vec![vec![txt("1")]], InsertOptions::default())
-                .unwrap_err(),
+            InsertPlan::new(
+                "t; DROP",
+                vec!["a".into()],
+                vec![vec![txt("1")]],
+                InsertOptions::default()
+            )
+            .unwrap_err(),
             ParseError::UnsafeRelation(_)
         ));
-        assert!(InsertPlan::new("t", vec!["a; DROP".into()], vec![vec![txt("1")]], InsertOptions::default()).is_err());
+        assert!(InsertPlan::new(
+            "t",
+            vec!["a; DROP".into()],
+            vec![vec![txt("1")]],
+            InsertOptions::default()
+        )
+        .is_err());
     }
 
     #[test]
@@ -391,8 +403,9 @@ mod tests {
 
     #[test]
     fn write_prefer_parse() {
-        let (returning, resolution, missing) =
-            parse_write_prefer("return=representation, resolution=merge-duplicates, missing=default");
+        let (returning, resolution, missing) = parse_write_prefer(
+            "return=representation, resolution=merge-duplicates, missing=default",
+        );
         assert_eq!(returning, ReturnKind::Representation);
         assert_eq!(resolution, Resolution::MergeDuplicates);
         assert!(missing);

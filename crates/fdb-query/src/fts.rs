@@ -15,7 +15,7 @@
 //! for the `(any)`/`(all)` quantifier. FTS operators reject quantifiers, so the
 //! suffix on an FTS op is unambiguously a config.
 
-use crate::ident::{IdentError, validate_identifier};
+use crate::ident::{validate_identifier, IdentError};
 use crate::param::QueryParam;
 
 /// Which `tsquery` constructor a full-text-search operator uses.
@@ -207,8 +207,14 @@ mod tests {
 
     #[test]
     fn wfts_maps_to_websearch() {
-        let (sql, params, _) =
-            render_fts("c", FtsKind::Wfts, None, "\"quoted phrase\" OR term", false, 1);
+        let (sql, params, _) = render_fts(
+            "c",
+            FtsKind::Wfts,
+            None,
+            "\"quoted phrase\" OR term",
+            false,
+            1,
+        );
         assert_eq!(sql, "c @@ websearch_to_tsquery($1)");
         assert_eq!(
             params,
@@ -244,7 +250,10 @@ mod tests {
     #[test]
     fn no_config_has_no_leading_comma() {
         let (sql, _, _) = render_fts("c", FtsKind::Fts, None, "q", false, 1);
-        assert!(!sql.contains("(, "), "single-arg form must not have a leading comma");
+        assert!(
+            !sql.contains("(, "),
+            "single-arg form must not have a leading comma"
+        );
         assert_eq!(sql, "c @@ to_tsquery($1)");
     }
 

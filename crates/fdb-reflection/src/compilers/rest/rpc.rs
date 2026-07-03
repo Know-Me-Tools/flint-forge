@@ -3,13 +3,13 @@
 //! under the 500-line limit.
 
 use axum::{
-    Json,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
+    Json,
 };
 use forge_domain::is_safe_identifier;
-use serde_json::{Map, Value, json};
+use serde_json::{json, Map, Value};
 use tracing::instrument;
 
 use super::RestState;
@@ -50,9 +50,7 @@ pub(super) async fn handle_rpc(
     // Build the parameterised SQL call:
     //   SELECT * FROM <schema>.<fn>($1, $2, ...) AS t
     // Placeholder numbering matches the arg order from FnMeta.
-    let placeholders: Vec<String> = (1..=fn_meta.args.len())
-        .map(|i| format!("${i}"))
-        .collect();
+    let placeholders: Vec<String> = (1..=fn_meta.args.len()).map(|i| format!("${i}")).collect();
     // SECURITY: interpolate the identifiers from the *compiled model*
     // (`fn_meta`), not the raw path params — the model is reflected from
     // pg_catalog and is the trusted source. Belt-and-braces, re-validate.
@@ -80,11 +78,7 @@ pub(super) async fn handle_rpc(
                     q = q.bind(vec);
                 }
                 Err(msg) => {
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        Json(json!({"error": msg})),
-                    )
-                        .into_response();
+                    return (StatusCode::BAD_REQUEST, Json(json!({"error": msg}))).into_response();
                 }
             }
         } else {

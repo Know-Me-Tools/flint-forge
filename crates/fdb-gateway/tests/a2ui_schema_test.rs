@@ -15,12 +15,11 @@ async fn connect() -> Option<PgPool> {
 async fn test_pgvector_extension_installed() {
     let Some(pool) = connect().await else { return };
 
-    let row: (bool,) = sqlx::query_as(
-        "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')",
-    )
-    .fetch_one(&pool)
-    .await
-    .expect("query failed");
+    let row: (bool,) =
+        sqlx::query_as("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')")
+            .fetch_one(&pool)
+            .await
+            .expect("query failed");
 
     assert!(row.0, "pgvector extension must be installed");
 }
@@ -93,7 +92,10 @@ async fn test_hnsw_index_exists() {
     .await
     .expect("query failed");
 
-    assert!(row.0, "HNSW index idx_embeddings_hnsw must exist on flint_a2ui.embeddings");
+    assert!(
+        row.0,
+        "HNSW index idx_embeddings_hnsw must exist on flint_a2ui.embeddings"
+    );
 }
 
 #[tokio::test]
@@ -140,11 +142,10 @@ async fn test_jwt_claims_guc_returns_null_when_unset() {
 
     // Verify that current_setting('app.jwt_claims', true) returns NULL (not an error)
     // when the GUC is not set — the `true` flag is the safety guard for service-role queries.
-    let row: (Option<String>,) =
-        sqlx::query_as("SELECT current_setting('app.jwt_claims', true)")
-            .fetch_one(&pool)
-            .await
-            .expect("current_setting query failed");
+    let row: (Option<String>,) = sqlx::query_as("SELECT current_setting('app.jwt_claims', true)")
+        .fetch_one(&pool)
+        .await
+        .expect("current_setting query failed");
 
     assert!(
         row.0.is_none(),

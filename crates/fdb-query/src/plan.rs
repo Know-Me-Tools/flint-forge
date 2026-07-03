@@ -7,7 +7,7 @@
 use crate::clause::{CountStrategy, Limits, Order, Select};
 use crate::filter::{FilterError, FilterTree};
 use crate::fts::FtsConfig;
-use crate::ident::{IdentError, validate_identifier};
+use crate::ident::{validate_identifier, IdentError};
 use crate::operator::{Operator, Quantifier, RenderError};
 use crate::param::QueryParam;
 
@@ -77,14 +77,24 @@ pub fn parse_select_request(
             "select" => select = Select::parse(value)?,
             "order" => order = Order::parse(value).map_err(ParseError::from)?,
             "limit" => {
-                limit = Some(value.parse().map_err(|_| ParseError::BadNumber(value.clone()))?);
+                limit = Some(
+                    value
+                        .parse()
+                        .map_err(|_| ParseError::BadNumber(value.clone()))?,
+                );
             }
             "offset" => {
-                offset = Some(value.parse().map_err(|_| ParseError::BadNumber(value.clone()))?);
+                offset = Some(
+                    value
+                        .parse()
+                        .map_err(|_| ParseError::BadNumber(value.clone()))?,
+                );
             }
             "and" => leaves.push(parse_logical_group("and", value)?),
             "or" => leaves.push(parse_logical_group("or", value)?),
-            "not.and" => leaves.push(FilterTree::Not(Box::new(parse_logical_group("and", value)?))),
+            "not.and" => leaves.push(FilterTree::Not(Box::new(parse_logical_group(
+                "and", value,
+            )?))),
             "not.or" => leaves.push(FilterTree::Not(Box::new(parse_logical_group("or", value)?))),
             _ => leaves.push(parse_leaf(key, value)?),
         }
@@ -159,12 +169,11 @@ fn parse_op_token(
 
     if op.fts_kind().is_some() {
         // FTS operator: the payload (if any) is a text-search config.
-        let cfg = payload
-            .map(FtsConfig::parse)
-            .transpose()
-            .map_err(|e| ParseError::Filter(FilterError::Render(RenderError::InvalidFtsConfig(
+        let cfg = payload.map(FtsConfig::parse).transpose().map_err(|e| {
+            ParseError::Filter(FilterError::Render(RenderError::InvalidFtsConfig(
                 e.to_string(),
-            ))))?;
+            )))
+        })?;
         return Ok((op, None, cfg));
     }
 
@@ -344,7 +353,10 @@ mod tests {
     #[test]
     fn not_prefix_negates_leaf() {
         let plan = parse_select_request("t", &[p("a", "not.eq.1")], None, None).unwrap();
-        assert_eq!(plan.render().unwrap().0, "SELECT * FROM t WHERE NOT (a = $1)");
+        assert_eq!(
+            plan.render().unwrap().0,
+            "SELECT * FROM t WHERE NOT (a = $1)"
+        );
     }
 
     #[test]
@@ -352,13 +364,23 @@ mod tests {
         let plan = parse_select_request("t", &[p("id", "eq(any).(1,2,3)")], None, None).unwrap();
         let (sql, params) = plan.render().unwrap();
         assert_eq!(sql, "SELECT * FROM t WHERE id = ANY($1)");
-        assert_eq!(params, vec![QueryParam::TextArray(vec!["1".into(), "2".into(), "3".into()])]);
+        assert_eq!(
+            params,
+            vec![QueryParam::TextArray(vec![
+                "1".into(),
+                "2".into(),
+                "3".into()
+            ])]
+        );
     }
 
     #[test]
     fn logical_or_group() {
         let plan = parse_select_request("t", &[p("or", "(a.eq.1,b.eq.2)")], None, None).unwrap();
-        assert_eq!(plan.render().unwrap().0, "SELECT * FROM t WHERE (a = $1 OR b = $2)");
+        assert_eq!(
+            plan.render().unwrap().0,
+            "SELECT * FROM t WHERE (a = $1 OR b = $2)"
+        );
     }
 
     #[test]
@@ -373,8 +395,8 @@ mod tests {
 
     #[test]
     fn not_and_group_negates() {
-        let plan = parse_select_request("t", &[p("not.and", "(a.gte.0,a.lte.9)")], None, None)
-            .unwrap();
+        let plan =
+            parse_select_request("t", &[p("not.and", "(a.gte.0,a.lte.9)")], None, None).unwrap();
         assert_eq!(
             plan.render().unwrap().0,
             "SELECT * FROM t WHERE NOT ((a >= $1 AND a <= $2))"
@@ -384,13 +406,16 @@ mod tests {
     #[test]
     fn range_header_overrides_limit() {
         let plan = parse_select_request("t", &[], Some("0-24"), None).unwrap();
-        assert_eq!(plan.render().unwrap().0, "SELECT * FROM t LIMIT 25 OFFSET 0");
+        assert_eq!(
+            plan.render().unwrap().0,
+            "SELECT * FROM t LIMIT 25 OFFSET 0"
+        );
     }
 
     #[test]
     fn prefer_count_parsed() {
-        let plan =
-            parse_select_request("t", &[], None, Some("count=exact, return=representation")).unwrap();
+        let plan = parse_select_request("t", &[], None, Some("count=exact, return=representation"))
+            .unwrap();
         assert_eq!(plan.count, CountStrategy::Exact);
     }
 
@@ -420,10 +445,13 @@ mod tests {
 
     #[test]
     fn fts_with_config_parses_to_quoted_regconfig() {
-        let plan = parse_select_request("t", &[p("body", "fts(english).friend")], None, None)
-            .unwrap();
+        let plan =
+            parse_select_request("t", &[p("body", "fts(english).friend")], None, None).unwrap();
         let (sql, params) = plan.render().unwrap();
-        assert_eq!(sql, "SELECT * FROM t WHERE body @@ to_tsquery('english', $1)");
+        assert_eq!(
+            sql,
+            "SELECT * FROM t WHERE body @@ to_tsquery('english', $1)"
+        );
         assert_eq!(params, vec![QueryParam::Text("friend".into())]);
     }
 
@@ -457,8 +485,8 @@ mod tests {
 
     #[test]
     fn fts_config_rejects_injection_at_parse() {
-        let err = parse_select_request("t", &[p("c", "fts(english'); DROP).x")], None, None)
-            .unwrap_err();
+        let err =
+            parse_select_request("t", &[p("c", "fts(english'); DROP).x")], None, None).unwrap_err();
         assert!(
             matches!(
                 err,
@@ -489,9 +517,13 @@ mod tests {
 
     #[test]
     fn fts_inside_logical_group_uses_config() {
-        let plan =
-            parse_select_request("t", &[p("or", "(body.fts(english).cat,title.fts.dog)")], None, None)
-                .unwrap();
+        let plan = parse_select_request(
+            "t",
+            &[p("or", "(body.fts(english).cat,title.fts.dog)")],
+            None,
+            None,
+        )
+        .unwrap();
         assert_eq!(
             plan.render().unwrap().0,
             "SELECT * FROM t WHERE (body @@ to_tsquery('english', $1) OR title @@ to_tsquery($2))"

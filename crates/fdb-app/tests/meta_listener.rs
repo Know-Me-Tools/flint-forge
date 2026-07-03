@@ -25,7 +25,11 @@ fn database_url() -> Option<String> {
 /// Connects a pool; returns `None` and prints a skip message on failure.
 async fn connect_pool(db_url: &str, max: u32) -> Option<sqlx::PgPool> {
     use sqlx::postgres::PgPoolOptions;
-    match PgPoolOptions::new().max_connections(max).connect(db_url).await {
+    match PgPoolOptions::new()
+        .max_connections(max)
+        .connect(db_url)
+        .await
+    {
         Ok(p) => Some(p),
         Err(e) => {
             eprintln!("SKIP: cannot connect: {e}");
@@ -43,15 +47,16 @@ async fn test_ddl_notify_received_within_5s() {
     use sqlx::postgres::PgListener;
 
     let Some(db_url) = database_url() else { return };
-    let Some(pool) = connect_pool(&db_url, 2).await else { return };
+    let Some(pool) = connect_pool(&db_url, 2).await else {
+        return;
+    };
 
     // Confirm ext-flint-meta is installed.
-    let ext_ok: Option<i64> = sqlx::query_scalar(
-        "SELECT 1 FROM pg_extension WHERE extname = 'ext_flint_meta'",
-    )
-    .fetch_optional(&pool)
-    .await
-    .unwrap_or(None);
+    let ext_ok: Option<i64> =
+        sqlx::query_scalar("SELECT 1 FROM pg_extension WHERE extname = 'ext_flint_meta'")
+            .fetch_optional(&pool)
+            .await
+            .unwrap_or(None);
     if ext_ok.is_none() {
         eprintln!("SKIP: ext-flint-meta not installed");
         pool.close().await;
@@ -93,16 +98,28 @@ async fn test_ddl_notify_received_within_5s() {
     // Expect a notification within 5 s; timeout is fatal (the event trigger must fire).
     let recv_result = timeout(Duration::from_secs(5), listener.recv())
         .await
-        .expect("no notification on 'meta_runtime' within 5 s — is flint_meta_ddl_refresh installed?");
+        .expect(
+            "no notification on 'meta_runtime' within 5 s — is flint_meta_ddl_refresh installed?",
+        );
     let n = recv_result.expect("listener.recv() returned an error");
 
     assert_eq!(n.channel(), "meta_runtime");
     let payload: serde_json::Value =
         serde_json::from_str(n.payload()).expect("payload must be valid JSON");
-    assert!(payload.get("version").is_some(), "missing 'version' in payload: {payload}");
-    assert!(payload.get("ddl_tag").is_some(), "missing 'ddl_tag' in payload: {payload}");
+    assert!(
+        payload.get("version").is_some(),
+        "missing 'version' in payload: {payload}"
+    );
+    assert!(
+        payload.get("ddl_tag").is_some(),
+        "missing 'ddl_tag' in payload: {payload}"
+    );
 
-    drop(sqlx::query(&format!("DROP TABLE IF EXISTS public.{table}")).execute(&pool).await);
+    drop(
+        sqlx::query(&format!("DROP TABLE IF EXISTS public.{table}"))
+            .execute(&pool)
+            .await,
+    );
     pool.close().await;
 }
 
@@ -115,7 +132,9 @@ async fn test_listener_reconnect_after_drop() {
     use sqlx::postgres::PgListener;
 
     let Some(db_url) = database_url() else { return };
-    let Some(pool) = connect_pool(&db_url, 3).await else { return };
+    let Some(pool) = connect_pool(&db_url, 3).await else {
+        return;
+    };
 
     let mut listener = match PgListener::connect_with(&pool).await {
         Ok(l) => l,
@@ -137,7 +156,12 @@ async fn test_listener_reconnect_after_drop() {
         .await
         .unwrap_or(None);
     if let Some(pid) = pid {
-        drop(sqlx::query("SELECT pg_terminate_backend($1)").bind(pid).execute(&pool).await);
+        drop(
+            sqlx::query("SELECT pg_terminate_backend($1)")
+                .bind(pid)
+                .execute(&pool)
+                .await,
+        );
     }
 
     // Old listener's next recv() should fail or time out — either is acceptable.

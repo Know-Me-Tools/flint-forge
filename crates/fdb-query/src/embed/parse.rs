@@ -5,12 +5,11 @@
 
 use crate::clause::Order;
 use crate::filter::FilterTree;
-use crate::ident::{IdentError, parse_column_ref, validate_identifier};
+use crate::ident::{parse_column_ref, validate_identifier, IdentError};
 
 use super::schema::{
-    EmbedError, EmbedRequest, EmbedSelect, JoinKind, ScalarCol, embed_output_name,
+    embed_output_name, EmbedError, EmbedRequest, EmbedSelect, JoinKind, ScalarCol,
 };
-
 
 /// Parse an embed-aware `select=` value into scalar columns + embed requests.
 ///
@@ -182,9 +181,7 @@ pub fn route_embedded_param(
 
 /// Find a direct child embed by its output name (alias or target).
 fn find_embed_mut<'a>(sel: &'a mut EmbedSelect, name: &str) -> Option<&'a mut EmbedRequest> {
-    sel.embeds
-        .iter_mut()
-        .find(|e| embed_output_name(e) == name)
+    sel.embeds.iter_mut().find(|e| embed_output_name(e) == name)
 }
 
 /// Append a leaf into an embed's top-level `And` filter, creating one if needed.
@@ -257,7 +254,10 @@ fn split_top_level_commas(raw: &str) -> Vec<&str> {
 
 /// Index of the first top-level `(` in a token, or `None` if it has none.
 fn find_top_level_open_paren(token: &str) -> Option<usize> {
-    token.char_indices().find(|&(_, c)| c == '(').map(|(i, _)| i)
+    token
+        .char_indices()
+        .find(|&(_, c)| c == '(')
+        .map(|(i, _)| i)
 }
 
 /// Split an `alias:rest` token on a single leading `:` that is not part of a

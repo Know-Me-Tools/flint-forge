@@ -7,14 +7,13 @@
 
 use crate::clause::Select;
 use crate::filter::FilterTree;
-use crate::ident::{IdentError, parse_column_ref, validate_identifier};
+use crate::ident::{parse_column_ref, validate_identifier, IdentError};
 use crate::param::QueryParam;
 
 use super::schema::{
-    Cardinality, EmbedError, EmbedRequest, EmbedSchema, EmbedSelect, FkEdge, JoinKind,
-    ResolvedEmbed, ScalarCol, TableDesc, embed_output_name,
+    embed_output_name, Cardinality, EmbedError, EmbedRequest, EmbedSchema, EmbedSelect, FkEdge,
+    JoinKind, ResolvedEmbed, ScalarCol, TableDesc,
 };
-
 
 /// Resolve every [`EmbedRequest`] under `sel` against the schema: pick the
 /// [`FkEdge`] (honoring `!fk`), assign deterministic child aliases, validate
@@ -49,7 +48,13 @@ fn resolve_level(
 ) -> Result<Vec<ResolvedEmbed>, EmbedError> {
     let mut out = Vec::with_capacity(sel.embeds.len());
     for req in &sel.embeds {
-        out.push(resolve_one(req, parent_table, parent_alias, schema, counter)?);
+        out.push(resolve_one(
+            req,
+            parent_table,
+            parent_alias,
+            schema,
+            counter,
+        )?);
     }
     Ok(out)
 }
@@ -219,7 +224,11 @@ fn json_object_sql(
         params.append(&mut p);
         idx = next;
     }
-    Ok((format!("json_build_object({})", pairs.join(", ")), params, idx))
+    Ok((
+        format!("json_build_object({})", pairs.join(", ")),
+        params,
+        idx,
+    ))
 }
 
 /// Strip a trailing ` AS <name>` that `render_embed_item` appends, leaving the
@@ -339,9 +348,7 @@ fn render_embed_item(
 
     let sql = match re.edge.cardinality {
         Cardinality::ToOne => {
-            format!(
-                "(SELECT {obj_sql} FROM {child} {alias} WHERE {where_sql} LIMIT 1) AS {name}"
-            )
+            format!("(SELECT {obj_sql} FROM {child} {alias} WHERE {where_sql} LIMIT 1) AS {name}")
         }
         Cardinality::ToMany => {
             let order_terms = embed_order_terms(re);
@@ -400,8 +407,7 @@ fn render_spread_items(
     for col in &re.columns {
         let (where_sql, mut p, next) = child_where(re, idx)?;
         let expr = parse_column_ref(&col.col_ref)?.to_sql();
-        let key = validate_identifier(&col.key)
-            .map_err(|_| IdentError::Unsafe(col.key.clone()))?;
+        let key = validate_identifier(&col.key).map_err(|_| IdentError::Unsafe(col.key.clone()))?;
         items.push(format!(
             "(SELECT {}.{expr} FROM {} {} WHERE {where_sql} LIMIT 1) AS {key}",
             re.child_alias, re.request.target, re.child_alias

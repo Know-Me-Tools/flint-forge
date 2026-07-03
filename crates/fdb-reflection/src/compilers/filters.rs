@@ -13,7 +13,7 @@
 
 use std::collections::HashMap;
 
-use fdb_query::{FilterTree, Operator, QueryParam, Quantifier};
+use fdb_query::{FilterTree, Operator, Quantifier, QueryParam};
 
 /// Query-parameter keys that are NOT column filters (re-exported from `fdb-query`).
 pub use fdb_query::RESERVED_PARAMS;
@@ -129,7 +129,10 @@ mod tests {
     use super::*;
 
     fn params(pairs: &[(&str, &str)]) -> HashMap<String, String> {
-        pairs.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect()
+        pairs
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect()
     }
 
     #[test]

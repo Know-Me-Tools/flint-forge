@@ -6,7 +6,7 @@
 //! keyword (a fixed string) and the already-validated column reference reach SQL
 //! directly.
 
-use crate::fts::{FtsConfig, FtsKind, render_fts};
+use crate::fts::{render_fts, FtsConfig, FtsKind};
 use crate::param::QueryParam;
 
 /// A PostgREST filter operator.
@@ -367,8 +367,27 @@ mod tests {
     #[test]
     fn parses_all_operator_tokens() {
         for tok in [
-            "eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "match", "imatch", "in", "is",
-            "isdistinct", "cs", "cd", "ov", "sl", "sr", "nxr", "nxl", "adj",
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "like",
+            "ilike",
+            "match",
+            "imatch",
+            "in",
+            "is",
+            "isdistinct",
+            "cs",
+            "cd",
+            "ov",
+            "sl",
+            "sr",
+            "nxr",
+            "nxl",
+            "adj",
         ] {
             assert!(Operator::parse(tok).is_some(), "token {tok} should parse");
         }
@@ -376,7 +395,8 @@ mod tests {
     }
 
     fn render(col: &str, op: Operator, val: &str) -> (String, Vec<QueryParam>) {
-        let (sql, params, _) = render_condition(col, op, val, false, None, None, 1).expect("render");
+        let (sql, params, _) =
+            render_condition(col, op, val, false, None, None, 1).expect("render");
         (sql, params)
     }
 
@@ -392,7 +412,10 @@ mod tests {
         assert_eq!(render("c", Operator::Ilike, "a%").0, "c ILIKE $1");
         assert_eq!(render("c", Operator::Match, "^a").0, "c ~ $1");
         assert_eq!(render("c", Operator::Imatch, "^a").0, "c ~* $1");
-        assert_eq!(render("c", Operator::IsDistinct, "1").0, "c IS DISTINCT FROM $1");
+        assert_eq!(
+            render("c", Operator::IsDistinct, "1").0,
+            "c IS DISTINCT FROM $1"
+        );
     }
 
     #[test]
@@ -419,7 +442,11 @@ mod tests {
         assert_eq!(sql, "id = ANY($1)");
         assert_eq!(
             params,
-            vec![QueryParam::TextArray(vec!["1".into(), "2".into(), "3".into()])]
+            vec![QueryParam::TextArray(vec![
+                "1".into(),
+                "2".into(),
+                "3".into()
+            ])]
         );
     }
 
@@ -472,15 +499,32 @@ mod tests {
 
     #[test]
     fn quantifier_any_all_render() {
-        let (sql, params, _) =
-            render_condition("c", Operator::Eq, "(1,2)", false, Some(Quantifier::Any), None, 1)
-                .expect("render");
+        let (sql, params, _) = render_condition(
+            "c",
+            Operator::Eq,
+            "(1,2)",
+            false,
+            Some(Quantifier::Any),
+            None,
+            1,
+        )
+        .expect("render");
         assert_eq!(sql, "c = ANY($1)");
-        assert_eq!(params, vec![QueryParam::TextArray(vec!["1".into(), "2".into()])]);
+        assert_eq!(
+            params,
+            vec![QueryParam::TextArray(vec!["1".into(), "2".into()])]
+        );
 
-        let (sql, _, _) =
-            render_condition("c", Operator::Like, "(a%,b%)", false, Some(Quantifier::All), None, 1)
-                .expect("render");
+        let (sql, _, _) = render_condition(
+            "c",
+            Operator::Like,
+            "(a%,b%)",
+            false,
+            Some(Quantifier::All),
+            None,
+            1,
+        )
+        .expect("render");
         assert_eq!(sql, "c LIKE ALL($1)");
     }
 
@@ -528,15 +572,25 @@ mod tests {
 
     #[test]
     fn fts_operators_have_no_infix() {
-        for op in [Operator::Fts, Operator::Plfts, Operator::Phfts, Operator::Wfts] {
-            assert_eq!(op.sql_infix(), None, "FTS op {op:?} renders bespoke, not infix");
+        for op in [
+            Operator::Fts,
+            Operator::Plfts,
+            Operator::Phfts,
+            Operator::Wfts,
+        ] {
+            assert_eq!(
+                op.sql_infix(),
+                None,
+                "FTS op {op:?} renders bespoke, not infix"
+            );
         }
     }
 
     #[test]
     fn render_condition_dispatches_fts_without_config() {
         let (sql, params, next) =
-            render_condition("c", Operator::Fts, "cat & dog", false, None, None, 1).expect("render");
+            render_condition("c", Operator::Fts, "cat & dog", false, None, None, 1)
+                .expect("render");
         assert_eq!(sql, "c @@ to_tsquery($1)");
         assert_eq!(params, vec![QueryParam::Text("cat & dog".into())]);
         assert_eq!(next, 2);
@@ -546,16 +600,22 @@ mod tests {
     fn render_condition_dispatches_fts_with_config() {
         let cfg = FtsConfig::parse("english").unwrap();
         let (sql, params, _) =
-            render_condition("c", Operator::Fts, "cat", false, None, Some(&cfg), 1).expect("render");
+            render_condition("c", Operator::Fts, "cat", false, None, Some(&cfg), 1)
+                .expect("render");
         assert_eq!(sql, "c @@ to_tsquery('english', $1)");
         assert_eq!(params, vec![QueryParam::Text("cat".into())]);
     }
 
     #[test]
     fn quantifier_rejected_on_all_fts_ops() {
-        for op in [Operator::Fts, Operator::Plfts, Operator::Phfts, Operator::Wfts] {
-            let err = render_condition("c", op, "q", false, Some(Quantifier::Any), None, 1)
-                .unwrap_err();
+        for op in [
+            Operator::Fts,
+            Operator::Plfts,
+            Operator::Phfts,
+            Operator::Wfts,
+        ] {
+            let err =
+                render_condition("c", op, "q", false, Some(Quantifier::Any), None, 1).unwrap_err();
             assert!(
                 matches!(err, RenderError::QuantifierNotAllowed(_)),
                 "FTS op {op:?} must reject quantifier"

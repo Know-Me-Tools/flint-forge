@@ -81,7 +81,13 @@ impl KetoSyncTask {
     /// Create a new task and return both the task and its shared cache.
     pub fn new(config: KetoSyncConfig) -> (Self, KetoCache) {
         let cache = Arc::new(RwLock::new(Vec::new()));
-        (Self { config, cache: Arc::clone(&cache) }, cache)
+        (
+            Self {
+                config,
+                cache: Arc::clone(&cache),
+            },
+            cache,
+        )
     }
 
     /// Spawn the background poll loop. Returns the `JoinHandle` so the caller
@@ -211,13 +217,7 @@ impl KetoCacheAdapter {
 
 #[async_trait]
 impl KetoCheck for KetoCacheAdapter {
-    async fn check(
-        &self,
-        namespace: &str,
-        object: &str,
-        relation: &str,
-        subject: &str,
-    ) -> bool {
+    async fn check(&self, namespace: &str, object: &str, relation: &str, subject: &str) -> bool {
         cache_check(&self.cache, namespace, object, relation, subject).await
     }
 }

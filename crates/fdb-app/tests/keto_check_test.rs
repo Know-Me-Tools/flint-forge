@@ -21,7 +21,13 @@ struct MockKetoCheck {
 
 #[async_trait]
 impl KetoCheck for MockKetoCheck {
-    async fn check(&self, _namespace: &str, _object: &str, _relation: &str, _subject: &str) -> bool {
+    async fn check(
+        &self,
+        _namespace: &str,
+        _object: &str,
+        _relation: &str,
+        _subject: &str,
+    ) -> bool {
         self.allow
     }
 }
@@ -62,7 +68,10 @@ impl fdb_ports::ChangeStreamSource for StubChanges {
         _: fdb_domain::SubscriptionSpec,
         _: &forge_identity::RlsContext,
     ) -> Result<
-        futures::stream::BoxStream<'static, Result<fdb_domain::ChangeEvent, fdb_ports::StreamError>>,
+        futures::stream::BoxStream<
+            'static,
+            Result<fdb_domain::ChangeEvent, fdb_ports::StreamError>,
+        >,
         fdb_ports::StreamError,
     > {
         unreachable!("stub")
@@ -70,7 +79,11 @@ impl fdb_ports::ChangeStreamSource for StubChanges {
 }
 
 fn make_quarry() -> Quarry {
-    Quarry::new(Arc::new(StubRest), Arc::new(StubGraphQl), Arc::new(StubChanges))
+    Quarry::new(
+        Arc::new(StubRest),
+        Arc::new(StubGraphQl),
+        Arc::new(StubChanges),
+    )
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────

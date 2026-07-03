@@ -10,7 +10,7 @@
 //! OQ-9 regression gate: `test_pgvector_extension_version_gte_0_7_0` asserts that
 //! the running Postgres instance has pgvector ≥ 0.7.0. This must stay green.
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
 
 /// Return a live pool or skip the test with a message.
@@ -62,12 +62,11 @@ async fn test_pgvector_extension_version_gte_0_7_0() {
         None => return,
     };
 
-    let row: Option<String> = sqlx::query_scalar(
-        "SELECT extversion FROM pg_extension WHERE extname = 'vector'",
-    )
-    .fetch_optional(&pool)
-    .await
-    .expect("query pg_extension");
+    let row: Option<String> =
+        sqlx::query_scalar("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
+            .fetch_optional(&pool)
+            .await
+            .expect("query pg_extension");
 
     let version_str = row.expect("pgvector extension not installed");
     let parts: Vec<u32> = version_str
@@ -75,10 +74,7 @@ async fn test_pgvector_extension_version_gte_0_7_0() {
         .filter_map(|p| p.parse().ok())
         .collect();
 
-    assert!(
-        parts.len() >= 2,
-        "unexpected version format: {version_str}"
-    );
+    assert!(parts.len() >= 2, "unexpected version format: {version_str}");
     let (major, minor) = (parts[0], parts[1]);
     assert!(
         (major, minor) >= (0, 7),
@@ -162,12 +158,27 @@ async fn test_rpc_vector_result_serializes_as_float_array() {
     let floats: Vec<f32> = vec.into();
 
     assert_eq!(floats.len(), 3);
-    assert!((floats[0] - 0.1_f32).abs() < 1e-6, "element 0: {}", floats[0]);
-    assert!((floats[1] - 0.2_f32).abs() < 1e-6, "element 1: {}", floats[1]);
-    assert!((floats[2] - 0.3_f32).abs() < 1e-6, "element 2: {}", floats[2]);
+    assert!(
+        (floats[0] - 0.1_f32).abs() < 1e-6,
+        "element 0: {}",
+        floats[0]
+    );
+    assert!(
+        (floats[1] - 0.2_f32).abs() < 1e-6,
+        "element 1: {}",
+        floats[1]
+    );
+    assert!(
+        (floats[2] - 0.3_f32).abs() < 1e-6,
+        "element 2: {}",
+        floats[2]
+    );
 
     // Serialize to JSON and verify the array form.
-    let as_json: Value = json!(floats.iter().map(|&f| Value::from(f as f64)).collect::<Vec<_>>());
+    let as_json: Value = json!(floats
+        .iter()
+        .map(|&f| Value::from(f as f64))
+        .collect::<Vec<_>>());
     assert!(as_json.is_array());
     assert_eq!(as_json.as_array().unwrap().len(), 3);
 }
@@ -190,9 +201,6 @@ fn test_rpc_unknown_arg_type_uses_json_fallback() {
 
     let vector_types = ["vector", "vector(3)", "vector(1536)"];
     for t in &vector_types {
-        assert!(
-            is_vector_type(t),
-            "type {t} SHOULD match is_vector_type"
-        );
+        assert!(is_vector_type(t), "type {t} SHOULD match is_vector_type");
     }
 }

@@ -39,7 +39,11 @@ pub struct Renderers {
 
 impl Default for Renderers {
     fn default() -> Self {
-        Self { react: true, flutter: true, htmx: true }
+        Self {
+            react: true,
+            flutter: true,
+            htmx: true,
+        }
     }
 }
 

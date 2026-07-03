@@ -325,7 +325,10 @@ mod tests {
         ]);
         let schema = GraphQlCompiler::compile(&model, None).expect("compile");
         let sdl = schema.sdl();
-        assert!(sdl.contains("ordersChanges"), "should have ordersChanges field");
+        assert!(
+            sdl.contains("ordersChanges"),
+            "should have ordersChanges field"
+        );
         assert!(
             !sdl.contains("InternalLogChanges"),
             "should not have non-RLS table"

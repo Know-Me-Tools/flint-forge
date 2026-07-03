@@ -5,7 +5,6 @@ use super::*;
 use crate::clause::Select;
 use crate::param::QueryParam;
 
-
 // --- schema fixtures -------------------------------------------------
 
 /// customers 1—* orders (orders.customer_id -> customers.id); orders *—1 customers.
@@ -262,7 +261,9 @@ fn embedded_order_renders_inside_json_agg() {
     let base = Select::default();
     let (sql, _, _) = render_projection(&base, &resolved, 1).unwrap();
     assert!(
-        sql.contains("json_agg(json_build_object('id', orders_1.id) ORDER BY orders_1.created_at DESC)"),
+        sql.contains(
+            "json_agg(json_build_object('id', orders_1.id) ORDER BY orders_1.created_at DESC)"
+        ),
         "got: {sql}"
     );
 }
@@ -356,12 +357,18 @@ fn nested_embed_recurses_with_distinct_aliases() {
     let base = Select::default();
     let (sql, _, _) = render_projection(&base, &resolved, 1).unwrap();
     // outer json_agg over orders; inner json_agg over items correlated on orders_1.
-    assert!(sql.contains("FROM orders orders_1 WHERE p.id = orders_1.customer_id"), "got: {sql}");
+    assert!(
+        sql.contains("FROM orders orders_1 WHERE p.id = orders_1.customer_id"),
+        "got: {sql}"
+    );
     assert!(
         sql.contains("FROM items items_2 WHERE orders_1.id = items_2.order_id"),
         "got: {sql}"
     );
-    assert!(sql.contains("'items', COALESCE((SELECT json_agg(json_build_object('sku', items_2.sku))"), "got: {sql}");
+    assert!(
+        sql.contains("'items', COALESCE((SELECT json_agg(json_build_object('sku', items_2.sku))"),
+        "got: {sql}"
+    );
 }
 
 // --- index threading -------------------------------------------------
@@ -432,7 +439,10 @@ fn no_fk_path_errors() {
 fn embed_identifiers_never_interpolate_user_text() {
     // Alias-position injection is caught at parse.
     let err = parse_embed_select("orders(x);DROP:id)").unwrap_err();
-    assert!(matches!(err, EmbedError::MalformedEmbed(_) | EmbedError::Ident(_)));
+    assert!(matches!(
+        err,
+        EmbedError::MalformedEmbed(_) | EmbedError::Ident(_)
+    ));
 }
 
 #[test]
@@ -443,7 +453,12 @@ fn resolve_embeds_rejects_unsafe_parent_alias_and_table() {
     let schema = schema_basic();
     let sel = parse_embed_select("*,orders(*)").expect("parse");
 
-    let bad_alias = resolve_embeds(&sel, "customers", "p) UNION SELECT secret FROM v --", &schema);
+    let bad_alias = resolve_embeds(
+        &sel,
+        "customers",
+        "p) UNION SELECT secret FROM v --",
+        &schema,
+    );
     assert!(
         matches!(bad_alias, Err(EmbedError::Ident(_))),
         "unsafe parent_alias must be rejected, got {bad_alias:?}"

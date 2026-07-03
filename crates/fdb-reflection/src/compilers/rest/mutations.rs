@@ -5,10 +5,10 @@
 //! module and are re-used here via `super::`.
 
 use axum::{
-    Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
+    Extension, Json,
 };
 use forge_domain::is_safe_identifier;
 use forge_identity::RlsContext;
@@ -20,8 +20,8 @@ use tracing::instrument;
 use crate::compilers::filters::{bind_param, render_where};
 
 use super::{
-    KETO_NAMESPACE, RestState, bad_request, forbidden, insert_response, internal_error,
-    json_bind, parse_filters, rows_response,
+    bad_request, forbidden, insert_response, internal_error, json_bind, parse_filters,
+    rows_response, RestState, KETO_NAMESPACE,
 };
 
 /// Run the mutation authorization gates for `<schema>.<table>` under `rls`.
@@ -294,10 +294,7 @@ mod tests {
         }
     }
 
-    fn state_with_gates(
-        keto: Option<Arc<dyn KetoCheck>>,
-        pep: Option<Arc<dyn Pep>>,
-    ) -> RestState {
+    fn state_with_gates(keto: Option<Arc<dyn KetoCheck>>, pep: Option<Arc<dyn Pep>>) -> RestState {
         let pool = sqlx::PgPool::connect_lazy("postgres://localhost/test").expect("lazy pool");
         RestState {
             model: Arc::new(minimal_model()),
@@ -353,7 +350,10 @@ mod tests {
         let mut params = HashMap::new();
         params.insert("id; DROP TABLE users--".to_owned(), "eq.1".to_owned());
         let tree = parse_filter_tree(&params).expect("parses to a leaf");
-        assert!(render_where(&tree, 1).is_err(), "unsafe column rejected at render");
+        assert!(
+            render_where(&tree, 1).is_err(),
+            "unsafe column rejected at render"
+        );
         assert!(is_safe_identifier("id"));
         assert!(!is_safe_identifier("id; DROP TABLE users--"));
     }

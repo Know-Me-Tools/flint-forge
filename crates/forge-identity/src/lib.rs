@@ -7,7 +7,7 @@ pub mod jwks;
 pub use error::IdentityError;
 
 use forge_domain::{Json, SubjectId, TenantId};
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
+use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -93,7 +93,11 @@ pub async fn verify_and_build(bearer: &str) -> Result<RlsContext, IdentityError>
         Algorithm::RS512 => Algorithm::RS512,
         Algorithm::ES256 => Algorithm::ES256,
         Algorithm::ES384 => Algorithm::ES384,
-        other => return Err(IdentityError::Verification(format!("unsupported algorithm: {other:?}"))),
+        other => {
+            return Err(IdentityError::Verification(format!(
+                "unsupported algorithm: {other:?}"
+            )))
+        }
     };
 
     let mut validation = Validation::new(algorithm);

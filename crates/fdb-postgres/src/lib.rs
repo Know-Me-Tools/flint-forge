@@ -87,10 +87,7 @@ impl DatabaseBackend for PgBackend {
 
         let headers_json = format!(r#"{{"authorization":"Bearer {}"}}"#, rls.raw_bearer);
         object
-            .execute(
-                r#"SET LOCAL "request.headers" = $1"#,
-                &[&headers_json],
-            )
+            .execute(r#"SET LOCAL "request.headers" = $1"#, &[&headers_json])
             .await
             .map_err(|e| PgError::SetLocal(format!(r#"SET LOCAL "request.headers": {e}"#)))?;
 
@@ -98,27 +95,18 @@ impl DatabaseBackend for PgBackend {
         // These three are consumed by flint_vault, flint_hooks, and Cedar policy evaluation.
         // MUST NOT log their values — they contain subject IDs and key identifiers.
         object
-            .execute(
-                r#"SET LOCAL "app.jwt_claims" = $1"#,
-                &[&rls.claims_json],
-            )
+            .execute(r#"SET LOCAL "app.jwt_claims" = $1"#, &[&rls.claims_json])
             .await
             .map_err(|e| PgError::SetLocal(format!(r#"SET LOCAL "app.jwt_claims": {e}"#)))?;
 
         object
-            .execute(
-                r#"SET LOCAL "app.keto_subject" = $1"#,
-                &[&rls.keto_subject],
-            )
+            .execute(r#"SET LOCAL "app.keto_subject" = $1"#, &[&rls.keto_subject])
             .await
             .map_err(|e| PgError::SetLocal(format!(r#"SET LOCAL "app.keto_subject": {e}"#)))?;
 
         let vault_key_id = rls.vault_key_id.as_deref().unwrap_or("");
         object
-            .execute(
-                r#"SET LOCAL "app.vault_key_id" = $1"#,
-                &[&vault_key_id],
-            )
+            .execute(r#"SET LOCAL "app.vault_key_id" = $1"#, &[&vault_key_id])
             .await
             .map_err(|e| PgError::SetLocal(format!(r#"SET LOCAL "app.vault_key_id": {e}"#)))?;
 
@@ -329,7 +317,8 @@ impl RestBind {
 fn is_safe_identifier(s: &str) -> bool {
     !s.is_empty()
         && s.len() <= 128
-        && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.')
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.')
         && !s.starts_with('.')
         && !s.ends_with('.')
 }
@@ -401,7 +390,10 @@ impl PgVectorRpc {
             let mut obj = serde_json::Map::new();
             for (i, col) in row.columns().iter().enumerate() {
                 let val: Option<String> = row.try_get(i).ok();
-                obj.insert(col.name().to_owned(), val.map_or(serde_json::Value::Null, serde_json::Value::String));
+                obj.insert(
+                    col.name().to_owned(),
+                    val.map_or(serde_json::Value::Null, serde_json::Value::String),
+                );
             }
             results.push(serde_json::Value::Object(obj));
         }

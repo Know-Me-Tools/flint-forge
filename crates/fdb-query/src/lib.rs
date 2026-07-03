@@ -26,16 +26,16 @@ pub mod plan;
 
 pub use clause::{CountStrategy, Limits, Order, Select};
 pub use embed::{
-    Cardinality, EmbedError, EmbedRequest, EmbedSchema, EmbedSelect, FkEdge, JoinKind,
-    ResolvedEmbed, ScalarCol, TableDesc, parse_embed_select, render_inner_guards,
-    render_projection, resolve_embeds, route_embedded_param,
+    parse_embed_select, render_inner_guards, render_projection, resolve_embeds,
+    route_embedded_param, Cardinality, EmbedError, EmbedRequest, EmbedSchema, EmbedSelect, FkEdge,
+    JoinKind, ResolvedEmbed, ScalarCol, TableDesc,
 };
 pub use filter::{FilterError, FilterTree};
-pub use fts::{FtsConfig, FtsKind, render_fts};
-pub use ident::{ColumnRef, IdentError, parse_column_ref, validate_identifier};
+pub use fts::{render_fts, FtsConfig, FtsKind};
+pub use ident::{parse_column_ref, validate_identifier, ColumnRef, IdentError};
 pub use mutation::{
-    DeletePlan, InsertOptions, InsertPlan, Resolution, ReturnKind, UpdatePlan, parse_write_prefer,
+    parse_write_prefer, DeletePlan, InsertOptions, InsertPlan, Resolution, ReturnKind, UpdatePlan,
 };
-pub use operator::{Operator, Quantifier, RenderError, render_condition};
-pub use param::{QueryParam, pg_text_array};
-pub use plan::{ParseError, RESERVED_PARAMS, SelectPlan, parse_select_request};
+pub use operator::{render_condition, Operator, Quantifier, RenderError};
+pub use param::{pg_text_array, QueryParam};
+pub use plan::{parse_select_request, ParseError, SelectPlan, RESERVED_PARAMS};

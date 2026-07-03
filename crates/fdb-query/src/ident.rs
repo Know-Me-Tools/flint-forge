@@ -177,8 +177,14 @@ mod tests {
 
     #[test]
     fn json_text_and_object_paths() {
-        assert_eq!(parse_column_ref("data->>name").unwrap().to_sql(), "data ->> 'name'");
-        assert_eq!(parse_column_ref("data->addr").unwrap().to_sql(), "data -> 'addr'");
+        assert_eq!(
+            parse_column_ref("data->>name").unwrap().to_sql(),
+            "data ->> 'name'"
+        );
+        assert_eq!(
+            parse_column_ref("data->addr").unwrap().to_sql(),
+            "data -> 'addr'"
+        );
         assert_eq!(
             parse_column_ref("payload->addr->>city").unwrap().to_sql(),
             "payload -> 'addr' ->> 'city'"
@@ -188,7 +194,10 @@ mod tests {
     #[test]
     fn json_array_index_is_numeric() {
         assert_eq!(parse_column_ref("items->0").unwrap().to_sql(), "items -> 0");
-        assert_eq!(parse_column_ref("items->>2").unwrap().to_sql(), "items ->> 2");
+        assert_eq!(
+            parse_column_ref("items->>2").unwrap().to_sql(),
+            "items ->> 2"
+        );
     }
 
     #[test]
@@ -225,7 +234,10 @@ mod tests {
 
     #[test]
     fn empty_reference_rejected() {
-        assert!(matches!(parse_column_ref("").unwrap_err(), IdentError::Empty));
+        assert!(matches!(
+            parse_column_ref("").unwrap_err(),
+            IdentError::Empty
+        ));
     }
 
     #[test]
