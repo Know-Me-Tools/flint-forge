@@ -3,8 +3,8 @@
   "previousPhase": "p2-quarry-reflection-engine",
   "status": "in_progress",
   "updatedAt": "2026-07-01",
-  "next_action": "/kbd-apply p3-c016-gate-tests-mocks",
-  "changes_completed": 6,
+  "next_action": "/kbd-apply p3-c017-fdb-realtime-stub",
+  "changes_completed": 7,
   "changes_total": 9,
   "goals_file": ".kbd-orchestrator/phases/p3-auth-rls-keto/goals.md",
   "spec_files": [

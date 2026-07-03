@@ -1,7 +1,7 @@
 {
   "phase": "p3-auth-rls-keto",
   "status": "in_progress",
-  "changes_completed": 6,
+  "changes_completed": 7,
   "changes_total": 9,
   "changes": [
     {
@@ -54,9 +54,13 @@
     },
     {
       "id": "p3-c016-gate-tests-mocks",
-      "status": "pending",
+      "status": "qa_passed",
       "priority": "P0",
-      "depends_on": "p3-c011"
+      "depends_on": "p3-c011",
+      "completed": "2026-07-01",
+      "completed_by": "opencode",
+      "tasks_done": 6,
+      "tasks_total": 6
     },
     {
       "id": "p3-c017-fdb-realtime-stub",
