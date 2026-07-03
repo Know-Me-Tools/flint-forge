@@ -44,6 +44,22 @@ tonic = { version = "0.12", features = ["transport"] }
 pgvector = { version = "0.4", features = ["postgres", "sqlx"] }
 cedar-policy = "4"
 
+# Compile Economy — dev-loop build settings. See docs/RUST-DEVELOPMENT-MANAGEMENT.md.
+# Cargo only reads profiles from the workspace-root manifest, so they live here.
+[profile.dev]
+opt-level = 0                    # our crates: fast to compile, fully debuggable
+debug = "line-tables-only"       # backtraces without the full debuginfo the linker must carry
+incremental = true               # default for dev; stated for intent
+
+[profile.dev.package."*"]
+opt-level = 1                    # optimize deps once (rarely change); 1 avoids the 2/3 monomorph-sharing penalty
+
+# Release stays fully optimized — untouched for production builds.
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 16
+
 [workspace.lints.clippy]
 # Pedantic is the CI gate (run with -D warnings). Allows below are scaffold-stage
 # concessions, each to be revisited as the todo!() bodies are implemented.
