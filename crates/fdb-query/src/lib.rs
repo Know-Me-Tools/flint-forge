@@ -14,10 +14,20 @@
 //! `RlsContext`; RLS is enforced by the executor's `SET LOCAL` GUCs.
 #![forbid(unsafe_code)]
 
+pub mod clause;
+pub mod filter;
 pub mod ident;
+pub mod mutation;
 pub mod operator;
 pub mod param;
+pub mod plan;
 
+pub use clause::{CountStrategy, Limits, Order, Select};
+pub use filter::{FilterError, FilterTree};
 pub use ident::{ColumnRef, IdentError, parse_column_ref, validate_identifier};
+pub use mutation::{
+    DeletePlan, InsertOptions, InsertPlan, Resolution, ReturnKind, UpdatePlan, parse_write_prefer,
+};
 pub use operator::{Operator, Quantifier, RenderError, render_condition};
 pub use param::{QueryParam, pg_text_array};
+pub use plan::{ParseError, RESERVED_PARAMS, SelectPlan, parse_select_request};

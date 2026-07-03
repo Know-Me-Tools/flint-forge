@@ -1080,6 +1080,7 @@ dependencies = [
  "deadpool-postgres",
  "fdb-domain",
  "fdb-ports",
+ "fdb-query",
  "forge-domain",
  "forge-identity",
  "pgvector",
@@ -2690,6 +2691,8 @@ dependencies = [
  "bytes",
  "fallible-iterator",
  "postgres-protocol",
+ "serde_core",
+ "serde_json",
 ]
 
 [[package]]
