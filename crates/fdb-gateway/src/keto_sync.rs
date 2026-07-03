@@ -186,17 +186,31 @@ pub async fn cache_check(
     })
 }
 
+/// Default sync interval when `KETO_SYNC_INTERVAL_SECS` is unset or unparseable.
+const DEFAULT_SYNC_INTERVAL_SECS: u64 = 30;
+
+/// Resolve the sync interval from a raw `KETO_SYNC_INTERVAL_SECS` value.
+///
+/// Pure: takes the (optional) env value as an argument rather than reading the
+/// process environment, so it is unit-testable in isolation without mutating
+/// process-global state (which would race under parallel test execution).
+/// A missing or non-numeric value falls back to [`DEFAULT_SYNC_INTERVAL_SECS`].
+fn resolve_interval(raw: Option<&str>) -> Duration {
+    let secs = raw
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(DEFAULT_SYNC_INTERVAL_SECS);
+    Duration::from_secs(secs)
+}
+
 /// Build `KetoSyncConfig` from environment variables and the provided privileged pool.
 ///
-/// Reads `KETO_SYNC_INTERVAL_SECS` (default: 30).
+/// Reads `KETO_SYNC_INTERVAL_SECS` (default: 30) — the only env access; the parse
+/// logic lives in the pure [`resolve_interval`].
 pub fn keto_sync_config_from_env(pool: Arc<PgPool>) -> KetoSyncConfig {
-    let interval_secs = std::env::var("KETO_SYNC_INTERVAL_SECS")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(30);
+    let raw = std::env::var("KETO_SYNC_INTERVAL_SECS").ok();
     KetoSyncConfig {
         pool,
-        interval: Duration::from_secs(interval_secs),
+        interval: resolve_interval(raw.as_deref()),
     }
 }
 
@@ -277,39 +291,25 @@ mod tests {
         );
     }
 
+    // These exercise the pure `resolve_interval` with literal inputs — no
+    // process-env mutation, so they are deterministic under parallel execution
+    // (the previous versions raced on the shared KETO_SYNC_INTERVAL_SECS var).
+
     #[test]
-    fn keto_sync_config_uses_default_interval_when_env_unset() {
-        std::env::remove_var("KETO_SYNC_INTERVAL_SECS");
-        // We cannot construct a real PgPool in a unit test, so we just verify
-        // that the default interval is 30 s by checking what the function would
-        // do with a stub. Since PgPool::connect is async and needs a real DB,
-        // we test the interval resolution logic directly.
-        let interval_secs = std::env::var("KETO_SYNC_INTERVAL_SECS")
-            .ok()
-            .and_then(|v| v.parse::<u64>().ok())
-            .unwrap_or(30);
-        assert_eq!(interval_secs, 30);
+    fn resolve_interval_defaults_when_absent() {
+        assert_eq!(resolve_interval(None), Duration::from_secs(30));
     }
 
     #[test]
-    fn keto_sync_config_reads_interval_from_env() {
-        std::env::set_var("KETO_SYNC_INTERVAL_SECS", "60");
-        let interval_secs = std::env::var("KETO_SYNC_INTERVAL_SECS")
-            .ok()
-            .and_then(|v| v.parse::<u64>().ok())
-            .unwrap_or(30);
-        assert_eq!(interval_secs, 60);
-        std::env::remove_var("KETO_SYNC_INTERVAL_SECS");
+    fn resolve_interval_reads_numeric_value() {
+        assert_eq!(resolve_interval(Some("60")), Duration::from_secs(60));
+        assert_eq!(resolve_interval(Some("1")), Duration::from_secs(1));
     }
 
     #[test]
-    fn keto_sync_config_ignores_non_numeric_env() {
-        std::env::set_var("KETO_SYNC_INTERVAL_SECS", "bad_value");
-        let interval_secs = std::env::var("KETO_SYNC_INTERVAL_SECS")
-            .ok()
-            .and_then(|v| v.parse::<u64>().ok())
-            .unwrap_or(30);
-        assert_eq!(interval_secs, 30);
-        std::env::remove_var("KETO_SYNC_INTERVAL_SECS");
+    fn resolve_interval_falls_back_on_non_numeric() {
+        assert_eq!(resolve_interval(Some("bad_value")), Duration::from_secs(30));
+        assert_eq!(resolve_interval(Some("")), Duration::from_secs(30));
+        assert_eq!(resolve_interval(Some("-5")), Duration::from_secs(30));
     }
 }
