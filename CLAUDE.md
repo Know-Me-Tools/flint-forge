@@ -240,6 +240,28 @@ Project-specific task instructions, architecture docs, or OpenSpec change sets m
 
 ---
 
+## Development Management (Integration-First + Compile Economy)
+
+> Full detail: [`docs/RUST-DEVELOPMENT-MANAGEMENT.md`](docs/RUST-DEVELOPMENT-MANAGEMENT.md). This section is the binding summary.
+
+### Integration-First Delivery
+Nothing in a plan exists in isolation — a change only has meaning in relation to everything else getting done. If all the little unit tests pass but the system does not fit together, we have nothing.
+
+- **Prioritize implementing the entire plan over testing it along the way.** Err on the side of getting MORE code implemented properly — Base Rules #1, #10, #13, #14, #17 already force thinking, typing, and validation as we write, so the risk to manage is an *unfinished, disconnected* system, not an untested function.
+- **Execute the full plan first:** make every logical connection, leave no gaps or unimplemented load-bearing pieces (no `todo!()` on a live path, no port without an adapter, no unmounted handler). Then fix all the bugs. **Then, and only then,** build integration tests around the shape of the code that is *proven* to compile and work — we do not know that shape until the end.
+- **Favor full integration tests of whole sections** over unit tests that validate nothing structurally important.
+- **3-wait budget:** wait for tests a MAXIMUM of 3 times per epoch/goal. Spend those waits on genuine integration checkpoints (a subsystem wiring end-to-end; the final green run), not on validating a single function the moment it is written. Record wait-count in phase `progress.json` (Base Rule #18). This changes *when* and *at what granularity* we test — never *whether* (Base Rule #14 stands).
+
+### Compile Economy
+Compiling Rust costs time, memory, and disk. Compile only when it earns its cost, in the cheapest form that answers the question.
+
+- **Prefer `cargo check` over `cargo build`** — it runs the full front-end but skips codegen/linking (~10× faster) and answers "does this hold together?", which is the question almost all the time during implementation.
+- **Do not compile after every component.** Batch a coherent slice, then run one `cargo check` (`-p <crate>` while iterating on one crate; `--workspace` only to validate cross-crate wiring). A full `cargo build`/`cargo test` is a checkpoint action counted against the 3-wait budget — not a reflex.
+- **`--release` / production builds happen at the end, for production use only.** Never run a release build just to see if something works.
+- Build settings that minimize the dev loop (dev-profile `debug = "line-tables-only"`, `opt-level = 0` for our crates + `opt-level = 1` for deps, fast platform linker via `.cargo/config.toml`, `rust-analyzer` on a separate target dir, `sccache` opt-in only) live in `docs/RUST-DEVELOPMENT-MANAGEMENT.md`. `--release` is left fully optimized.
+
+---
+
 ## Relevant Rust Skills (skills.sh)
 
 The following rust-skills are most applicable to this codebase and should be activated when working in relevant areas:

@@ -1,0 +1,29 @@
+# Compile Economy — fast-linker configuration (per-developer, opt-in).
+# See docs/RUST-DEVELOPMENT-MANAGEMENT.md.
+#
+# Linking dominates incremental rebuild time. Copy this file to
+# `.cargo/config.toml` (git-ignored) ONLY if the linker below is installed on
+# your machine — otherwise every build will fail. Comment out any block whose
+# tool you don't have.
+#
+#   macOS (LLVM lld):  brew install llvm       # provides ld64.lld
+#   Linux (mold):      apt-get install mold     # or build from source
+#
+# Note: on x86_64-unknown-linux-gnu, Rust 1.90+ already uses bundled rust-lld
+# by default, so the Linux block is only needed if you prefer mold over rust-lld.
+
+# --- Apple Silicon (primary dev machine) ---
+# Verified install path on this repo's dev box: /opt/homebrew/bin/ld64.lld
+# (Homebrew symlinks lld's Mach-O driver here; the LLVM keg path
+#  /opt/homebrew/opt/llvm/bin/ld64.lld also works if you `brew install llvm`.)
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/bin/ld64.lld"]
+
+# --- Intel macOS ---
+# [target.x86_64-apple-darwin]
+# rustflags = ["-C", "link-arg=-fuse-ld=/usr/local/bin/ld64.lld"]
+
+# --- Linux / CI (mold; rust-lld is the 1.90+ default and needs no flag) ---
+# [target.x86_64-unknown-linux-gnu]
+# linker = "clang"
+# rustflags = ["-C", "link-arg=-fuse-ld=mold"]
