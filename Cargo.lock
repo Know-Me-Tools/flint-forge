@@ -1047,6 +1047,7 @@ dependencies = [
  "fdb-reflection",
  "forge-identity",
  "forge-policy",
+ "futures",
  "http-body-util",
  "serde",
  "serde_json",

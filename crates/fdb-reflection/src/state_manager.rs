@@ -6,7 +6,11 @@ use forge_policy::Pep;
 
 use crate::{
     compiled::CompiledState,
-    compilers::{graphql::GraphQlCompiler, openapi::OpenApiCompiler, rest::RestCompiler},
+    compilers::{
+        graphql::{GraphQlCompiler, SubStreamFactory},
+        openapi::OpenApiCompiler,
+        rest::RestCompiler,
+    },
     engine::ReflectionEngine,
     error::ReflectionError,
 };
@@ -29,6 +33,11 @@ pub struct StateManager {
     pool: sqlx::PgPool,
     db_url: String,
     gates: MutationGates,
+    /// Live-stream seam for GraphQL subscriptions, injected by the composition
+    /// root. `None` until the gateway wires the `Quarry`; every recompile
+    /// (initial + hot-swap) threads this into `GraphQlCompiler::compile` so the
+    /// subscription schema keeps its live stream body across DDL changes.
+    sub_stream_factory: Option<SubStreamFactory>,
 }
 
 impl StateManager {
@@ -39,24 +48,30 @@ impl StateManager {
         pool: sqlx::PgPool,
         db_url: String,
     ) -> Result<Self, ReflectionError> {
-        Self::new_with_gates(engine, pool, db_url, MutationGates::default()).await
+        Self::new_with_gates(engine, pool, db_url, MutationGates::default(), None).await
     }
 
     /// Build a `StateManager` with authorization gates that are applied to
     /// every REST recompile (initial and hot-swap).
+    ///
+    /// `sub_stream_factory` is the GraphQL subscription live-stream seam
+    /// (`None` disables live subscription events — fields yield empty streams).
     pub async fn new_with_gates(
         engine: ReflectionEngine,
         pool: sqlx::PgPool,
         db_url: String,
         gates: MutationGates,
+        sub_stream_factory: Option<SubStreamFactory>,
     ) -> Result<Self, ReflectionError> {
-        let initial = Self::do_compile(&engine, pool.clone(), &gates).await?;
+        let initial =
+            Self::do_compile(&engine, pool.clone(), &gates, sub_stream_factory.as_ref()).await?;
         Ok(Self {
             compiled: Arc::new(ArcSwap::from_pointee(initial)),
             engine: Arc::new(engine),
             pool,
             db_url,
             gates,
+            sub_stream_factory,
         })
     }
 
@@ -85,7 +100,14 @@ impl StateManager {
                     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
                     // Force full recompile on reconnect — notifications may have been missed.
-                    match Self::do_compile(&self.engine, self.pool.clone(), &self.gates).await {
+                    match Self::do_compile(
+                        &self.engine,
+                        self.pool.clone(),
+                        &self.gates,
+                        self.sub_stream_factory.as_ref(),
+                    )
+                    .await
+                    {
                         Ok(state) => {
                             self.compiled.store(Arc::new(state));
                             tracing::info!("schema recompiled after PgListener reconnect");
@@ -118,7 +140,14 @@ impl StateManager {
                 "meta_runtime notification — triggering recompile"
             );
 
-            match Self::do_compile(&self.engine, self.pool.clone(), &self.gates).await {
+            match Self::do_compile(
+                &self.engine,
+                self.pool.clone(),
+                &self.gates,
+                self.sub_stream_factory.as_ref(),
+            )
+            .await
+            {
                 Ok(state) => {
                     // ArcSwap::store is atomic — in-flight requests keep their old guard.
                     self.compiled.store(Arc::new(state));
@@ -135,6 +164,7 @@ impl StateManager {
         engine: &ReflectionEngine,
         pool: sqlx::PgPool,
         gates: &MutationGates,
+        sub_stream_factory: Option<&SubStreamFactory>,
     ) -> Result<CompiledState, ReflectionError> {
         let model = engine.reflect().await?;
         let router = RestCompiler::compile_with_gates(
@@ -144,7 +174,8 @@ impl StateManager {
             gates.pep.clone(),
         );
         let openapi_doc = OpenApiCompiler::compile(&model);
-        let subscription_schema = match GraphQlCompiler::compile(&model) {
+        let subscription_schema = match GraphQlCompiler::compile(&model, sub_stream_factory.cloned())
+        {
             Ok(schema) => Some(schema),
             Err(e) => {
                 tracing::warn!(error = %e, "GraphQlCompiler failed; subscription schema unavailable");
