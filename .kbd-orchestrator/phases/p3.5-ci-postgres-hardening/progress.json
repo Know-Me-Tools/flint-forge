@@ -1,7 +1,7 @@
 {
   "phase": "p3.5-ci-postgres-hardening",
   "status": "in_progress",
-  "changes_completed": 2,
+  "changes_completed": 3,
   "changes_total": 5,
   "changes": [
     {
@@ -23,10 +23,12 @@
     },
     {
       "id": "p35-c003-ci-postgres-service",
-      "status": "pending",
+      "status": "applied",
       "goal": "G1",
       "priority": "P0",
-      "depends_on": "p35-c001"
+      "depends_on": "p35-c001",
+      "completed_by": "claude-code",
+      "note": "impl complete; Dagger/Docker verify blocked (no CLI/daemon in env); flint_meta bootstrap follow-up"
     },
     {
       "id": "p35-c004-db-integration-tests",

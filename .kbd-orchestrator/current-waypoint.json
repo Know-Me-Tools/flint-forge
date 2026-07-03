@@ -3,8 +3,8 @@
   "previousPhase": "p3-auth-rls-keto",
   "status": "in_progress",
   "updatedAt": "2026-07-03",
-  "next_action": "/kbd-apply p35-c003-ci-postgres-service",
-  "changes_completed": 2,
+  "next_action": "/kbd-apply p35-c004-db-integration-tests",
+  "changes_completed": 3,
   "changes_total": 5,
   "goals_file": ".kbd-orchestrator/phases/p3.5-ci-postgres-hardening/goals.md",
   "spec_files": [
