@@ -8,54 +8,59 @@ tests are the authoritative correctness gate and run cheaply on `cargo test -p f
 ## Phase 1 — Core-complete
 
 ### T1 — Scaffold `fdb-query` crate
-- [ ] New crate `crates/fdb-query`: `#![forbid(unsafe_code)]`, deps `serde`, `serde_json`,
+- [x] New crate `crates/fdb-query`: `#![forbid(unsafe_code)]`, deps `serde`, `serde_json`,
       `thiserror` only. Add to workspace members. No DB driver, no async.
-- [ ] Public API sketch: `QueryPlan`, `parse_select_request(params, headers) -> Plan`,
+- [x] Public API sketch: `QueryPlan`, `parse_select_request(params, headers) -> Plan`,
       `parse_mutation_request(...)`, `Plan::render() -> (String, Vec<QueryParam>)`.
-- [ ] `QueryParam` enum (Text/Int/Bool/Json/Vector-agnostic → adapter binds).
+- [x] `QueryParam` enum (Text/Int/Bool/Json/Vector-agnostic → adapter binds).
 
 ### T2 — Identifier + value safety layer (do FIRST; everything depends on it)
-- [ ] Hardened identifier validator (schema/table/column/alias/relation/cast/json-key).
-- [ ] Parameter model: values ALWAYS bound as `$n`; renderer tracks the bind list.
-- [ ] Injection test suite (adapt/extend `is_safe_identifier` tests) — must be green
+- [x] Hardened identifier validator (schema/table/column/alias/relation/cast/json-key).
+- [x] Parameter model: values ALWAYS bound as `$n`; renderer tracks the bind list.
+- [x] Injection test suite (adapt/extend `is_safe_identifier` tests) — must be green
       before any operator lands.
 
 ### T3 — Horizontal filtering operator set
-- [ ] Operator enum + parser: eq neq gt gte lt lte like ilike match imatch in is
+- [x] Operator enum + parser: eq neq gt gte lt lte like ilike match imatch in is
       isdistinct cs cd ov sl sr nxr nxl adj.
-- [ ] `not.` negation; `any()`/`all()` modifiers.
-- [ ] Per-operator render + unit test asserting exact `(sql, params)`.
-- [ ] `like`/`ilike` pattern handling; `in`-list parsing (incl. empty, quoted, null).
+- [x] `not.` negation; `any()`/`all()` modifiers.
+- [x] Per-operator render + unit test asserting exact `(sql, params)`.
+- [x] `like`/`ilike` pattern handling; `in`-list parsing (incl. empty, quoted, null).
 
 ### T4 — Logical trees
-- [ ] `and`/`or` recursive parser; nested groups; top-level `not.and`/`not.or`.
-- [ ] Nested-tree render tests.
+- [x] `and`/`or` recursive parser; nested groups; top-level `not.and`/`not.or`.
+- [x] Nested-tree render tests.
 
 ### T5 — select / order / pagination / count
-- [ ] `select`: column list, `alias:col`, `col::type`, JSON paths `->`/`->>`.
-- [ ] `order`: multi-column, asc/desc, nullsfirst/nullslast.
-- [ ] `limit`/`offset`; `Range` header parse; `Content-Range` compute.
-- [ ] `Prefer: count=exact|planned|estimated` → count strategy in plan.
+- [x] `select`: column list, `alias:col`, `col::type`, JSON paths `->`/`->>`.
+- [x] `order`: multi-column, asc/desc, nullsfirst/nullslast.
+- [x] `limit`/`offset`; `Range` header parse; `Content-Range` compute.
+- [x] `Prefer: count=exact|planned|estimated` → count strategy in plan.
 
 ### T6 — Writes
-- [ ] Bulk INSERT; UPSERT (`resolution=merge-duplicates`, `on_conflict`).
-- [ ] PATCH/DELETE with filter reuse (T3/T4).
-- [ ] `Prefer: return=representation|minimal`, `missing=default`.
+- [x] Bulk INSERT; UPSERT (`resolution=merge-duplicates`, `on_conflict`).
+- [x] PATCH/DELETE with filter reuse (T3/T4).
+- [x] `Prefer: return=representation|minimal`, `missing=default`.
 
-### T7 — Wire `fdb-reflection` REST router onto `fdb-query`
-- [ ] Replace `compilers/filters.rs::build_where` usage with `fdb-query`.
-- [ ] Keep handler behavior identical; existing REST tests stay green.
-- [ ] Remove/retire the superseded `build_where` (or make it a thin shim).
+### T7 — Wire `fdb-reflection` REST router onto `fdb-query` ✅
+- [x] Replace `compilers/filters.rs::build_where` usage with `fdb-query`.
+- [x] Keep handler behavior identical; existing REST tests stay green.
+- [x] Remove/retire the superseded `build_where` (filters.rs is now a thin bridge).
+- [x] Port the RFC-FORGE §3.3/G6 security gate to the bridge API (all guarantees intact).
 
 ### T8 — Implement `PgRest::execute` over `fdb-query`
-- [ ] `PgRest::execute`: parse `RestQuery` → `fdb-query` plan → render → run under
+- [x] `PgRest::execute`: parse `RestQuery` → `fdb-query` plan → render → run under
       `backend.acquire(rls)` (6-GUC RLS) → project rows to `RestResult`.
-- [ ] Removes the `todo!()`; the p3-g4 subscription RLS re-query is now live.
-- [ ] Row→JSON projection reuses the `PgVectorRpc` pattern (typed → JSON).
+- [x] Removes the `todo!()`; the p3-g4 subscription RLS re-query is now live.
+- [x] Row→JSON projection reuses the `PgVectorRpc` pattern (typed → JSON).
 
 ### T9 — Phase 1 verification (integration checkpoint)
-- [ ] `cargo check --workspace`; `cargo clippy --workspace -- -D warnings`.
-- [ ] `cargo test -p fdb-query -p fdb-postgres -p fdb-reflection`.
+- [x] `cargo check --workspace` clean.
+- [x] `cargo clippy -p fdb-query -p fdb-postgres -p fdb-reflection -p fdb-gateway -- -D warnings`
+      clean. (Full-workspace clippy trips a PRE-EXISTING, unrelated lint in the
+      `hello-component` example crate — macro-generated WASI bindings, `used_underscore_items`
+      — not introduced by this change.)
+- [x] `cargo test -p fdb-query -p fdb-postgres -p fdb-reflection` (69 + 4 + 46 unit + gates).
 - [ ] (DB-backed integration tests where a test PG is available.)
 
 ## Phase 2 — Parity
