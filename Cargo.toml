@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
   "crates/forge-domain", "crates/forge-identity", "crates/forge-policy",
-  "crates/fdb-domain", "crates/fdb-ports", "crates/fdb-app", "crates/fdb-postgres",
+  "crates/fdb-domain", "crates/fdb-ports", "crates/fdb-app", "crates/fdb-postgres", "crates/fdb-query",
   "crates/fdb-realtime", "crates/fdb-auth", "crates/fdb-reflection", "crates/fdb-gateway",
   "crates/fke-domain", "crates/fke-ports", "crates/fke-runtime",
   "crates/fke-store-oci", "crates/fke-store-ipfs", "crates/fke-store-s3", "crates/fke-store-fs",

@@ -1091,6 +1091,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "fdb-query"
+version = "0.1.0"
+dependencies = [
+ "forge-domain",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "fdb-realtime"
 version = "0.1.0"
 dependencies = [
