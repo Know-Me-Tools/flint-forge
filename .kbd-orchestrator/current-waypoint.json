@@ -1,12 +1,12 @@
 {
-  "phase": "p3-auth-rls-keto",
-  "previousPhase": "p2-quarry-reflection-engine",
-  "status": "in_progress",
-  "updatedAt": "2026-07-01",
-  "next_action": "/kbd-apply p3-c017-fdb-realtime-stub",
-  "changes_completed": 7,
-  "changes_total": 9,
-  "goals_file": ".kbd-orchestrator/phases/p3-auth-rls-keto/goals.md",
+  "phase": "p3.5-ci-postgres-hardening",
+  "previousPhase": "p3-auth-rls-keto",
+  "status": "assessment_ready",
+  "updatedAt": "2026-07-03",
+  "next_action": "/kbd-assess p3.5-ci-postgres-hardening",
+  "changes_completed": 0,
+  "changes_total": 0,
+  "goals_file": ".kbd-orchestrator/phases/p3.5-ci-postgres-hardening/goals.md",
   "spec_files": [
     "docs/FLINT-FORGE-SPEC.md",
     "docs/FLINT-PHASE-PLAN-REVISED.md"
