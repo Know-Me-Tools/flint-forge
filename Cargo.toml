@@ -31,6 +31,7 @@ anyhow = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 futures = "0.3"
+tokio-stream = { version = "0.1", features = ["sync"] }
 arc-swap = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
 sqlx = { version = "0.8", features = ["postgres", "runtime-tokio", "uuid", "json", "migrate"] }
@@ -43,6 +44,7 @@ async-graphql-axum = "7"
 tonic = { version = "0.12", features = ["transport"] }
 pgvector = { version = "0.4", features = ["postgres", "sqlx"] }
 cedar-policy = "4"
+wiremock = "0.6"
 
 # Compile Economy — dev-loop build settings. See docs/RUST-DEVELOPMENT-MANAGEMENT.md.
 # Cargo only reads profiles from the workspace-root manifest, so they live here.

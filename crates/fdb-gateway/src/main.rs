@@ -24,7 +24,7 @@ use fdb_auth::rls_from_bearer;
 use fdb_domain::{GraphQlRequest, SubscriptionSpec, TableMeta, VectorRpcRequest};
 use fdb_ports::GraphQlExecutor;
 use fdb_postgres::{PgGraphQl, PgRest, PgVectorRpc};
-use fdb_realtime::{FabricChangeSource, FrfConfig, KetoConfig};
+use fdb_realtime::{FabricChangeSource, FrfConfig, KetoConfig, ListenChangeSource, ListenConfig};
 use fdb_reflection::MutationGates;
 use fdb_reflection::compilers::graphql::SubStreamFactory;
 use fdb_reflection::{ReflectionEngine, StateManager};
@@ -155,7 +155,7 @@ async fn main() {
 
     // Build the GraphQL subscription live-stream factory (Quarry + adapters).
     let sub_stream_factory =
-        build_subscription_factory(&database_url, Arc::clone(&keto_adapter));
+        build_subscription_factory(&database_url, Arc::clone(&keto_adapter)).await;
 
     let engine = ReflectionEngine::new(pool.clone());
     let state_manager = Arc::new(
@@ -291,7 +291,7 @@ async fn rpc_vector_handler(
 /// The returned factory, given a table's spec/meta and the subscriber's `RlsContext`,
 /// yields the RLS-filtered, GraphQL-projected event stream. `spec.tenant` is filled
 /// from the subscriber's claims here (the compiler has no per-subscriber context).
-fn build_subscription_factory(
+async fn build_subscription_factory(
     database_url: &str,
     keto_adapter: Arc<dyn fdb_ports::KetoCheck>,
 ) -> SubStreamFactory {
@@ -307,14 +307,33 @@ fn build_subscription_factory(
 
     let sub_rest = Arc::new(PgRest::new(make_pool()));
     let sub_graphql = Arc::new(PgGraphQl::new(make_pool()));
-    let frf_cfg = FrfConfig {
-        endpoint: std::env::var("FRF_ENDPOINT").unwrap_or_else(|_| "http://frf:50051".into()),
-    };
     let realtime_keto_cfg = KetoConfig {
         base_url: std::env::var("KETO_BASE_URL").unwrap_or_else(|_| "http://keto:4466".into()),
     };
-    let change_source =
-        Arc::new(FabricChangeSource::new(frf_cfg, realtime_keto_cfg).expect("fabric change source"));
+
+    // Select the change-stream backend. Default `fabric` (FRF gRPC — currently an
+    // empty stream pending OQ-FRF-1). `FLINT_CHANGE_SOURCE=listen` uses the
+    // in-process Postgres LISTEN/NOTIFY adapter, which emits real events without FRF.
+    let use_listen = std::env::var("FLINT_CHANGE_SOURCE").as_deref() == Ok("listen");
+    let change_source: Arc<dyn fdb_ports::ChangeStreamSource> = if use_listen {
+        let cfg = ListenConfig {
+            database_url: database_url.to_owned(),
+            broadcast_capacity: std::env::var("FLINT_LISTEN_CAPACITY")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(1024),
+        };
+        Arc::new(
+            ListenChangeSource::new(cfg, realtime_keto_cfg)
+                .await
+                .expect("listen change source"),
+        )
+    } else {
+        let frf_cfg = FrfConfig {
+            endpoint: std::env::var("FRF_ENDPOINT").unwrap_or_else(|_| "http://frf:50051".into()),
+        };
+        Arc::new(FabricChangeSource::new(frf_cfg, realtime_keto_cfg).expect("fabric change source"))
+    };
     let quarry = Arc::new(Quarry::new(sub_rest, sub_graphql, change_source).with_keto(keto_adapter));
 
     Arc::new(

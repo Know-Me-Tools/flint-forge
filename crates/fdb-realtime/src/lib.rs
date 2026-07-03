@@ -21,6 +21,9 @@
 //! - `FabricChangeSource` MUST NOT be constructed with a service-role `RlsContext`.
 #![forbid(unsafe_code)]
 
+pub mod listen;
+pub use listen::{ListenChangeSource, ListenConfig, ListenError};
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
