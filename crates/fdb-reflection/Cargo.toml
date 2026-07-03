@@ -9,6 +9,7 @@ authors.workspace = true
 [dependencies]
 fdb-domain  = { path = "../fdb-domain" }
 fdb-ports   = { path = "../fdb-ports" }
+fdb-query   = { path = "../fdb-query" }
 forge-domain = { path = "../forge-domain" }
 forge-policy = { path = "../forge-policy" }
 forge-identity = { path = "../forge-identity" }

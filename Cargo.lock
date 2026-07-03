@@ -1081,6 +1081,7 @@ dependencies = [
  "deadpool-postgres",
  "fdb-domain",
  "fdb-ports",
+ "fdb-query",
  "forge-domain",
  "forge-identity",
  "pgvector",
@@ -1089,6 +1090,16 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tracing",
+]
+
+[[package]]
+name = "fdb-query"
+version = "0.1.0"
+dependencies = [
+ "forge-domain",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -1118,6 +1129,7 @@ dependencies = [
  "axum 0.8.9",
  "fdb-domain",
  "fdb-ports",
+ "fdb-query",
  "forge-domain",
  "forge-identity",
  "forge-policy",
@@ -2681,6 +2693,8 @@ dependencies = [
  "bytes",
  "fallible-iterator",
  "postgres-protocol",
+ "serde_core",
+ "serde_json",
 ]
 
 [[package]]

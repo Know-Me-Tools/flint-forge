@@ -17,7 +17,7 @@ use serde_json::{Map, Value};
 use std::collections::HashMap;
 use tracing::instrument;
 
-use crate::compilers::filters::build_where;
+use crate::compilers::filters::{bind_param, render_where};
 
 use super::{
     KETO_NAMESPACE, RestState, bad_request, forbidden, insert_response, internal_error,
@@ -157,11 +157,14 @@ pub(super) async fn handle_update(
         idx += 1;
     }
 
-    let filters = match parse_filters(&params) {
+    let filter_tree = match parse_filters(&params) {
         Ok(f) => f,
         Err(resp) => return *resp,
     };
-    let where_clause = build_where(&filters, idx);
+    let where_clause = match render_where(&filter_tree, idx) {
+        Ok(wc) => wc,
+        Err(msg) => return bad_request(&msg),
+    };
 
     let sql = format!(
         "UPDATE {schema}.{table} SET {set} {where_sql} RETURNING row_to_json({table}) AS row",
@@ -174,7 +177,7 @@ pub(super) async fn handle_update(
         q = q.bind(json_bind(v));
     }
     for b in &where_clause.binds {
-        q = q.bind(b.clone());
+        q = bind_param(q, b);
     }
 
     match q.fetch_all(&state.pool).await {
@@ -204,11 +207,14 @@ pub(super) async fn handle_delete(
         return *resp;
     }
 
-    let filters = match parse_filters(&params) {
+    let filter_tree = match parse_filters(&params) {
         Ok(f) => f,
         Err(resp) => return *resp,
     };
-    let where_clause = build_where(&filters, 1);
+    let where_clause = match render_where(&filter_tree, 1) {
+        Ok(wc) => wc,
+        Err(msg) => return bad_request(&msg),
+    };
 
     let sql = format!(
         "DELETE FROM {schema}.{table} {where_sql}",
@@ -217,7 +223,7 @@ pub(super) async fn handle_delete(
 
     let mut q = sqlx::query(&sql);
     for b in &where_clause.binds {
-        q = q.bind(b.clone());
+        q = bind_param(q, b);
     }
 
     match q.execute(&state.pool).await {
@@ -337,13 +343,17 @@ mod tests {
         assert!(r.is_ok(), "keto allow + cedar allow ⇒ ok");
     }
 
-    /// Injection-attempt: an unsafe column name is rejected by parse_filter,
-    /// so it can never reach a WHERE clause built for a mutation.
+    /// Injection-attempt: an unsafe column name is rejected by the fdb-query
+    /// bridge at render time, so it can never reach a WHERE clause for a mutation.
     #[test]
     fn injection_column_rejected_before_sql() {
-        use crate::compilers::filters::parse_filter;
+        use crate::compilers::filters::{parse_filter_tree, render_where};
         use forge_domain::is_safe_identifier;
-        assert!(parse_filter("id; DROP TABLE users--", "eq.1").is_err());
+        use std::collections::HashMap;
+        let mut params = HashMap::new();
+        params.insert("id; DROP TABLE users--".to_owned(), "eq.1".to_owned());
+        let tree = parse_filter_tree(&params).expect("parses to a leaf");
+        assert!(render_where(&tree, 1).is_err(), "unsafe column rejected at render");
         assert!(is_safe_identifier("id"));
         assert!(!is_safe_identifier("id; DROP TABLE users--"));
     }

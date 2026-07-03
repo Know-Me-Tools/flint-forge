@@ -178,21 +178,148 @@ impl GraphQlExecutor for PgGraphQl {
     }
 }
 
+/// PostgREST-compatible REST executor.
+///
+/// Translates a [`RestQuery`] into SQL via the pure [`fdb_query`] planner, then
+/// runs it under the full 6-GUC RLS context (`backend.acquire(rls)`). The planner
+/// guarantees identifier validation and parameter binding; this adapter only binds
+/// values and projects rows.
 pub struct PgRest {
-    #[allow(dead_code)]
-    pool: Pool,
+    backend: PgBackend,
 }
 
 impl PgRest {
     pub fn new(pool: Pool) -> Self {
-        Self { pool }
+        Self {
+            backend: PgBackend { pool },
+        }
     }
+}
+
+/// Convert a `RestQuery` (already-parsed filter tuples) into an `fdb_query`
+/// `FilterTree` — an AND of leaves. The op token is validated by the planner.
+fn rest_query_to_filter(q: &RestQuery) -> Result<fdb_query::FilterTree, BackendError> {
+    let mut leaves = Vec::with_capacity(q.filters.len());
+    for (col, op_token, value) in &q.filters {
+        let op = fdb_query::Operator::parse(op_token)
+            .ok_or_else(|| BackendError::Query(format!("unknown operator: {op_token}")))?;
+        leaves.push(fdb_query::FilterTree::Leaf {
+            column: col.clone(),
+            op,
+            value: value.clone(),
+            negate: false,
+            quantifier: None,
+        });
+    }
+    Ok(fdb_query::FilterTree::And(leaves))
+}
+
+/// Build the `fdb_query::SelectPlan` for a `RestQuery`.
+fn plan_from_rest_query(q: &RestQuery) -> Result<fdb_query::SelectPlan, BackendError> {
+    let relation = if q.schema.is_empty() {
+        q.table.clone()
+    } else {
+        format!("{}.{}", q.schema, q.table)
+    };
+    let select = match &q.select {
+        Some(s) => fdb_query::Select::parse(s).map_err(|e| BackendError::Query(e.to_string()))?,
+        None => fdb_query::Select::default(),
+    };
+    let order = match &q.order {
+        Some(o) => fdb_query::Order::parse(o).map_err(|e| BackendError::Query(e.to_string()))?,
+        None => fdb_query::Order::default(),
+    };
+    Ok(fdb_query::SelectPlan {
+        relation: fdb_query::validate_identifier(&relation)
+            .map_err(|_| BackendError::Query(format!("unsafe relation: {relation}")))?
+            .to_owned(),
+        select,
+        filter: rest_query_to_filter(q)?,
+        order,
+        limits: fdb_query::Limits::from_params(q.limit.map(u64::from), q.offset.map(u64::from)),
+        count: fdb_query::CountStrategy::None,
+    })
 }
 
 #[async_trait]
 impl RestExecutor for PgRest {
-    async fn execute(&self, _q: RestQuery, _rls: &RlsContext) -> Result<RestResult, BackendError> {
-        todo!("PostgREST-compatible query builder + pgvector /rpc")
+    /// Execute a REST list/read query under RLS.
+    ///
+    /// The plan is rendered by `fdb_query` (validated identifiers, bound params);
+    /// this method binds the parameters and projects rows to a JSON array.
+    #[instrument(skip(self, rls), fields(role = %rls.role, table = %q.table), err)]
+    async fn execute(&self, q: RestQuery, rls: &RlsContext) -> Result<RestResult, BackendError> {
+        use fdb_ports::DatabaseBackend;
+
+        let plan = plan_from_rest_query(&q)?;
+        let (sql, params) = plan
+            .render()
+            .map_err(|e| BackendError::Query(e.to_string()))?;
+
+        let conn = self.backend.acquire(rls).await?;
+        let pg_conn = PgConn::from_conn(&conn)
+            .ok_or_else(|| BackendError::Internal("unexpected conn type in PgRest".into()))?;
+
+        // Materialize owned bind values, then build the &(dyn ToSql + Sync) slice.
+        let owned: Vec<RestBind> = params.into_iter().map(RestBind::from_param).collect();
+        let binds: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
+            owned.iter().map(RestBind::as_to_sql).collect();
+
+        let rows = pg_conn
+            .inner
+            .query(&sql, &binds)
+            .await
+            .map_err(|e| BackendError::Query(format!("rest query: {e}")))?;
+
+        let mut out: Vec<serde_json::Value> = Vec::with_capacity(rows.len());
+        for row in &rows {
+            let mut obj = serde_json::Map::new();
+            for (i, col) in row.columns().iter().enumerate() {
+                let val: Option<String> = row.try_get(i).ok();
+                obj.insert(
+                    col.name().to_owned(),
+                    val.map_or(serde_json::Value::Null, serde_json::Value::String),
+                );
+            }
+            out.push(serde_json::Value::Object(obj));
+        }
+        let count = Some(out.len() as u64);
+        Ok(RestResult {
+            rows: serde_json::Value::Array(out),
+            count,
+        })
+    }
+}
+
+/// Owned bind value bridging `fdb_query::QueryParam` to a `tokio_postgres` param.
+enum RestBind {
+    Text(String),
+    TextArray(Vec<String>),
+    Json(serde_json::Value),
+    Null,
+}
+
+impl RestBind {
+    fn from_param(p: fdb_query::QueryParam) -> Self {
+        match p {
+            fdb_query::QueryParam::Text(s) => Self::Text(s),
+            fdb_query::QueryParam::TextArray(v) => Self::TextArray(v),
+            fdb_query::QueryParam::Json(s) => {
+                Self::Json(serde_json::from_str(&s).unwrap_or(serde_json::Value::String(s)))
+            }
+            // `Null` and any future (`#[non_exhaustive]`) variant bind as NULL,
+            // never panicking on a live query path.
+            _ => Self::Null,
+        }
+    }
+
+    fn as_to_sql(&self) -> &(dyn tokio_postgres::types::ToSql + Sync) {
+        match self {
+            Self::Text(s) => s,
+            Self::TextArray(v) => v,
+            Self::Json(j) => j,
+            Self::Null => &Option::<String>::None,
+        }
     }
 }
 

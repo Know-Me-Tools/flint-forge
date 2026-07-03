@@ -18,9 +18,7 @@ use forge_policy::Pep;
 mod mutations;
 mod rpc;
 
-use crate::compilers::filters::{
-    Filter, RESERVED_PARAMS, build_where, parse_filter,
-};
+use crate::compilers::filters::{bind_param, parse_filter_tree, render_where};
 use crate::model::DatabaseModel;
 use crate::passes::endpoint_generation::{EndpointKind, generate};
 
@@ -134,13 +132,16 @@ async fn handle_list(
         return bad_request("invalid schema or table identifier");
     }
 
-    let filters = match parse_filters(&params) {
+    let filter_tree = match parse_filters(&params) {
         Ok(f) => f,
         Err(resp) => return *resp,
     };
 
     let (offset, limit) = parse_range(&headers);
-    let where_clause = build_where(&filters, 1);
+    let where_clause = match render_where(&filter_tree, 1) {
+        Ok(wc) => wc,
+        Err(msg) => return bad_request(&msg),
+    };
     // LIMIT/OFFSET placeholders follow the filter binds.
     let limit_idx = where_clause.binds.len() + 1;
     let offset_idx = where_clause.binds.len() + 2;
@@ -155,7 +156,7 @@ async fn handle_list(
 
     let mut q = sqlx::query(&sql);
     for bind in &where_clause.binds {
-        q = q.bind(bind);
+        q = bind_param(q, bind);
     }
     q = q.bind(limit).bind(offset);
 
@@ -216,21 +217,12 @@ fn list_response(row: &sqlx::postgres::PgRow, offset: i64, limit: i64) -> axum::
         .into_response()
 }
 
-/// Parse the non-reserved query params into filters, or return a `400` response.
+/// Parse the non-reserved query params into an `fdb_query::FilterTree`, or return
+/// a `400` response. Reserved keys are skipped inside the bridge.
 pub(super) fn parse_filters(
     params: &HashMap<String, String>,
-) -> Result<Vec<Filter>, Box<axum::response::Response>> {
-    let mut filters: Vec<Filter> = Vec::new();
-    for (key, raw) in params {
-        if RESERVED_PARAMS.contains(&key.as_str()) {
-            continue;
-        }
-        match parse_filter(key, raw) {
-            Ok(f) => filters.push(f),
-            Err(e) => return Err(Box::new(bad_request(&e.to_string()))),
-        }
-    }
-    Ok(filters)
+) -> Result<fdb_query::FilterTree, Box<axum::response::Response>> {
+    parse_filter_tree(params).map_err(|e| Box::new(bad_request(&e.to_string())))
 }
 
 /// Bind a JSON value as a Postgres parameter.
