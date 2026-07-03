@@ -1,10 +1,15 @@
+// This example crate is almost entirely wit-bindgen-generated bindings. The
+// `bindings::export!` macro expands generated `__export_*` items into this crate's
+// scope, tripping clippy::pedantic's `used_underscore_items`; a module- or
+// statement-scoped allow does not reach the macro expansion, so allow it crate-wide.
+// Scope is the example crate only — the `crates/*` library lint posture is unaffected.
+#![allow(clippy::used_underscore_items)]
+
 #[allow(warnings)]
 mod bindings;
 
 use bindings::exports::wasi::http::incoming_handler::Guest;
-use bindings::wasi::http::types::{
-    Headers, OutgoingBody, OutgoingResponse, ResponseOutparam,
-};
+use bindings::wasi::http::types::{Headers, OutgoingBody, OutgoingResponse, ResponseOutparam};
 
 struct HelloComponent;
 

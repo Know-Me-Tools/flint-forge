@@ -31,18 +31,19 @@ async fn test_column_type_to_component_text_types() {
     ];
 
     for (pg_type, expected) in &cases {
-        let row: (String,) = sqlx::query_as(
-            "SELECT flint_a2ui.column_type_to_component($1)",
-        )
-        .bind(pg_type)
-        .fetch_one(&pool)
-        .await
-        .expect("column_type_to_component query failed");
+        let row: (String,) = sqlx::query_as("SELECT flint_a2ui.column_type_to_component($1)")
+            .bind(pg_type)
+            .fetch_one(&pool)
+            .await
+            .expect("column_type_to_component query failed");
 
         assert_eq!(
-            row.0.as_str(), *expected,
+            row.0.as_str(),
+            *expected,
             "column_type_to_component('{}') expected '{}', got '{}'",
-            pg_type, expected, row.0
+            pg_type,
+            expected,
+            row.0
         );
     }
 }
@@ -51,10 +52,13 @@ async fn test_column_type_to_component_text_types() {
 async fn test_auto_binding_trigger_generates_bindings() {
     let Some(pool) = connect().await else { return };
 
-    let test_table = format!("_a2ui_trigger_test_{}", std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .subsec_micros());
+    let test_table = format!(
+        "_a2ui_trigger_test_{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .subsec_micros()
+    );
 
     // Insert a test row into flint_meta.cache_tables to fire the trigger
     let insert_result = sqlx::query(
@@ -83,7 +87,10 @@ async fn test_auto_binding_trigger_generates_bindings() {
     .fetch_one(&pool)
     .await
     .expect("bindings query failed");
-    assert!(row.0, "grid binding must be auto-generated for {}", test_table);
+    assert!(
+        row.0,
+        "grid binding must be auto-generated for {test_table}"
+    );
 
     // Form binding must exist (BASE TABLE)
     let row: (bool,) = sqlx::query_as(
@@ -96,7 +103,10 @@ async fn test_auto_binding_trigger_generates_bindings() {
     .fetch_one(&pool)
     .await
     .expect("bindings query failed");
-    assert!(row.0, "form binding must be auto-generated for BASE TABLE {}", test_table);
+    assert!(
+        row.0,
+        "form binding must be auto-generated for BASE TABLE {test_table}"
+    );
 
     // Detail binding must exist
     let row: (bool,) = sqlx::query_as(
@@ -109,7 +119,10 @@ async fn test_auto_binding_trigger_generates_bindings() {
     .fetch_one(&pool)
     .await
     .expect("bindings query failed");
-    assert!(row.0, "detail binding must be auto-generated for {}", test_table);
+    assert!(
+        row.0,
+        "detail binding must be auto-generated for {test_table}"
+    );
 
     // Audit event must be logged
     let row: (bool,) = sqlx::query_as(
@@ -123,7 +136,10 @@ async fn test_auto_binding_trigger_generates_bindings() {
     .fetch_one(&pool)
     .await
     .expect("events query failed");
-    assert!(row.0, "binding_auto_generated event must be logged for {}", test_table);
+    assert!(
+        row.0,
+        "binding_auto_generated event must be logged for {test_table}"
+    );
 
     // Cleanup
     let _ = sqlx::query(
@@ -139,10 +155,13 @@ async fn test_auto_binding_trigger_generates_bindings() {
 async fn test_trigger_no_form_for_view() {
     let Some(pool) = connect().await else { return };
 
-    let test_view = format!("_a2ui_view_test_{}", std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .subsec_micros());
+    let test_view = format!(
+        "_a2ui_view_test_{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .subsec_micros()
+    );
 
     let insert_result = sqlx::query(
         "INSERT INTO flint_meta.cache_tables
@@ -167,7 +186,7 @@ async fn test_trigger_no_form_for_view() {
     .fetch_one(&pool)
     .await
     .expect("query failed");
-    assert!(!row.0, "VIEW must not receive a form binding: {}", test_view);
+    assert!(!row.0, "VIEW must not receive a form binding: {test_view}");
 
     // But grid and detail must still be generated
     let row: (i64,) = sqlx::query_as(
@@ -179,7 +198,10 @@ async fn test_trigger_no_form_for_view() {
     .fetch_one(&pool)
     .await
     .expect("query failed");
-    assert_eq!(row.0, 2, "VIEW must have grid + detail bindings: {}", test_view);
+    assert_eq!(
+        row.0, 2,
+        "VIEW must have grid + detail bindings: {test_view}"
+    );
 
     // Cleanup
     let _ = sqlx::query(

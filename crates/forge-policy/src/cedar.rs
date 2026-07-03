@@ -20,7 +20,8 @@
 
 use std::sync::Arc;
 
-use async_trait::async_trait;use cedar_policy::{
+use async_trait::async_trait;
+use cedar_policy::{
     Authorizer, Context, Decision as CedarDecision, Entities, EntityId, EntityTypeName, EntityUid,
     Policy, PolicyId, PolicySet, Request as CedarRequest,
 };
@@ -221,14 +222,13 @@ mod tests {
     const ALLOW_ALL: &str = r#"permit(principal, action == Action::"view", resource);"#;
 
     /// A deny-all policy for tests.
-    const DENY_ALL: &str = r#"forbid(principal, action, resource);"#;
+    const DENY_ALL: &str = "forbid(principal, action, resource);";
 
     #[tokio::test]
     async fn allow_when_policy_permits() {
         let mut set = PolicySet::new();
         set.add(
-            Policy::parse(Some(PolicyId::new("allow-view")), ALLOW_ALL)
-                .expect("parse allow-all"),
+            Policy::parse(Some(PolicyId::new("allow-view")), ALLOW_ALL).expect("parse allow-all"),
         )
         .expect("add");
         let engine = CedarPolicyEngine::from_policies(set);
@@ -247,11 +247,8 @@ mod tests {
     #[tokio::test]
     async fn deny_when_policy_forbids() {
         let mut set = PolicySet::new();
-        set.add(
-            Policy::parse(Some(PolicyId::new("deny-all")), DENY_ALL)
-                .expect("parse deny-all"),
-        )
-        .expect("add");
+        set.add(Policy::parse(Some(PolicyId::new("deny-all")), DENY_ALL).expect("parse deny-all"))
+            .expect("add");
         let engine = CedarPolicyEngine::from_policies(set);
 
         let decision = engine.check(&rls_for("alice"), &req("view", "doc:1")).await;

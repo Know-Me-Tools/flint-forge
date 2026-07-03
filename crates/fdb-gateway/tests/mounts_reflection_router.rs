@@ -13,10 +13,10 @@
 #![forbid(unsafe_code)]
 
 use axum::{
-    Router,
     body::Body,
     http::{Request, StatusCode},
     routing::get,
+    Router,
 };
 use fdb_reflection::{
     compilers::rest::RestCompiler,
@@ -58,8 +58,8 @@ async fn reflection_router_mounted_not_404() {
     // connect_lazy builds the pool object without opening a connection.
     // The handler bodies are `todo!()` so no query is actually executed; we
     // only assert the route exists (not a 404 from a missing mount).
-    let pool = PgPool::connect_lazy("postgres://localhost/flint")
-        .expect("connect_lazy should not dial");
+    let pool =
+        PgPool::connect_lazy("postgres://localhost/flint").expect("connect_lazy should not dial");
 
     let reflection_router = RestCompiler::compile(&model, pool);
 
@@ -72,7 +72,12 @@ async fn reflection_router_mounted_not_404() {
     // healthz is reachable (proves the gateway side of the merge).
     let resp = app
         .clone()
-        .oneshot(Request::builder().uri("/healthz").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/healthz")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .expect("request");
     assert_eq!(
@@ -91,23 +96,18 @@ async fn reflection_router_mounted_not_404() {
         .unwrap();
     let app_for_widget = app.clone();
 
-    let join = tokio::spawn(async move {
-        app_for_widget.oneshot(widget_request).await
-    });
+    let join = tokio::spawn(async move { app_for_widget.oneshot(widget_request).await });
 
-    match join.await {
-        Ok(Ok(resp)) => {
-            // Handler returned a response (shouldn't happen yet with todo!(),
-            // but if it does, it must NOT be 404).
-            assert_ne!(
-                resp.status(),
-                StatusCode::NOT_FOUND,
-                "/public/widget must be mounted (got 404 = mount broken)"
-            );
-        }
-        Ok(Err(_)) | Err(_) => {
-            // Handler panicked (todo!()) or errored — proves the route was
-            // matched. A 404 would have returned a response, not panicked.
-        }
+    if let Ok(Ok(resp)) = join.await {
+        // Handler returned a response (shouldn't happen yet with todo!(),
+        // but if it does, it must NOT be 404).
+        assert_ne!(
+            resp.status(),
+            StatusCode::NOT_FOUND,
+            "/public/widget must be mounted (got 404 = mount broken)"
+        );
+    } else {
+        // Handler panicked (todo!()) or errored — proves the route was
+        // matched. A 404 would have returned a response, not panicked.
     }
 }

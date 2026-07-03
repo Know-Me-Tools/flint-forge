@@ -99,8 +99,18 @@ impl IntrospectionMerger {
 /// and aren't the built-in scalar or root types (`Query`, `Boolean`, `String`, etc.).
 fn extract_subscription_types_from_sdl(sdl: &str) -> Vec<String> {
     let builtins: std::collections::HashSet<&str> = [
-        "Boolean", "String", "Int", "Float", "ID", "Query", "__Schema",
-        "__Type", "__Field", "__InputValue", "__EnumValue", "__Directive",
+        "Boolean",
+        "String",
+        "Int",
+        "Float",
+        "ID",
+        "Query",
+        "__Schema",
+        "__Type",
+        "__Field",
+        "__InputValue",
+        "__EnumValue",
+        "__Directive",
         "__DirectiveLocation",
     ]
     .iter()
@@ -123,23 +133,32 @@ fn extract_subscription_types_from_sdl(sdl: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+    // Tests build fixtures then `use` async-graphql's dynamic-schema types mid-function
+    // (a common test idiom); allow items-after-statements for the test module only.
+    #![allow(clippy::items_after_statements)]
     use super::*;
 
     #[test]
     fn detects_schema_introspection() {
         assert!(is_introspection_query("{ __schema { types { name } } }"));
-        assert!(is_introspection_query("query IntrospectionQuery { __schema { queryType { name } } }"));
+        assert!(is_introspection_query(
+            "query IntrospectionQuery { __schema { queryType { name } } }"
+        ));
     }
 
     #[test]
     fn detects_type_introspection() {
-        assert!(is_introspection_query("{ __type(name: \"User\") { name fields { name } } }"));
+        assert!(is_introspection_query(
+            "{ __type(name: \"User\") { name fields { name } } }"
+        ));
     }
 
     #[test]
     fn does_not_flag_regular_queries() {
         assert!(!is_introspection_query("{ users { id name } }"));
-        assert!(!is_introspection_query("mutation CreateUser($input: UserInput!) { createUser(input: $input) { id } }"));
+        assert!(!is_introspection_query(
+            "mutation CreateUser($input: UserInput!) { createUser(input: $input) { id } }"
+        ));
     }
 
     #[test]
@@ -166,11 +185,10 @@ mod tests {
         };
         use futures::stream;
 
-        let query = Object::new("Query").field(Field::new(
-            "_p",
-            TypeRef::named(TypeRef::BOOLEAN),
-            |_| FieldFuture::new(async { Ok(None::<async_graphql::Value>) }),
-        ));
+        let query =
+            Object::new("Query").field(Field::new("_p", TypeRef::named(TypeRef::BOOLEAN), |_| {
+                FieldFuture::new(async { Ok(None::<async_graphql::Value>) })
+            }));
         let orders_obj = Object::new("OrdersChanges").field(Field::new(
             "id",
             TypeRef::named(TypeRef::STRING),
@@ -199,12 +217,14 @@ mod tests {
         assert_eq!(sub_type["name"], "Subscription");
 
         // OrdersChanges type should be in the types array.
-        let types = merged["data"]["__schema"]["types"].as_array().expect("types array");
-        let type_names: Vec<&str> = types
-            .iter()
-            .filter_map(|t| t["name"].as_str())
-            .collect();
-        assert!(type_names.contains(&"OrdersChanges"), "types should contain OrdersChanges");
+        let types = merged["data"]["__schema"]["types"]
+            .as_array()
+            .expect("types array");
+        let type_names: Vec<&str> = types.iter().filter_map(|t| t["name"].as_str()).collect();
+        assert!(
+            type_names.contains(&"OrdersChanges"),
+            "types should contain OrdersChanges"
+        );
         // Original types should still be present.
         assert!(type_names.contains(&"Query"), "types should contain Query");
         assert!(type_names.contains(&"User"), "types should contain User");
@@ -232,24 +252,45 @@ mod tests {
             };
             use futures::stream;
             let q = Object::new("Query").field(Field::new(
-                "_p", TypeRef::named(TypeRef::BOOLEAN),
+                "_p",
+                TypeRef::named(TypeRef::BOOLEAN),
                 |_| FieldFuture::new(async { Ok(None::<async_graphql::Value>) }),
             ));
             let sub = Subscription::new("Subscription").field(SubscriptionField::new(
-                "changes", TypeRef::named(TypeRef::STRING),
-                |_| SubscriptionFieldFuture::new(async { Ok(stream::empty::<async_graphql::Result<async_graphql::Value>>()) }),
+                "changes",
+                TypeRef::named(TypeRef::STRING),
+                |_| {
+                    SubscriptionFieldFuture::new(async {
+                        Ok(stream::empty::<async_graphql::Result<async_graphql::Value>>())
+                    })
+                },
             ));
             Schema::build("Query", None, Some("Subscription"))
-                .register(q).register(sub).finish().expect("schema")
+                .register(q)
+                .register(sub)
+                .finish()
+                .expect("schema")
         };
 
         let merged = IntrospectionMerger::merge(pg_result, &schema);
-        let types = merged["data"]["__schema"]["types"].as_array().expect("types");
+        let types = merged["data"]["__schema"]["types"]
+            .as_array()
+            .expect("types");
         // There should be exactly one Subscription entry (pg_graphql's).
-        let sub_entries: Vec<_> = types.iter().filter(|t| t["name"] == "Subscription").collect();
-        assert_eq!(sub_entries.len(), 1, "should have exactly one Subscription type");
+        let sub_entries: Vec<_> = types
+            .iter()
+            .filter(|t| t["name"] == "Subscription")
+            .collect();
+        assert_eq!(
+            sub_entries.len(),
+            1,
+            "should have exactly one Subscription type"
+        );
         // pg_graphql's version should have won (it has "pg_sub_field").
-        assert_eq!(sub_entries[0]["fields"], serde_json::json!(["pg_sub_field"]));
+        assert_eq!(
+            sub_entries[0]["fields"],
+            serde_json::json!(["pg_sub_field"])
+        );
     }
 
     #[test]
@@ -258,10 +299,14 @@ mod tests {
         let schema = {
             use async_graphql::dynamic::{Field, FieldFuture, Object, Schema, TypeRef};
             let q = Object::new("Query").field(Field::new(
-                "_p", TypeRef::named(TypeRef::BOOLEAN),
+                "_p",
+                TypeRef::named(TypeRef::BOOLEAN),
                 |_| FieldFuture::new(async { Ok(None::<async_graphql::Value>) }),
             ));
-            Schema::build("Query", None, None).register(q).finish().expect("schema")
+            Schema::build("Query", None, None)
+                .register(q)
+                .finish()
+                .expect("schema")
         };
 
         let result = IntrospectionMerger::merge(not_introspection.clone(), &schema);
