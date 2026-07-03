@@ -1,7 +1,7 @@
 {
   "phase": "p3.5-ci-postgres-hardening",
   "status": "in_progress",
-  "changes_completed": 3,
+  "changes_completed": 4,
   "changes_total": 5,
   "changes": [
     {
@@ -32,10 +32,13 @@
     },
     {
       "id": "p35-c004-db-integration-tests",
-      "status": "pending",
+      "status": "qa_passed",
       "goal": "G2",
       "priority": "P1",
-      "depends_on": "p35-c003"
+      "depends_on": "p35-c003",
+      "completed": "2026-07-03",
+      "completed_by": "claude-code",
+      "note": "verified live against local PG; uncovered+fixed critical acquire RLS bug"
     },
     {
       "id": "p35-c005-p3-bookkeeping-reconcile",
