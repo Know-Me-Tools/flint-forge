@@ -1128,6 +1128,7 @@ dependencies = [
  "axum 0.8.9",
  "fdb-domain",
  "fdb-ports",
+ "fdb-query",
  "forge-domain",
  "forge-identity",
  "forge-policy",
