@@ -72,43 +72,36 @@ impl DatabaseBackend for PgBackend {
             .await
             .map_err(PgError::Transaction)?;
 
+        // ROLE: `SET` statements do NOT accept bind parameters, so the role reaches
+        // SQL as an identifier. It is user-derived, so validate it first (fail closed)
+        // and quote it — never interpolate an unvalidated value.
+        if !forge_domain::is_safe_identifier(&rls.role) {
+            return Err(PgError::SetLocal(format!("unsafe role identifier: {}", rls.role)).into());
+        }
         object
-            .execute("SET LOCAL ROLE $1", &[&rls.role])
+            .execute(&format!(r#"SET LOCAL ROLE "{}""#, rls.role), &[])
             .await
             .map_err(|e| PgError::SetLocal(format!("SET LOCAL ROLE: {e}")))?;
 
-        object
-            .execute(
-                r#"SET LOCAL "request.jwt.claims" = $1"#,
-                &[&rls.claims_json],
-            )
-            .await
-            .map_err(|e| PgError::SetLocal(format!(r#"SET LOCAL "request.jwt.claims": {e}"#)))?;
-
-        let headers_json = format!(r#"{{"authorization":"Bearer {}"}}"#, rls.raw_bearer);
-        object
-            .execute(r#"SET LOCAL "request.headers" = $1"#, &[&headers_json])
-            .await
-            .map_err(|e| PgError::SetLocal(format!(r#"SET LOCAL "request.headers": {e}"#)))?;
-
-        // Extended GUC propagation — all within the same BEGIN transaction.
-        // These three are consumed by flint_vault, flint_hooks, and Cedar policy evaluation.
-        // MUST NOT log their values — they contain subject IDs and key identifiers.
-        object
-            .execute(r#"SET LOCAL "app.jwt_claims" = $1"#, &[&rls.claims_json])
-            .await
-            .map_err(|e| PgError::SetLocal(format!(r#"SET LOCAL "app.jwt_claims": {e}"#)))?;
-
-        object
-            .execute(r#"SET LOCAL "app.keto_subject" = $1"#, &[&rls.keto_subject])
-            .await
-            .map_err(|e| PgError::SetLocal(format!(r#"SET LOCAL "app.keto_subject": {e}"#)))?;
-
+        // The six GUCs: `SET LOCAL <name> = $1` is also invalid (SET rejects binds).
+        // Use `set_config(name, value, is_local=true)`, which binds the VALUE safely
+        // (the name is a fixed literal, never user input). Equivalent to SET LOCAL.
         let vault_key_id = rls.vault_key_id.as_deref().unwrap_or("");
-        object
-            .execute(r#"SET LOCAL "app.vault_key_id" = $1"#, &[&vault_key_id])
-            .await
-            .map_err(|e| PgError::SetLocal(format!(r#"SET LOCAL "app.vault_key_id": {e}"#)))?;
+        let headers_json = format!(r#"{{"authorization":"Bearer {}"}}"#, rls.raw_bearer);
+        // (name, value) pairs — names are hardcoded, values are bound.
+        let gucs: [(&str, &str); 5] = [
+            ("request.jwt.claims", &rls.claims_json),
+            ("request.headers", &headers_json),
+            ("app.jwt_claims", &rls.claims_json),
+            ("app.keto_subject", &rls.keto_subject),
+            ("app.vault_key_id", vault_key_id),
+        ];
+        for (name, value) in gucs {
+            object
+                .execute("SELECT set_config($1, $2, true)", &[&name, &value])
+                .await
+                .map_err(|e| PgError::SetLocal(format!("set_config({name}): {e}")))?;
+        }
 
         Ok(Conn(Box::new(PgConn::new(object))))
     }

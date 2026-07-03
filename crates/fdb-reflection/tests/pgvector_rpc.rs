@@ -55,7 +55,6 @@ async fn teardown_test_function(pool: &PgPool) {
 
 /// OQ-9 regression gate — pgvector extension must be ≥ 0.7.0.
 #[tokio::test]
-#[ignore = "requires DATABASE_URL with pgvector installed"]
 async fn test_pgvector_extension_version_gte_0_7_0() {
     let pool = match pool_or_skip().await {
         Some(p) => p,
@@ -87,7 +86,6 @@ async fn test_pgvector_extension_version_gte_0_7_0() {
 /// After `ReflectionEngine::reflect()`, the function `public.nearest_neighbors`
 /// should have `args[0].pg_type` starting with "vector".
 #[tokio::test]
-#[ignore = "requires DATABASE_URL with flint_meta schema installed"]
 async fn test_reflect_detects_vector_arg_type() {
     let pool = match pool_or_skip().await {
         Some(p) => p,
@@ -142,7 +140,6 @@ fn test_rpc_vector_json_binding_unit() {
 /// Executes `SELECT '[0.1,0.2,0.3]'::vector(3)` and confirms sqlx returns
 /// a `pgvector::Vector` that round-trips correctly to JSON.
 #[tokio::test]
-#[ignore = "requires DATABASE_URL with pgvector installed"]
 async fn test_rpc_vector_result_serializes_as_float_array() {
     let pool = match pool_or_skip().await {
         Some(p) => p,

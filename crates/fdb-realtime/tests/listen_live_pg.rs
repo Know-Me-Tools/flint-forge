@@ -53,7 +53,6 @@ async fn ensure_notify_ddl(pool: &PgPool) {
 }
 
 #[tokio::test]
-#[ignore = "requires a live Postgres (DATABASE_URL); run with --ignored"]
 async fn trigger_notifies_insert_update_delete_payloads() {
     let Some(url) = database_url() else {
         eprintln!("DATABASE_URL unset — skipping");
@@ -113,7 +112,6 @@ async fn trigger_notifies_insert_update_delete_payloads() {
 }
 
 #[tokio::test]
-#[ignore = "requires a live Postgres (DATABASE_URL); run with --ignored"]
 async fn listen_change_source_watch_delivers_event() {
     use fdb_domain::SubscriptionSpec;
     use fdb_ports::ChangeStreamSource;
