@@ -162,21 +162,26 @@ pub struct UpdatePlan {
 impl UpdatePlan {
     /// Render the UPDATE to `(sql, params)`. SET params come first, then WHERE params.
     ///
+    /// The relation and every SET column are validated here (defense-in-depth):
+    /// the struct has public fields, so `render` never trusts them — an unsafe
+    /// identifier yields an error rather than reaching SQL.
+    ///
     /// # Errors
-    /// Propagates [`FilterError`] from the WHERE tree.
+    /// Returns [`FilterError::Ident`] on an unsafe relation/column, or propagates
+    /// [`FilterError`] from the WHERE tree.
     pub fn render(&self) -> Result<(String, Vec<QueryParam>), FilterError> {
+        validate_identifier(&self.relation)
+            .map_err(|_| FilterError::Ident(crate::IdentError::Unsafe(self.relation.clone())))?;
         let mut params = Vec::new();
         let mut idx = 1usize;
-        let sets: Vec<String> = self
-            .assignments
-            .iter()
-            .map(|(col, val)| {
-                let s = format!("{col} = ${idx}");
-                params.push(val.clone());
-                idx += 1;
-                s
-            })
-            .collect();
+        let mut sets: Vec<String> = Vec::with_capacity(self.assignments.len());
+        for (col, val) in &self.assignments {
+            validate_identifier(col)
+                .map_err(|_| FilterError::Ident(crate::IdentError::Unsafe(col.clone())))?;
+            sets.push(format!("{col} = ${idx}"));
+            params.push(val.clone());
+            idx += 1;
+        }
         let (where_sql, mut where_params, _) = self.filter.render(idx)?;
         params.append(&mut where_params);
         let mut sql = format!("UPDATE {} SET {}", self.relation, sets.join(", "));
@@ -202,9 +207,15 @@ pub struct DeletePlan {
 impl DeletePlan {
     /// Render the DELETE to `(sql, params)`.
     ///
+    /// The relation is validated here (defense-in-depth) since the struct has
+    /// public fields — an unsafe relation yields an error, never reaching SQL.
+    ///
     /// # Errors
-    /// Propagates [`FilterError`] from the WHERE tree.
+    /// Returns [`FilterError::Ident`] on an unsafe relation, or propagates
+    /// [`FilterError`] from the WHERE tree.
     pub fn render(&self) -> Result<(String, Vec<QueryParam>), FilterError> {
+        validate_identifier(&self.relation)
+            .map_err(|_| FilterError::Ident(crate::IdentError::Unsafe(self.relation.clone())))?;
         let (where_sql, params, _) = self.filter.render(1)?;
         let mut sql = format!("DELETE FROM {}", self.relation);
         if where_sql != "TRUE" {
@@ -352,6 +363,7 @@ mod tests {
                 value: "5".into(),
                 negate: false,
                 quantifier: None,
+                fts_config: None,
             },
             returning: ReturnKind::Representation,
         };
@@ -370,6 +382,7 @@ mod tests {
                 value: "9".into(),
                 negate: false,
                 quantifier: None,
+                fts_config: None,
             },
             returning: ReturnKind::Minimal,
         };
@@ -383,5 +396,53 @@ mod tests {
         assert_eq!(returning, ReturnKind::Representation);
         assert_eq!(resolution, Resolution::MergeDuplicates);
         assert!(missing);
+    }
+
+    #[test]
+    fn update_render_rejects_unsafe_relation_and_set_column() {
+        // Regression: UpdatePlan/DeletePlan have public fields; render() must
+        // validate the relation and SET columns (defense-in-depth), never trust them.
+        let leaf = FilterTree::Leaf {
+            column: "id".into(),
+            op: crate::Operator::Eq,
+            value: "1".into(),
+            negate: false,
+            quantifier: None,
+            fts_config: None,
+        };
+        let bad_rel = UpdatePlan {
+            relation: "t; DROP TABLE users--".into(),
+            assignments: vec![("a".into(), txt("x"))],
+            filter: leaf.clone(),
+            returning: ReturnKind::Minimal,
+        };
+        assert!(matches!(bad_rel.render(), Err(FilterError::Ident(_))));
+
+        let bad_col = UpdatePlan {
+            relation: "t".into(),
+            assignments: vec![("a = (SELECT secret)".into(), txt("x"))],
+            filter: leaf.clone(),
+            returning: ReturnKind::Minimal,
+        };
+        assert!(matches!(bad_col.render(), Err(FilterError::Ident(_))));
+
+        // Safe baseline still renders.
+        let ok = UpdatePlan {
+            relation: "t".into(),
+            assignments: vec![("a".into(), txt("x"))],
+            filter: leaf,
+            returning: ReturnKind::Minimal,
+        };
+        assert!(ok.render().is_ok());
+    }
+
+    #[test]
+    fn delete_render_rejects_unsafe_relation() {
+        let bad = DeletePlan {
+            relation: "t; DROP TABLE users--".into(),
+            filter: FilterTree::And(vec![]),
+            returning: ReturnKind::Minimal,
+        };
+        assert!(matches!(bad.render(), Err(FilterError::Ident(_))));
     }
 }

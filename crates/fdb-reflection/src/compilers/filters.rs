@@ -68,6 +68,7 @@ fn parse_leaf(column: &str, raw: &str) -> Result<FilterTree, FilterError> {
         value: value.to_owned(),
         negate,
         quantifier,
+        fts_config: None,
     })
 }
 

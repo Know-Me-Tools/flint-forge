@@ -15,7 +15,9 @@
 #![forbid(unsafe_code)]
 
 pub mod clause;
+pub mod embed;
 pub mod filter;
+pub mod fts;
 pub mod ident;
 pub mod mutation;
 pub mod operator;
@@ -23,7 +25,13 @@ pub mod param;
 pub mod plan;
 
 pub use clause::{CountStrategy, Limits, Order, Select};
+pub use embed::{
+    Cardinality, EmbedError, EmbedRequest, EmbedSchema, EmbedSelect, FkEdge, JoinKind,
+    ResolvedEmbed, ScalarCol, TableDesc, parse_embed_select, render_inner_guards,
+    render_projection, resolve_embeds, route_embedded_param,
+};
 pub use filter::{FilterError, FilterTree};
+pub use fts::{FtsConfig, FtsKind, render_fts};
 pub use ident::{ColumnRef, IdentError, parse_column_ref, validate_identifier};
 pub use mutation::{
     DeletePlan, InsertOptions, InsertPlan, Resolution, ReturnKind, UpdatePlan, parse_write_prefer,

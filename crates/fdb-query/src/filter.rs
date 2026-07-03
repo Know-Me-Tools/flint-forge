@@ -6,6 +6,7 @@
 //! module turns those into a [`FilterTree`] and renders it to a parameterized SQL
 //! predicate, reusing [`crate::operator::render_condition`] for leaves.
 
+use crate::fts::FtsConfig;
 use crate::ident::{IdentError, parse_column_ref};
 use crate::operator::{Operator, Quantifier, RenderError, render_condition};
 use crate::param::QueryParam;
@@ -21,6 +22,9 @@ pub enum FilterTree {
         value: String,
         negate: bool,
         quantifier: Option<Quantifier>,
+        /// Text-search config for the four FTS operators; `None` otherwise. The
+        /// structural analog of `quantifier`, threaded through to `render_fts`.
+        fts_config: Option<FtsConfig>,
     },
     /// `a AND b AND ...`
     And(Vec<FilterTree>),
@@ -48,10 +52,18 @@ impl FilterTree {
                 value,
                 negate,
                 quantifier,
+                fts_config,
             } => {
                 let col_ref = parse_column_ref(column)?;
-                let (sql, params, next) =
-                    render_condition(&col_ref.to_sql(), *op, value, *negate, *quantifier, start_index)?;
+                let (sql, params, next) = render_condition(
+                    &col_ref.to_sql(),
+                    *op,
+                    value,
+                    *negate,
+                    *quantifier,
+                    fts_config.as_ref(),
+                    start_index,
+                )?;
                 Ok((sql, params, next))
             }
             Self::And(children) => Self::render_group(children, "AND", "TRUE", start_index),
@@ -124,6 +136,7 @@ mod tests {
             value: val.into(),
             negate: false,
             quantifier: None,
+            fts_config: None,
         }
     }
 
@@ -195,6 +208,7 @@ mod tests {
             value: "admin".into(),
             negate: true,
             quantifier: None,
+            fts_config: None,
         };
         assert_eq!(tree.render(1).unwrap().0, "NOT (data ->> 'role' = $1)");
     }
@@ -203,5 +217,21 @@ mod tests {
     fn unsafe_column_in_leaf_errors() {
         let tree = leaf("x; DROP", Operator::Eq, "1");
         assert!(matches!(tree.render(1).unwrap_err(), FilterError::Ident(_)));
+    }
+
+    #[test]
+    fn fts_leaf_threads_config_to_render() {
+        let tree = FilterTree::Leaf {
+            column: "body".into(),
+            op: Operator::Fts,
+            value: "cat".into(),
+            negate: false,
+            quantifier: None,
+            fts_config: Some(FtsConfig::parse("english").unwrap()),
+        };
+        let (sql, params, next) = tree.render(1).unwrap();
+        assert_eq!(sql, "body @@ to_tsquery('english', $1)");
+        assert_eq!(params, vec![QueryParam::Text("cat".into())]);
+        assert_eq!(next, 2);
     }
 }
