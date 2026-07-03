@@ -18,6 +18,10 @@ use forge_policy::Pep;
 mod mutations;
 mod rpc;
 
+use fdb_query::QueryParam;
+use fdb_query::embed::{parse_embed_select, render_inner_guards, render_projection, resolve_embeds, route_embedded_param};
+
+use crate::compilers::embed_schema::embed_schema_from_model;
 use crate::compilers::filters::{bind_param, parse_filter_tree, render_where};
 use crate::model::DatabaseModel;
 use crate::passes::endpoint_generation::{EndpointKind, generate};
@@ -132,30 +136,30 @@ async fn handle_list(
         return bad_request("invalid schema or table identifier");
     }
 
-    let filter_tree = match parse_filters(&params) {
-        Ok(f) => f,
-        Err(resp) => return *resp,
+    // Resource embedding: parse the `select=` grammar (embeds + scalar columns) and
+    // route embed-scoped params (`?child.col=…`, `order=child.col.dir`) onto the
+    // matching embed. Non-embed params fall through to top-level filters.
+    let embed_schema = embed_schema_from_model(&state.model);
+    let inner = match build_inner_query(&schema, &table, &params, &embed_schema) {
+        Ok(inner) => inner,
+        Err(msg) => return bad_request(&msg),
     };
 
     let (offset, limit) = parse_range(&headers);
-    let where_clause = match render_where(&filter_tree, 1) {
-        Ok(wc) => wc,
-        Err(msg) => return bad_request(&msg),
-    };
-    // LIMIT/OFFSET placeholders follow the filter binds.
-    let limit_idx = where_clause.binds.len() + 1;
-    let offset_idx = where_clause.binds.len() + 2;
+    // LIMIT/OFFSET placeholders follow every bound param already threaded.
+    let limit_idx = inner.binds.len() + 1;
+    let offset_idx = inner.binds.len() + 2;
 
     let sql = format!(
         "SELECT COALESCE(json_agg(t), '[]'::json) AS rows, \
                 (SELECT count(*) FROM {schema}.{table}) AS total \
-         FROM (SELECT * FROM {schema}.{table} {where_sql} \
+         FROM ({inner_sql} \
                ORDER BY 1 LIMIT ${limit_idx} OFFSET ${offset_idx}) t",
-        where_sql = where_clause.sql,
+        inner_sql = inner.sql,
     );
 
     let mut q = sqlx::query(&sql);
-    for bind in &where_clause.binds {
+    for bind in &inner.binds {
         q = bind_param(q, bind);
     }
     q = q.bind(limit).bind(offset);
@@ -167,6 +171,125 @@ async fn handle_list(
             internal_error()
         }
     }
+}
+
+/// The inner `SELECT … FROM … WHERE …` (before the json_agg wrapper / ORDER / LIMIT),
+/// with all bound params threaded in `$1..$n` textual order.
+struct InnerQuery {
+    sql: String,
+    binds: Vec<QueryParam>,
+}
+
+/// Build the inner list query, honoring PostgREST resource embedding.
+///
+/// Param order matches SQL text: projection embed params (SELECT clause) → WHERE
+/// filter params → `!inner`/filter-by-embed EXISTS guard params. LIMIT/OFFSET are
+/// appended by the caller after these.
+///
+/// When `select=` names no embeds, this is behaviorally identical to the previous
+/// `SELECT * FROM <schema>.<table> <where>` (no alias, no subselects).
+fn build_inner_query(
+    schema: &str,
+    table: &str,
+    params: &HashMap<String, String>,
+    embed_schema: &fdb_query::embed::EmbedSchema,
+) -> Result<InnerQuery, String> {
+    // Parse the select= grammar; route embed-scoped params onto their embeds.
+    let mut embed_select = match params.get("select") {
+        Some(raw) => parse_embed_select(raw).map_err(|e| e.to_string())?,
+        None => parse_embed_select("").map_err(|e| e.to_string())?,
+    };
+    for (key, value) in params {
+        if key == "select" {
+            continue;
+        }
+        // Routed embed params are consumed here; the rest remain top-level filters.
+        let _ = route_embedded_param(&mut embed_select, key, value).map_err(|e| e.to_string())?;
+    }
+
+    // Top-level filters: every non-reserved, non-embed-routed param.
+    let filter_tree = parse_filter_tree_excluding_embeds(params, &embed_select)
+        .map_err(|e| e.to_string())?;
+
+    // No embeds → the simple, previously-shipped shape (no parent alias).
+    if embed_select.embeds.is_empty() {
+        let where_clause = render_where(&filter_tree, 1)?;
+        let sql = format!(
+            "SELECT * FROM {schema}.{table} {}",
+            where_clause.sql
+        );
+        return Ok(InnerQuery { sql, binds: where_clause.binds });
+    }
+
+    // Embedded path: alias the parent so correlation predicates can reference it.
+    let parent_alias = table.to_owned();
+    let resolved = resolve_embeds(&embed_select, table, &parent_alias, embed_schema)
+        .map_err(|e| e.to_string())?;
+
+    // 1) Projection: `<alias>.*` plus embed subselects. Params start at $1.
+    let base = fdb_query::Select::default(); // renders "*"
+    let (embed_items_sql, proj_params, after_proj) =
+        render_projection(&base, &resolved, 1).map_err(|e| e.to_string())?;
+    // render_projection prepends the base ("*"); qualify it to the parent alias.
+    let projection = embed_items_sql.replacen('*', &format!("{parent_alias}.*"), 1);
+
+    // 2) Top-level WHERE, params continue after the projection params.
+    let where_clause = render_where(&filter_tree, after_proj)?;
+    let after_where = after_proj + where_clause.binds.len();
+
+    // 3) !inner / filter-by-embed EXISTS guards, params continue after WHERE.
+    let (guard_preds, guard_params, _) =
+        render_inner_guards(&resolved, after_where).map_err(|e| e.to_string())?;
+
+    // Assemble WHERE: filter clause AND guards.
+    let mut where_terms: Vec<String> = Vec::new();
+    if !where_clause.sql.is_empty() {
+        // where_clause.sql includes the leading "WHERE "; strip it for composition.
+        where_terms.push(where_clause.sql.trim_start_matches("WHERE ").to_owned());
+    }
+    where_terms.extend(guard_preds);
+    let where_sql = if where_terms.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", where_terms.join(" AND "))
+    };
+
+    let sql = format!(
+        "SELECT {projection} FROM {schema}.{table} {parent_alias} {where_sql}"
+    );
+
+    let mut binds = proj_params;
+    binds.extend(where_clause.binds);
+    binds.extend(guard_params);
+    Ok(InnerQuery { sql, binds })
+}
+
+/// Build the top-level filter tree from params, skipping reserved keys and any
+/// param that was routed onto an embed (dotted `child.col` / `order=child…`).
+fn parse_filter_tree_excluding_embeds(
+    params: &HashMap<String, String>,
+    embed_select: &fdb_query::embed::EmbedSelect,
+) -> Result<fdb_query::FilterTree, crate::compilers::filters::FilterError> {
+    // A param is embed-routed when its key's head segment names one of the embeds.
+    let embed_names: std::collections::HashSet<&str> = embed_select
+        .embeds
+        .iter()
+        .map(|e| e.alias.as_deref().unwrap_or(&e.target))
+        .collect();
+    let top: HashMap<String, String> = params
+        .iter()
+        .filter(|(k, _)| {
+            if k.as_str() == "order" {
+                return false; // order handled within the query builder / embeds
+            }
+            match k.split_once('.') {
+                Some((head, _)) => !embed_names.contains(head),
+                None => true,
+            }
+        })
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+    parse_filter_tree(&top)
 }
 
 /// Parse a `Range: rows=<start>-<end>` header into `(offset, limit)`.
@@ -298,8 +421,10 @@ pub(super) fn internal_error() -> axum::response::Response {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::{DatabaseModel, Table};
+    use crate::model::{Column, DatabaseModel, ForeignKey, Table};
     use super::RestCompiler;
+    use super::{build_inner_query, embed_schema_from_model};
+    use std::collections::HashMap;
 
     fn minimal_model() -> DatabaseModel {
         DatabaseModel {
@@ -316,6 +441,101 @@ mod tests {
             views: vec![],
             version: 1,
         }
+    }
+
+    fn col(name: &str) -> Column {
+        Column { name: name.into(), pg_type: "text".into(), nullable: true, default: None }
+    }
+
+    /// customers 1—* orders (orders.customer_id -> customers.id).
+    fn embed_model() -> DatabaseModel {
+        DatabaseModel {
+            tables: vec![
+                Table {
+                    schema: "public".into(),
+                    name: "customers".into(),
+                    columns: vec![col("id"), col("name")],
+                    pk: vec!["id".into()],
+                    fk: vec![],
+                    rls_enabled: true,
+                    vault_key: None,
+                },
+                Table {
+                    schema: "public".into(),
+                    name: "orders".into(),
+                    columns: vec![col("id"), col("customer_id"), col("total")],
+                    pk: vec!["id".into()],
+                    fk: vec![ForeignKey {
+                        from_col: "customer_id".into(),
+                        to_schema: "public".into(),
+                        to_table: "customers".into(),
+                        to_col: "id".into(),
+                    }],
+                    rls_enabled: true,
+                    vault_key: None,
+                },
+            ],
+            functions: vec![],
+            views: vec![],
+            version: 1,
+        }
+    }
+
+    fn params(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+        pairs.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect()
+    }
+
+    #[test]
+    fn no_embed_path_is_unchanged_simple_select() {
+        let m = embed_model();
+        let es = embed_schema_from_model(&m);
+        let inner = build_inner_query("public", "orders", &params(&[("total", "gte.100")]), &es)
+            .expect("inner");
+        assert_eq!(inner.sql, "SELECT * FROM public.orders WHERE total >= $1");
+        assert_eq!(inner.binds.len(), 1);
+    }
+
+    #[test]
+    fn embed_to_many_renders_correlated_subselect_aliased_parent() {
+        let m = embed_model();
+        let es = embed_schema_from_model(&m);
+        // customers embedding their orders
+        let inner = build_inner_query(
+            "public",
+            "customers",
+            &params(&[("select", "*,orders(*)")]),
+            &es,
+        )
+        .expect("inner");
+        // Parent star qualified to the alias; embed rendered as a subselect; aliased FROM.
+        assert!(inner.sql.contains("customers.*"), "sql: {}", inner.sql);
+        assert!(inner.sql.contains("FROM public.customers customers"), "sql: {}", inner.sql);
+        assert!(inner.sql.contains("json_agg"), "to-many embed uses json_agg: {}", inner.sql);
+    }
+
+    #[test]
+    fn embed_scoped_filter_is_bound_and_routed() {
+        let m = embed_model();
+        let es = embed_schema_from_model(&m);
+        // Filter the embedded orders by total; value must be bound, not interpolated.
+        let inner = build_inner_query(
+            "public",
+            "customers",
+            &params(&[("select", "*,orders(*)"), ("orders.total", "gt.50")]),
+            &es,
+        )
+        .expect("inner");
+        assert!(!inner.sql.contains("50"), "embed filter value must be bound: {}", inner.sql);
+        assert!(!inner.binds.is_empty(), "embed filter contributes a bind");
+    }
+
+    #[test]
+    fn unsafe_relation_in_embed_path_is_rejected() {
+        let m = embed_model();
+        let es = embed_schema_from_model(&m);
+        // An unsafe parent table must be rejected by resolve_embeds validation.
+        let r = build_inner_query("public", "customers; DROP", &params(&[("select", "*,orders(*)")]), &es);
+        assert!(r.is_err(), "unsafe parent table must error");
     }
 
     #[tokio::test]
