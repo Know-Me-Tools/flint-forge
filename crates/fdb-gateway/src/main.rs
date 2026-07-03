@@ -18,13 +18,19 @@ use axum::{
 use serde::Deserialize;
 use serde_json::json;
 
+use fdb_app::Quarry;
 use fdb_app::graphql::introspection::{IntrospectionMerger, is_introspection_query};
 use fdb_auth::rls_from_bearer;
-use fdb_domain::{GraphQlRequest, VectorRpcRequest};
+use fdb_domain::{GraphQlRequest, SubscriptionSpec, TableMeta, VectorRpcRequest};
 use fdb_ports::GraphQlExecutor;
-use fdb_postgres::{PgGraphQl, PgVectorRpc};
-use fdb_reflection::{MutationGates, ReflectionEngine, StateManager};
+use fdb_postgres::{PgGraphQl, PgRest, PgVectorRpc};
+use fdb_realtime::{FabricChangeSource, FrfConfig, KetoConfig};
+use fdb_reflection::MutationGates;
+use fdb_reflection::compilers::graphql::SubStreamFactory;
+use fdb_reflection::{ReflectionEngine, StateManager};
+use forge_identity::RlsContext;
 use forge_policy::CedarPolicyEngine;
+use futures::stream::StreamExt;
 use sqlx::PgPool;
 
 /// Shared gateway state — available in all route handlers via `State<GatewayState>`.
@@ -54,6 +60,9 @@ struct GraphQlBody {
     operation_name: Option<String>,
 }
 
+// Composition root: sequential wiring of pools, adapters, gates, routes. This is
+// the anyhow-at-the-edge binary entry point; a long linear body is idiomatic here.
+#[allow(clippy::too_many_lines)]
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
@@ -144,11 +153,21 @@ async fn main() {
         pep: Some(Arc::clone(&pep)),
     };
 
+    // Build the GraphQL subscription live-stream factory (Quarry + adapters).
+    let sub_stream_factory =
+        build_subscription_factory(&database_url, Arc::clone(&keto_adapter));
+
     let engine = ReflectionEngine::new(pool.clone());
     let state_manager = Arc::new(
-        StateManager::new_with_gates(engine, pool.clone(), database_url.clone(), gates)
-            .await
-            .expect("initial schema compile"),
+        StateManager::new_with_gates(
+            engine,
+            pool.clone(),
+            database_url.clone(),
+            gates,
+            Some(sub_stream_factory),
+        )
+        .await
+        .expect("initial schema compile"),
     );
 
     let _listener_handle = Arc::clone(&state_manager).start_listener();
@@ -262,6 +281,63 @@ async fn rpc_vector_handler(
     }
 }
 
+/// Build the GraphQL subscription live-stream factory.
+///
+/// Composes a [`Quarry`] from `PgRest` (RLS re-query), `PgGraphQl` (required by the
+/// constructor; unused on this path), and `FabricChangeSource` (the live change
+/// stream — currently empty pending OQ-FRF-1). Keto is threaded so the subscribe-time
+/// coarse check runs inside `FabricChangeSource`.
+///
+/// The returned factory, given a table's spec/meta and the subscriber's `RlsContext`,
+/// yields the RLS-filtered, GraphQL-projected event stream. `spec.tenant` is filled
+/// from the subscriber's claims here (the compiler has no per-subscriber context).
+fn build_subscription_factory(
+    database_url: &str,
+    keto_adapter: Arc<dyn fdb_ports::KetoCheck>,
+) -> SubStreamFactory {
+    let make_pool = || {
+        let mut cfg = deadpool_postgres::Config::new();
+        cfg.url = Some(database_url.to_owned());
+        cfg.create_pool(
+            Some(deadpool_postgres::Runtime::Tokio1),
+            tokio_postgres::NoTls,
+        )
+        .expect("subscription pool create")
+    };
+
+    let sub_rest = Arc::new(PgRest::new(make_pool()));
+    let sub_graphql = Arc::new(PgGraphQl::new(make_pool()));
+    let frf_cfg = FrfConfig {
+        endpoint: std::env::var("FRF_ENDPOINT").unwrap_or_else(|_| "http://frf:50051".into()),
+    };
+    let realtime_keto_cfg = KetoConfig {
+        base_url: std::env::var("KETO_BASE_URL").unwrap_or_else(|_| "http://keto:4466".into()),
+    };
+    let change_source =
+        Arc::new(FabricChangeSource::new(frf_cfg, realtime_keto_cfg).expect("fabric change source"));
+    let quarry = Arc::new(Quarry::new(sub_rest, sub_graphql, change_source).with_keto(keto_adapter));
+
+    Arc::new(
+        move |mut spec: SubscriptionSpec, table_meta: TableMeta, who: RlsContext| {
+            let quarry = Arc::clone(&quarry);
+            spec.tenant = who.tenant().map(|t| t.0).unwrap_or_default();
+            // Defer to the use-case; flatten the "failed to open stream" error into a
+            // single GraphQL error event so the field terminates cleanly.
+            futures::stream::once(async move {
+                quarry.subscribe_graphql_values(spec, table_meta, &who).await
+            })
+            .flat_map(|opened| match opened {
+                Ok(s) => s,
+                Err(e) => {
+                    futures::stream::once(async move { Err(async_graphql::Error::new(e.to_string())) })
+                        .boxed()
+                }
+            })
+            .boxed()
+        },
+    )
+}
+
 /// GET /graphql — WebSocket upgrade for GraphQL subscriptions (graphql-transport-ws).
 ///
 /// Reads the current compiled `subscription_schema` from `StateManager` on each
@@ -286,8 +362,43 @@ async fn graphql_ws_handler(
 
     ws.protocols(async_graphql::http::ALL_WEBSOCKET_PROTOCOLS)
         .on_upgrade(move |socket| async move {
-            GraphQLWebSocket::new(socket, schema, protocol).serve().await;
+            GraphQLWebSocket::new(socket, schema, protocol)
+                // Authenticate at connection_init: extract the bearer from the
+                // init payload, verify it, and inject the resulting RlsContext
+                // into the connection Data. The subscription resolver reads it via
+                // `ctx.data::<RlsContext>()`. Fail CLOSED — a missing or invalid
+                // token returns Err, which rejects the WebSocket connection.
+                .on_connection_init(connection_init_rls)
+                .serve()
+                .await;
         })
+}
+
+/// `graphql-transport-ws` `connection_init` handler: authenticate the socket.
+///
+/// Reads a bearer token from the init payload (`{"authorization": "Bearer …"}`
+/// or `{"Authorization": "…"}`) and verifies it into an `RlsContext` installed in
+/// the connection `Data`. Returns `Err` (rejecting the connection) when the token
+/// is absent or invalid — this is the fail-closed auth gate for subscriptions.
+///
+/// SECURITY: never log the token or the derived `keto_subject`.
+async fn connection_init_rls(
+    payload: serde_json::Value,
+) -> async_graphql::Result<async_graphql::Data> {
+    let bearer = payload
+        .get("authorization")
+        .or_else(|| payload.get("Authorization"))
+        .and_then(serde_json::Value::as_str)
+        .map(|s| s.strip_prefix("Bearer ").unwrap_or(s).to_owned())
+        .ok_or_else(|| async_graphql::Error::new("missing authorization in connection_init"))?;
+
+    let rls = rls_from_bearer(&bearer)
+        .await
+        .map_err(|_| async_graphql::Error::new("invalid or expired token"))?;
+
+    let mut data = async_graphql::Data::default();
+    data.insert(rls);
+    Ok(data)
 }
 
 /// POST /graphql — GraphQL query and mutation handler.

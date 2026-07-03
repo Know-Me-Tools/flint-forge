@@ -8,13 +8,42 @@
 //! Query and Mutation are delegated to `graphql.resolve()` (pg_graphql passthrough)
 //! and are NOT represented here — only the Subscription root is built dynamically.
 
-use async_graphql::dynamic::{
-    Field, FieldFuture, Object, Schema, Subscription, SubscriptionField, SubscriptionFieldFuture,
-    TypeRef,
-};
-use futures::stream;
+use std::sync::Arc;
 
-use crate::model::DatabaseModel;
+use async_graphql::dynamic::{
+    Field, FieldFuture, Object, ResolverContext, Schema, Subscription, SubscriptionField,
+    SubscriptionFieldFuture, TypeRef,
+};
+use fdb_domain::{SubscriptionSpec, TableMeta};
+use forge_identity::RlsContext;
+use futures::stream::{self, BoxStream, StreamExt};
+
+use crate::model::{DatabaseModel, Table};
+
+/// The live-stream seam for GraphQL subscriptions.
+///
+/// A subscription field, when a client subscribes, calls this factory with the
+/// table's `SubscriptionSpec`, its `TableMeta`, and the subscriber's `RlsContext`.
+/// The factory returns the RLS-filtered stream of change events already projected
+/// to `async_graphql::Value` objects.
+///
+/// It is defined in ports/domain terms only (no `fdb-app` dependency): the concrete
+/// closure is built in the composition root (`fdb-gateway`), which wraps
+/// `Quarry::subscribe_rls_filtered`. This keeps the hexagonal layering intact —
+/// `fdb-reflection` depends on `fdb-domain`/`forge-identity`, never on `fdb-app`.
+///
+/// SECURITY: the `RlsContext` passed here carries `keto_subject` (PII) — it MUST NOT
+/// be logged. The factory is responsible for the per-event RLS re-query; this compiler
+/// never yields an event that has not passed through the factory.
+pub type SubStreamFactory = Arc<
+    dyn Fn(
+            SubscriptionSpec,
+            TableMeta,
+            RlsContext,
+        ) -> BoxStream<'static, async_graphql::Result<async_graphql::Value>>
+        + Send
+        + Sync,
+>;
 
 /// Errors that can occur while building the dynamic subscription schema.
 #[derive(Debug, thiserror::Error)]
@@ -33,7 +62,16 @@ impl GraphQlCompiler {
     ///
     /// Tables without RLS are excluded: the subscription RLS re-query (p3-c002)
     /// requires RLS to be on before events are safe to yield.
-    pub fn compile(model: &DatabaseModel) -> Result<Schema, GraphQlCompileError> {
+    ///
+    /// When `factory` is `Some`, each subscription field yields the live
+    /// RLS-filtered stream produced by the factory. When `None` (e.g. early boot
+    /// before the composition root has wired the `Quarry`), fields yield an empty
+    /// stream so the schema still validates. This never fails open: absence of a
+    /// factory means no events, not unfiltered events.
+    pub fn compile(
+        model: &DatabaseModel,
+        factory: Option<SubStreamFactory>,
+    ) -> Result<Schema, GraphQlCompileError> {
         // Minimal Query root required by async-graphql even when unused here
         // (Query/Mutation are handled by pg_graphql passthrough in p3-c001).
         let query = Object::new("Query").field(Field::new(
@@ -69,16 +107,40 @@ impl GraphQlCompiler {
             }
 
             // Subscription field: `<tableName>Changes` — yields a stream of event objects.
-            // The live stream body is injected by `FabricChangeSource` in p3-c002;
-            // this stub returns an empty stream so the schema validates correctly.
+            // On subscribe, the field pulls the subscriber's `RlsContext` from the
+            // connection data (installed by the gateway's `on_connection_init`) and
+            // calls the injected `factory`, which returns the RLS-filtered event stream.
             let field_name = subscription_field_name(&table.name);
+            let spec = table_subscription_spec(table);
+            let table_meta = table_to_meta(table);
+            let field_factory = factory.clone();
             let sub_field = SubscriptionField::new(
                 field_name,
                 TypeRef::named_nn_list_nn(&event_type_name),
-                |_ctx| {
-                    SubscriptionFieldFuture::new(async {
-                        let s = stream::empty::<async_graphql::Result<async_graphql::Value>>();
-                        Ok(s)
+                move |ctx: ResolverContext| {
+                    let spec = spec.clone();
+                    let table_meta = table_meta.clone();
+                    let field_factory = field_factory.clone();
+                    // Resolve the subscriber's RlsContext synchronously from connection
+                    // data BEFORE entering the async block, so a missing context fails
+                    // closed with an error stream rather than an unfiltered one.
+                    let who = ctx.data::<RlsContext>().ok().cloned();
+                    SubscriptionFieldFuture::new(async move {
+                        match (field_factory, who) {
+                            (Some(factory), Some(who)) => Ok(factory(spec, table_meta, who)),
+                            // Fail closed: no factory wired (early boot) or no RLS context
+                            // on the connection → yield no events. Never yield unfiltered.
+                            (None, _) => Ok(stream::empty::<
+                                async_graphql::Result<async_graphql::Value>,
+                            >()
+                            .boxed()),
+                            (Some(_), None) => {
+                                let err = async_graphql::Error::new(
+                                    "subscription requires an authenticated connection",
+                                );
+                                Ok(stream::once(async move { Err(err) }).boxed())
+                            }
+                        }
                     })
                 },
             )
@@ -95,6 +157,45 @@ impl GraphQlCompiler {
         schema_builder
             .finish()
             .map_err(|e| GraphQlCompileError::Build(e.0))
+    }
+}
+
+/// Qualified entity-type identifier for a table: `"<schema>.<name>"`.
+///
+/// This is what `ChangeStreamSource::watch` keys on (the FRF entity type) and what
+/// the RLS re-query uses to reach the right table.
+fn table_entity_type(table: &Table) -> String {
+    format!("{}.{}", table.schema, table.name)
+}
+
+/// Build the `SubscriptionSpec` for a table. `tenant` is left empty here and is
+/// filled in by the factory from the subscriber's `RlsContext` at subscribe time —
+/// the compiler has no per-subscriber context.
+fn table_subscription_spec(table: &Table) -> SubscriptionSpec {
+    SubscriptionSpec {
+        tenant: String::new(),
+        entity_type: table_entity_type(table),
+        filter: None,
+    }
+}
+
+/// Convert the reflection-layer `Table` into the domain `TableMeta` the RLS
+/// re-query needs (schema, name, columns, primary key).
+fn table_to_meta(table: &Table) -> TableMeta {
+    TableMeta {
+        schema: table.schema.clone(),
+        name: table.name.clone(),
+        columns: table
+            .columns
+            .iter()
+            .map(|c| fdb_domain::ColumnMeta {
+                name: c.name.clone(),
+                sql_type: c.pg_type.clone(),
+                nullable: c.nullable,
+            })
+            .collect(),
+        primary_key: table.pk.clone(),
+        rls_enabled: table.rls_enabled,
     }
 }
 
@@ -212,7 +313,7 @@ mod tests {
             make_table("orders", true),
             make_table("products", true),
         ]);
-        let result = GraphQlCompiler::compile(&model);
+        let result = GraphQlCompiler::compile(&model, None);
         assert!(result.is_ok(), "compile should succeed: {result:?}");
     }
 
@@ -222,7 +323,7 @@ mod tests {
             make_table("orders", true),
             make_table("internal_log", false),
         ]);
-        let schema = GraphQlCompiler::compile(&model).expect("compile");
+        let schema = GraphQlCompiler::compile(&model, None).expect("compile");
         let sdl = schema.sdl();
         assert!(sdl.contains("ordersChanges"), "should have ordersChanges field");
         assert!(
@@ -234,7 +335,7 @@ mod tests {
     #[test]
     fn compiled_schema_sdl_has_subscription_type() {
         let model = make_model(vec![make_table("messages", true)]);
-        let schema = GraphQlCompiler::compile(&model).expect("compile");
+        let schema = GraphQlCompiler::compile(&model, None).expect("compile");
         let sdl = schema.sdl();
         assert!(
             sdl.contains("type Subscription"),
