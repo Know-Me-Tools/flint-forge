@@ -1,10 +1,10 @@
 {
   "phase": "p3.5-ci-postgres-hardening",
   "previousPhase": "p3-auth-rls-keto",
-  "status": "plan_ready",
+  "status": "in_progress",
   "updatedAt": "2026-07-03",
-  "next_action": "/kbd-apply p35-c001-clippy-unblock-hello-component",
-  "changes_completed": 0,
+  "next_action": "/kbd-apply p35-c002-gateway-test-debt",
+  "changes_completed": 1,
   "changes_total": 5,
   "goals_file": ".kbd-orchestrator/phases/p3.5-ci-postgres-hardening/goals.md",
   "spec_files": [

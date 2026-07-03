@@ -1,14 +1,16 @@
 {
   "phase": "p3.5-ci-postgres-hardening",
-  "status": "assessment_ready",
-  "changes_completed": 0,
+  "status": "in_progress",
+  "changes_completed": 1,
   "changes_total": 5,
   "changes": [
     {
       "id": "p35-c001-clippy-unblock-hello-component",
-      "status": "pending",
+      "status": "qa_passed",
       "goal": "G4",
-      "priority": "P0"
+      "priority": "P0",
+      "completed": "2026-07-03",
+      "completed_by": "claude-code"
     },
     {
       "id": "p35-c002-gateway-test-debt",
