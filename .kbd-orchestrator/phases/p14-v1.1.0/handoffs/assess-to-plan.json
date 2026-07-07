@@ -1,0 +1,22 @@
+{
+  "stage": "assess",
+  "phase": "p14-v1.1.0",
+  "written_at": "2026-07-07",
+  "written_by": "opencode",
+  "summary": "5 changes assessed. c001 (sqlx 0.9 + pool metrics) is P0 — 6 crates use sqlx; must verify pgvector Encode/Type unify; unblocks cargo update for generic-array. c002 (flint-skill SDK) — wasm32-wasip2 installed; new crate with WIT bindings wrappers. c003 (A2UI hot-reload) — StateManager listen_loop exists; needs DB trigger on flint_a2ui tables + SSE event wiring + SDK hook. c004+c005 are small (shell script + fke-server metrics). Execute order: c001 first, then c002+c003 parallel, then c004+c005.",
+  "artifacts": ["assessment.md"],
+  "key_findings": [
+    "6 crates depend on sqlx directly — version bump is workspace-wide",
+    "StateManager already has listen_loop + do_compile + version_tx — hot-reload is a trigger + plumbing extension",
+    "wasm32-wasip2 target is installed and ready",
+    "fke-server has NO metrics infrastructure — needs axum-prometheus added",
+    "pgvector 0.4.2 supports sqlx >=0.8 <0.10 — 0.9 should work"
+  ],
+  "recommended_plan_order": [
+    "p14-c001-sqlx-prometheus",
+    "p14-c002-kiln-guest-sdk (parallel with c003)",
+    "p14-c003-a2ui-hot-reload (parallel with c002)",
+    "p14-c005-kiln-metrics",
+    "p14-c004-jwt-rotation-automation"
+  ]
+}
