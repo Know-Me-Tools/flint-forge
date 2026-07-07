@@ -1,0 +1,17 @@
+{
+  "stage": "plan",
+  "phase": "p11-api-stability",
+  "written_at": "2026-07-06",
+  "written_by": "opencode",
+  "summary": "6 changes planned. c001 (#[non_exhaustive] × 9 + docs/api/a2ui.md) and c002 (WIT @since × 5 + docs/api/kiln-abi.md) are fully independent P0s that can run in parallel. c003 (SDK 1.0.0 + MIGRATION.md) follows. c005 (Dockerfile entrypoints) is P1 with no deps. c004 (k6 annotation, staging blocked) and c006 (mint_smoke_token.sh) are last. All changes are additive with no regression risk.",
+  "artifacts": ["plan.md"],
+  "first_change": "p11-c001-a2ui-api-freeze",
+  "execution_order": [
+    "p11-c001-a2ui-api-freeze (parallel with c002)",
+    "p11-c002-kiln-abi-freeze (parallel with c001)",
+    "p11-c003-sdk-v1-alignment",
+    "p11-c005-entrypoint-secrets",
+    "p11-c004-k6-baselines",
+    "p11-c006-staging-token-rotation"
+  ]
+}

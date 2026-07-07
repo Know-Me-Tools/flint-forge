@@ -1,11 +1,11 @@
 {
   "phase": "p11-api-stability",
   "previousPhase": "p10-production-launch",
-  "status": "assessment_ready",
+  "status": "execute_ready",
   "updatedAt": "2026-07-06",
-  "next_action": "/kbd-plan p11-api-stability",
+  "next_action": "/kbd-build p11-c001-a2ui-api-freeze",
   "seeded_from": "p10-production-launch/reflection.md",
   "changes_completed": 0,
   "changes_total": 6,
-  "note": "p11 initialised. 6 changes: A2UI API freeze, Kiln ABI freeze, SDK v1.0, k6 baselines, entrypoint secrets, staging token rotation. Next: /kbd-assess."
+  "note": "Plan complete. c001 and c002 are independent P0s — dispatch in parallel. Execute order: c001+c002 → c003 → c005 → c004 → c006."
 }
