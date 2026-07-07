@@ -1846,7 +1846,7 @@ checksum = "9f1f227452a390804cdb637b74a86990f2a7d7ba4b7d5693aac9b4dd6defd8d6"
 
 [[package]]
 name = "fdb-app"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "async-graphql",
  "async-trait",
@@ -1866,7 +1866,7 @@ dependencies = [
 
 [[package]]
 name = "fdb-auth"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "forge-identity",
  "thiserror 2.0.18",
@@ -1874,7 +1874,7 @@ dependencies = [
 
 [[package]]
 name = "fdb-domain"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "forge-domain",
  "serde",
@@ -1883,7 +1883,7 @@ dependencies = [
 
 [[package]]
 name = "fdb-gateway"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "async-graphql",
  "async-graphql-axum",
@@ -1925,7 +1925,7 @@ dependencies = [
 
 [[package]]
 name = "fdb-ports"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "fdb-domain",
@@ -1939,7 +1939,7 @@ dependencies = [
 
 [[package]]
 name = "fdb-postgres"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "deadpool-postgres",
@@ -1958,7 +1958,7 @@ dependencies = [
 
 [[package]]
 name = "fdb-query"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "forge-domain",
  "serde",
@@ -1968,7 +1968,7 @@ dependencies = [
 
 [[package]]
 name = "fdb-realtime"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "fdb-domain",
@@ -1989,7 +1989,7 @@ dependencies = [
 
 [[package]]
 name = "fdb-reflection"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "arc-swap",
  "async-graphql",
@@ -2059,7 +2059,7 @@ checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
 
 [[package]]
 name = "fke-domain"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2067,7 +2067,7 @@ dependencies = [
 
 [[package]]
 name = "fke-ports"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "fke-domain",
@@ -2076,7 +2076,7 @@ dependencies = [
 
 [[package]]
 name = "fke-registry"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "fke-domain",
@@ -2087,7 +2087,7 @@ dependencies = [
 
 [[package]]
 name = "fke-runtime"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2106,7 +2106,7 @@ dependencies = [
 
 [[package]]
 name = "fke-server"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2133,7 +2133,7 @@ dependencies = [
 
 [[package]]
 name = "fke-sign-cosign"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2154,7 +2154,7 @@ dependencies = [
 
 [[package]]
 name = "fke-sign-did"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2174,7 +2174,7 @@ dependencies = [
 
 [[package]]
 name = "fke-store-fs"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "fke-domain",
@@ -2185,7 +2185,7 @@ dependencies = [
 
 [[package]]
 name = "fke-store-ipfs"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2199,7 +2199,7 @@ dependencies = [
 
 [[package]]
 name = "fke-store-oci"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2214,7 +2214,7 @@ dependencies = [
 
 [[package]]
 name = "fke-store-s3"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2289,11 +2289,11 @@ checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
 name = "forge-cli"
-version = "0.10.0"
+version = "1.0.0"
 
 [[package]]
 name = "forge-domain"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2303,7 +2303,7 @@ dependencies = [
 
 [[package]]
 name = "forge-identity"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "forge-domain",
  "jsonwebtoken 9.3.1",
@@ -2317,7 +2317,7 @@ dependencies = [
 
 [[package]]
 name = "forge-policy"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -2730,7 +2730,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hello-component"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "wit-bindgen-rt",
 ]

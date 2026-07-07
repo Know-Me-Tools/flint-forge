@@ -14,7 +14,7 @@ members = [
 exclude = ["crates/ext-flint-auth", "crates/ext-flint-hooks", "crates/ext-flint-llm", "crates/ext-flint-vault", "crates/ext-flint-meta"]
 
 [workspace.package]
-version = "0.10.0"
+version = "1.0.0"
 edition = "2021"
 rust-version = "1.85"
 license = "MIT"

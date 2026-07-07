@@ -2,6 +2,9 @@ name: Docker
 on:
   push:
     branches: [main]
+    # p12-c002: also trigger on version tags so ghcr.io images are published
+    # with the version label (e.g. flint-gateway:v1.0.0) on every release.
+    tags: ['v[0-9]*']
 
 jobs:
   gateway:
@@ -25,6 +28,7 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/flint-gateway:latest
             ghcr.io/${{ github.repository_owner }}/flint-gateway:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/flint-gateway:${{ github.ref_name }}
 
   kiln:
     name: Build and push fke-server
@@ -47,3 +51,4 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/flint-kiln:latest
             ghcr.io/${{ github.repository_owner }}/flint-kiln:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/flint-kiln:${{ github.ref_name }}
