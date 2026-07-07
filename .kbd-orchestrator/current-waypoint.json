@@ -1,11 +1,11 @@
 {
   "phase": "p10-production-launch",
   "previousPhase": "p9-hardening",
-  "status": "execute_pending",
+  "status": "complete",
   "updatedAt": "2026-07-06",
-  "next_action": "/kbd-build p10-c006-changelog-release",
+  "next_action": "/kbd-reflect p10-production-launch",
   "seeded_from": "p9-hardening/reflection.md",
-  "changes_completed": 5,
+  "changes_completed": 6,
   "changes_total": 6,
-  "note": "5/6 done. Final change: p10-c006 (cliff.toml + CHANGELOG.md + v0.10.0 tag)."
+  "note": "p10 complete. All 6 changes done. Released v0.10.0. Next: /kbd-reflect."
 }

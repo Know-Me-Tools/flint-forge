@@ -1,7 +1,7 @@
 {
   "phase": "p10-production-launch",
-  "status": "assessment_ready",
-  "changes_completed": 5,
+  "status": "complete",
+  "changes_completed": 6,
   "changes_total": 6,
   "assessment_complete": true,
   "plan_complete": true,
@@ -16,7 +16,7 @@
     { "id": "p10-c003-cargo-audit-ci",    "status": "done", "completed_at": "2026-07-06", "priority": "P0" },
     { "id": "p10-c004-alerting-rules",    "status": "done", "completed_at": "2026-07-06", "priority": "P1" },
     { "id": "p10-c005-k6-baseline",       "status": "done", "completed_at": "2026-07-06", "priority": "P1" },
-    { "id": "p10-c006-changelog-release", "status": "pending", "priority": "P2" }
+    { "id": "p10-c006-changelog-release", "status": "done", "completed_at": "2026-07-06", "priority": "P2" }
   ],
   "goals_file": ".kbd-orchestrator/phases/p10-production-launch/goals.md",
   "open_questions": [
