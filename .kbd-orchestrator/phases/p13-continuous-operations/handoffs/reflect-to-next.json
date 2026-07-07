@@ -1,0 +1,15 @@
+{
+  "stage": "reflect",
+  "phase": "p13-continuous-operations",
+  "written_at": "2026-07-06",
+  "written_by": "opencode",
+  "summary": "p13 complete. 4/5 changes done (c001 deferred). Delivered API versioning CI gate, 17-dep maintenance pass, monitoring reference doc, v1.1.0 roadmap with 6 items. generic-array excluded from update (sqlx 0.9 transitive conflict — ROADMAP item). p14 exit condition met. Next: p14-v1.1.0 (sqlx Prometheus, Kiln SDK, A2UI hot-reload, JWT automation, Kiln metrics).",
+  "artifacts": ["reflection.md"],
+  "next_phase_hint": "p14-v1.1.0",
+  "open_debt": [
+    "k6 baselines TBD — staging-blocked; P0 in ROADMAP.md",
+    "generic-array excluded from cargo update — upgrade to sqlx 0.9 in p14",
+    "Grafana DB connections panel — needs sqlx Prometheus integration",
+    "Alertmanager webhook not configured — operator sets ALERTMANAGER_WEBHOOK_URL"
+  ]
+}

@@ -1,8 +1,8 @@
 {
   "name": "Flint Forge",
   "description": "Sovereign data and edge-compute plane of the Flint platform: Quarry (REST/GraphQL DB gateway), Anvil (pgrx extensions), and Kiln (WASM edge-function gateway).",
-  "active_phase": "p13-continuous-operations",
-  "last_completed_phase": "p12-v1-release",
+  "active_phase": "p14-v1.1.0",
+  "last_completed_phase": "p13-continuous-operations",
   "completed_phases": [
     "p0-workspace-foundation",
     "p1-anvil-meta-foundation",
@@ -19,7 +19,8 @@
     "p9-hardening",
     "p10-production-launch",
     "p11-api-stability",
-    "p12-v1-release"
+    "p12-v1-release",
+    "p13-continuous-operations"
   ],
   "focus_project_path": "/Users/gqadonis/Projects/prometheus/flint-forge",
   "spec_paths": [
