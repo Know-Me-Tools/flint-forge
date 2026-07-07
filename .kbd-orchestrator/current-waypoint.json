@@ -1,11 +1,9 @@
 {
-  "phase": "p12-v1-release",
-  "previousPhase": "p11-api-stability",
-  "status": "complete",
+  "phase": "p13-continuous-operations",
+  "previousPhase": "p12-v1-release",
+  "status": "pending",
   "updatedAt": "2026-07-06",
-  "next_action": "/kbd-reflect p12-v1-release",
-  "seeded_from": "p11-api-stability/reflection.md",
-  "changes_completed": 1,
-  "changes_total": 2,
-  "note": "p12-c002 done. v1.0.0 tagged and released. c001 deferred (staging). Next: /kbd-reflect."
+  "next_action": "/kbd-new-phase p13-continuous-operations",
+  "seeded_from": "p12-v1-release/reflection.md",
+  "note": "v1.0.0 released. Project in post-release steady state. p13 = ops loop: k6 baselines, dependency maintenance, monitoring tuning, API versioning gate, v1.1.0 planning."
 }
