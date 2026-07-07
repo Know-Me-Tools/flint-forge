@@ -30,6 +30,9 @@
 .env
 .env.*
 !.env.example
+# p10-c002: Docker secret files. Generate with scripts/rotate_secrets.sh.
+# NEVER commit secret file contents.
+secrets/
 
 # ── Scaffold / research scratch (not project source) ──
 _scaffold.py

@@ -1,18 +1,41 @@
 {
   "schemaVersion": "1",
-  "updatedAt": "2026-07-01T15:52:24Z",
+  "updatedAt": "2026-07-04T00:00:00Z",
   "cursor": [
-    "p3-auth-rls-keto"
+    "p5-kiln-edge-runtime"
   ],
   "root": {
     "type": "phase",
-    "id": "p3-auth-rls-keto",
-    "status": "in_progress",
+    "id": "p4-flint-ember",
+    "status": "completed",
     "progress": {
-      "done": 5,
-      "total": 9
+      "done": 4,
+      "total": 4
     },
-    "children": [],
-    "annotations": []
+    "children": [
+      {
+        "type": "change",
+        "id": "p4-c001-liter-llm-binding",
+        "status": "completed"
+      },
+      {
+        "type": "change",
+        "id": "p4-c002-async-embeddings",
+        "status": "completed"
+      },
+      {
+        "type": "change",
+        "id": "p4-c003-sync-surface",
+        "status": "completed"
+      },
+      {
+        "type": "change",
+        "id": "p4-c004-summaries",
+        "status": "completed"
+      }
+    ],
+    "annotations": [
+      "p4-flint-ember verified and archived"
+    ]
   }
 }

@@ -1,0 +1,13 @@
+{
+  "from_stage": "assess",
+  "to_stage": "plan",
+  "phase": "p6b-kiln-hardening",
+  "created_at": "2026-07-04T00:00:00Z",
+  "summary": "All 8 changes are implementable with no external blockers. Key gaps: (1) Cedar gate in fke-runtime is a list comparison — needs forge-policy Pep injection; (2) Kiln BGW missing entirely — direct port of agui_hook_dispatcher; (3) wasi:http dispatch is stubbed — needs WIT file + wasmtime-wasi-http wiring; stubs in sign-did/cosign and all 3 store crates are pure todo!(). Optimal execution: c001→c002 sequentially, c003–c008 in parallel.",
+  "artifact": "assessment.md",
+  "open_questions": [
+    "OQ-P6B-1: wit-bindgen version — pin to 0.44 to match examples/hello-component",
+    "OQ-P6B-2: wasmtime-wasi-http v26 API — verify WasiHttpView requirements before wiring",
+    "OQ-P6B-3: Sigstore Rekor scope — mock HTTP layer in unit tests; gate live tests behind feature flag"
+  ]
+}

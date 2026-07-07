@@ -1,0 +1,11 @@
+{
+  "from_stage": "plan",
+  "to_stage": "execute",
+  "phase": "p8-sdk-completeness",
+  "created_at": "2026-07-04T00:00:00Z",
+  "summary": "7 OpenSpec changes created across TypeScript, Dart, Rust, and DevOps. Execute c003+c005+c006 in parallel (small/independent); then c001+c002 in parallel; then c004 parallelised across 3 subagents by renderer category; c007 last. No external blockers; zip crate v2 API needs verification before c006.",
+  "artifact": "plan.md",
+  "first_batch": ["p8-c003-ci-pipeline", "p8-c005-design-token-export", "p8-c006-opendesign-zip-import"],
+  "second_batch": ["p8-c001-react-sdk-completeness", "p8-c002-flutter-sdk-reconnect"],
+  "third_batch_parallel": ["p8-c004-htmx-remaining-components"]
+}

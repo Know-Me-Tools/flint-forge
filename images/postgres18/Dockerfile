@@ -62,4 +62,4 @@ COPY crates/ext-flint-llm/sql/flint_llm.sql        /docker-entrypoint-initdb.d/3
 COPY images/postgres18/init-baseline/99-assert.sql /docker-entrypoint-initdb.d/99-assert.sql
 
 # pg_net and pg_cron register background workers → must be preloaded. (flint_llm's BGW lands in Phase 4.)
-CMD ["postgres", "-c", "wal_level=logical", "-c", "shared_preload_libraries=pg_net,pg_cron", "-c", "cron.database_name=postgres"]
+CMD ["postgres", "-c", "wal_level=logical", "-c", "shared_preload_libraries=pg_net,pg_cron,ext_flint_llm", "-c", "cron.database_name=postgres"]

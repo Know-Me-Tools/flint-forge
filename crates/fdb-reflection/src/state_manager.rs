@@ -3,6 +3,7 @@ use std::sync::Arc;
 use arc_swap::ArcSwap;
 use fdb_ports::KetoCheck;
 use forge_policy::Pep;
+use tokio::sync::watch;
 
 use crate::{
     compiled::CompiledState,
@@ -38,6 +39,10 @@ pub struct StateManager {
     /// (initial + hot-swap) threads this into `GraphQlCompiler::compile` so the
     /// subscription schema keeps its live stream body across DDL changes.
     sub_stream_factory: Option<SubStreamFactory>,
+    /// Watch sender — notifies listeners whenever a new `CompiledState` is
+    /// installed. Receivers see the new schema version. Used by the AG-UI
+    /// state propagation task (p7-c007) to emit `StateSnapshot` events.
+    version_tx: watch::Sender<u64>,
 }
 
 impl StateManager {
@@ -65,6 +70,7 @@ impl StateManager {
     ) -> Result<Self, ReflectionError> {
         let initial =
             Self::do_compile(&engine, pool.clone(), &gates, sub_stream_factory.as_ref()).await?;
+        let (version_tx, _) = watch::channel(initial.version);
         Ok(Self {
             compiled: Arc::new(ArcSwap::from_pointee(initial)),
             engine: Arc::new(engine),
@@ -72,6 +78,7 @@ impl StateManager {
             db_url,
             gates,
             sub_stream_factory,
+            version_tx,
         })
     }
 
@@ -80,6 +87,14 @@ impl StateManager {
     /// safe to hold across an `await` point inside a request handler.
     pub fn current(&self) -> Arc<CompiledState> {
         self.compiled.load_full()
+    }
+
+    /// Subscribe to schema version updates.
+    ///
+    /// The receiver fires whenever a new `CompiledState` is installed after a
+    /// DDL change. Use this to emit AG-UI `StateSnapshot` events (p7-c007).
+    pub fn subscribe_version(&self) -> watch::Receiver<u64> {
+        self.version_tx.subscribe()
     }
 
     /// Spawn the background `PgListener` loop.
@@ -109,7 +124,9 @@ impl StateManager {
                     .await
                     {
                         Ok(state) => {
+                            let version = state.version;
                             self.compiled.store(Arc::new(state));
+                            let _ = self.version_tx.send(version);
                             tracing::info!("schema recompiled after PgListener reconnect");
                         }
                         Err(compile_err) => {
@@ -149,7 +166,9 @@ impl StateManager {
             {
                 Ok(state) => {
                     // ArcSwap::store is atomic — in-flight requests keep their old guard.
+                    let version = state.version;
                     self.compiled.store(Arc::new(state));
+                    let _ = self.version_tx.send(version);
                     tracing::info!("schema hot-swap complete");
                 }
                 Err(e) => {
@@ -169,6 +188,13 @@ impl StateManager {
         let router =
             RestCompiler::compile_with_gates(&model, pool, gates.keto.clone(), gates.pep.clone());
         let openapi_doc = OpenApiCompiler::compile(&model);
+        let mcp_tools_doc = crate::compilers::mcp::McpCompiler::compile(&model);
+        let mcp_count = mcp_tools_doc
+            .get("tools")
+            .and_then(|t| t.as_array())
+            .map(Vec::len)
+            .unwrap_or(0);
+        tracing::info!(mcp_tools = mcp_count, "MCP tools compiled");
         let subscription_schema = match GraphQlCompiler::compile(
             &model,
             sub_stream_factory.cloned(),
@@ -194,6 +220,7 @@ impl StateManager {
             database_model: Arc::new(model),
             router: Arc::new(router),
             openapi_doc,
+            mcp_tools_doc,
             subscription_schema,
             a2ui_catalog,
         })

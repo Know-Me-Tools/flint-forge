@@ -19,6 +19,9 @@ pub struct CompiledState {
     /// Wrapped in `Arc` because `Router` is not `Clone`.
     pub router: Arc<Router>,
     pub openapi_doc: serde_json::Value,
+    /// MCP tool definitions compiled from `DatabaseModel` by `McpCompiler`.
+    /// Served at `/mcp/v1/tools`. Hot-swapped on DDL changes.
+    pub mcp_tools_doc: serde_json::Value,
     /// Dynamic async-graphql schema exposing per-table `<TableName>Changes`
     /// subscription fields. `None` until `GraphQlCompiler::compile()` succeeds.
     /// Used by `graphql-transport-ws` in p3-c004.
@@ -60,10 +63,17 @@ pub struct A2uiCatalogEntry {
 
 impl std::fmt::Debug for CompiledState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mcp_count = self
+            .mcp_tools_doc
+            .get("tools")
+            .and_then(|t| t.as_array())
+            .map(Vec::len)
+            .unwrap_or(0);
         f.debug_struct("CompiledState")
             .field("version", &self.version)
             .field("tables", &self.database_model.tables.len())
             .field("a2ui_components", &self.a2ui_catalog.components.len())
+            .field("mcp_tools", &mcp_count)
             .finish_non_exhaustive()
     }
 }

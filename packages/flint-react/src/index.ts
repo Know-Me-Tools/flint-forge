@@ -2,6 +2,8 @@
 export { FlintProvider } from './provider/FlintProvider';
 export { FlintContext, useFlintContext } from './provider/FlintContext';
 export { useFlint } from './provider/useFlint';
+export { useFlintRegistry } from './provider/useFlintRegistry';
+export type { FlintRegistryHook } from './provider/useFlintRegistry';
 
 // Surface
 export { FlintSurface } from './surface/FlintSurface';
@@ -17,6 +19,8 @@ export {
 } from './registry/FlintRegistry';
 export type { FlintCatalogEntry, FlintComponentOverrides } from './registry/FlintRegistry';
 export { zodToA2uiJsonSchema } from './registry/ComponentSchema';
+export { SLUG_MAP, fromSlug } from './registry/slugMap';
+export type { SlugComponent } from './registry/slugMap';
 
 // AG-UI
 export { FlintAgUiAdapter } from './ag-ui/FlintAgUiAdapter';
@@ -27,6 +31,7 @@ export { isA2uiSurfaceEvent } from './ag-ui/AgUiEventHandlers';
 // Tokens
 export { DEFAULT_TOKENS, injectTokens, removeTokens } from './tokens/FlintTokens';
 export { useDesignTokens } from './tokens/useDesignTokens';
+export { exportDesignSyncTokens } from './tokens/exportDesignSyncTokens';
 
 // Components — layout
 export { Stack, Card, Grid, Split, Tabs, Accordion, Scroll, Modal, Drawer } from './components/layout';

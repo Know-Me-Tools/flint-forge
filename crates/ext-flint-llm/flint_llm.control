@@ -3,3 +3,4 @@ default_version = '0.1.0'
 module_pathname = '$libdir/flint_llm'
 relocatable = false
 superuser = true
+requires = 'vector'

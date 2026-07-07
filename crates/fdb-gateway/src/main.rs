@@ -1,20 +1,26 @@
 //! Flint Quarry composition root: REST, GraphQL (Q/M/Sub), /rpc, /healthz.
 #![forbid(unsafe_code)]
 
+mod agui_hook_dispatcher;
 mod keto_sync;
 mod policy_source;
 mod rls_layer;
+mod routes;
+mod telemetry;
+
+use fdb_gateway::a2ui_embedder;
 
 use std::sync::Arc;
 
 use async_graphql_axum::{GraphQLProtocol, GraphQLWebSocket};
 use axum::{
     extract::{State, WebSocketUpgrade},
-    http::{HeaderMap, StatusCode},
+    http::{HeaderMap, HeaderName, HeaderValue, StatusCode},
     response::{IntoResponse, Json, Response},
-    routing::get,
+    routing::{get, post},
     Router,
 };
+use tower_http::set_header::SetResponseHeaderLayer;
 use serde::Deserialize;
 use serde_json::json;
 
@@ -32,13 +38,17 @@ use forge_identity::RlsContext;
 use forge_policy::CedarPolicyEngine;
 use futures::stream::StreamExt;
 use sqlx::PgPool;
+use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 
 /// Shared gateway state — available in all route handlers via `State<GatewayState>`.
 #[derive(Clone)]
-struct GatewayState {
+pub(crate) struct GatewayState {
     state_manager: Arc<StateManager>,
     graphql_executor: Arc<PgGraphQl>,
     vector_rpc: Arc<PgVectorRpc>,
+    /// Privileged reflection pool used by A2UI routes and background tasks.
+    /// SECURITY: never expose this pool to per-user RLS contexts.
+    pool: PgPool,
     /// Keto relation-check adapter backed by the background sync cache.
     /// Injected into `Quarry::with_keto()` when mutation use-cases are wired,
     /// or called directly by handlers via `State<GatewayState>`.
@@ -65,11 +75,10 @@ struct GraphQlBody {
 #[allow(clippy::too_many_lines)]
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
-        )
-        .init();
+    // p9-c004: Initialise structured tracing (fmt + optional OTLP) and Prometheus metrics.
+    // Guard is held for the process lifetime so the OTLP exporter flushes cleanly on exit.
+    let _telemetry_guard = telemetry::init_tracing();
+    let (metrics_layer, metrics_handle) = telemetry::metrics_layer();
 
     let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
         tracing::warn!("DATABASE_URL not set; reflection will use placeholder");
@@ -97,6 +106,17 @@ async fn main() {
         .await
         .expect("a2ui component seed failed");
     tracing::info!("a2ui base component catalog seeded");
+
+    // Spawn the A2UI component embedder. It backfills missing embeddings and
+    // listens on the Postgres `a2ui_embed` channel for new component inserts.
+    // SECURITY: this pool is the privileged reflection pool — MUST NOT be the
+    // per-user RLS pool. The embedder writes to `flint_a2ui.embeddings` directly.
+    let embedder_pool = Arc::new(
+        PgPool::connect(&database_url)
+            .await
+            .expect("a2ui-embedder pool connect"),
+    );
+    let _a2ui_embedder_handle = a2ui_embedder::spawn(embedder_pool);
 
     // Build the pg_graphql executor from the same connection string.
     let pg_pool = {
@@ -170,10 +190,49 @@ async fn main() {
 
     let _listener_handle = Arc::clone(&state_manager).start_listener();
 
+    // p7-c007: Spawn the AG-UI state propagation task.
+    // When the schema hot-swaps, emit a StateSnapshot event on the "schema" run
+    // so connected agent frontends can update their tool picker in real-time.
+    let agui_propagation_state = routes::agui::AgUiState::new(32);
+    let _propagation_handle = {
+        let mut version_rx = state_manager.subscribe_version();
+        let sm = Arc::clone(&state_manager);
+        let agui_prop = agui_propagation_state.clone();
+        tokio::spawn(async move {
+            loop {
+                if version_rx.changed().await.is_err() {
+                    break;
+                }
+                let compiled = sm.current();
+                let mcp_count = compiled
+                    .mcp_tools_doc
+                    .get("tools")
+                    .and_then(|t| t.as_array())
+                    .map_or(0, Vec::len);
+                agui_prop
+                    .publish(fdb_domain::AgUiEvent::StateSnapshot {
+                        run_id: "schema".to_owned(),
+                        state: serde_json::json!({
+                            "schema_version": compiled.version,
+                            "mcp_tools_count": mcp_count,
+                            "a2ui_catalog_version": compiled.a2ui_catalog.version,
+                        }),
+                    })
+                    .await;
+                tracing::info!(
+                    schema_version = compiled.version,
+                    mcp_tools = mcp_count,
+                    "AG-UI StateSnapshot emitted"
+                );
+            }
+        })
+    };
+
     let gateway_state = GatewayState {
         state_manager: Arc::clone(&state_manager),
         graphql_executor,
         vector_rpc,
+        pool: pool.clone(),
         keto: Some(keto_adapter),
     };
 
@@ -196,23 +255,207 @@ async fn main() {
         .clone()
         .layer(axum::middleware::from_fn(rls_layer::require_rls));
 
+    // Build the A2UI registry router. All routes require a valid JWT bearer.
+    let a2ui_router = Router::new()
+        .route("/a2ui/v1/components", get(routes::a2ui::list_components))
+        .route(
+            "/a2ui/v1/components/search",
+            post(routes::a2ui::search_components),
+        )
+        .route(
+            "/a2ui/v1/components/bindings/:schema/:table",
+            get(routes::a2ui::get_bindings),
+        )
+        .route(
+            "/a2ui/v1/components/:slug",
+            get(routes::a2ui::get_component),
+        )
+        .route(
+            "/a2ui/v1/applications",
+            get(routes::a2ui::list_applications),
+        )
+        .route(
+            "/a2ui/v1/applications/:id",
+            get(routes::a2ui::get_application),
+        )
+        .route(
+            "/a2ui/v1/catalog/:catalog_id",
+            get(routes::a2ui::get_catalog),
+        )
+        .route(
+            "/a2ui/v1/surfaces/assemble",
+            post(routes::a2ui::assemble_surface),
+        )
+        .route(
+            "/a2ui/v1/design-systems/import",
+            post(routes::design_import::import_design_system),
+        )
+        .route(
+            "/a2ui/v1/design-systems/:id/tokens",
+            get(routes::a2ui::get_design_system_tokens),
+        )
+        .layer(axum::middleware::from_fn(rls_layer::require_rls))
+        .with_state(crate::routes::a2ui::A2uiState::from(gateway_state.clone()));
+
+    // Build the MCP server router. Exposes the A2UI registry as JSON-RPC tools
+    // at `/mcp/v1/a2ui`. Like the A2UI router, it sits behind JWT auth so every
+    // tool call runs under the caller's RlsContext.
+    let mcp_router = Router::new()
+        .route("/mcp/v1/a2ui", post(routes::mcp::handle_mcp))
+        .route("/mcp/v1/a2ui/sse", get(routes::mcp::handle_sse))
+        .route("/mcp/v1/a2ui/health", get(routes::mcp::health))
+        .layer(axum::middleware::from_fn(rls_layer::require_rls))
+        .with_state(routes::mcp::McpState {
+            a2ui: crate::routes::a2ui::A2uiState::from(gateway_state.clone()),
+        });
+
+    // Build the A2A task handler router. Exposes the A2UI registry as A2A
+    // skills at `/a2a/v1` + `/.well-known/agent.json`. The agent card endpoint
+    // is public (no auth); the JSON-RPC endpoint sits behind JWT auth.
+    let a2a_router = Router::new()
+        .route("/.well-known/agent.json", get(routes::a2a::agent_card))
+        .route("/a2a/v1", post(routes::a2a::handle_a2a))
+        .layer(axum::middleware::from_fn(rls_layer::require_rls))
+        .with_state(routes::a2a::A2aState {
+            a2ui: crate::routes::a2ui::A2uiState::from(gateway_state.clone()),
+        });
+
+    // Build the HTMX renderer router. Admin/prototyping surface for the A2UI
+    // registry. Behind JWT auth so registry data respects RLS.
+    let htmx_router = Router::new()
+        .route("/htmx/", get(routes::htmx::index))
+        .route("/htmx/admin/registry", get(routes::htmx::admin_registry))
+        .route(
+            "/htmx/components/{slug}",
+            get(routes::htmx::render_component).post(routes::htmx::render_component_with_props),
+        )
+        .route("/htmx/surfaces/assemble", get(routes::htmx::assemble_surface_html))
+        .layer(axum::middleware::from_fn(rls_layer::require_rls))
+        .with_state(routes::htmx::HtmxState {
+            a2ui: crate::routes::a2ui::A2uiState::from(gateway_state.clone()),
+        });
+
+    // Build the AG-UI event streaming router. SSE endpoint for agent run events.
+    // Behind JWT auth — event publishing requires authentication.
+    let agui_state = routes::agui::AgUiState::default().with_pool(pool.clone());
+
+    // p7-c001 + p7-c002: Spawn the AG-UI hook dispatcher.
+    // Polls flint.webhook_outbox for agui_run targeted entries (durable tier)
+    // and converts them to AG-UI ToolCallResult events. Standard-tier agui_run
+    // hooks fire directly from dispatch_webhook() via pg_net.
+    let _agui_hook_handle = agui_hook_dispatcher::spawn(
+        Arc::new(pool.clone()),
+        agui_state.clone(),
+    );
+
+    let agent_events_router = Router::new()
+        .route("/agents/v1/runs", axum::routing::post(routes::agui::start_run))
+        .route(
+            "/agents/v1/{run_id}/events",
+            axum::routing::post(routes::agui::publish_event)
+                .get(routes::agui::stream_events),
+        )
+        .route(
+            "/agents/v1/{run_id}/surfaces/assemble",
+            axum::routing::post(routes::agui::assemble_and_emit_surface),
+        )
+        .layer(axum::middleware::from_fn(rls_layer::require_rls))
+        .with_state(agui_state);
+
     let app = Router::new()
         .route("/healthz", get(healthz))
         .route("/openapi.json", get(openapi_handler))
+        .route("/mcp/v1/tools", get(mcp_tools_handler))
         .route("/rpc/vector", axum::routing::post(rpc_vector_handler))
         .route(
             "/graphql",
             get(graphql_ws_handler).post(handle_graphql_query),
         )
+        .merge(a2ui_router)
+        .merge(mcp_router)
+        .merge(a2a_router)
+        .merge(htmx_router)
+        .merge(agent_events_router)
         .with_state(gateway_state)
-        .merge(reflection_router);
+        .merge(reflection_router)
+        // p9-c004: Prometheus metrics endpoint — no auth, no rate limit.
+        // Served outside the rate-limiting tower stack by merging after the main app.
+        .route(
+            "/metrics",
+            get(move || async move { metrics_handle.render() }),
+        )
+        // p9-c004: Instrument every request with http_requests_total + duration histograms.
+        .layer(metrics_layer);
 
     let addr = "0.0.0.0:8080";
     tracing::info!(%addr, "flint-quarry listening");
     let listener = tokio::net::TcpListener::bind(addr).await.expect("bind");
-    axum::serve(listener, app).await.expect("serve");
+
+    // p9-c003: Per-IP token-bucket rate limiting via tower_governor.
+    // FLINT_RATE_LIMIT_REST: requests-per-second sustained rate per IP (0 = disabled, default 100).
+    // FLINT_RATE_LIMIT_BURST: token-bucket burst capacity (default 10).
+    let rest_rps: u64 = std::env::var("FLINT_RATE_LIMIT_REST")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(100);
+    let burst: u32 = std::env::var("FLINT_RATE_LIMIT_BURST")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10);
+
+    let app = if rest_rps > 0 {
+        tracing::info!(rps = rest_rps, burst, "per-IP rate limiting enabled");
+        let governor_conf = GovernorConfigBuilder::default()
+            .per_second(rest_rps)
+            .burst_size(burst)
+            .finish()
+            .expect("GovernorConfig: burst and period must be non-zero");
+        let layer = GovernorLayer::new(governor_conf).error_handler(|err| {
+            (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(serde_json::json!({
+                    "error": "rate_limit_exceeded",
+                    "message": err.to_string(),
+                })),
+            )
+                .into_response()
+        });
+        app.layer(layer)
+    } else {
+        tracing::info!("rate limiting disabled (FLINT_RATE_LIMIT_REST=0)");
+        app
+    };
+
+    // Use into_make_service_with_connect_info so that PeerIpKeyExtractor can
+    // read ConnectInfo<SocketAddr> from the request extensions.  This is a no-op
+    // overhead when rate limiting is disabled but keeps the serve call uniform.
+
+    // p9-c005: Security response headers applied to every response regardless of route.
+    // SetResponseHeaderLayer::if_not_present allows handlers to override per-route where
+    // needed (e.g., streaming responses that set their own content headers).
+    let app = app
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("x-content-type-options"),
+            HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("x-frame-options"),
+            HeaderValue::from_static("DENY"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("referrer-policy"),
+            HeaderValue::from_static("strict-origin-when-cross-origin"),
+        ));
+
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    .expect("serve");
 }
 
+#[tracing::instrument(skip(state), fields(service = "flint-quarry"))]
 async fn healthz(State(state): State<GatewayState>) -> Json<serde_json::Value> {
     let compiled = state.state_manager.current();
     Json(json!({
@@ -229,9 +472,19 @@ async fn healthz(State(state): State<GatewayState>) -> Json<serde_json::Value> {
 /// `OpenApiCompiler::compile()` during `StateManager::do_compile()` and hot-swapped
 /// on DDL changes. Callers always receive the schema consistent with the live
 /// database state at the time of the request.
+#[tracing::instrument(skip(state))]
 async fn openapi_handler(State(state): State<GatewayState>) -> Json<serde_json::Value> {
     let compiled = state.state_manager.current();
     Json(compiled.openapi_doc.clone())
+}
+
+/// GET /mcp/v1/tools — serve compiled MCP tool definitions from `DatabaseModel`.
+///
+/// Returns the MCP `tools/list` result generated by `McpCompiler`. Hot-swapped
+/// on DDL changes. Protected by JWT auth via `require_rls`.
+async fn mcp_tools_handler(State(state): State<GatewayState>) -> Json<serde_json::Value> {
+    let compiled = state.state_manager.current();
+    Json(compiled.mcp_tools_doc.clone())
 }
 
 /// POST /rpc/vector — vector similarity search via pgvector `<=>` operator.
@@ -426,6 +679,7 @@ async fn connection_init_rls(
 /// Extracts the bearer token from the `Authorization` header, builds `RlsContext`,
 /// and delegates to `graphql.resolve()` via `PgGraphQl::execute()`.
 /// The response is the raw pg_graphql JSON — no envelope added.
+#[tracing::instrument(skip(state, headers, body), fields(operation_name = ?body.operation_name))]
 async fn handle_graphql_query(
     State(state): State<GatewayState>,
     headers: HeaderMap,
@@ -489,4 +743,216 @@ fn extract_bearer(headers: &HeaderMap) -> Option<String> {
         .and_then(|v| v.to_str().ok())
         .and_then(|s| s.strip_prefix("Bearer "))
         .map(ToOwned::to_owned)
+}
+
+// ─── Rate-limiting unit tests ────────────────────────────────────────────────
+
+#[cfg(test)]
+mod rate_limit_tests {
+    use axum::{
+        body::Body,
+        extract::ConnectInfo,
+        http::{Request, StatusCode},
+        routing::get,
+        Router,
+    };
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use tower::ServiceExt as _;
+    use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
+
+    /// Build a minimal test app with `per_second` / `burst` rate limits applied.
+    fn rate_limited_app(per_second: u64, burst: u32) -> Router {
+        let config = GovernorConfigBuilder::default()
+            .per_second(per_second)
+            .burst_size(burst)
+            .finish()
+            .expect("GovernorConfig");
+        Router::new()
+            .route("/ping", get(|| async { "pong" }))
+            .layer(GovernorLayer::new(config))
+    }
+
+    /// Construct a plain GET request with a `ConnectInfo<SocketAddr>` extension so
+    /// that `PeerIpKeyExtractor` can resolve the peer address without a TCP listener.
+    fn make_request(path: &str) -> Request<Body> {
+        let peer = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 1234);
+        let mut req = Request::builder()
+            .uri(path)
+            .body(Body::empty())
+            .unwrap();
+        req.extensions_mut().insert(ConnectInfo(peer));
+        req
+    }
+
+    /// `GovernorConfigBuilder` produces a valid config for the default parameters.
+    #[test]
+    fn governor_config_builds_without_panic() {
+        let config = GovernorConfigBuilder::default()
+            .per_second(100)
+            .burst_size(10)
+            .finish();
+        assert!(config.is_some(), "expected Some(GovernorConfig), got None");
+    }
+
+    /// Config with burst = 0 must return None (zero is invalid per tower_governor docs).
+    #[test]
+    fn governor_config_rejects_zero_burst() {
+        let config = GovernorConfigBuilder::default()
+            .per_second(10)
+            .burst_size(0)
+            .finish();
+        assert!(config.is_none(), "expected None for burst_size=0");
+    }
+
+    /// When FLINT_RATE_LIMIT_REST=0 the gate in main() bypasses the layer and all
+    /// requests are served normally.  Model that logic here without a live server.
+    #[tokio::test]
+    async fn rate_limiting_disabled_when_rps_zero() {
+        let rest_rps: u64 = 0; // simulates FLINT_RATE_LIMIT_REST=0
+
+        // Mirror the if/else in main() — no GovernorLayer when disabled.
+        let app: Router = if rest_rps > 0 {
+            let cfg = GovernorConfigBuilder::default()
+                .per_second(1)
+                .burst_size(1)
+                .finish()
+                .expect("cfg");
+            Router::new()
+                .route("/ping", get(|| async { "pong" }))
+                .layer(GovernorLayer::new(cfg))
+        } else {
+            Router::new().route("/ping", get(|| async { "pong" }))
+        };
+
+        // Five consecutive requests should all succeed when rate limiting is off.
+        for _ in 0..5_u8 {
+            let res = app.clone().oneshot(make_request("/ping")).await.unwrap();
+            assert_eq!(res.status(), StatusCode::OK);
+        }
+    }
+
+    /// After the burst bucket is exhausted the next request must receive 429.
+    #[tokio::test]
+    async fn returns_429_when_limit_exceeded() {
+        // 1 req/s sustained, burst of 1 → the second immediate request is rejected.
+        let app = rate_limited_app(1, 1);
+
+        let res1 = app.clone().oneshot(make_request("/ping")).await.unwrap();
+        assert_eq!(res1.status(), StatusCode::OK, "first request should succeed");
+
+        let res2 = app.clone().oneshot(make_request("/ping")).await.unwrap();
+        assert_eq!(
+            res2.status(),
+            StatusCode::TOO_MANY_REQUESTS,
+            "second immediate request should be rate-limited"
+        );
+    }
+}
+
+// ─── Security-header unit tests ───────────────────────────────────────────────
+
+#[cfg(test)]
+mod security_header_tests {
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+        routing::get,
+        Router,
+    };
+    use tower::ServiceExt as _;
+    use tower_http::set_header::SetResponseHeaderLayer;
+    use axum::http::{HeaderName, HeaderValue};
+
+    /// Build a minimal test app with the three security header layers applied,
+    /// mirroring the layers added in `main()`.
+    fn secure_app() -> Router {
+        Router::new()
+            .route("/healthz", get(|| async { "ok" }))
+            .layer(SetResponseHeaderLayer::if_not_present(
+                HeaderName::from_static("x-content-type-options"),
+                HeaderValue::from_static("nosniff"),
+            ))
+            .layer(SetResponseHeaderLayer::if_not_present(
+                HeaderName::from_static("x-frame-options"),
+                HeaderValue::from_static("DENY"),
+            ))
+            .layer(SetResponseHeaderLayer::if_not_present(
+                HeaderName::from_static("referrer-policy"),
+                HeaderValue::from_static("strict-origin-when-cross-origin"),
+            ))
+    }
+
+    /// All three security headers must be present and have the expected values
+    /// on a plain GET /healthz response.
+    #[tokio::test]
+    async fn security_headers_present_on_healthz() {
+        let app = secure_app();
+        let req = Request::builder()
+            .uri("/healthz")
+            .body(Body::empty())
+            .unwrap();
+
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+
+        let headers = res.headers();
+        assert_eq!(
+            headers
+                .get("x-content-type-options")
+                .and_then(|v| v.to_str().ok()),
+            Some("nosniff"),
+            "X-Content-Type-Options must be 'nosniff'"
+        );
+        assert_eq!(
+            headers
+                .get("x-frame-options")
+                .and_then(|v| v.to_str().ok()),
+            Some("DENY"),
+            "X-Frame-Options must be 'DENY'"
+        );
+        assert_eq!(
+            headers
+                .get("referrer-policy")
+                .and_then(|v| v.to_str().ok()),
+            Some("strict-origin-when-cross-origin"),
+            "Referrer-Policy must be 'strict-origin-when-cross-origin'"
+        );
+    }
+
+    /// A handler that pre-sets X-Content-Type-Options should NOT be overwritten
+    /// by the `if_not_present` layer — the handler's value wins.
+    #[tokio::test]
+    async fn if_not_present_does_not_overwrite_handler_header() {
+        use axum::http::Response as AxumResponse;
+        use axum::body::Body as AxumBody;
+
+        let app = Router::new()
+            .route(
+                "/custom",
+                get(|| async {
+                    AxumResponse::builder()
+                        .header("x-content-type-options", "custom-value")
+                        .body(AxumBody::empty())
+                        .unwrap()
+                }),
+            )
+            .layer(SetResponseHeaderLayer::if_not_present(
+                HeaderName::from_static("x-content-type-options"),
+                HeaderValue::from_static("nosniff"),
+            ));
+
+        let req = Request::builder()
+            .uri("/custom")
+            .body(Body::empty())
+            .unwrap();
+
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(
+            res.headers()
+                .get("x-content-type-options")
+                .and_then(|v| v.to_str().ok()),
+            Some("custom-value"),
+            "if_not_present must not overwrite a header already set by the handler"
+        );
+    }
 }

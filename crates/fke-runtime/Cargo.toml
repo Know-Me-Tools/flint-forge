@@ -5,17 +5,25 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
-[features]
-default = []
-# Cranelift AOT compiler — present only in the Kiln control-plane build.
-compiler = []
-
 [dependencies]
 fke-domain = { path = "../fke-domain" }
 fke-ports = { path = "../fke-ports" }
 forge-policy = { path = "../forge-policy" }
+forge-identity = { path = "../forge-identity" }
 async-trait = { workspace = true }
-# TODO(p5-c001): wasmtime, wasmtime-wasi, wasmtime-wasi-http (Component Model, wasi:http/proxy)
+anyhow = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+wasmtime = { workspace = true }
+wasmtime-wasi = { workspace = true }
+wasmtime-wasi-http = { workspace = true }
+hyper = { workspace = true }
+http-body-util = { workspace = true }
+
+[features]
+default = []
+# Cranelift AOT compiler — present only in the Kiln control-plane build.
+compiler = ["wasmtime/cranelift"]
 
 [lints]
 workspace = true

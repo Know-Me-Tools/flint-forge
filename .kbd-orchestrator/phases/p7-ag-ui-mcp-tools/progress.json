@@ -1,0 +1,25 @@
+{
+  "phase": "p7-ag-ui-mcp-tools",
+  "status": "in_progress",
+  "changes_completed": 8,
+  "changes_total": 8,
+  "changes": [
+    { "id": "p7-c008-mcp-server-endpoint",       "status": "done", "priority": "P0" },
+    { "id": "p7-c004-mcp-compiler",              "status": "done", "priority": "P0", "completed_at": "2026-07-04" },
+    { "id": "p7-c003-agui-emitter",              "status": "done", "priority": "P0", "completed_at": "2026-07-04" },
+    { "id": "p7-c005-a2ui-surface-emitter",      "status": "done", "priority": "P1", "completed_at": "2026-07-04" },
+    { "id": "p7-c005a-copilotkit-catalog-endpoint","status": "done","priority": "P1" },
+    { "id": "p7-c007-agui-state-propagation",    "status": "done", "priority": "P1", "completed_at": "2026-07-04" },
+    { "id": "p7-c006-a2ui-gate",                 "status": "done", "priority": "P1", "note": "Cedar a2ui:emit capability already present in forge-policy (p5-c005)" },
+    { "id": "p7-c001-webhook-kiln-wiring",       "status": "done", "priority": "P0", "completed_at": "2026-07-04", "note": "Unblocked: target_type='kiln' stub queues in outbox; Kiln BGW wires in when Phase 6 lands" },
+    { "id": "p7-c002-agentproto-pipe",           "status": "done", "priority": "P0", "completed_at": "2026-07-04", "note": "Unblocked: direct hook→AG-UI wire via agui_hook_dispatcher BGW; bypasses FRF" }
+  ],
+  "assessment_complete": true,
+  "plan_complete": true,
+  "execution_started": true,
+  "goals_file": ".kbd-orchestrator/phases/p7-ag-ui-mcp-tools/goals.md",
+  "created_at": "2026-07-04",
+  "openspec_changes_dir": "openspec/changes/",
+  "last_updated_by": "opencode",
+  "last_updated_at": "2026-07-04T00:00:00Z"
+}

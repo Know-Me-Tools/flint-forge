@@ -1,0 +1,68 @@
+name: CI
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  rust:
+    name: Rust checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: fmt
+        run: cargo fmt --all --check
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: test
+        run: cargo test --workspace
+      # p10-c003: Security advisory gate. Fails on any unfixed advisory with
+      # CVSS >= 7.0 that is not in .cargo/audit.toml allowlist.
+      # Allowlisted: quick-xml (DoS via operator-controlled S3), rsa/sqlx-mysql
+      # (PostgreSQL-only codebase), two unmaintained indirect deps.
+      - name: Security audit
+        run: cargo audit
+      - name: Install cargo-component
+        run: cargo install cargo-component --locked
+      - name: Build hello-component
+        run: cargo component build -p hello-component
+
+# ── Performance regression gate ───────────────────────────────────────────────
+# p10-c005: Runs k6 regression.js against a live staging stack.
+# Triggered manually (workflow_dispatch) only — requires STAGING_BASE_URL secret
+# and a valid STAGING_SMOKE_TOKEN. Not a required gate for PRs (staging dependency).
+#
+# To trigger:
+#   GitHub → Actions → CI → Run workflow → supply environment inputs.
+#
+# To update thresholds after measuring baselines:
+#   1. Run individual scripts (health.js, components.js, mcp_tools.js) against staging.
+#   2. Record P50/P95/P99 in docs/performance.md.
+#   3. Update threshold values in perf/k6/regression.js to measured_p99 * 1.20.
+  performance:
+    name: k6 Performance Regression
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg \
+            < <(curl -fsSL https://dl.k6.io/key.gpg)
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] \
+            https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq
+          sudo apt-get install -y k6
+
+      - name: Run regression suite
+        env:
+          BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+          TOKEN:    ${{ secrets.STAGING_SMOKE_TOKEN }}
+        run: k6 run perf/k6/regression.js

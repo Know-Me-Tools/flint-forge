@@ -95,3 +95,106 @@ pub struct VectorRpcRequest {
 fn default_vector_limit() -> u32 {
     10
 }
+
+// ─── AG-UI Event Types ──────────────────────────────────────────────────────
+
+/// AG-UI protocol event types (v0.1 spec).
+///
+/// These are the standard lifecycle, text, tool-call, and state events
+/// streamed to agent frontends over SSE at `/agents/v1/<run-id>/events`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+#[allow(clippy::large_enum_variant)]
+pub enum AgUiEvent {
+    /// Sent when a run starts.
+    #[serde(rename = "RunStarted")]
+    RunStarted {
+        run_id: String,
+        #[serde(default)]
+        thread_id: Option<String>,
+    },
+    /// Marks the beginning of a text message from the agent.
+    #[serde(rename = "TextMessageStart")]
+    TextMessageStart {
+        message_id: String,
+        role: String,
+    },
+    /// A chunk of text content within a message.
+    #[serde(rename = "TextMessageContent")]
+    TextMessageContent {
+        message_id: String,
+        content: String,
+    },
+    /// Marks the end of a text message.
+    #[serde(rename = "TextMessageEnd")]
+    TextMessageEnd { message_id: String },
+    /// Marks the beginning of a tool call.
+    #[serde(rename = "ToolCallStart")]
+    ToolCallStart {
+        tool_call_id: String,
+        tool_name: String,
+        parent_message_id: Option<String>,
+    },
+    /// Arguments being streamed for a tool call (incremental JSON delta).
+    #[serde(rename = "ToolCallArgs")]
+    ToolCallArgs {
+        tool_call_id: String,
+        args: String,
+    },
+    /// Marks the end of a tool call (args are complete).
+    #[serde(rename = "ToolCallEnd")]
+    ToolCallEnd { tool_call_id: String },
+    /// Result of a tool call, sent back to the agent/frontend.
+    #[serde(rename = "ToolCallResult")]
+    ToolCallResult {
+        tool_call_id: String,
+        result: serde_json::Value,
+        #[serde(default)]
+        error: Option<String>,
+    },
+    /// Full snapshot of agent state (MCP tools, catalog version, etc.).
+    #[serde(rename = "StateSnapshot")]
+    StateSnapshot {
+        run_id: String,
+        state: serde_json::Value,
+    },
+    /// Incremental state change (JSON Patch format).
+    #[serde(rename = "StateDelta")]
+    StateDelta {
+        run_id: String,
+        delta: Vec<serde_json::Value>,
+    },
+    /// Custom event — used for A2UI surface delivery (`"a2ui:surface"`).
+    #[serde(rename = "Custom")]
+    Custom {
+        run_id: String,
+        name: String,
+        value: serde_json::Value,
+    },
+    /// Sent when a run completes successfully.
+    #[serde(rename = "RunFinished")]
+    RunFinished { run_id: String },
+    /// Sent when a run fails.
+    #[serde(rename = "RunError")]
+    RunError { run_id: String, message: String },
+}
+
+impl AgUiEvent {
+    /// The run_id this event belongs to, if applicable.
+    pub fn run_id(&self) -> Option<&str> {
+        match self {
+            AgUiEvent::RunStarted { run_id, .. }
+            | AgUiEvent::StateSnapshot { run_id, .. }
+            | AgUiEvent::StateDelta { run_id, .. }
+            | AgUiEvent::Custom { run_id, .. }
+            | AgUiEvent::RunFinished { run_id, .. }
+            | AgUiEvent::RunError { run_id, .. } => Some(run_id.as_str()),
+            _ => None,
+        }
+    }
+
+    /// True if this event terminates the SSE stream for a run.
+    pub fn is_terminal(&self) -> bool {
+        matches!(self, AgUiEvent::RunFinished { .. } | AgUiEvent::RunError { .. })
+    }
+}

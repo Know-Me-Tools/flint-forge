@@ -1,0 +1,9 @@
+{
+  "from_stage": "plan",
+  "to_stage": "execute",
+  "phase": "p9-hardening",
+  "created_at": "2026-07-04T00:00:00Z",
+  "summary": "7 OpenSpec changes created. Execute c001+c002+c003 in parallel (P0, independent). Then c005+c006-bench in parallel. Then c004 (observability, heaviest deps). Then c007 (depends on c001). New workspace deps needed: tower-governor 0.8, criterion 0.5 (dev-dep), opentelemetry 0.27 suite.",
+  "artifact": "plan.md",
+  "first_batch": ["p9-c001-docker-compose", "p9-c002-runbook", "p9-c003-rate-limiting"]
+}

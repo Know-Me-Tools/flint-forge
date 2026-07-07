@@ -1,0 +1,82 @@
+# observability/alerts.rules.yml — Prometheus alerting rules for Flint Forge.
+#
+# Mounted read-only into the prometheus container at:
+#   /etc/prometheus/alerts.rules.yml
+#
+# Rule thresholds match the Grafana dashboard annotations in grafana-dashboard.json.
+# Adjust `for:` durations and numeric thresholds after running k6 baselines (p10-c005).
+
+groups:
+  - name: flint-forge
+    rules:
+
+      # ── High server error rate ────────────────────────────────────────────
+      # Fires when 5xx responses exceed 1 % of total requests for 5 minutes.
+      # Covers both fdb-gateway (REST / GraphQL) and fke-server (invoke).
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(axum_http_requests_total{status_code=~"5.."}[5m]))
+          )
+          /
+          (
+            sum(rate(axum_http_requests_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP 5xx error rate > 1% for 5 minutes"
+          description: >-
+            The 5-minute rolling error rate is
+            {{ printf "%.2f" (mul 100 $value) }}% (threshold 1%).
+            Check logs: docker compose logs fdb-gateway fke-server
+
+      # ── High P99 latency ─────────────────────────────────────────────────
+      # Fires when the 99th-percentile response time exceeds 500 ms for 5 minutes.
+      # axum_http_requests_duration_seconds_bucket is emitted by axum-prometheus (p9-c004).
+      - alert: HighP99Latency
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum(rate(axum_http_requests_duration_seconds_bucket[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P99 response latency > 500 ms for 5 minutes"
+          description: >-
+            P99 latency is {{ printf "%.0f" (mul 1000 $value) }} ms (threshold 500 ms).
+            Investigate slow queries or Kiln cold-start times.
+
+      # ── Service down ─────────────────────────────────────────────────────
+      # Fires when a scrape target stops responding for 1 minute.
+      # Prometheus sets up == 0 automatically for every target in scrape_configs.
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is not responding"
+          description: >-
+            Prometheus cannot reach {{ $labels.job }} ({{ $labels.instance }}).
+            Check the container: docker compose ps
+
+      # ── High DB connection pool usage ────────────────────────────────────
+      # Fires when the sqlx pool has more than 8 open connections for 3 minutes.
+      # Default pool max is 10 (sqlx default); sustained > 8 signals saturation risk.
+      # Note: requires a future sqlx Prometheus integration for this metric to appear.
+      # The alert is pre-configured so it activates automatically once the metric is emitted.
+      - alert: HighDbConnections
+        expr: sqlx_pool_connections_open > 8
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DB connection pool utilisation > 80% for 3 minutes"
+          description: >-
+            {{ $value }} of the 10-connection sqlx pool are open (threshold 8).
+            Consider increasing pool size via DATABASE_MAX_CONNECTIONS or
+            investigating slow queries holding connections open.

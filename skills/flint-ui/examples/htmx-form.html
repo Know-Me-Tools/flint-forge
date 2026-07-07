@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Flint HTMX Form — Example</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+</head>
+<body class="bg-base-200 min-h-screen p-8">
+
+  <div class="max-w-lg mx-auto">
+    <h1 class="text-2xl font-bold mb-6">Create User — HTMX Form</h1>
+
+    <!--
+      POST to /htmx/components/form with JSON props.
+      The server renders a populated form fragment.
+      hx-swap="outerHTML" replaces this element with the rendered form.
+    -->
+    <div
+      hx-post="/htmx/components/form"
+      hx-headers='{"Authorization": "Bearer YOUR_JWT_TOKEN", "Content-Type": "application/json"}'
+      hx-vals='{"fields": [
+        {"name": "email",    "type": "email",  "label": "Email Address"},
+        {"name": "name",     "type": "text",   "label": "Full Name"},
+        {"name": "role",     "type": "text",   "label": "Role"}
+      ]}'
+      hx-trigger="load"
+      hx-swap="outerHTML">
+      <div class="skeleton h-48 w-full"></div>
+    </div>
+
+    <!--
+      Alternatively: render a component by slug with demo data (no props needed).
+      This triggers on load and renders the default form component.
+    -->
+    <div class="mt-8">
+      <h2 class="text-lg font-semibold mb-3">Data Grid Demo</h2>
+      <div
+        hx-get="/htmx/components/data-grid"
+        hx-headers='{"Authorization": "Bearer YOUR_JWT_TOKEN"}'
+        hx-trigger="load"
+        hx-swap="outerHTML">
+        <div class="skeleton h-32 w-full"></div>
+      </div>
+    </div>
+
+    <!--
+      AG-UI SSE streaming with HTMX SSE extension.
+      The server emits TextMessageContent events as the agent responds.
+    -->
+    <div class="mt-8">
+      <h2 class="text-lg font-semibold mb-3">Agent Output (SSE)</h2>
+      <div
+        id="agent-output"
+        hx-ext="sse"
+        sse-connect="/agents/v1/YOUR_RUN_ID/events"
+        sse-swap="TextMessageContent"
+        hx-headers='{"Authorization": "Bearer YOUR_JWT_TOKEN"}'
+        class="card bg-base-100 p-4 min-h-20">
+        <p class="text-base-content/40 italic">Waiting for agent response…</p>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

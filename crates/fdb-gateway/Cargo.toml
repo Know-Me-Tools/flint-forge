@@ -27,11 +27,23 @@ tokio-postgres = { workspace = true }
 fdb-domain = { path = "../fdb-domain" }
 tokio = { workspace = true }
 tracing = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
 tracing-subscriber = { workspace = true }
 async-trait = { workspace = true }
 async-graphql = { workspace = true }
 async-graphql-axum = { workspace = true }
 futures = { workspace = true }
+tokio-stream = { workspace = true }
+base64 = { workspace = true }
+zip = { workspace = true }
+tower_governor = { workspace = true }
+tower-http = { workspace = true }
+axum-prometheus = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+tracing-opentelemetry = { workspace = true }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

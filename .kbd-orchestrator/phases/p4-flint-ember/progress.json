@@ -1,0 +1,45 @@
+{
+  "phase": "p4-flint-ember",
+  "status": "verified",
+  "changes_completed": 4,
+  "changes_total": 4,
+  "changes": [
+    {
+      "id": "p4-c001-liter-llm-binding",
+      "status": "implemented",
+      "goal": "G1",
+      "priority": "P0"
+    },
+    {
+      "id": "p4-c002-async-embeddings",
+      "status": "implemented",
+      "goal": "G2",
+      "priority": "P0",
+      "depends_on": "p4-c001"
+    },
+    {
+      "id": "p4-c003-sync-surface",
+      "status": "implemented",
+      "goal": "G3",
+      "priority": "P0",
+      "depends_on": "p4-c001"
+    },
+    {
+      "id": "p4-c004-summaries",
+      "status": "implemented",
+      "goal": "G4",
+      "priority": "P1",
+      "depends_on": "p4-c002"
+    }
+  ],
+  "change_order": [
+    "p4-c001-liter-llm-binding",
+    "p4-c002-async-embeddings",
+    "p4-c003-sync-surface",
+    "p4-c004-summaries"
+  ],
+  "assessment_complete": true,
+  "plan_complete": true,
+  "assessment_file": ".kbd-orchestrator/phases/p4-flint-ember/assessment.md",
+  "plan_file": ".kbd-orchestrator/phases/p4-flint-ember/plan.md"
+}

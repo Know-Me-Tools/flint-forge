@@ -1,0 +1,12 @@
+{
+  "stage": "assess",
+  "phase": "p10-production-launch",
+  "written_at": "2026-07-06",
+  "written_by": "opencode",
+  "summary": "Three MVP-gate blockers found: no TLS service in prod compose (G1), secrets in .env (G2), no cargo audit step and 5 CVSS≥7.0 advisories including 2 CVSS-9.0 critical in wasmtime 26 (G3). wasmtime 26→36.x upgrade is a new P0 blocker not present in p9 goals. Recommend planning order: G3 first (wasmtime upgrade unblocks audit gate), then G1 (TLS), then G2 (secrets), then G4/G5, then G6.",
+  "artifacts": ["assessment.md"],
+  "key_finding": "wasmtime 26 carries CVSS-9.0 advisories (RUSTSEC-2026-0095, -0096) — upgrade to 36.x is required before cargo-audit CI gate can pass",
+  "open_questions_resolved": ["OQ-P10-1: Caddy confirmed", "OQ-P10-2: Docker secrets confirmed", "OQ-P10-3: v0.10.0 recommended"],
+  "new_open_questions": ["OQ-P10-4: wasmtime 36.x API migration scope in fke-runtime"],
+  "recommended_plan_order": ["p10-c003-cargo-audit-ci (wasmtime upgrade + audit step)", "p10-c001-tls-termination", "p10-c002-secrets-management", "p10-c004-alerting-rules", "p10-c005-k6-baseline", "p10-c006-changelog-release"]
+}

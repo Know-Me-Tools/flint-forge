@@ -1,0 +1,10 @@
+{
+  "from_stage": "plan",
+  "to_stage": "execute",
+  "phase": "p6b-kiln-hardening",
+  "created_at": "2026-07-04T00:00:00Z",
+  "summary": "8 OpenSpec changes created; 3 P0 (Cedar gate → Kiln BGW → WIT bindings), 3 P1 (sign-did, sign-cosign, store-oci), 2 P2 (store-ipfs, store-s3). Execute c001 first (Cedar gate, Medium effort, no new deps). c002 immediately after c001. c003–c008 can run in parallel once c001 is wired.",
+  "artifact": "plan.md",
+  "first_change": "p6b-c001-cedar-gate",
+  "parallel_after_c001": ["p6b-c003-wit-bindings", "p6b-c004-sign-did", "p6b-c005-sign-cosign", "p6b-c006-store-oci", "p6b-c007-store-ipfs", "p6b-c008-store-s3"]
+}

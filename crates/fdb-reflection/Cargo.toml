@@ -25,7 +25,14 @@ serde_json = { workspace = true }
 thiserror  = { workspace = true }
 tracing    = { workspace = true }
 tokio      = { workspace = true }
+uuid       = { workspace = true }
+async-trait = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 async-trait = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "mcp_compiler"
+harness = false

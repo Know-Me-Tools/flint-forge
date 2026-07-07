@@ -27,3 +27,8 @@ serde_json = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 forge-domain = { path = "../forge-domain" }
+criterion = { workspace = true }
+
+[[bench]]
+name = "design_md_parser"
+harness = false

@@ -1,0 +1,97 @@
+# cliff.toml — git-cliff changelog configuration for Flint Forge.
+#
+# Usage:
+#   git cliff -o CHANGELOG.md               # full history
+#   git cliff --latest -o /tmp/release.md   # latest tag only (for release notes)
+#   git cliff --unreleased                  # commits since last tag
+#
+# Convention: conventional commits (https://www.conventionalcommits.org/)
+# KBD orchestrator housekeeping commits (chore(kbd):, plan(kbd):, docs(kbd):)
+# are filtered out to keep the changelog user-facing.
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to Flint Forge are documented here.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+"""
+
+body = """
+{% if version %}\
+## [{{ version | trim_start_matches(pat="v") }}] — {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+## [Unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}\
+- {% if commit.scope %}**{{ commit.scope }}**: {% endif %}\
+{{ commit.message | upper_first }}\
+{% if commit.breaking %} (**BREAKING**){% endif %}\
+{% if commit.id %} \
+([`{{ commit.id | truncate(length=7, end="") }}`](https://github.com/Know-Me-Tools/flint-forge/commit/{{ commit.id }}))\
+{% endif %}
+{% endfor %}
+{% endfor %}\n
+"""
+
+trim = true
+
+footer = ""
+
+[git]
+conventional_commits = true
+
+# Skip commits that don't follow conventional commit format.
+filter_unconventional = true
+
+split_commits = false
+
+# Parse commit messages and group into sections.
+commit_parsers = [
+  # Skip KBD orchestrator housekeeping — not user-facing.
+  { message = "^chore\\(kbd\\)",   skip = true },
+  { message = "^docs\\(kbd\\)",    skip = true },
+  { message = "^plan\\(kbd\\)",    skip = true },
+  { message = "^chore\\(release\\)", skip = true },
+
+  # User-facing groups.
+  { message = "^feat",             group = "Features"        },
+  { message = "^fix",              group = "Bug Fixes"       },
+  { message = "^perf",             group = "Performance"     },
+  { message = "^refactor",         group = "Refactoring"     },
+  { message = "^docs",             group = "Documentation"   },
+  { message = "^style",            group = "Style"           },
+  { message = "^test",             group = "Testing"         },
+  { message = "^chore",            group = "Maintenance"     },
+
+  # Merge commits — skip; underlying commits are already included.
+  { message = "^Merge",            skip = true },
+]
+
+# Only generate entries for commits that touch the tag range being processed.
+protect_breaking_commits = false
+
+# Only include commits since the previous tag.
+filter_commits = false
+
+# Pattern for version tags.
+tag_pattern = "v[0-9].*"
+
+# Skip pre-release tags when generating CHANGELOG.
+skip_tags = "v0\\.0\\..*-.*"
+
+# Do not include commits from merge commits (they duplicate the PR commits).
+ignore_tags = ""
+
+# Sort commits within a group by date descending.
+date_order = false
+sort_commits = "newest"
+
+[bump]
+features_always_bump_minor = true
+breaking_always_bump_major = true

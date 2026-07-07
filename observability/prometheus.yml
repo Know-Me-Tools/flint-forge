@@ -1,0 +1,44 @@
+# observability/prometheus.yml — Prometheus scrape and alerting configuration.
+#
+# Mounted read-only into the prometheus container at:
+#   /etc/prometheus/prometheus.yml
+#
+# Prometheus scrapes /metrics from both fdb-gateway and fke-server every 15 s.
+# Alert rules are evaluated at the same interval and fired to Alertmanager.
+
+global:
+  scrape_interval:     15s   # how often to pull /metrics
+  evaluation_interval: 15s   # how often to evaluate alert rules
+
+# ── Alertmanager routing ────────────────────────────────────────────────────
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+# ── Alert rules files ───────────────────────────────────────────────────────
+rule_files:
+  - /etc/prometheus/alerts.rules.yml
+
+# ── Scrape targets ──────────────────────────────────────────────────────────
+scrape_configs:
+  # fdb-gateway — Quarry REST / GraphQL / A2UI gateway.
+  # Exposes axum_http_requests_total, axum_http_requests_duration_seconds, etc.
+  - job_name: flint-quarry
+    static_configs:
+      - targets: ['fdb-gateway:8080']
+        labels:
+          service: fdb-gateway
+
+  # fke-server — Kiln WASM edge-function runtime.
+  - job_name: flint-kiln
+    static_configs:
+      - targets: ['fke-server:8090']
+        labels:
+          service: fke-server
+
+  # prometheus self-scrape — keeps the meta-metrics (scrape_duration_seconds,
+  # up, etc.) available for the dashboards and ServiceDown alert.
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']

@@ -1,0 +1,52 @@
+services:
+  db:
+    build:
+      context: .
+      dockerfile: images/postgres18/Dockerfile
+    environment:
+      POSTGRES_USER: flint
+      POSTGRES_PASSWORD: flint
+      POSTGRES_DB: flint
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flint -d flint"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  fdb-gateway:
+    build:
+      context: .
+      dockerfile: docker/fdb-gateway/Dockerfile
+    env_file:
+      - path: .env
+        required: false   # operators create .env from .env.example; absent in CI/tests
+    environment:
+      DATABASE_URL: postgres://flint:flint@db:5432/flint
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  fke-server:
+    build:
+      context: .
+      dockerfile: docker/fke-server/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgres://flint:flint@db:5432/flint
+    ports:
+      - "8090:8090"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

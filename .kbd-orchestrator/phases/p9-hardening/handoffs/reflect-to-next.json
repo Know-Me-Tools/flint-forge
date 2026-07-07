@@ -1,0 +1,17 @@
+{
+  "stage": "reflect",
+  "phase": "p9-hardening",
+  "written_at": "2026-07-06",
+  "written_by": "opencode",
+  "summary": "p9-hardening delivered all 7 changes (7/7 MET). Stack is containerised, rate-limited, observable, security-audited, and staging-deployable. Two mechanical clippy corrections (match→if let in OTel init) were the only rework required. Zero test regressions. Recommended next phase: p10-production-launch (TLS, secrets management, alerting, cargo-audit in CI, k6 baseline, release tagging).",
+  "artifacts": [
+    "reflection.md"
+  ],
+  "next_phase_hint": "p10-production-launch",
+  "open_debt": [
+    "k6 baselines are aspirational — run against live staging to get real P99s",
+    "STAGING_SMOKE_TOKEN is a long-lived JWT — rotate to short-lived bot identity",
+    "Grafana panel 4 (DB connections) requires sqlx Prometheus integration to produce data",
+    "`version: '3.9'` key in compose files is cosmetic noise — remove in cleanup sweep"
+  ]
+}

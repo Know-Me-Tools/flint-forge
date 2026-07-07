@@ -1,3 +1,7 @@
 [toolchain]
-channel = "1.90"
+# p10-c003: Updated from 1.90 to stable.
+# wasmtime 46 (security upgrade for CVSS-9.0 advisories) requires cranelift 0.133.1
+# which needs rustc >=1.94. Pinning to a specific minor that blocks security upgrades
+# is counter to production security hygiene. MSRV remains 1.85 in Cargo.toml.
+channel = "stable"
 components = ["rustfmt", "clippy"]

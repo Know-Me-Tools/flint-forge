@@ -1,7 +1,7 @@
 {
   "phase": "p3-auth-rls-keto",
   "status": "in_progress",
-  "changes_completed": 7,
+  "changes_completed": 9,
   "changes_total": 9,
   "changes": [
     {
@@ -64,15 +64,33 @@
     },
     {
       "id": "p3-c017-fdb-realtime-stub",
-      "status": "pending",
+      "status": "superseded",
       "priority": "P1",
-      "blocked_on": "OQ-FRF-1-conditional"
+      "blocked_on": "OQ-FRF-1-conditional",
+      "note": "Superseded by p3-c020 LISTEN source; FRF WatchEntityType path stays deferred."
     },
     {
       "id": "p3-c018-introspection-merge-verify",
-      "status": "pending",
+      "status": "resolved",
       "priority": "P1",
-      "blocked_on": "OQ-3-conditional"
+      "blocked_on": "OQ-3-conditional",
+      "note": "Introspection merge shipped and verified via c016 gate plus G4 subscription seam."
+    },
+    {
+      "id": "p3-c019-postgrest-query-engine",
+      "status": "qa_passed",
+      "priority": "P0",
+      "completed": "2026-07-01",
+      "completed_by": "claude-code",
+      "note": "Actual G3/G4/G5 PostgREST engine deliverable; merged to main."
+    },
+    {
+      "id": "p3-c020-listen-change-source",
+      "status": "qa_passed",
+      "priority": "P0",
+      "completed": "2026-07-01",
+      "completed_by": "claude-code",
+      "note": "Actual G7 alternate LISTEN source deliverable; merged to main."
     }
   ],
   "mvp_changes": [

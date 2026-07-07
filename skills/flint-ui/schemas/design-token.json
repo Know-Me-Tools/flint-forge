@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flint.example.com/schemas/design-token.json",
+  "title": "W3C Design Token (2024)",
+  "description": "W3C Community Group Design Token Format specification (2024 edition). Used by Flint design system import/export.",
+  "type": "object",
+  "patternProperties": {
+    "^[^$]": {
+      "oneOf": [
+        {
+          "description": "A design token value.",
+          "type": "object",
+          "required": ["$value"],
+          "properties": {
+            "$value": {
+              "description": "The token value. Type-specific — see $type."
+            },
+            "$type": {
+              "type": "string",
+              "enum": ["color", "dimension", "fontFamily", "fontWeight", "duration", "cubicBezier", "number", "strokeStyle", "border", "transition", "shadow", "gradient", "typography", "fontStyle", "letterSpacing", "lineHeight", "fontVariant"],
+              "description": "Token type constrains the shape of $value."
+            },
+            "$description": { "type": "string" },
+            "$extensions": { "type": "object" }
+          }
+        },
+        {
+          "description": "A token group.",
+          "type": "object",
+          "properties": {
+            "$type": { "type": "string" },
+            "$description": { "type": "string" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    }
+  },
+  "examples": [
+    {
+      "color": {
+        "$type": "color",
+        "primary": { "$value": "#2563eb", "$description": "Brand primary" },
+        "surface": { "$value": "#ffffff" },
+        "text":    { "$value": "#0f172a" }
+      },
+      "spacing": {
+        "$type": "dimension",
+        "xs": { "$value": "4px" },
+        "sm": { "$value": "8px" },
+        "md": { "$value": "16px" },
+        "lg": { "$value": "24px" },
+        "xl": { "$value": "40px" }
+      },
+      "typography": {
+        "fontFamily": { "$value": "Inter, system-ui, sans-serif", "$type": "fontFamily" },
+        "size": {
+          "$type": "dimension",
+          "sm": { "$value": "12px" },
+          "md": { "$value": "14px" },
+          "lg": { "$value": "16px" },
+          "xl": { "$value": "20px" }
+        }
+      },
+      "borderRadius": {
+        "$type": "dimension",
+        "sm": { "$value": "4px" },
+        "md": { "$value": "6px" },
+        "lg": { "$value": "8px" },
+        "full": { "$value": "9999px" }
+      }
+    }
+  ]
+}

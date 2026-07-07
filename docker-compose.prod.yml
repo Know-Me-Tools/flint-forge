@@ -1,0 +1,185 @@
+# docker-compose.prod.yml — production overlay for flint-forge
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# This file extends docker-compose.yml with:
+#   - TLS termination via Caddy (automatic Let's Encrypt / ACME)
+#   - Restart policies for process resilience
+#   - CPU / memory resource limits
+#   - Production-appropriate log drivers
+#   - Public ports removed from fdb-gateway and fke-server (traffic via Caddy only)
+#   - Docker secrets for jwt_secret, postgres_password, caddy_tls_email
+#
+# Prerequisites:
+#   1. Run scripts/rotate_secrets.sh to generate secrets/ files.
+#   2. Set FLINT_DOMAIN and CADDY_TLS_EMAIL in .env (or export them).
+#   3. DATABASE_URL in .env must use the password from secrets/postgres_password.txt
+
+# ── Secret file declarations ────────────────────────────────────────────────
+# Secret files are created by scripts/rotate_secrets.sh and are never committed.
+# Each service below declares which secrets it needs mounted under /run/secrets/.
+
+secrets:
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  caddy_tls_email:
+    file: ./secrets/caddy_tls_email.txt
+
+services:
+  db:
+    restart: unless-stopped
+    # p10-c002: The official postgres image reads POSTGRES_PASSWORD_FILE if set,
+    # which allows us to supply the password via Docker secret rather than env var.
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      # Override the hardcoded password in the base compose — DB now reads from the file.
+      POSTGRES_PASSWORD: ""
+    secrets:
+      - postgres_password
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    # In production, prefer a managed database; this container is for staging only.
+
+  fdb-gateway:
+    restart: unless-stopped
+    # p10-c001: Remove the public HTTP port — all traffic must flow through Caddy.
+    # Caddy reaches fdb-gateway on the internal Docker network (fdb-gateway:8080).
+    ports: !reset []
+    # p10-c002: Mount jwt_secret and postgres_password.
+    # FLINT_JWT_SECRET_FILE path is logged at startup so operators know where the secret is.
+    # DATABASE_URL still comes from .env (gitignored); the password there must match
+    # postgres_password.txt — scripts/rotate_secrets.sh keeps them in sync.
+    environment:
+      RUST_LOG: info
+      FLINT_JWT_SECRET_FILE: /run/secrets/jwt_secret
+    secrets:
+      - jwt_secret
+      - postgres_password
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  fke-server:
+    restart: unless-stopped
+    # p10-c001: Remove the public HTTP port — Kiln is internal-only in production.
+    # Expose via Caddy reverse_proxy or a dedicated subdomain if needed.
+    ports: !reset []
+    # p10-c002: Mount postgres_password secret.
+    secrets:
+      - postgres_password
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    environment:
+      RUST_LOG: info
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # p10-c001: Caddy — TLS-terminating reverse proxy with automatic ACME cert provisioning.
+  # Obtains a Let's Encrypt certificate for FLINT_DOMAIN on first startup and renews it
+  # automatically 30 days before expiry.  Cert data is persisted in caddy_data volume.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    # p10-c002: caddy_tls_email secret is mounted but Caddy reads CADDY_TLS_EMAIL from env.
+    # The secret file is provided for operators who prefer to read it via a custom Caddyfile.
+    environment:
+      FLINT_DOMAIN: ${FLINT_DOMAIN:?FLINT_DOMAIN is required for TLS cert provisioning}
+      CADDY_TLS_EMAIL: ${CADDY_TLS_EMAIL:?CADDY_TLS_EMAIL is required for ACME registration}
+    secrets:
+      - caddy_tls_email
+    depends_on:
+      - fdb-gateway
+      - fke-server
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # p10-c004: Prometheus — scrapes /metrics from fdb-gateway and fke-server every 15 s.
+  # Evaluates alerting rules and forwards firing alerts to Alertmanager.
+  prometheus:
+    image: prom/prometheus:v3.0.0
+    restart: unless-stopped
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerts.rules.yml:/etc/prometheus/alerts.rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'     # allows hot-reload via POST /-/reload
+    depends_on:
+      - fdb-gateway
+      - fke-server
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # p10-c004: Alertmanager — receives alerts from Prometheus and routes them to
+  # the operator-configured webhook (Slack, PagerDuty, etc.).
+  # Port 9093 is bound to 127.0.0.1 only — not exposed to the public internet.
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    restart: unless-stopped
+    volumes:
+      - ./observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "127.0.0.1:9093:9093"
+    depends_on:
+      - prometheus
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  # Persists TLS certificates and ACME account data across container restarts.
+  caddy_data:
+  # Persists Caddy's runtime configuration (fast-start optimisation).
+  caddy_config:
+  # Persists Prometheus TSDB time-series data (15-day retention configured below).
+  prometheus_data:

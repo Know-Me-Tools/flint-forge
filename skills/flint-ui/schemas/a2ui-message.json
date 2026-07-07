@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flint.example.com/schemas/a2ui-message.json",
+  "title": "A2UI Message",
+  "description": "A single A2UI v0.9 wire protocol message.",
+  "type": "object",
+  "required": ["op"],
+  "properties": {
+    "op": {
+      "type": "string",
+      "enum": ["createSurface", "updateComponents", "updateDataModel", "updateActions", "deleteSurface"],
+      "description": "Message operation type."
+    },
+    "surfaceId": {
+      "type": "string",
+      "description": "Identifies the surface this message targets."
+    },
+    "catalogId": {
+      "type": "string",
+      "format": "uri",
+      "description": "URI of the A2UI catalog. Required for createSurface."
+    },
+    "components": {
+      "type": "array",
+      "description": "Component tree for updateComponents.",
+      "items": {
+        "type": "object",
+        "required": ["id", "component"],
+        "properties": {
+          "id":        { "type": "string" },
+          "component": { "type": "string", "description": "PascalCase primitive_type, e.g. 'DataGrid'" },
+          "props":     { "type": "object" },
+          "children":  { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "path": {
+      "type": "string",
+      "description": "JSON pointer path for updateDataModel, e.g. '/data'."
+    },
+    "value": {
+      "description": "Data value for updateDataModel."
+    },
+    "actions": {
+      "type": "array",
+      "description": "Action list for updateActions.",
+      "items": {
+        "type": "object",
+        "required": ["label", "action"],
+        "properties": {
+          "label":  { "type": "string" },
+          "action": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+name: Docker
+on:
+  push:
+    branches: [main]
+
+jobs:
+  gateway:
+    name: Build and push fdb-gateway
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/fdb-gateway/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/flint-gateway:latest
+            ghcr.io/${{ github.repository_owner }}/flint-gateway:${{ github.sha }}
+
+  kiln:
+    name: Build and push fke-server
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/fke-server/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/flint-kiln:latest
+            ghcr.io/${{ github.repository_owner }}/flint-kiln:${{ github.sha }}

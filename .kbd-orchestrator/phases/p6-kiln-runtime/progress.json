@@ -1,0 +1,32 @@
+{
+  "phase": "p6-kiln-runtime",
+  "status": "in_progress",
+  "changes_completed": 4,
+  "changes_total": 4,
+  "assessment_complete": true,
+  "plan_complete": true,
+  "execution_started": true,
+  "created_at": "2026-07-04",
+  "last_updated_by": "opencode",
+  "last_updated_at": "2026-07-04T00:00:00Z",
+  "changes": [
+    { "id": "p6-c001-wasmtime-runtime", "status": "done", "completed_at": "2026-07-04",
+      "note": "fke-runtime: real wasmtime Engine + ProxyPre cache + capability gate + fuel limits" },
+    { "id": "p6-c002-pg-registry",      "status": "done", "completed_at": "2026-07-04",
+      "note": "fke-registry: PgRegistry + PgComponentStore backed by flint_kiln Postgres tables" },
+    { "id": "p6-c003-fke-server-wire",  "status": "done", "completed_at": "2026-07-04",
+      "note": "fke-server: /functions/v1/{name} invoke + /admin/functions register/list" },
+    { "id": "p6-c004-store-fs",         "status": "done", "completed_at": "2026-07-04",
+      "note": "fke-store-fs: content-addressed local artifact store with tokio async I/O" }
+  ],
+  "mvp_gate_passed": true,
+  "mvp_gate_verified": {
+    "cargo_clippy_workspace_D_warnings": "pass",
+    "cargo_test_workspace": "pass"
+  },
+  "next_changes": [
+    "p6-c005: Cedar policy gate on function invocation (fke-runtime capability check via forge-policy)",
+    "p6-c006: Kiln BGW — process flint.webhook_outbox WHERE target_type='kiln'",
+    "p6-c007: WIT contract freeze + wasi:http/incoming-handler binding generation"
+  ]
+}

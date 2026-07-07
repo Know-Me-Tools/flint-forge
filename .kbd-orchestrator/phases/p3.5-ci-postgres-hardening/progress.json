@@ -1,7 +1,7 @@
 {
   "phase": "p3.5-ci-postgres-hardening",
-  "status": "in_progress",
-  "changes_completed": 4,
+  "status": "completed",
+  "changes_completed": 5,
   "changes_total": 5,
   "changes": [
     {
@@ -42,9 +42,12 @@
     },
     {
       "id": "p35-c005-p3-bookkeeping-reconcile",
-      "status": "pending",
+      "status": "qa_passed",
       "goal": "G5",
-      "priority": "P2"
+      "priority": "P2",
+      "completed": "2026-07-03",
+      "completed_by": "opencode",
+      "note": "p3 progress.json reconciled; c019 openspec change archived"
     }
   ],
   "change_order": [

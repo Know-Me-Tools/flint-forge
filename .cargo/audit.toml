@@ -1,0 +1,34 @@
+# .cargo/audit.toml — Flint Forge security advisory allowlist.
+#
+# Review: before each quarterly deadline, either fix the dep or update the
+# expiry. A `cargo audit` step in ci.yml enforces this gate.
+#
+# Allowlist format: simple array under [advisories].ignore
+# Justifications are documented inline as comments.
+#
+# All entries expire: 2026-10-06 (90 days from 2026-07-06)
+
+[advisories]
+ignore = [
+  # RUSTSEC-2026-0195 / RUSTSEC-2026-0194 — quick-xml 0.40.x via object_store 0.14.0
+  # Affects XML NsReader / start-tag parsing. Attack requires controlling S3 API
+  # responses. Flint's S3 backend is operator-controlled; no untrusted XML path.
+  # Fix blocked on object_store releasing with quick-xml >=0.41.0.
+  "RUSTSEC-2026-0195",
+  "RUSTSEC-2026-0194",
+
+  # RUSTSEC-2023-0071 — rsa 0.9.x via sqlx-mysql
+  # Marvin Attack timing side-channel. Flint uses sqlx for PostgreSQL only;
+  # sqlx-mysql is a transitive dep that is never instantiated. No upstream fix.
+  "RUSTSEC-2023-0071",
+
+  # RUSTSEC-2025-0111 — tokio-tar unmaintained (via testcontainers)
+  # No CVE; maintenance-only advisory. Used only in integration test harness
+  # which requires Docker and is skipped in CI without it.
+  "RUSTSEC-2025-0111",
+
+  # RUSTSEC-2025-0134 — rustls-pemfile unmaintained (transitive)
+  # No CVE; superseded by rustls-pki-types. Indirect dep; will resolve when
+  # upstream crates migrate.
+  "RUSTSEC-2025-0134",
+]

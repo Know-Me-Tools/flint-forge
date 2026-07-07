@@ -14,7 +14,7 @@ members = [
 exclude = ["crates/ext-flint-auth", "crates/ext-flint-hooks", "crates/ext-flint-llm", "crates/ext-flint-vault", "crates/ext-flint-meta"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.10.0"
 edition = "2021"
 rust-version = "1.85"
 license = "MIT"
@@ -45,6 +45,44 @@ tonic = { version = "0.12", features = ["transport"] }
 pgvector = { version = "0.4", features = ["postgres", "sqlx"] }
 cedar-policy = "4"
 wiremock = "0.6"
+# WASM Component Model runtime (Kiln data-plane). Compiler feature adds Cranelift AOT.
+# p10-c003: Upgraded 26→46 to resolve RUSTSEC-2026-0095/0096 (CVSS 9.0) and all
+# wasmtime-suite advisories. wasmtime uses calendar versioning; component-model
+# and async APIs are stable across this range.
+# `anyhow` feature: wasmtime 40+ made anyhow optional; re-enable it so
+# wasmtime::Error = anyhow::Error and .context() calls in fke-runtime continue to work.
+wasmtime = { version = "46", features = ["component-model", "async", "pooling-allocator", "anyhow"] }
+wasmtime-wasi = "46"
+wasmtime-wasi-http = "46"
+hyper = { version = "1", features = ["full"] }
+http-body-util = "0.1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+sha2 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.22"
+zip = "2"
+p256 = { version = "0.13", features = ["ecdsa"] }
+x509-cert = { version = "0.2", features = ["pem", "std"] }
+oci-client = { version = "0.17", default-features = false, features = ["rustls-tls"] }
+# p10-c003: Upgraded 0.11→0.14 to resolve RUSTSEC-2026-0194/0195 (CVSS 7.5,
+# quick-xml via object_store 0.11). object_store 0.14 uses quick-xml >=0.41.
+object_store = { version = "0.14", features = ["aws"] }
+testcontainers = "0.23"
+testcontainers-modules = { version = "0.11", features = ["cncf_distribution", "minio"] }
+# p9-c003: Per-IP token-bucket rate limiting via tower_governor.
+# Disable the default "tonic" feature to avoid a version conflict with workspace tonic = "0.12".
+tower_governor = { version = "0.8", default-features = false, features = ["axum"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+# p9-c005: Security response headers middleware (X-Content-Type-Options, X-Frame-Options, etc.).
+tower-http = { version = "0.6", features = ["set-header"] }
+# p9-c004: Observability — Prometheus metrics, OTLP tracing, structured spans.
+# axum-prometheus: Axum tower middleware emitting http_requests_total + duration histograms.
+# opentelemetry-otlp uses the http-json transport (reqwest) to avoid tonic version conflicts.
+axum-prometheus = "0.10"
+opentelemetry = { version = "0.32", features = ["trace"] }
+opentelemetry_sdk = { version = "0.32", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.32", default-features = false, features = ["trace", "http-json", "reqwest-client"] }
+tracing-opentelemetry = "0.33"
 
 # Compile Economy — dev-loop build settings. See docs/RUST-DEVELOPMENT-MANAGEMENT.md.
 # Cargo only reads profiles from the workspace-root manifest, so they live here.

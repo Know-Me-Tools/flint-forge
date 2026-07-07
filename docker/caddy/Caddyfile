@@ -1,0 +1,46 @@
+# Caddyfile — TLS-terminating reverse proxy for Flint Forge production.
+#
+# Environment variables (set in docker-compose.prod.yml or .env):
+#   FLINT_DOMAIN       Public domain for fdb-gateway  e.g. forge.example.com
+#   CADDY_TLS_EMAIL    ACME contact email             e.g. ops@example.com
+#
+# How it works:
+#   - Caddy obtains a Let's Encrypt TLS cert for {$FLINT_DOMAIN} automatically
+#     on first startup and renews it 30 days before expiry.
+#   - HTTPS traffic on port 443 is reverse-proxied to fdb-gateway:8080
+#   - Port 80 HTTP traffic is auto-redirected to HTTPS by Caddy.
+#   - fke-server (Kiln) is accessible at kiln.{$FLINT_DOMAIN} on port 8443.
+#     Add a second HTTPS block below if a dedicated subdomain is preferred,
+#     or proxy both through {$FLINT_DOMAIN}/functions/* if a single domain
+#     is required.
+#
+# Local / self-signed (no ACME):
+#   Replace `tls {$CADDY_TLS_EMAIL}` with `tls internal` and Caddy will
+#   generate a locally-trusted certificate.  Useful for staging without a
+#   public domain (requires the Caddy root CA to be trusted on the client).
+
+{$FLINT_DOMAIN} {
+    reverse_proxy fdb-gateway:8080
+
+    tls {$CADDY_TLS_EMAIL}
+
+    # Strip sensitive response headers before forwarding to the client.
+    header {
+        # Remove Caddy's own server identification header.
+        -Server
+    }
+
+    log {
+        output stdout
+        format json
+        level INFO
+    }
+}
+
+# Optional: Kiln functions endpoint on a subdomain.
+# Uncomment and set KILN_DOMAIN in the environment to enable.
+#
+# {$KILN_DOMAIN} {
+#     reverse_proxy fke-server:8090
+#     tls {$CADDY_TLS_EMAIL}
+# }

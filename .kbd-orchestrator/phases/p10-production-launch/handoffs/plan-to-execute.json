@@ -1,0 +1,17 @@
+{
+  "stage": "plan",
+  "phase": "p10-production-launch",
+  "written_at": "2026-07-06",
+  "written_by": "opencode",
+  "summary": "6 changes planned in dependency order. p10-c003 first (wasmtime 26→46 + object_store 0.11→0.14 upgrades clear all CVSS≥7.0 advisories and unblock the cargo audit CI gate). Then TLS (c001), secrets (c002), alerting (c004), k6 regression (c005), release (c006). All P0 changes are Rust-code or compose; no new architectural concepts. OpenSpec proposals and tasks written for all 6.",
+  "artifacts": ["plan.md"],
+  "first_change": "p10-c003-cargo-audit-ci",
+  "execution_order": [
+    "p10-c003-cargo-audit-ci",
+    "p10-c001-tls-termination",
+    "p10-c002-secrets-management",
+    "p10-c004-alerting-rules",
+    "p10-c005-k6-baseline",
+    "p10-c006-changelog-release"
+  ]
+}

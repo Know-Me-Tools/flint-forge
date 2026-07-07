@@ -1,0 +1,48 @@
+{
+  "name": "flint-components",
+  "displayName": "Flint Forge Components",
+  "version": "1.0.0",
+  "description": "Browse and preview Flint A2UI components from your live registry. Query the component catalog, inspect props, and get HTMX previews directly in OpenDesign.",
+  "author": "prometheus-ags",
+  "homepage": "https://github.com/prometheusags/flint-forge",
+  "repository": "https://github.com/prometheusags/flint-forge",
+  "license": "MIT",
+  "main": "index.js",
+  "skills": [
+    {
+      "id": "flint-component-browser",
+      "name": "Component Browser",
+      "description": "Browse and search the Flint component catalog. Lists all 55 base components with props, categories, and descriptions.",
+      "endpoint": "GET /a2ui/v1/components",
+      "inputs": {
+        "category": { "type": "string", "optional": true, "description": "Filter by category: layout, input, action, navigation, feedback, data-display, system" },
+        "app_id":   { "type": "string", "optional": true, "description": "Include app-scoped components for this application UUID" }
+      }
+    },
+    {
+      "id": "flint-surface-preview",
+      "name": "Surface Preview",
+      "description": "Render any Flint component as an HTML preview using the HTMX renderer. Pass a component slug and optional JSON props.",
+      "endpoint": "POST /htmx/components/:slug",
+      "inputs": {
+        "slug":   { "type": "string", "required": true, "description": "Component slug, e.g. 'data-grid', 'form', 'button'" },
+        "props":  { "type": "object", "optional": true, "description": "Component props JSON" }
+      },
+      "outputType": "html"
+    }
+  ],
+  "configuration": {
+    "gatewayUrl": {
+      "type": "string",
+      "label": "Flint Gateway URL",
+      "description": "Base URL of your fdb-gateway instance (e.g. https://api.example.com)",
+      "required": true
+    },
+    "bearerToken": {
+      "type": "secret",
+      "label": "JWT Bearer Token",
+      "description": "Authentication token for the Flint gateway",
+      "required": true
+    }
+  }
+}

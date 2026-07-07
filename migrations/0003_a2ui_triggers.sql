@@ -136,3 +136,29 @@ CREATE TRIGGER a2ui_auto_bind_tables
 
 COMMENT ON TRIGGER a2ui_auto_bind_tables ON flint_meta.cache_tables IS
     'Fires after each INSERT into flint_meta.cache_tables to auto-generate A2UI component bindings.';
+
+-- ── a2ui_embed_notify ───────────────────────────────────────────────────────
+-- Trigger function: notify the fdb-gateway A2UI embedder when a new component
+-- is inserted. The payload is the component id; the Rust listener calls
+-- llm.embed() and writes the vector into flint_a2ui.embeddings.
+
+CREATE OR REPLACE FUNCTION flint_a2ui.embed_notify()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+    PERFORM pg_notify('a2ui_embed', NEW.id::text);
+    RETURN NEW;
+END;
+$$;
+
+COMMENT ON FUNCTION flint_a2ui.embed_notify() IS
+    'Trigger: emits pg_notify on a2ui_embed channel when a component is inserted.';
+
+DROP TRIGGER IF EXISTS a2ui_component_embed_notify ON flint_a2ui.components;
+
+CREATE TRIGGER a2ui_component_embed_notify
+    AFTER INSERT ON flint_a2ui.components
+    FOR EACH ROW
+    EXECUTE FUNCTION flint_a2ui.embed_notify();
+
+COMMENT ON TRIGGER a2ui_component_embed_notify ON flint_a2ui.components IS
+    'Notifies the A2UI embedder background task to generate a vector embedding.';

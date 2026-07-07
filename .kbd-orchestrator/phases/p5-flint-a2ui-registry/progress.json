@@ -1,0 +1,30 @@
+{
+  "phase": "p5-flint-a2ui-registry",
+  "status": "in_progress",
+  "started_at": "2026-07-04",
+  "completed_changes": [
+    "p5-c001-flint-a2ui-schema",
+    "p5-c002-base-components-seed",
+    "p5-c003-auto-binding-trigger",
+    "p5-c004-embeddings-pipeline",
+    "p5-c005-application-model",
+    "p5-c009-compiled-state-upgrade",
+    "p5-c010-react-sdk",
+    "p5-c011-flutter-sdk",
+    "p5-c014-sdk-schema-extensions"
+  ],
+  "in_progress_changes": [],
+  "pending_changes": [
+    "p5-c006-rest-api",
+    "p5-c007-event-driven-assembly",
+    "p5-c008-protocol-surfaces",
+    "p5-c012-htmx-renderer",
+    "p5-c013-opendesign-integration",
+    "p5-c015-claude-design-skill"
+  ],
+  "deferred_to_later_phases": [
+    "p5-c009 Cedar a2ui:emit checks → Phase 7 (fke-server Cedar engine not ready)"
+  ],
+  "test_waits_used": 0,
+  "last_action": "Implemented p5-c005 application model: migration 0006 with resolve_components, role hierarchy, forge-policy a2ui Cedar capabilities, and gate tests. cargo clippy -- -D warnings passes."
+}

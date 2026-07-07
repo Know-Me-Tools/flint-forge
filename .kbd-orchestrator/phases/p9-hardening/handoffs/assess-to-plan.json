@@ -1,0 +1,8 @@
+{
+  "from_stage": "assess",
+  "to_stage": "plan",
+  "phase": "p9-hardening",
+  "created_at": "2026-07-04T00:00:00Z",
+  "summary": "All 7 gaps identified, no hard external blockers for P0. Key gaps: docker-compose.yml missing (uses existing Dockerfiles), runbook missing (pure docs), no rate-limiting middleware (tower-governor dep needed), no Prometheus metrics or OTLP spans, security headers not set (Tower SetResponseHeaderLayer needed), no cargo bench or k6 scripts, no staging compose/deploy. Optimal order: G1+G2+G3 in parallel (P0), then G5+G6-bench in parallel, then G4, then G7.",
+  "artifact": "assessment.md"
+}

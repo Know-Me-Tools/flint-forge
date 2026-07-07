@@ -1,0 +1,8 @@
+{
+  "from_stage": "assess",
+  "to_stage": "plan",
+  "phase": "p8-sdk-completeness",
+  "created_at": "2026-07-04T00:00:00Z",
+  "summary": "All 7 changes ready with no external blockers. Key gaps: React SDK uses semantic names not catalog slugs; Flutter SSE client has no reconnect loop; no .github/workflows or gateway/kiln Dockerfiles; HTMX covers 7 of 55 slugs (split htmx.rs before adding 48 more); exportDesignSyncTokens and ZIP import are small new additions. Optimal order: G3+G5+G6 first (small), then G1+G2 in parallel, then G4 parallelised by category, G7 last.",
+  "artifact": "assessment.md"
+}

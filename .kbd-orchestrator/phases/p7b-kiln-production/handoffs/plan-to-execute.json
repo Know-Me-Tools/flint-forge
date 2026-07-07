@@ -1,0 +1,12 @@
+{
+  "from_stage": "plan",
+  "to_stage": "execute",
+  "phase": "p7b-kiln-production",
+  "created_at": "2026-07-04T00:00:00Z",
+  "summary": "6 OpenSpec changes created. Execute c001 (epoch, trivial) and c003 (BGW identity, trivial) in parallel first; then c002 (Cedar DB, makes c003 meaningful); then c004/c005/c006 in parallel. No external blockers; sigstore 0.14 API audit required before c004.",
+  "artifact": "plan.md",
+  "first_change": "p7b-c001-epoch-interruption",
+  "parallel_session_1": ["p7b-c001-epoch-interruption", "p7b-c003-bgw-publisher-id"],
+  "session_2": "p7b-c002-cedar-db-policies",
+  "parallel_session_3": ["p7b-c004-fulcio-chain", "p7b-c005-did-http-resolution", "p7b-c006-integration-tests"]
+}

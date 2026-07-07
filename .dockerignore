@@ -1,0 +1,30 @@
+# Build artifacts — always large and unnecessary in image context
+target/
+
+# Version control
+.git/
+.gitignore
+
+# Orchestrator state — not needed at build time
+.kbd-orchestrator/
+
+# Node / frontend packages and build output
+node_modules/
+packages/*/node_modules/
+packages/*/dist/
+
+# Logs and local secrets
+*.log
+.env*
+
+# Research / documentation — reduces context size with no functional benefit
+research/
+images/
+docs/
+openspec/
+skills/
+
+# Editor / OS metadata
+.DS_Store
+*.swp
+*.swo

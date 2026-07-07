@@ -1,0 +1,28 @@
+{
+  "phase": "p8-sdk-completeness",
+  "status": "complete",
+  "changes_completed": 7,
+  "changes_total": 7,
+  "assessment_complete": true,
+  "plan_complete": true,
+  "execution_started": true,
+  "created_at": "2026-07-04",
+  "seeded_from": "p7b-kiln-production/reflection.md",
+  "last_updated_by": "opencode",
+  "last_updated_at": "2026-07-04T00:00:00Z",
+  "changes": [
+    { "id": "p8-c001-react-sdk-completeness",  "status": "done", "completed_at": "2026-07-04", "priority": "P0" },
+    { "id": "p8-c002-flutter-sdk-reconnect",    "status": "done", "completed_at": "2026-07-04", "priority": "P0" },
+    { "id": "p8-c003-ci-pipeline",              "status": "done", "completed_at": "2026-07-04", "priority": "P0" },
+    { "id": "p8-c004-htmx-remaining-components","status": "done", "completed_at": "2026-07-04", "priority": "P1" },
+    { "id": "p8-c005-design-token-export",       "status": "done", "completed_at": "2026-07-04", "priority": "P1" },
+    { "id": "p8-c006-opendesign-zip-import",     "status": "done", "completed_at": "2026-07-04", "priority": "P1" },
+    { "id": "p8-c007-claude-skill-gate-tests",   "status": "done", "completed_at": "2026-07-04", "priority": "P2" }
+  ],
+  "goals_file": ".kbd-orchestrator/phases/p8-sdk-completeness/goals.md",
+  "open_questions": [
+    "OQ-P8-1: zip crate version for G6 ZIP extraction",
+    "OQ-P8-2: cargo-component installation in GitHub Actions for G3",
+    "OQ-P8-3: ghcr.io credentials for Docker image publish in G3"
+  ]
+}

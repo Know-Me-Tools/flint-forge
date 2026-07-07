@@ -1,0 +1,43 @@
+# docker-compose.staging.yml — staging overrides for docker-compose.yml
+#
+# Usage (on the staging host):
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+
+services:
+  db:
+    # Always restart the database unless explicitly stopped by an operator.
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  fdb-gateway:
+    # Pull the pre-built image from the container registry instead of
+    # rebuilding locally.  Set REGISTRY and TAG in the CI environment.
+    image: ${REGISTRY:-ghcr.io/prometheusags/flint-forge}/fdb-gateway:${TAG:-latest}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  fke-server:
+    image: ${REGISTRY:-ghcr.io/prometheusags/flint-forge}/fke-server:${TAG:-latest}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M

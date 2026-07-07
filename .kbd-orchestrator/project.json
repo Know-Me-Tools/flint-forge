@@ -1,12 +1,22 @@
 {
   "name": "Flint Forge",
   "description": "Sovereign data and edge-compute plane of the Flint platform: Quarry (REST/GraphQL DB gateway), Anvil (pgrx extensions), and Kiln (WASM edge-function gateway).",
-  "active_phase": "p3.5-ci-postgres-hardening",
-  "last_completed_phase": "p2-quarry-reflection-engine",
+  "active_phase": "p10-production-launch",
+  "last_completed_phase": "p9-hardening",
   "completed_phases": [
     "p0-workspace-foundation",
     "p1-anvil-meta-foundation",
-    "p2-quarry-reflection-engine"
+    "p2-quarry-reflection-engine",
+    "p3-auth-rls-keto",
+    "p3.5-ci-postgres-hardening",
+    "p4-flint-ember",
+    "p5-a2ui-registry",
+    "p7-ag-ui-mcp-tools",
+    "p6-kiln-runtime",
+    "p6b-kiln-hardening",
+    "p7b-kiln-production",
+    "p8-sdk-completeness",
+    "p9-hardening"
   ],
   "focus_project_path": "/Users/gqadonis/Projects/prometheus/flint-forge",
   "spec_paths": [

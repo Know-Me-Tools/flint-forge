@@ -9,6 +9,20 @@ license.workspace = true
 fke-domain = { path = "../fke-domain" }
 fke-ports = { path = "../fke-ports" }
 async-trait = { workspace = true }
+anyhow = { workspace = true }
+ed25519-dalek = { workspace = true }
+sha2 = { workspace = true }
+chrono = { workspace = true }
+base64 = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+rand = "0.8"
+wiremock = { workspace = true }
 
 [lints]
 workspace = true
