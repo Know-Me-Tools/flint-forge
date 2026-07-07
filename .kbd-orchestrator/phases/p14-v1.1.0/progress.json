@@ -1,0 +1,33 @@
+{
+  "phase": "p14-v1.1.0",
+  "status": "assessment_ready",
+  "changes_completed": 0,
+  "changes_total": 5,
+  "assessment_complete": false,
+  "plan_complete": false,
+  "execution_started": false,
+  "created_at": "2026-07-07",
+  "seeded_from": "p13-continuous-operations/reflection.md",
+  "last_updated_by": "opencode",
+  "last_updated_at": "2026-07-07T00:00:00Z",
+  "changes": [
+    { "id": "p14-c001-sqlx-prometheus",   "status": "pending", "priority": "P0" },
+    { "id": "p14-c002-kiln-guest-sdk",     "status": "pending", "priority": "P1" },
+    { "id": "p14-c003-a2ui-hot-reload",    "status": "pending", "priority": "P1" },
+    { "id": "p14-c004-jwt-rotation-automation", "status": "pending", "priority": "P2" },
+    { "id": "p14-c005-kiln-metrics",       "status": "pending", "priority": "P2" }
+  ],
+  "goals_file": ".kbd-orchestrator/phases/p14-v1.1.0/goals.md",
+  "open_questions": [
+    "OQ-P14-1: Does sqlx 0.9 break any workspace API surface vs 0.8?",
+    "OQ-P14-2: Is wasm32-wasip2 target available in the current stable toolchain for flint-skill?"
+  ],
+  "mvp_gate": [
+    "sqlx pool metrics emitted on /metrics",
+    "cargo update succeeds without breaking pgvector",
+    "flint-skill crate compiles for wasm32-wasip2",
+    "A2UI hot-reload triggers re-compile + SSE notification",
+    "cargo test --workspace passes",
+    "cargo clippy --workspace -- -D warnings clean"
+  ]
+}

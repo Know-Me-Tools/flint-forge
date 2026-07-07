@@ -1,9 +1,11 @@
 {
   "phase": "p14-v1.1.0",
   "previousPhase": "p13-continuous-operations",
-  "status": "pending",
-  "updatedAt": "2026-07-06",
-  "next_action": "/kbd-new-phase p14-v1.1.0",
+  "status": "assessment_ready",
+  "updatedAt": "2026-07-07",
+  "next_action": "/kbd-assess p14-v1.1.0",
   "seeded_from": "p13-continuous-operations/reflection.md",
-  "note": "p13 complete. 17 phases done. ROADMAP.md has 6 items. Next: p14-v1.1.0 (sqlx Prometheus, Kiln SDK, A2UI hot-reload, JWT automation, Kiln metrics)."
+  "changes_completed": 0,
+  "changes_total": 5,
+  "note": "p14 initialised. 5 changes: sqlx Prometheus (P0, unblocks cargo update), Kiln SDK (P1), A2UI hot-reload (P1), JWT rotation (P2), Kiln metrics (P2). Next: /kbd-assess."
 }
