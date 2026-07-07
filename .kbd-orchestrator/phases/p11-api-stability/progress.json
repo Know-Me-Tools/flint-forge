@@ -1,0 +1,35 @@
+{
+  "phase": "p11-api-stability",
+  "status": "assessment_ready",
+  "changes_completed": 0,
+  "changes_total": 6,
+  "assessment_complete": false,
+  "plan_complete": false,
+  "execution_started": false,
+  "created_at": "2026-07-06",
+  "seeded_from": "p10-production-launch/reflection.md",
+  "last_updated_by": "opencode",
+  "last_updated_at": "2026-07-06T00:00:00Z",
+  "changes": [
+    { "id": "p11-c001-a2ui-api-freeze",         "status": "pending", "priority": "P0" },
+    { "id": "p11-c002-kiln-abi-freeze",          "status": "pending", "priority": "P0" },
+    { "id": "p11-c003-sdk-v1-alignment",         "status": "pending", "priority": "P0" },
+    { "id": "p11-c004-k6-baselines",             "status": "pending", "priority": "P1" },
+    { "id": "p11-c005-entrypoint-secrets",       "status": "pending", "priority": "P1" },
+    { "id": "p11-c006-staging-token-rotation",   "status": "pending", "priority": "P2" }
+  ],
+  "goals_file": ".kbd-orchestrator/phases/p11-api-stability/goals.md",
+  "open_questions": [
+    "OQ-P11-1: Does cargo component support WIT @since/stability annotations with the current toolchain?",
+    "OQ-P11-2: Short-lived smoke token — fdb-gateway self-issue or external flint-gate required?"
+  ],
+  "mvp_gate": [
+    "#[non_exhaustive] on A2UI public enums; docs/api/a2ui.md written",
+    "docs/api/kiln-abi.md written; WIT interfaces tagged stable",
+    "@flint/react and flint_genui at version 1.0.0",
+    "perf/k6/regression.js thresholds from measured staging values",
+    "Dockerfile entrypoints wire secrets without .env",
+    "cargo test --workspace passes",
+    "cargo clippy --workspace -- -D warnings clean"
+  ]
+}

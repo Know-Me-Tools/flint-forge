@@ -1,9 +1,11 @@
 {
   "phase": "p11-api-stability",
   "previousPhase": "p10-production-launch",
-  "status": "pending",
+  "status": "assessment_ready",
   "updatedAt": "2026-07-06",
-  "next_action": "/kbd-new-phase p11-api-stability",
+  "next_action": "/kbd-assess p11-api-stability",
   "seeded_from": "p10-production-launch/reflection.md",
-  "note": "p10 complete. v0.10.0 released. Next: p11-api-stability — A2UI/Kiln API freeze, SDK v1.0, k6 baselines, entrypoint secrets, STAGING_SMOKE_TOKEN rotation."
+  "changes_completed": 0,
+  "changes_total": 6,
+  "note": "p11 initialised. 6 changes: A2UI API freeze, Kiln ABI freeze, SDK v1.0, k6 baselines, entrypoint secrets, staging token rotation. Next: /kbd-assess."
 }
