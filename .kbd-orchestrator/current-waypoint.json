@@ -1,11 +1,11 @@
 {
   "phase": "p12-v1-release",
   "previousPhase": "p11-api-stability",
-  "status": "execute_ready",
+  "status": "complete",
   "updatedAt": "2026-07-06",
-  "next_action": "/kbd-build p12-c002-v1-tag",
+  "next_action": "/kbd-reflect p12-v1-release",
   "seeded_from": "p11-api-stability/reflection.md",
-  "changes_completed": 0,
+  "changes_completed": 1,
   "changes_total": 2,
-  "note": "Plan complete. c001 deferred. Execute c002 immediately: docker.yml tags + Cargo.toml 1.0.0 + CHANGELOG + tag + release."
+  "note": "p12-c002 done. v1.0.0 tagged and released. c001 deferred (staging). Next: /kbd-reflect."
 }
