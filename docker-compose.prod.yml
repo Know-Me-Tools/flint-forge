@@ -10,11 +10,13 @@
 #   - Production-appropriate log drivers
 #   - Public ports removed from fdb-gateway and fke-server (traffic via Caddy only)
 #   - Docker secrets for jwt_secret, postgres_password, caddy_tls_email
+#   - Shell entrypoints that build DATABASE_URL + FLINT_JWT_SECRET from secret files
 #
 # Prerequisites:
 #   1. Run scripts/rotate_secrets.sh to generate secrets/ files.
 #   2. Set FLINT_DOMAIN and CADDY_TLS_EMAIL in .env (or export them).
-#   3. DATABASE_URL in .env must use the password from secrets/postgres_password.txt
+#   3. The entrypoint scripts will build DATABASE_URL from the postgres_password
+#      secret — no .env file is required on the production host.
 
 # ── Secret file declarations ────────────────────────────────────────────────
 # Secret files are created by scripts/rotate_secrets.sh and are never committed.
@@ -60,12 +62,11 @@ services:
     # Caddy reaches fdb-gateway on the internal Docker network (fdb-gateway:8080).
     ports: !reset []
     # p10-c002: Mount jwt_secret and postgres_password.
-    # FLINT_JWT_SECRET_FILE path is logged at startup so operators know where the secret is.
-    # DATABASE_URL still comes from .env (gitignored); the password there must match
-    # postgres_password.txt — scripts/rotate_secrets.sh keeps them in sync.
+    # p11-c005: DATABASE_URL and FLINT_JWT_SECRET are now set by the entrypoint
+    # script from /run/secrets/postgres_password and /run/secrets/jwt_secret.
+    # No FLINT_JWT_SECRET_FILE annotation needed — the entrypoint handles this.
     environment:
       RUST_LOG: info
-      FLINT_JWT_SECRET_FILE: /run/secrets/jwt_secret
     secrets:
       - jwt_secret
       - postgres_password

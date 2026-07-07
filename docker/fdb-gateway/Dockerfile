@@ -26,6 +26,10 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates libssl3 \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/fdb-gateway /usr/local/bin/fdb-gateway
+# p11-c005: entrypoint reads /run/secrets/postgres_password and /run/secrets/jwt_secret
+# before exec-ing the binary, eliminating the need for .env on production hosts.
+COPY docker/fdb-gateway/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 EXPOSE 8080
 ENV RUST_LOG=info
-ENTRYPOINT ["fdb-gateway"]
+ENTRYPOINT ["/entrypoint.sh"]

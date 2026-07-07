@@ -3,9 +3,9 @@
   "previousPhase": "p10-production-launch",
   "status": "execute_pending",
   "updatedAt": "2026-07-06",
-  "next_action": "/kbd-build p11-c005-entrypoint-secrets",
+  "next_action": "/kbd-build p11-c004-k6-baselines",
   "seeded_from": "p10-production-launch/reflection.md",
-  "changes_completed": 3,
+  "changes_completed": 4,
   "changes_total": 6,
-  "note": "All P0 changes done (c001+c002+c003). 3/6. Next: c005 (entrypoint secrets, P1, no staging needed)."
+  "note": "4/6 done (c001+c002+c003+c005). Remaining: c004 (k6 annotation) and c006 (mint_smoke_token.sh)."
 }

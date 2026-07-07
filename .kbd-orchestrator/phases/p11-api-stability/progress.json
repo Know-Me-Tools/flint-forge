@@ -1,7 +1,7 @@
 {
   "phase": "p11-api-stability",
   "status": "assessment_ready",
-  "changes_completed": 3,
+  "changes_completed": 4,
   "changes_total": 6,
   "assessment_complete": true,
   "plan_complete": true,
@@ -15,7 +15,7 @@
     { "id": "p11-c002-kiln-abi-freeze",          "status": "done", "completed_at": "2026-07-06", "priority": "P0" },
     { "id": "p11-c003-sdk-v1-alignment",         "status": "done", "completed_at": "2026-07-06", "priority": "P0" },
     { "id": "p11-c004-k6-baselines",             "status": "pending", "priority": "P1" },
-    { "id": "p11-c005-entrypoint-secrets",       "status": "pending", "priority": "P1" },
+    { "id": "p11-c005-entrypoint-secrets",       "status": "done", "completed_at": "2026-07-06", "priority": "P1" },
     { "id": "p11-c006-staging-token-rotation",   "status": "pending", "priority": "P2" }
   ],
   "goals_file": ".kbd-orchestrator/phases/p11-api-stability/goals.md",

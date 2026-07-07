@@ -26,6 +26,8 @@ services:
       - path: .env
         required: false   # operators create .env from .env.example; absent in CI/tests
     environment:
+      # Local dev default. In production the entrypoint script overrides this
+      # using /run/secrets/postgres_password (mounted via docker-compose.prod.yml).
       DATABASE_URL: postgres://flint:flint@db:5432/flint
     ports:
       - "8080:8080"
@@ -41,6 +43,8 @@ services:
       - path: .env
         required: false
     environment:
+      # Local dev default. In production the entrypoint script overrides this
+      # using /run/secrets/postgres_password (mounted via docker-compose.prod.yml).
       DATABASE_URL: postgres://flint:flint@db:5432/flint
     ports:
       - "8090:8090"
