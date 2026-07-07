@@ -31,6 +31,21 @@ import { check, group } from 'k6';
 const BASE  = __ENV.BASE_URL || 'http://localhost:8080';
 const TOKEN = __ENV.TOKEN    || '';
 
+// ── Baseline metadata ─────────────────────────────────────────────────────────
+// BASELINE_DATE: date when thresholds were last measured against a live stack.
+// BASELINE_SOURCE: the staging URL used for measurement.
+// Update these after running: BASE_URL=<staging> TOKEN=<jwt> k6 run regression.js
+// See docs/performance.md for the full baseline table and measurement procedure.
+const BASELINE_DATE   = 'TBD — run against live staging to measure';
+const BASELINE_SOURCE = 'TBD — set BASE_URL env var when running';
+
+// Threshold update procedure:
+//   1. Run individual scripts: health.js, components.js, mcp_tools.js against staging
+//   2. Record P50/P95/P99 in docs/performance.md baseline table
+//   3. Set threshold = ceil(measured_p99 * 1.20) rounded to nearest 5 ms
+//   4. Update BASELINE_DATE and BASELINE_SOURCE above
+//   5. Commit: "perf: update k6 regression thresholds from <BASELINE_DATE> staging run"
+
 // ── Test configuration ────────────────────────────────────────────────────────
 export const options = {
   // Ramp up quickly, hold, then ramp down — gives a meaningful steady-state sample.

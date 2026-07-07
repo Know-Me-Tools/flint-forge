@@ -114,6 +114,69 @@ Exit code `0` = all checks passed. Exit code `1` = one or more failures.
 
 ---
 
+## `mint_smoke_token.sh`
+
+Mints a self-signed HS256 JWT for use in smoke tests. Outputs a single JWT
+string to stdout. The token expires 1 hour after minting.
+
+```bash
+# Explicit key
+JWT_SECRET=mysecret ./scripts/mint_smoke_token.sh
+
+# Reads secrets/jwt_secret.txt automatically (after rotate_secrets.sh)
+./scripts/mint_smoke_token.sh
+
+# Capture the token for use in another command
+TOKEN=$(JWT_SECRET=mysecret ./scripts/mint_smoke_token.sh)
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/graphql
+```
+
+**Signing key resolution (first match wins):**
+
+1. `$JWT_SECRET` environment variable
+2. `secrets/jwt_secret.txt` (local dev / staging host)
+3. `/run/secrets/jwt_secret` (inside a container)
+
+**Environment variables:**
+
+| Variable | Required | Description |
+|---|---|---|
+| `JWT_SECRET` | optional | Raw HS256 signing key; overrides file lookup |
+
+**Output format:**
+
+A single newline-terminated string with three base64url-encoded segments
+separated by `.`:
+
+```
+<header>.<payload>.<signature>
+```
+
+The payload contains `sub`, `role`, `exp`, and `iat` claims:
+
+```json
+{
+    "sub": "smoke",
+    "role": "authenticated",
+    "exp": 1700000000,
+    "iat": 1699996400
+}
+```
+
+**Verify the output:**
+
+```bash
+JWT_SECRET=test123 ./scripts/mint_smoke_token.sh | \
+  cut -d. -f2 | \
+  awk '{n=length($0)%4; if(n>0) for(i=n;i<4;i++) printf "="; print}' | \
+  base64 -d 2>/dev/null | python3 -m json.tool
+```
+
+**Dependencies:** `openssl`, `base64`, `tr`, `date` — all standard on
+macOS and Debian/Ubuntu. No external tools required.
+
+---
+
 ## `seed_a2ui_components.sql`
 
 One-time SQL seed script that populates `flint_a2ui.components` with the 55 base A2UI component records. Run this against a fresh database when `USE_SEED=true` is not set at startup, or when you need to reset the component catalogue.

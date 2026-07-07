@@ -724,7 +724,7 @@ Add them under **Settings → Secrets and variables → Actions → Environment 
 | `STAGING_SSH_HOST` | Hostname or IP of the staging server | `staging.example.com` |
 | `STAGING_SSH_USER` | SSH username on the staging server | `deploy` |
 | `STAGING_SSH_KEY` | Contents of the **private** SSH key (`id_ed25519`) whose public key is in the server's `~/.ssh/authorized_keys` | `-----BEGIN OPENSSH PRIVATE KEY-----…` |
-| `STAGING_SMOKE_TOKEN` | A valid JWT bearer token used by `smoke_test.sh` to call authenticated endpoints | *(generate via `/auth/v1/token` or your IdP)* |
+| `STAGING_JWT_SECRET` | The raw HS256 signing key (content of secrets/jwt_secret.txt on the staging host). Used by mint_smoke_token.sh to generate fresh 1-hour JWTs before each smoke test run. | *(run rotate_secrets.sh on staging, then copy secrets/jwt_secret.txt content)* |
 | `STAGING_BASE_URL` | Public HTTPS base URL of the staging stack — used by the k6 performance regression job | `https://forge.example.com` |
 
 > **Security note:** `STAGING_SSH_KEY` must be a **dedicated deploy key** — never reuse a
@@ -939,3 +939,80 @@ BASE_URL=https://forge.example.com SMOKE_TOKEN=<new-jwt> ./scripts/smoke_test.sh
 | `jwt_secret` | `/run/secrets/jwt_secret` | `fdb-gateway` (`FLINT_JWT_SECRET_FILE`) |
 | `postgres_password` | `/run/secrets/postgres_password` | `db` (`POSTGRES_PASSWORD_FILE`) |
 | `caddy_tls_email` | `/run/secrets/caddy_tls_email` | `caddy` |
+
+---
+
+## §11 — Staging Token Rotation (p11-c006)
+
+### 11.1 Overview
+
+`scripts/mint_smoke_token.sh` mints a self-signed HS256 JWT with a **1-hour
+expiry** (`exp = now + 3600`). It replaces the long-lived static
+`STAGING_SMOKE_TOKEN` secret previously stored in GitHub Actions, which had an
+unlimited lifetime and represented a standing credential risk.
+
+The generated token carries:
+
+| Claim | Value |
+|---|---|
+| `sub` | `smoke` |
+| `role` | `authenticated` |
+| `exp` | Unix timestamp — `now + 3600` (1 hour) |
+| `iat` | Unix timestamp — `now` |
+
+### 11.2 Manual use
+
+```bash
+# Use JWT_SECRET from the environment
+JWT_SECRET=<your-key> ./scripts/mint_smoke_token.sh
+
+# Use the secret file (after running rotate_secrets.sh)
+./scripts/mint_smoke_token.sh        # reads secrets/jwt_secret.txt automatically
+
+# Capture for use in another command
+TOKEN=$(JWT_SECRET=<your-key> ./scripts/mint_smoke_token.sh)
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/graphql
+```
+
+Decode the payload without a library:
+
+```bash
+JWT_SECRET=<your-key> ./scripts/mint_smoke_token.sh | \
+  cut -d. -f2 | \
+  awk '{n=length($0)%4; if(n>0) for(i=n;i<4;i++) printf "="; print}' | \
+  base64 -d 2>/dev/null | python3 -m json.tool
+```
+
+### 11.3 Integration with deploy.yml
+
+The `deploy.yml` workflow mints a fresh token immediately before running smoke
+tests. It reads the key from the `STAGING_JWT_SECRET` repository/environment
+secret (see §9.1) and injects the minted token into `$GITHUB_ENV` so that the
+subsequent SSH command can pass it to `smoke_test.sh`.
+
+```yaml
+- name: Mint smoke token
+  run: |
+    chmod +x scripts/mint_smoke_token.sh
+    SMOKE_TOKEN=$(JWT_SECRET="${{ secrets.STAGING_JWT_SECRET }}" \
+      ./scripts/mint_smoke_token.sh)
+    echo "SMOKE_TOKEN=${SMOKE_TOKEN}" >> "$GITHUB_ENV"
+
+- name: Run smoke tests
+  run: |
+    ssh ... "SMOKE_TOKEN='${SMOKE_TOKEN}' ./smoke_test.sh"
+```
+
+### 11.4 Why this is more secure than a static STAGING_SMOKE_TOKEN
+
+| Property | Static `STAGING_SMOKE_TOKEN` | Dynamic `mint_smoke_token.sh` |
+|---|---|---|
+| Token lifetime | Unlimited (or manually rotated) | 1 hour maximum |
+| Blast radius if leaked | Token valid until manually revoked | Token expires within 1 hour |
+| GitHub secret value | Full JWT — usable immediately by anyone who reads it | Raw signing key — requires running the script to produce a usable token |
+| Rotation | Manual: regenerate token + update secret | Key rotation via `rotate_secrets.sh`; all old tokens expire naturally |
+| CI coupling | Tight — secret IS the credential | Loose — secret is a key; the credential is derived per-run |
+
+Tokens expire after 1 hour by design. A leaked CI log or artifact that contains
+the minted `SMOKE_TOKEN` poses only a brief, time-bounded risk compared with a
+static bearer token that remains valid indefinitely.

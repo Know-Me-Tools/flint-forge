@@ -64,3 +64,6 @@ Thumbs.db
 !.kbd-orchestrator/**
 !.prometheus/
 !.prometheus/**
+
+# k6 load-test result files (generated locally; not committed)
+perf/results/*.json

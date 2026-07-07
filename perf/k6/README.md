@@ -52,9 +52,14 @@ It is also available as a manual GitHub Actions job:
 
 | Tag | Threshold | Basis |
 |---|---|---|
-| `endpoint:healthz` | P99 < 60 ms | Aspirational (TBD × 1.20) |
-| `endpoint:components` | P99 < 120 ms | Aspirational (TBD × 1.20) |
-| `endpoint:mcp_tools` | P99 < 120 ms | Aspirational (TBD × 1.20) |
+| `endpoint:healthz` | P99 < 60 ms | Aspirational (TBD) |
+| `endpoint:components` | P99 < 120 ms | Aspirational (TBD) |
+| `endpoint:mcp_tools` | P99 < 120 ms | Aspirational (TBD) |
+
+> **Note:** `BASELINE_DATE` and `BASELINE_SOURCE` in `regression.js` are currently
+> set to `TBD`. Once staging is available, run the individual scripts against the
+> live stack, record P50/P95/P99 in `docs/performance.md`, and update both the
+> thresholds in `regression.js` and the constants above.
 
 ### Updating thresholds after a staging run
 
