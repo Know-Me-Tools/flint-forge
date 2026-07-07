@@ -9,6 +9,7 @@ package flint:host@0.1.0;
 ///     `message`. Neither field ever contains JWT payloads or secret values.
 ///   - `params` is a list of JSON-encoded parameter values (one per `$N`
 ///     placeholder in the SQL). `rows` on success are JSON-encoded row objects.
+@since(version = 0.1.0)
 interface db {
     record host-error {
         code:    string,
@@ -23,6 +24,7 @@ interface db {
 /// credentials at the boundary via Flint Vault.
 ///
 /// `opts` is a JSON-encoded options object (model, temperature, max-tokens, …).
+@since(version = 0.1.0)
 interface llm {
     record host-error {
         code:    string,
@@ -35,6 +37,7 @@ interface llm {
 
 /// Ephemeral per-invocation key-value store. Not durable across invocations.
 /// Use `flint:db` for persistent state.
+@since(version = 0.1.0)
 interface kv {
     get: func(k: string) -> option<list<u8>>;
     set: func(k: string, v: list<u8>);
@@ -43,6 +46,7 @@ interface kv {
 /// Identity context injected by Flint Kiln from the verified origin JWT.
 /// `claims` is a JSON-encoded object of the claim set. Neither function
 /// returns raw signing-key material.
+@since(version = 0.1.0)
 interface identity {
     origin-jwt: func() -> option<string>;
     claims:     func() -> string;
@@ -59,6 +63,7 @@ interface identity {
 /// High-value secrets are brokered at the host boundary (host injects
 /// them into outbound calls; the secret never enters WASM linear memory).
 /// `reveal` is the escape hatch for secrets a component genuinely must read.
+@since(version = 0.1.0)
 interface secrets {
     record host-error {
         code:    string,
@@ -76,6 +81,12 @@ interface secrets {
 /// Components export incoming-handler and import governed host capabilities.
 /// The host Linker adds only the interfaces the component's signed manifest
 /// requests AND Cedar allows for that publisher (default-deny).
+///
+/// ## Stability
+///
+/// All interfaces in this world are **stable** as of `flint:host@0.1.0`.
+/// Breaking changes will increment the package minor version and be announced
+/// in `docs/api/kiln-abi.md`.
 world edge-function {
     export wasi:http/incoming-handler@0.2.12;
     import wasi:http/outgoing-handler@0.2.12;

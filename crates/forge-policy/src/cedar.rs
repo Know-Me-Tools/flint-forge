@@ -43,6 +43,7 @@ pub struct PolicyEntry {
 
 /// Error returned when loading or compiling policies. Never carries policy
 /// body text or principal identifiers (security: no PII in errors).
+#[non_exhaustive]
 #[derive(Debug, thiserror::Error)]
 pub enum PolicyLoadError {
     #[error("policy source unavailable")]

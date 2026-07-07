@@ -8,6 +8,7 @@ pub struct Endpoint {
     pub kind: EndpointKind,
 }
 
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum EndpointKind {
     TableList { table: Table },

@@ -174,6 +174,9 @@ pub async fn stream_events(
             AgUiEvent::Custom { .. } => "Custom",
             AgUiEvent::RunFinished { .. } => "RunFinished",
             AgUiEvent::RunError { .. } => "RunError",
+            // Forward-compatibility guard: new AG-UI event variants added in future
+            // versions of fdb-domain will be serialised with their JSON type tag.
+            _ => "Unknown",
         };
         let data = serde_json::to_string(&event).unwrap_or_else(|_| "{}".into());
         Ok::<_, std::convert::Infallible>(

@@ -12,6 +12,7 @@ pub use kiln::{KilnPep, KILN_INVOKE, KILN_REGISTER, KILN_RESOURCE};
 use async_trait::async_trait;
 use forge_identity::RlsContext;
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Decision {
     Allow,

@@ -102,6 +102,7 @@ fn default_vector_limit() -> u32 {
 ///
 /// These are the standard lifecycle, text, tool-call, and state events
 /// streamed to agent frontends over SSE at `/agents/v1/<run-id>/events`.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[allow(clippy::large_enum_variant)]

@@ -63,6 +63,7 @@ pub struct ComponentOverride {
 }
 
 /// Errors from DESIGN.md parsing.
+#[non_exhaustive]
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
     #[error("missing H1 title")]

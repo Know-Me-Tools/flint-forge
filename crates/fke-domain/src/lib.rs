@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 #[repr(transparent)]
 pub struct ContentId(pub String);
 
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Capability {
     Db,
@@ -26,6 +27,7 @@ pub enum CompilationStrategy {
     Pulley,
 }
 
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TargetArch {
     X86_64Linux,
