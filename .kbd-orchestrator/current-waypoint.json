@@ -1,9 +1,11 @@
 {
   "phase": "p12-v1-release",
   "previousPhase": "p11-api-stability",
-  "status": "pending",
+  "status": "assessment_ready",
   "updatedAt": "2026-07-06",
-  "next_action": "/kbd-new-phase p12-v1-release",
+  "next_action": "/kbd-assess p12-v1-release",
   "seeded_from": "p11-api-stability/reflection.md",
-  "note": "p11 complete. API-stable. Blocked on live staging for k6 baselines. p12 = k6 measure + v1.0.0 tag. 2 changes, 1 session."
+  "changes_completed": 0,
+  "changes_total": 2,
+  "note": "p12 initialised. 2 changes: k6 measure (staging-blocked) + v1.0.0 tag. Narrow phase, 1 session."
 }

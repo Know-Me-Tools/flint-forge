@@ -1,0 +1,30 @@
+{
+  "phase": "p12-v1-release",
+  "status": "assessment_ready",
+  "changes_completed": 0,
+  "changes_total": 2,
+  "assessment_complete": false,
+  "plan_complete": false,
+  "execution_started": false,
+  "created_at": "2026-07-06",
+  "seeded_from": "p11-api-stability/reflection.md",
+  "last_updated_by": "opencode",
+  "last_updated_at": "2026-07-06T00:00:00Z",
+  "changes": [
+    { "id": "p12-c001-k6-measure", "status": "pending", "priority": "P0", "blocker": "requires live staging stack" },
+    { "id": "p12-c002-v1-tag",     "status": "pending", "priority": "P0" }
+  ],
+  "goals_file": ".kbd-orchestrator/phases/p12-v1-release/goals.md",
+  "open_questions": [
+    "OQ-P12-1: Is staging available for k6 measurement? If not, tag v1.0.0 with TBD baselines.",
+    "OQ-P12-2: Should the v1.0.0 release notes include Docker image digests (requires docker.yml workflow to have run successfully for v1.0.0 images)?"
+  ],
+  "mvp_gate": [
+    "regression.js thresholds measured OR documented as TBD",
+    "[workspace.package] version = '1.0.0' in Cargo.toml",
+    "git tag v1.0.0 pushed to origin",
+    "GitHub Release v1.0.0 created",
+    "cargo test --workspace passes",
+    "cargo clippy --workspace -- -D warnings clean"
+  ]
+}
