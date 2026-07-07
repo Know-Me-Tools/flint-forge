@@ -1,11 +1,9 @@
 {
-  "phase": "p10-production-launch",
-  "previousPhase": "p9-hardening",
-  "status": "complete",
+  "phase": "p11-api-stability",
+  "previousPhase": "p10-production-launch",
+  "status": "pending",
   "updatedAt": "2026-07-06",
-  "next_action": "/kbd-reflect p10-production-launch",
-  "seeded_from": "p9-hardening/reflection.md",
-  "changes_completed": 6,
-  "changes_total": 6,
-  "note": "p10 complete. All 6 changes done. Released v0.10.0. Next: /kbd-reflect."
+  "next_action": "/kbd-new-phase p11-api-stability",
+  "seeded_from": "p10-production-launch/reflection.md",
+  "note": "p10 complete. v0.10.0 released. Next: p11-api-stability — A2UI/Kiln API freeze, SDK v1.0, k6 baselines, entrypoint secrets, STAGING_SMOKE_TOKEN rotation."
 }
