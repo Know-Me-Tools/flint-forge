@@ -1,7 +1,7 @@
 {
   "phase": "p14-v1.1.0",
   "status": "assessment_ready",
-  "changes_completed": 0,
+  "changes_completed": 1,
   "changes_total": 5,
   "assessment_complete": true,
   "plan_complete": true,
@@ -11,7 +11,7 @@
   "last_updated_by": "opencode",
   "last_updated_at": "2026-07-07T00:00:00Z",
   "changes": [
-    { "id": "p14-c001-sqlx-prometheus",   "status": "pending", "priority": "P0" },
+    { "id": "p14-c001-sqlx-prometheus",   "status": "done", "completed_at": "2026-07-07", "priority": "P0", "note": "sqlx 0.9 deferred (SqlSafeStr breaks dynamic SQL); pool metrics added on 0.8" },
     { "id": "p14-c002-kiln-guest-sdk",     "status": "pending", "priority": "P1" },
     { "id": "p14-c003-a2ui-hot-reload",    "status": "pending", "priority": "P1" },
     { "id": "p14-c004-jwt-rotation-automation", "status": "pending", "priority": "P2" },

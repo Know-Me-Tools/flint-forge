@@ -40,6 +40,8 @@ zip = { workspace = true }
 tower_governor = { workspace = true }
 tower-http = { workspace = true }
 axum-prometheus = { workspace = true }
+# p14-c001: Direct metrics crate for sqlx pool gauges (not covered by axum-prometheus).
+metrics = "0.24"
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
 opentelemetry-otlp = { workspace = true }

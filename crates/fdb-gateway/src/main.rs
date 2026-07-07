@@ -98,6 +98,10 @@ async fn main() {
         .expect("database migration failed");
     tracing::info!("database migrations applied");
 
+    // p14-c001: Emit sqlx pool gauges so the Grafana DB connections panel and
+    // the HighDbConnections alert rule produce real data.
+    telemetry::spawn_pool_metrics(pool.clone());
+
     // Seed base A2UI component catalog (idempotent — ON CONFLICT DO UPDATE/DO NOTHING).
     // The seed SQL lives at scripts/seed_a2ui_components.sql relative to workspace root.
     let seed_sql = include_str!("../../../scripts/seed_a2ui_components.sql");

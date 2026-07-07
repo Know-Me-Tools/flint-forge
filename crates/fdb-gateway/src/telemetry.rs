@@ -90,3 +90,40 @@ pub fn init_tracing() -> TelemetryGuard {
 pub fn metrics_layer() -> (PrometheusMetricLayer<'static>, PrometheusHandle) {
     PrometheusMetricLayer::pair()
 }
+
+/// Spawn a background loop that emits sqlx pool gauges every 15 seconds.
+///
+/// Polls `pool.size()` and `pool.num_idle()` and exports them as Prometheus
+/// gauges so the Grafana "Active DB Connections" panel and the
+/// `HighDbConnections` alert rule produce real data.
+///
+/// Call once after pool creation in `main()`:
+///   `telemetry::spawn_pool_metrics(pool.clone());`
+pub fn spawn_pool_metrics(pool: sqlx::PgPool) {
+    use std::time::Duration;
+
+    // Register metric descriptions (one-time).
+    metrics::describe_gauge!(
+        "sqlx_pool_connections_open",
+        "Total connections currently held by the pool"
+    );
+    metrics::describe_gauge!(
+        "sqlx_pool_connections_idle",
+        "Idle connections available for immediate use"
+    );
+
+    tokio::spawn(async move {
+        // Offset by 2 s to avoid colliding with the Prometheus scrape tick.
+        let mut interval = tokio::time::interval(Duration::from_secs(15));
+        interval.tick().await; // consume the immediate first tick
+
+        loop {
+            interval.tick().await;
+            let size = pool.size();
+            let idle = pool.num_idle();
+            metrics::gauge!("sqlx_pool_connections_open").set(f64::from(size));
+            let idle: u32 = idle.try_into().unwrap_or(0);
+            metrics::gauge!("sqlx_pool_connections_idle").set(f64::from(idle));
+        }
+    });
+}
