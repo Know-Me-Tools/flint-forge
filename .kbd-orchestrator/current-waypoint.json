@@ -3,7 +3,7 @@
   "previousPhase": "p10-production-launch",
   "status": "assessment_ready",
   "updatedAt": "2026-07-06",
-  "next_action": "/kbd-assess p11-api-stability",
+  "next_action": "/kbd-plan p11-api-stability",
   "seeded_from": "p10-production-launch/reflection.md",
   "changes_completed": 0,
   "changes_total": 6,

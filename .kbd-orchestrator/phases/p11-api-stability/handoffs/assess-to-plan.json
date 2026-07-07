@@ -1,0 +1,24 @@
+{
+  "stage": "assess",
+  "phase": "p11-api-stability",
+  "written_at": "2026-07-06",
+  "written_by": "opencode",
+  "summary": "Two OQs resolved: WIT @since supported by cargo component 0.21.1 (informational, not enforced); self-signed HS256 is the right path for mint_smoke_token.sh. Main findings: 10 public enums missing #[non_exhaustive] (5 A2UI surface, 5 Kiln/policy surface); docs/api/ directory absent; SDKs at 0.1.0; k6 thresholds aspirational (blocked on live staging); Dockerfile entrypoints are bare binaries. Reorder: G5 before G4 (G5 has no external dep). All changes are additive/small with no regression risk.",
+  "artifacts": ["assessment.md"],
+  "key_findings": [
+    "10 enums missing #[non_exhaustive]: AgUiEvent, ParseError, ReflectionError, EndpointKind, AssemblerError, Capability, CompilationStrategy, TargetArch, Decision, PolicyLoadError",
+    "docs/api/ directory does not exist — needs a2ui.md and kiln-abi.md",
+    "@flint/react and flint_genui both at 0.1.0 — bump to 1.0.0",
+    "k6 thresholds aspirational — blocked on live staging stack",
+    "Dockerfile ENTRYPOINT is bare binary — entrypoint.sh needed",
+    "Self-signed HS256 is sufficient for mint_smoke_token.sh"
+  ],
+  "recommended_plan_order": [
+    "p11-c001-a2ui-api-freeze",
+    "p11-c002-kiln-abi-freeze",
+    "p11-c003-sdk-v1-alignment",
+    "p11-c005-entrypoint-secrets",
+    "p11-c004-k6-baselines",
+    "p11-c006-staging-token-rotation"
+  ]
+}
