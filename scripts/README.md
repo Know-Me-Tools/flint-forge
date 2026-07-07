@@ -4,6 +4,31 @@ Shell scripts for development, CI, and deployment operations.
 
 ---
 
+## `check_api_versions.sh`
+
+Verifies that the API version integers embedded in `docs/api/a2ui.md` and
+`docs/api/kiln-abi.md` match the corresponding variables in `.env.example`.
+Run automatically on every push via `.github/workflows/ci.yml`.
+
+```bash
+./scripts/check_api_versions.sh
+```
+
+**What it checks:**
+
+| Doc | Line pattern | `.env.example` variable |
+|---|---|---|
+| `docs/api/a2ui.md` | `**Current version:** \`N\`` | `FLINT_A2UI_API_VERSION=N` |
+| `docs/api/kiln-abi.md` | `**Current ABI version:** \`N\`` | `FLINT_KILN_ABI_VERSION=N` |
+
+**When it fails:** The build fails if any pair is out of sync. The error output
+shows exactly which files to update and links to `docs/api/versioning.md`.
+
+**How to bump an API version:** Update both the doc line and the `.env.example`
+variable in the same commit, then follow the policy in `docs/api/versioning.md`.
+
+---
+
 ## `rotate_secrets.sh`
 
 Generates Docker secret files for the production stack and keeps `.env` in sync.

@@ -27,6 +27,13 @@ jobs:
       # (PostgreSQL-only codebase), two unmaintained indirect deps.
       - name: Security audit
         run: cargo audit
+      # p13-c004: API version consistency gate.
+      # Verifies the version integer in docs/api/a2ui.md and docs/api/kiln-abi.md
+      # matches FLINT_A2UI_API_VERSION and FLINT_KILN_ABI_VERSION in .env.example.
+      # Breaking API changes must update BOTH in the same commit.
+      # See docs/api/versioning.md for the full policy.
+      - name: API version check
+        run: bash scripts/check_api_versions.sh
       - name: Install cargo-component
         run: cargo install cargo-component --locked
       - name: Build hello-component

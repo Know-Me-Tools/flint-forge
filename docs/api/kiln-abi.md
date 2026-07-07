@@ -1,10 +1,10 @@
 # Kiln ABI Reference — `flint:host@0.1.0`
 
+**Current ABI version:** `1` (`FLINT_KILN_ABI_VERSION=1`)
+
 This document is the canonical reference for skill-component authors targeting
 the Flint Kiln edge runtime. It covers the stable world interface, capability
 contracts, security model, resource limits, and versioning policy.
-
-`FLINT_KILN_ABI_VERSION=1`
 
 ---
 

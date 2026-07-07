@@ -5,7 +5,7 @@
   "updatedAt": "2026-07-06",
   "next_action": "event-driven — see goals.md triggers",
   "seeded_from": "p12-v1-release/reflection.md",
-  "changes_completed": 0,
+  "changes_completed": 1,
   "changes_total": 5,
-  "note": "v1.0.0 shipped. Steady-state ops phase. No fixed end date. Next active work: p13-c001 (k6 baselines, staging-triggered), p13-c002 (monthly deps), p13-c004 (API versioning gate, proactive)."
+  "note": "p13-c004 done (API versioning gate). Remaining: c001 (staging-triggered), c002 (monthly), c003 (30d), c005 (organic)."
 }
