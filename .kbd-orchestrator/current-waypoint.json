@@ -1,9 +1,11 @@
 {
   "phase": "p13-continuous-operations",
   "previousPhase": "p12-v1-release",
-  "status": "pending",
+  "status": "active",
   "updatedAt": "2026-07-06",
-  "next_action": "/kbd-new-phase p13-continuous-operations",
+  "next_action": "event-driven — see goals.md triggers",
   "seeded_from": "p12-v1-release/reflection.md",
-  "note": "v1.0.0 released. Project in post-release steady state. p13 = ops loop: k6 baselines, dependency maintenance, monitoring tuning, API versioning gate, v1.1.0 planning."
+  "changes_completed": 0,
+  "changes_total": 5,
+  "note": "v1.0.0 shipped. Steady-state ops phase. No fixed end date. Next active work: p13-c001 (k6 baselines, staging-triggered), p13-c002 (monthly deps), p13-c004 (API versioning gate, proactive)."
 }
