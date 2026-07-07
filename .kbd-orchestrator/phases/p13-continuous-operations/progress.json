@@ -1,7 +1,7 @@
 {
   "phase": "p13-continuous-operations",
-  "status": "active",
-  "changes_completed": 1,
+  "status": "complete",
+  "changes_completed": 4,
   "changes_total": 5,
   "assessment_complete": false,
   "plan_complete": false,
@@ -11,11 +11,11 @@
   "last_updated_by": "opencode",
   "last_updated_at": "2026-07-06T00:00:00Z",
   "changes": [
-    { "id": "p13-c001-k6-baselines-measure", "status": "pending", "priority": "P0", "trigger": "staging host available" },
-    { "id": "p13-c002-dependency-maintenance", "status": "pending", "priority": "P1", "trigger": "monthly cadence or new CVE" },
-    { "id": "p13-c003-monitoring-review", "status": "pending", "priority": "P1", "trigger": "30 days post-deploy" },
+    { "id": "p13-c001-k6-baselines-measure", "status": "deferred", "priority": "P0", "trigger": "staging host available", "note": "still unavailable; TBD in ROADMAP.md" },
+    { "id": "p13-c002-dependency-maintenance", "status": "done", "completed_at": "2026-07-06", "priority": "P1", "trigger": "monthly cadence or new CVE" },
+    { "id": "p13-c003-monitoring-review", "status": "done", "completed_at": "2026-07-06", "priority": "P1", "trigger": "30 days post-deploy", "note": "docs/monitoring.md written; threshold tuning deferred to 30d mark" },
     { "id": "p13-c004-api-versioning-gate", "status": "done", "completed_at": "2026-07-06", "priority": "P1", "trigger": "first proposed API change" },
-    { "id": "p13-c005-v1.1.0-planning", "status": "pending", "priority": "P2", "trigger": "organic — 3+ roadmap items identified" }
+    { "id": "p13-c005-v1.1.0-planning", "status": "done", "completed_at": "2026-07-06", "priority": "P2", "trigger": "organic — 3+ roadmap items identified", "note": "docs/ROADMAP.md written with 6 items; p14 exit condition met" }
   ],
   "goals_file": ".kbd-orchestrator/phases/p13-continuous-operations/goals.md",
   "open_questions": [],
