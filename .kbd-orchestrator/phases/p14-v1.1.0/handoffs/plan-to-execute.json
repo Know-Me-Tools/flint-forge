@@ -1,0 +1,16 @@
+{
+  "stage": "plan",
+  "phase": "p14-v1.1.0",
+  "written_at": "2026-07-07",
+  "written_by": "opencode",
+  "summary": "5 changes planned. c001 first (sqlx 0.9 + pool metrics, P0). c002+c003 parallel (Kiln SDK + A2UI hot-reload, P1, independent crate trees). c004+c005 last (JWT rotation shell script + Kiln metrics, P2). c001 risk: sqlx API surface 0.8→0.9 — likely no breaks but pgvector Encode/Type must unify.",
+  "artifacts": ["plan.md"],
+  "first_change": "p14-c001-sqlx-prometheus",
+  "execution_order": [
+    "p14-c001-sqlx-prometheus",
+    "p14-c002-kiln-guest-sdk (parallel with c003)",
+    "p14-c003-a2ui-hot-reload (parallel with c002)",
+    "p14-c005-kiln-metrics",
+    "p14-c004-jwt-rotation-automation"
+  ]
+}
