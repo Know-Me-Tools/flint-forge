@@ -1,0 +1,14 @@
+{
+  "stage": "reflect",
+  "phase": "p11-api-stability",
+  "written_at": "2026-07-06",
+  "written_by": "opencode",
+  "summary": "p11 complete. 6/6 goals delivered (G4 partial — k6 values TBD, staging blocked). API surfaces documented and stable: 7 enums #[non_exhaustive], 5 WIT @since annotations, docs/api/{a2ui,kiln-abi}.md, SDKs at 1.0.0, Dockerfile entrypoints, mint_smoke_token.sh. Zero regressions. Recommended next: p12-v1-release (k6 measure + v1.0.0 tag). Unblocked once staging stack is live.",
+  "artifacts": ["reflection.md"],
+  "next_phase_hint": "p12-v1-release",
+  "open_debt": [
+    "k6 baseline values TBD — run regression.js against live staging",
+    "perf/results/ is empty — populated on first k6 --out json run",
+    "Grafana DB connections panel needs sqlx Prometheus integration — deferred"
+  ]
+}
