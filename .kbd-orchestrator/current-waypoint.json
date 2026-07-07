@@ -3,9 +3,9 @@
   "previousPhase": "p10-production-launch",
   "status": "execute_pending",
   "updatedAt": "2026-07-06",
-  "next_action": "/kbd-build p11-c003-sdk-v1-alignment",
+  "next_action": "/kbd-build p11-c005-entrypoint-secrets",
   "seeded_from": "p10-production-launch/reflection.md",
-  "changes_completed": 2,
+  "changes_completed": 3,
   "changes_total": 6,
-  "note": "c001+c002 done in parallel. 2/6. Next: c003 (SDK 1.0.0 + MIGRATION.md)."
+  "note": "All P0 changes done (c001+c002+c003). 3/6. Next: c005 (entrypoint secrets, P1, no staging needed)."
 }

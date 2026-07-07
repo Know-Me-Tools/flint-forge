@@ -1,6 +1,6 @@
 name: flint_genui
 description: Flint A2UI component catalog for Flutter, extending flutter/genui without Gemini/Firebase lock-in
-version: 0.1.0
+version: 1.0.0
 homepage: https://github.com/prometheus-ags/flint-forge
 
 environment:
