@@ -3,7 +3,7 @@
   "status": "assessment_ready",
   "changes_completed": 0,
   "changes_total": 2,
-  "assessment_complete": false,
+  "assessment_complete": true,
   "plan_complete": false,
   "execution_started": false,
   "created_at": "2026-07-06",
@@ -11,7 +11,7 @@
   "last_updated_by": "opencode",
   "last_updated_at": "2026-07-06T00:00:00Z",
   "changes": [
-    { "id": "p12-c001-k6-measure", "status": "pending", "priority": "P0", "blocker": "requires live staging stack" },
+    { "id": "p12-c001-k6-measure", "status": "deferred", "priority": "P0", "blocker": "requires live staging stack; waived per goals.md fallback" },
     { "id": "p12-c002-v1-tag",     "status": "pending", "priority": "P0" }
   ],
   "goals_file": ".kbd-orchestrator/phases/p12-v1-release/goals.md",

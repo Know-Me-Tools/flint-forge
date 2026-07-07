@@ -1,0 +1,18 @@
+{
+  "stage": "assess",
+  "phase": "p12-v1-release",
+  "written_at": "2026-07-06",
+  "written_by": "opencode",
+  "summary": "p12-c001 waived (staging unavailable; goals.md fallback applies). p12-c002 is the only remaining change. Additional finding: docker.yml does not trigger on version tags — add tags: ['v[0-9]*'] as part of c002 so ghcr.io images are published automatically. c002 scope: docker.yml fix + Cargo.toml bump + CHANGELOG + tag + push + GitHub Release. Both OQs resolved.",
+  "artifacts": ["assessment.md"],
+  "key_findings": [
+    "p12-c001 waived — staging not available; TBD thresholds documented in release notes",
+    "docker.yml triggers only on branches — needs tags trigger for versioned images",
+    "Cargo.toml still at 0.10.0 — single-line bump to 1.0.0",
+    "git cliff preview clean — 4 user-facing feature/fix commits since v0.10.0"
+  ],
+  "recommended_plan_order": [
+    "p12-c001: DEFERRED (staging blocked)",
+    "p12-c002: v1.0.0 tag (expanded to include docker.yml tags trigger)"
+  ]
+}

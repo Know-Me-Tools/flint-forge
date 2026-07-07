@@ -1,11 +1,11 @@
 {
   "phase": "p12-v1-release",
   "previousPhase": "p11-api-stability",
-  "status": "assessment_ready",
+  "status": "assess_complete",
   "updatedAt": "2026-07-06",
-  "next_action": "/kbd-assess p12-v1-release",
+  "next_action": "/kbd-plan p12-v1-release",
   "seeded_from": "p11-api-stability/reflection.md",
   "changes_completed": 0,
   "changes_total": 2,
-  "note": "p12 initialised. 2 changes: k6 measure (staging-blocked) + v1.0.0 tag. Narrow phase, 1 session."
+  "note": "p12-c001 deferred (staging unavailable). p12-c002 is the only remaining change — docker.yml tags trigger + Cargo.toml bump + CHANGELOG + tag + release."
 }
