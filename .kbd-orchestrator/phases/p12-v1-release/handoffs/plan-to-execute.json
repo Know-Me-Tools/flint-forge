@@ -1,0 +1,10 @@
+{
+  "stage": "plan",
+  "phase": "p12-v1-release",
+  "written_at": "2026-07-06",
+  "written_by": "opencode",
+  "summary": "1 actionable change: p12-c002-v1-tag (docker.yml tags trigger + Cargo.toml 1.0.0 + CHANGELOG + tag + GitHub Release). p12-c001 deferred — staging unavailable. Execute c002 immediately.",
+  "artifacts": ["plan.md"],
+  "first_change": "p12-c002-v1-tag",
+  "execution_order": ["p12-c002-v1-tag"]
+}
