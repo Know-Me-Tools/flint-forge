@@ -247,6 +247,44 @@ pub async fn search_components(
     search_components_value(&state.pool, &who, &body).await
 }
 
+/// Full-text fallback for component search when embeddings are unavailable.
+async fn full_text_search(
+    pool: &sqlx::PgPool,
+    _who: &RlsContext,
+    body: &SearchComponentsBody,
+    claims: &Value,
+) -> Result<Vec<SearchResultRow>, (StatusCode, Json<Value>)> {
+    sqlx::query_as(
+        "SELECT c.id, c.slug, c.category, c.primitive_type,
+                ts_rank(
+                    to_tsvector('english', COALESCE(c.description, '') || ' ' || c.slug),
+                    plainto_tsquery('english', $1)
+                ) AS score
+         FROM flint_a2ui.components c
+         WHERE (
+             c.is_base = true
+             OR c.application_id IS NULL
+             OR c.application_id = $3
+             OR c.application_id IN (
+                 SELECT DISTINCT ra.application_id
+                 FROM flint_a2ui.role_assignments ra
+                 WHERE ra.user_id = ($4->'flint'->>'user_id')::text
+             )
+         )
+         AND to_tsvector('english', COALESCE(c.description, '') || ' ' || c.slug)
+             @@ plainto_tsquery('english', $1)
+         ORDER BY score DESC
+         LIMIT $2",
+    )
+    .bind(&body.query)
+    .bind(body.limit)
+    .bind(body.app_id)
+    .bind(claims)
+    .fetch_all(pool)
+    .await
+    .map_err(internal_error)
+}
+
 /// Inner logic shared with the MCP tool.
 pub async fn search_components_value(
     pool: &sqlx::PgPool,
@@ -278,39 +316,17 @@ pub async fn search_components_value(
     .fetch_all(pool)
     .await;
 
+    // Fall back to full-text search when hybrid is unavailable or returns no
+    // results (e.g., the embeddings table is not yet populated).
     let results = match hybrid_results {
-        Ok(rows) => rows,
+        Ok(rows) if !rows.is_empty() => rows,
+        Ok(_) => {
+            tracing::debug!("hybrid search returned no results; falling back to full-text search");
+            full_text_search(pool, who, body, &claims).await?
+        }
         Err(e) => {
             tracing::warn!(error = %e, "hybrid search failed; falling back to full-text search");
-            sqlx::query_as(
-                "SELECT c.id, c.slug, c.category, c.primitive_type,
-                        ts_rank(
-                            to_tsvector('english', COALESCE(c.description, '') || ' ' || c.slug),
-                            plainto_tsquery('english', $1)
-                        ) AS score
-                 FROM flint_a2ui.components c
-                 WHERE (
-                     c.is_base = true
-                     OR c.application_id IS NULL
-                     OR c.application_id = $3
-                     OR c.application_id IN (
-                         SELECT DISTINCT ra.application_id
-                         FROM flint_a2ui.role_assignments ra
-                         WHERE ra.user_id = ($4->'flint'->>'user_id')::text
-                     )
-                 )
-                 AND to_tsvector('english', COALESCE(c.description, '') || ' ' || c.slug)
-                     @@ plainto_tsquery('english', $1)
-                 ORDER BY score DESC
-                 LIMIT $2",
-            )
-            .bind(&body.query)
-            .bind(body.limit)
-            .bind(body.app_id)
-            .bind(claims)
-            .fetch_all(pool)
-            .await
-            .map_err(internal_error)?
+            full_text_search(pool, who, body, &claims).await?
         }
     };
 

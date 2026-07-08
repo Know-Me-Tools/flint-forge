@@ -18,8 +18,12 @@ echo "==> verify migrations"
 
 echo "==> unit tests (no DB)"
 # --lib/--bins across the workspace: pure logic; DATABASE_URL-gated integration
-# tests live in tests/ and are handled in the db stage below.
+# tests live in tests/ and are handled in the db stage below. Explicitly unset
+# DATABASE_URL so any src/ DB-gated tests skip until migrations + seed are applied.
+DB_URL_BACKUP="${DATABASE_URL:-}"
+unset DATABASE_URL
 cargo test --workspace --lib --bins
+export DATABASE_URL="${DB_URL_BACKUP}"
 
 if command -v docker >/dev/null 2>&1; then
   echo "==> build forge-cli container image"
