@@ -25,14 +25,27 @@ FAIL=0
 extract_version() {
     local file="$1"
     local pattern="$2"
-    grep "$pattern" "$file" | grep -oE '\`[0-9]+\`' | head -1 | tr -d '`'
+    local line
+    line=$(grep -F "${pattern}" "${file}" | head -1 || true)
+    if [ -z "${line}" ]; then
+        echo ""
+        return
+    fi
+    # Extract the first backtick-quoted integer.
+    echo "${line}" | grep -oE '[0-9]+' | head -1 || true
 }
 
 # Extract a variable value from .env.example.
 # Usage: extract_env_var <varname>
 extract_env_var() {
     local var="$1"
-    grep "^${var}=" "${ROOT}/.env.example" | head -1 | cut -d'=' -f2 | tr -d ' \r'
+    local line
+    line=$(grep "^${var}=" "${ROOT}/.env.example" | head -1 || true)
+    if [ -z "${line}" ]; then
+        echo ""
+        return
+    fi
+    echo "${line}" | cut -d'=' -f2- | tr -d ' \\r' | head -1
 }
 
 check() {

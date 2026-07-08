@@ -43,6 +43,14 @@ else
   done
 fi
 
+# p15-c004: Seed the base A2UI component catalog so DATABASE_URL-gated tests
+# (component list/get/search, A2A discovery, MCP tools) have stable fixtures.
+# The seed script is idempotent (ON CONFLICT DO UPDATE).
+if [ -f "scripts/seed_a2ui_components.sql" ]; then
+  echo "==> seeding base A2UI components"
+  psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -f scripts/seed_a2ui_components.sql
+fi
+
 echo "==> db-integration tests (DATABASE_URL-gated)"
 # DB-gated tests in src/ and tests/ skip gracefully when DATABASE_URL is unset.
 # #[ignore]d live-Postgres tests are run explicitly below.

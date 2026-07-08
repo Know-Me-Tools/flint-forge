@@ -267,11 +267,11 @@ async fn main() {
             post(routes::a2ui::search_components),
         )
         .route(
-            "/a2ui/v1/components/bindings/:schema/:table",
+            "/a2ui/v1/components/bindings/{schema}/{table}",
             get(routes::a2ui::get_bindings),
         )
         .route(
-            "/a2ui/v1/components/:slug",
+            "/a2ui/v1/components/{slug}",
             get(routes::a2ui::get_component),
         )
         .route(
@@ -279,11 +279,11 @@ async fn main() {
             get(routes::a2ui::list_applications),
         )
         .route(
-            "/a2ui/v1/applications/:id",
+            "/a2ui/v1/applications/{id}",
             get(routes::a2ui::get_application),
         )
         .route(
-            "/a2ui/v1/catalog/:catalog_id",
+            "/a2ui/v1/catalog/{catalog_id}",
             get(routes::a2ui::get_catalog),
         )
         .route(
@@ -295,7 +295,7 @@ async fn main() {
             post(routes::design_import::import_design_system),
         )
         .route(
-            "/a2ui/v1/design-systems/:id/tokens",
+            "/a2ui/v1/design-systems/{id}/tokens",
             get(routes::a2ui::get_design_system_tokens),
         )
         .layer(axum::middleware::from_fn(rls_layer::require_rls))

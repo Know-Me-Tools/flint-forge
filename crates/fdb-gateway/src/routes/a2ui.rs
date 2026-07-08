@@ -7,12 +7,12 @@
 //! # Endpoints
 //!
 //! - `GET    /a2ui/v1/components`
-//! - `GET    /a2ui/v1/components/:slug`
+//! - `GET    /a2ui/v1/components/{slug}`
 //! - `POST   /a2ui/v1/components/search`
-//! - `GET    /a2ui/v1/components/bindings/:schema/:table`
+//! - `GET    /a2ui/v1/components/bindings/{schema}/{table}`
 //! - `GET    /a2ui/v1/applications`
-//! - `GET    /a2ui/v1/applications/:id`
-//! - `GET    /a2ui/v1/catalog/:catalog_id`
+//! - `GET    /a2ui/v1/applications/{id}`
+//! - `GET    /a2ui/v1/catalog/{catalog_id}`
 //! - `POST   /a2ui/v1/surfaces/assemble`
 #![forbid(unsafe_code)]
 
@@ -184,7 +184,7 @@ pub async fn list_components_value(
     Ok(Json(json!({ "components": components })))
 }
 
-/// `GET /a2ui/v1/components/:slug`
+/// `GET /a2ui/v1/components/{slug}`
 ///
 /// Returns a single component by slug. The caller must be able to see it
 /// through `resolve_components` (base components or app-scoped + role).
@@ -317,7 +317,7 @@ pub async fn search_components_value(
     Ok(Json(json!({ "results": results })))
 }
 
-/// `GET /a2ui/v1/components/bindings/:schema/:table`
+/// `GET /a2ui/v1/components/bindings/{schema}/{table}`
 ///
 /// Returns auto-generated (and any manual) bindings for a table.
 pub async fn get_bindings(
@@ -371,7 +371,7 @@ pub async fn list_applications(
     Ok::<_, (StatusCode, Json<Value>)>(Json(json!({ "applications": apps })))
 }
 
-/// `GET /a2ui/v1/applications/:id`
+/// `GET /a2ui/v1/applications/{id}`
 ///
 /// Returns a single application.
 pub async fn get_application(
@@ -398,7 +398,7 @@ pub async fn get_application(
 
 // ─── Design Systems ─────────────────────────────────────────────────────────
 
-/// `GET /a2ui/v1/design-systems/:id/tokens`
+/// `GET /a2ui/v1/design-systems/{id}/tokens`
 ///
 /// Returns the design system's tokens in W3C Design Token format.
 /// The tokens are stored as jsonb in `flint_a2ui.design_systems.tokens`.
@@ -424,7 +424,7 @@ pub async fn get_design_system_tokens(
 
 // ─── Catalog ────────────────────────────────────────────────────────────────
 
-/// `GET /a2ui/v1/catalog/:catalog_id`
+/// `GET /a2ui/v1/catalog/{catalog_id}`
 ///
 /// Serves the A2UI catalog as a JSON Schema compatible with A2UI v0.9.1 and
 /// CopilotKit's `<CopilotKit a2ui={{ catalog }}>` prop.
@@ -617,16 +617,16 @@ mod tests {
             .route("/a2ui/v1/components", get(list_components))
             .route("/a2ui/v1/components/search", post(search_components))
             .route(
-                "/a2ui/v1/components/bindings/:schema/:table",
+                "/a2ui/v1/components/bindings/{schema}/{table}",
                 get(get_bindings),
             )
-            .route("/a2ui/v1/components/:slug", get(get_component))
+            .route("/a2ui/v1/components/{slug}", get(get_component))
             .route("/a2ui/v1/applications", get(list_applications))
-            .route("/a2ui/v1/applications/:id", get(get_application))
-            .route("/a2ui/v1/catalog/:catalog_id", get(get_catalog))
+            .route("/a2ui/v1/applications/{id}", get(get_application))
+            .route("/a2ui/v1/catalog/{catalog_id}", get(get_catalog))
             .route("/a2ui/v1/surfaces/assemble", post(assemble_surface))
             .route(
-                "/a2ui/v1/design-systems/:id/tokens",
+                "/a2ui/v1/design-systems/{id}/tokens",
                 get(get_design_system_tokens),
             )
             .layer(Extension(fake_rls_context(user_id)))
