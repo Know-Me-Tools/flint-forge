@@ -43,11 +43,11 @@ fn wt<T>(r: wasmtime::Result<T>) -> core::result::Result<T, anyhow::Error> {
 use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::{Config, Engine, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
-use wasmtime_wasi_http::WasiHttpCtx;
+use wasmtime_wasi_http::p2::bindings::http::types::Scheme;
+use wasmtime_wasi_http::p2::bindings::ProxyPre;
 use wasmtime_wasi_http::p2::WasiHttpCtxView;
 use wasmtime_wasi_http::p2::WasiHttpView;
-use wasmtime_wasi_http::p2::bindings::ProxyPre;
-use wasmtime_wasi_http::p2::bindings::http::types::Scheme;
+use wasmtime_wasi_http::WasiHttpCtx;
 
 use fke_domain::{Capability, ContentId};
 
@@ -60,7 +60,7 @@ struct KilnHostState {
     wasi_ctx: WasiCtx,
     table: ResourceTable,
     http_ctx: WasiHttpCtx,
-    http_hooks: [(); 0],   // zero-size default WasiHttpHooks impl
+    http_hooks: [(); 0], // zero-size default WasiHttpHooks impl
     #[allow(dead_code)]
     granted: Vec<Capability>,
 }
@@ -122,8 +122,7 @@ impl EdgeRuntime {
         let epoch_ticker = if interval_ms > 0 {
             let engine_clone = engine.clone();
             Some(tokio::task::spawn(async move {
-                let mut interval =
-                    tokio::time::interval(Duration::from_millis(interval_ms));
+                let mut interval = tokio::time::interval(Duration::from_millis(interval_ms));
                 loop {
                     interval.tick().await;
                     engine_clone.increment_epoch();
@@ -157,12 +156,11 @@ impl EdgeRuntime {
 
     /// Load a WASM component from raw bytes and cache it under `id`.
     pub fn load_wasm(&self, id: ContentId, wasm: &[u8]) -> Result<()> {
-        let component = wt(Component::from_binary(&self.engine, wasm))
-            .context("Component::from_binary")?;
+        let component =
+            wt(Component::from_binary(&self.engine, wasm)).context("Component::from_binary")?;
         let linker = build_linker(&self.engine)?;
-        let instance_pre = wt(linker
-            .instantiate_pre(&component))
-            .context("Linker::instantiate_pre")?;
+        let instance_pre =
+            wt(linker.instantiate_pre(&component)).context("Linker::instantiate_pre")?;
         let pre = wt(ProxyPre::new(instance_pre)).context("ProxyPre::new")?;
         self.cache
             .lock()
@@ -246,21 +244,12 @@ impl EdgeRuntime {
         let incoming = wt(store
             .data_mut()
             .http()
-            .new_incoming_request(
-                Scheme::Http,
-                hyper_req,
-            ))
-            .context("new_incoming_request")?;
-        let out = wt(store
-            .data_mut()
-            .http()
-            .new_response_outparam(sender))
+            .new_incoming_request(Scheme::Http, hyper_req))
+        .context("new_incoming_request")?;
+        let out = wt(store.data_mut().http().new_response_outparam(sender))
             .context("new_response_outparam")?;
 
-        let proxy = wt(cached
-            .pre
-            .instantiate_async(&mut store)
-            .await)
+        let proxy = wt(cached.pre.instantiate_async(&mut store).await)
             .context("ProxyPre::instantiate_async")?;
 
         // Run the handler in a separate task so long-running components don't
@@ -283,10 +272,7 @@ impl EdgeRuntime {
         let fuel_consumed = initial_fuel.saturating_sub(final_fuel);
         metrics::counter!("kiln_fuel_consumed_total").increment(fuel_consumed);
 
-        let epoch_trap = handler_result
-            .as_ref()
-            .err()
-            .is_some_and(is_epoch_trap);
+        let epoch_trap = handler_result.as_ref().err().is_some_and(is_epoch_trap);
         if epoch_trap {
             metrics::counter!("kiln_epoch_traps_total").increment(1);
         }
@@ -417,10 +403,11 @@ fn kiln_request_to_hyper(
 /// Build a linker with WASI + WASI-HTTP host functions.
 fn build_linker(engine: &Engine) -> Result<Linker<KilnHostState>> {
     let mut linker = Linker::<KilnHostState>::new(engine);
-    wt(wasmtime_wasi::p2::add_to_linker_async(&mut linker))
-        .context("add wasi to linker")?;
-    wt(wasmtime_wasi_http::p2::add_only_http_to_linker_async(&mut linker))
-        .context("add wasi-http to linker")?;
+    wt(wasmtime_wasi::p2::add_to_linker_async(&mut linker)).context("add wasi to linker")?;
+    wt(wasmtime_wasi_http::p2::add_only_http_to_linker_async(
+        &mut linker,
+    ))
+    .context("add wasi-http to linker")?;
     Ok(linker)
 }
 
@@ -502,7 +489,10 @@ mod tests {
     async fn no_pep_skips_cedar_check() {
         let rt = EdgeRuntime::new().expect("construct");
         let id = ContentId("sha256:notloaded".into());
-        let err = rt.handle(&id, &[], None, dummy_request()).await.unwrap_err();
+        let err = rt
+            .handle(&id, &[], None, dummy_request())
+            .await
+            .unwrap_err();
         assert!(
             err.to_string().contains("not loaded"),
             "expected 'not loaded' error, got: {err}"
@@ -532,7 +522,10 @@ mod tests {
             .expect("construct")
             .with_pep(Arc::new(DenyAll));
         let id = ContentId("sha256:notloaded".into());
-        let err = rt.handle(&id, &[], None, dummy_request()).await.unwrap_err();
+        let err = rt
+            .handle(&id, &[], None, dummy_request())
+            .await
+            .unwrap_err();
         assert!(
             err.to_string().contains("not loaded"),
             "expected 'not loaded' (Cedar skipped), got: {err}"
@@ -596,15 +589,10 @@ mod tests {
         let req = KilnRequest {
             method: "GET".into(),
             uri: "/".into(),
-            headers: vec![
-                ("host".into(), "localhost".into()),
-            ],
+            headers: vec![("host".into(), "localhost".into())],
             body: vec![],
         };
-        let resp = rt
-            .handle(&id, &[], None, req)
-            .await
-            .expect("handle");
+        let resp = rt.handle(&id, &[], None, req).await.expect("handle");
 
         assert_eq!(resp.status, 200, "expected HTTP 200 from hello-component");
         let body = String::from_utf8_lossy(&resp.body);
@@ -637,10 +625,7 @@ mod tests {
 
         rt.load_wasm(present.clone(), &wasm_bytes)
             .expect("load valid wasm");
-        assert!(
-            rt.is_loaded(&present),
-            "loaded component must report true"
-        );
+        assert!(rt.is_loaded(&present), "loaded component must report true");
         assert!(
             !rt.is_loaded(&missing),
             "different id must still report false"

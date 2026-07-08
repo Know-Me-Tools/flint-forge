@@ -97,13 +97,22 @@ struct HookAddArgs {
     /// Webhook URL.
     url: String,
     /// Events to subscribe to (comma-separated).
-    #[arg(short, long, value_delimiter = ',', default_value = "INSERT,UPDATE,DELETE")]
+    #[arg(
+        short,
+        long,
+        value_delimiter = ',',
+        default_value = "INSERT,UPDATE,DELETE"
+    )]
     events: Vec<String>,
     /// Delivery tier: standard or durable.
     #[arg(short, long, default_value = "standard")]
     tier: String,
     /// Database URL.
-    #[arg(long, env = "DATABASE_URL", default_value = "postgres://localhost/flint")]
+    #[arg(
+        long,
+        env = "DATABASE_URL",
+        default_value = "postgres://localhost/flint"
+    )]
     database_url: String,
     /// Webhook HMAC secret. Generated if omitted.
     #[arg(long)]
@@ -113,7 +122,11 @@ struct HookAddArgs {
 #[derive(Args)]
 struct MigrateArgs {
     /// Database URL.
-    #[arg(long, env = "DATABASE_URL", default_value = "postgres://localhost/flint")]
+    #[arg(
+        long,
+        env = "DATABASE_URL",
+        default_value = "postgres://localhost/flint"
+    )]
     database_url: String,
     /// Migrations directory.
     #[arg(long, default_value = "migrations")]
@@ -452,9 +465,14 @@ mod tests {
 
     #[test]
     fn parse_hook_add_defaults() {
-        let cli =
-            Cli::try_parse_from(["forge", "hook", "add", "public.tasks", "https://example.com"])
-                .unwrap();
+        let cli = Cli::try_parse_from([
+            "forge",
+            "hook",
+            "add",
+            "public.tasks",
+            "https://example.com",
+        ])
+        .unwrap();
         match cli.command {
             Commands::Hook {
                 command: HookCommands::Add(args),

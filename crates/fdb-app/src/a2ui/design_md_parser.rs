@@ -87,8 +87,11 @@ pub fn parse(input: &str) -> Result<DesignMd, ParseError> {
     if let Some(text) = sections.get(&1) {
         let color = extract_json_blocks(text);
         if let Some(color_json) = color.first() {
-            tokens["color"] = serde_json::from_str(color_json)
-                .map_err(|e| ParseError::InvalidJson { section: 1, source: e })?;
+            tokens["color"] =
+                serde_json::from_str(color_json).map_err(|e| ParseError::InvalidJson {
+                    section: 1,
+                    source: e,
+                })?;
         } else {
             tokens["color"] = extract_kv_as_object(text);
         }
@@ -98,8 +101,11 @@ pub fn parse(input: &str) -> Result<DesignMd, ParseError> {
     if let Some(text) = sections.get(&2) {
         let json_blocks = extract_json_blocks(text);
         if let Some(j) = json_blocks.first() {
-            tokens["typography"] = serde_json::from_str(j)
-                .map_err(|e| ParseError::InvalidJson { section: 2, source: e })?;
+            tokens["typography"] =
+                serde_json::from_str(j).map_err(|e| ParseError::InvalidJson {
+                    section: 2,
+                    source: e,
+                })?;
         } else {
             tokens["typography"] = extract_kv_as_object(text);
         }
@@ -109,8 +115,10 @@ pub fn parse(input: &str) -> Result<DesignMd, ParseError> {
     if let Some(text) = sections.get(&3) {
         let json_blocks = extract_json_blocks(text);
         if let Some(j) = json_blocks.first() {
-            tokens["spacing"] = serde_json::from_str(j)
-                .map_err(|e| ParseError::InvalidJson { section: 3, source: e })?;
+            tokens["spacing"] = serde_json::from_str(j).map_err(|e| ParseError::InvalidJson {
+                section: 3,
+                source: e,
+            })?;
         } else {
             tokens["spacing"] = extract_kv_as_object(text);
         }
@@ -162,10 +170,7 @@ pub fn map_w3c_tokens(input: &str) -> Result<serde_json::Value, serde_json::Erro
             if category.starts_with('$') {
                 continue; // skip $schema, $description etc.
             }
-            result.insert(
-                category.clone(),
-                flatten_w3c_group(value),
-            );
+            result.insert(category.clone(), flatten_w3c_group(value));
         }
     }
     Ok(serde_json::Value::Object(result))
@@ -285,7 +290,12 @@ fn extract_kv_as_object(text: &str) -> serde_json::Value {
         }
         if let Some((k, v)) = line.split_once(':') {
             let key = k.trim().replace(' ', "_").to_lowercase();
-            let value = v.trim().trim_end_matches(',').trim_matches('"').trim().to_owned();
+            let value = v
+                .trim()
+                .trim_end_matches(',')
+                .trim_matches('"')
+                .trim()
+                .to_owned();
             if !key.is_empty() && !value.is_empty() {
                 map.insert(key, serde_json::Value::String(value));
             }
@@ -336,7 +346,10 @@ fn parse_single_override(slug: &str, body: &str) -> Option<ComponentOverride> {
         .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
 
     // Check that at least something was found
-    if prop_defaults == serde_json::json!({}) && css_vars == serde_json::json!({}) && body.trim().is_empty() {
+    if prop_defaults == serde_json::json!({})
+        && css_vars == serde_json::json!({})
+        && body.trim().is_empty()
+    {
         return None;
     }
 
@@ -454,7 +467,10 @@ Acme Corp: professional with warmth.
     #[test]
     fn parses_typography_kv() {
         let doc = parse(SAMPLE).expect("parse");
-        assert_eq!(doc.tokens["typography"]["font_family"], "Inter, system-ui, sans-serif");
+        assert_eq!(
+            doc.tokens["typography"]["font_family"],
+            "Inter, system-ui, sans-serif"
+        );
     }
 
     #[test]
@@ -467,7 +483,11 @@ Acme Corp: professional with warmth.
     fn parses_component_overrides() {
         let doc = parse(SAMPLE).expect("parse");
         assert_eq!(doc.component_overrides.len(), 2);
-        let btn = doc.component_overrides.iter().find(|c| c.slug == "button").expect("button");
+        let btn = doc
+            .component_overrides
+            .iter()
+            .find(|c| c.slug == "button")
+            .expect("button");
         assert_eq!(btn.prop_defaults["variant"], "primary");
         assert_eq!(btn.css_vars["--btn-primary-bg"], "#1d4ed8");
         assert_eq!(btn.react_component.as_deref(), Some("@acme/ui/Button"));

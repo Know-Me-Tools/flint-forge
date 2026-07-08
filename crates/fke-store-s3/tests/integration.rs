@@ -56,7 +56,10 @@ async fn test_put_get_exists_roundtrip_live() {
     let data = b"wasm-s3-artifact";
 
     let id = store.put(data).await.expect("put failed");
-    assert!(id.0.starts_with("sha256:"), "ContentId must have sha256 prefix");
+    assert!(
+        id.0.starts_with("sha256:"),
+        "ContentId must have sha256 prefix"
+    );
 
     assert!(
         store.exists(&id).await.expect("exists failed"),

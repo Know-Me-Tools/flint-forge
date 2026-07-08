@@ -15,18 +15,14 @@
 //! as the REST + MCP surfaces — single SQL authority.
 #![forbid(unsafe_code)]
 
-use axum::{
-    extract::State,
-    response::Json,
-    Extension,
-};
+use axum::{extract::State, response::Json, Extension};
 use forge_identity::RlsContext;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::routes::a2ui::{
-    self, AssembleSurfaceBody, A2uiState, ListComponentsQuery, SearchComponentsBody,
+    self, A2uiState, AssembleSurfaceBody, ListComponentsQuery, SearchComponentsBody,
 };
 
 /// A2A server-scoped state. Wraps the A2UI route state so task handlers can
@@ -58,7 +54,10 @@ pub struct A2aError {
 
 impl A2aError {
     pub fn new(code: i32, message: impl Into<String>) -> Self {
-        Self { code, message: message.into() }
+        Self {
+            code,
+            message: message.into(),
+        }
     }
 }
 
@@ -290,7 +289,10 @@ async fn task_component_discover(
         Ok(json!({ "components": components }))
     } else {
         let app_id = parse_uuid_opt(input, "app_id")?;
-        let query = ListComponentsQuery { app_id, category: None };
+        let query = ListComponentsQuery {
+            app_id,
+            category: None,
+        };
         let result = a2ui::list_components_value(&state.a2ui.pool, who, &query)
             .await
             .map_err(http_to_a2a_error)?;
@@ -313,10 +315,7 @@ async fn task_component_assemble(
         .and_then(Value::as_str)
         .ok_or_else(|| A2aError::new(INVALID_PARAMS, "event_type required"))?
         .to_owned();
-    let event_payload = input
-        .get("event_payload")
-        .cloned()
-        .unwrap_or(Value::Null);
+    let event_payload = input.get("event_payload").cloned().unwrap_or(Value::Null);
     let application_id = parse_uuid_opt(input, "application_id")?;
     let body = AssembleSurfaceBody {
         event_type,
@@ -344,7 +343,11 @@ async fn task_search_semantic(
         .and_then(Value::as_i64)
         .map_or(10, |i| i32::try_from(i).unwrap_or(10));
     let app_id = parse_uuid_opt(input, "app_id")?;
-    let body = SearchComponentsBody { query, limit, app_id };
+    let body = SearchComponentsBody {
+        query,
+        limit,
+        app_id,
+    };
     let result = a2ui::search_components_value(&state.a2ui.pool, who, &body)
         .await
         .map_err(http_to_a2a_error)?;
@@ -407,7 +410,9 @@ mod tests {
     async fn connect() -> Option<A2aState> {
         let url = std::env::var("DATABASE_URL").ok()?;
         let pool = PgPool::connect(&url).await.ok()?;
-        Some(A2aState { a2ui: A2uiState { pool } })
+        Some(A2aState {
+            a2ui: A2uiState { pool },
+        })
     }
 
     fn a2a_app(state: A2aState, user_id: &str) -> Router {
@@ -424,7 +429,9 @@ mod tests {
     }
 
     async fn read_json(resp: axum::response::Response) -> Value {
-        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.expect("body");
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .expect("body");
         serde_json::from_slice(&bytes).expect("valid json")
     }
 
@@ -481,13 +488,17 @@ mod tests {
             .method(Method::POST)
             .uri("/a2a/v1")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(2, "tasks/send", &json!({
-                "task": {
-                    "id": "t-001",
-                    "name": "a2ui.component.discover",
-                    "input": { "query": "button" }
-                }
-            }))))
+            .body(Body::from(rpc(
+                2,
+                "tasks/send",
+                &json!({
+                    "task": {
+                        "id": "t-001",
+                        "name": "a2ui.component.discover",
+                        "input": { "query": "button" }
+                    }
+                }),
+            )))
             .unwrap();
         let resp = app.oneshot(req).await.expect("req");
         let body = read_json(resp).await;
@@ -505,9 +516,13 @@ mod tests {
             .method(Method::POST)
             .uri("/a2a/v1")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(3, "tasks/send", &json!({
-                "task": { "name": "nonexistent.task", "input": {} }
-            }))))
+            .body(Body::from(rpc(
+                3,
+                "tasks/send",
+                &json!({
+                    "task": { "name": "nonexistent.task", "input": {} }
+                }),
+            )))
             .unwrap();
         let resp = app.oneshot(req).await.expect("req");
         let body = read_json(resp).await;
@@ -522,9 +537,13 @@ mod tests {
             .method(Method::POST)
             .uri("/a2a/v1")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(4, "tasks/send", &json!({
-                "task": { "name": "a2ui.component.assemble", "input": {} }
-            }))))
+            .body(Body::from(rpc(
+                4,
+                "tasks/send",
+                &json!({
+                    "task": { "name": "a2ui.component.assemble", "input": {} }
+                }),
+            )))
             .unwrap();
         let resp = app.oneshot(req).await.expect("req");
         let body = read_json(resp).await;

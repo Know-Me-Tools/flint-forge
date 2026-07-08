@@ -124,10 +124,11 @@ impl DbRow {
     ///
     /// [`Database::query`]: crate::Database::query
     pub fn from_json_str(s: &str) -> SkillResult<Self> {
-        let value: serde_json::Value = serde_json::from_str(s).map_err(|source| SkillError::Json {
-            source,
-            payload: s.to_string(),
-        })?;
+        let value: serde_json::Value =
+            serde_json::from_str(s).map_err(|source| SkillError::Json {
+                source,
+                payload: s.to_string(),
+            })?;
         Ok(Self(value))
     }
 
@@ -184,10 +185,7 @@ mod tests {
     fn db_row_from_json_str_decodes() {
         let row = DbRow::from_json_str(r#"{"id": 7, "name": "ada"}"#).unwrap();
         assert_eq!(row.get("id"), Some(&serde_json::json!(7)));
-        assert_eq!(
-            row.get("name").and_then(|v| v.as_str()),
-            Some("ada")
-        );
+        assert_eq!(row.get("name").and_then(|v| v.as_str()), Some("ada"));
     }
 
     #[test]
@@ -223,4 +221,3 @@ mod tests {
         }
     }
 }
-

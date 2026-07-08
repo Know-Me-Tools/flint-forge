@@ -21,8 +21,7 @@ impl StoreIpfs {
     /// Falls back to `http://localhost:5001` when the variable is not set.
     #[must_use]
     pub fn new() -> Self {
-        let base_url = std::env::var(ENV_IPFS_URL)
-            .unwrap_or_else(|_| DEFAULT_IPFS_URL.to_owned());
+        let base_url = std::env::var(ENV_IPFS_URL).unwrap_or_else(|_| DEFAULT_IPFS_URL.to_owned());
         Self::with_url(base_url)
     }
 
@@ -79,7 +78,10 @@ impl ComponentStore for StoreIpfs {
             return Err(StoreError::Io(format!("IPFS add failed {status}: {body}")));
         }
 
-        let body = resp.text().await.map_err(|e| StoreError::Io(e.to_string()))?;
+        let body = resp
+            .text()
+            .await
+            .map_err(|e| StoreError::Io(e.to_string()))?;
         let value: serde_json::Value =
             serde_json::from_str(&body).map_err(|e| StoreError::Io(e.to_string()))?;
 
@@ -126,13 +128,7 @@ impl ComponentStore for StoreIpfs {
     async fn exists(&self, id: &ContentId) -> Result<bool, StoreError> {
         let url = format!("{}/api/v0/stat", self.base_url);
 
-        let Ok(resp) = self
-            .client
-            .post(&url)
-            .query(&[("arg", &id.0)])
-            .send()
-            .await
-        else {
+        let Ok(resp) = self.client.post(&url).query(&[("arg", &id.0)]).send().await else {
             return Ok(false);
         };
 
@@ -156,10 +152,7 @@ mod tests {
 
         Mock::given(method("POST"))
             .and(path("/api/v0/add"))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_string(r#"{"Hash":"QmTest123"}"#),
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"Hash":"QmTest123"}"#))
             .mount(&server)
             .await;
 
@@ -174,9 +167,7 @@ mod tests {
 
         Mock::given(method("POST"))
             .and(path("/api/v0/cat"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_bytes(b"wasm bytes".as_ref()),
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(b"wasm bytes".as_ref()))
             .mount(&server)
             .await;
 

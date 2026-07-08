@@ -20,9 +20,9 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use tower_http::set_header::SetResponseHeaderLayer;
 use serde::Deserialize;
 use serde_json::json;
+use tower_http::set_header::SetResponseHeaderLayer;
 
 use fdb_app::graphql::introspection::{is_introspection_query, IntrospectionMerger};
 use fdb_app::Quarry;
@@ -333,7 +333,10 @@ async fn main() {
             "/htmx/components/{slug}",
             get(routes::htmx::render_component).post(routes::htmx::render_component_with_props),
         )
-        .route("/htmx/surfaces/assemble", get(routes::htmx::assemble_surface_html))
+        .route(
+            "/htmx/surfaces/assemble",
+            get(routes::htmx::assemble_surface_html),
+        )
         .layer(axum::middleware::from_fn(rls_layer::require_rls))
         .with_state(routes::htmx::HtmxState {
             a2ui: crate::routes::a2ui::A2uiState::from(gateway_state.clone()),
@@ -347,10 +350,7 @@ async fn main() {
     // Polls flint.webhook_outbox for agui_run targeted entries (durable tier)
     // and converts them to AG-UI ToolCallResult events. Standard-tier agui_run
     // hooks fire directly from dispatch_webhook() via pg_net.
-    let _agui_hook_handle = agui_hook_dispatcher::spawn(
-        Arc::new(pool.clone()),
-        agui_state.clone(),
-    );
+    let _agui_hook_handle = agui_hook_dispatcher::spawn(Arc::new(pool.clone()), agui_state.clone());
 
     // p14-c003: A2UI catalog hot-reload — when the StateManager hot-swaps the
     // compiled state (on `meta_runtime` NOTIFY, fired by A2UI catalog changes
@@ -382,11 +382,13 @@ async fn main() {
     }
 
     let agent_events_router = Router::new()
-        .route("/agents/v1/runs", axum::routing::post(routes::agui::start_run))
+        .route(
+            "/agents/v1/runs",
+            axum::routing::post(routes::agui::start_run),
+        )
         .route(
             "/agents/v1/{run_id}/events",
-            axum::routing::post(routes::agui::publish_event)
-                .get(routes::agui::stream_events),
+            axum::routing::post(routes::agui::publish_event).get(routes::agui::stream_events),
         )
         .route(
             "/agents/v1/{run_id}/surfaces/assemble",
@@ -809,10 +811,7 @@ mod rate_limit_tests {
     /// that `PeerIpKeyExtractor` can resolve the peer address without a TCP listener.
     fn make_request(path: &str) -> Request<Body> {
         let peer = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 1234);
-        let mut req = Request::builder()
-            .uri(path)
-            .body(Body::empty())
-            .unwrap();
+        let mut req = Request::builder().uri(path).body(Body::empty()).unwrap();
         req.extensions_mut().insert(ConnectInfo(peer));
         req
     }
@@ -871,7 +870,11 @@ mod rate_limit_tests {
         let app = rate_limited_app(1, 1);
 
         let res1 = app.clone().oneshot(make_request("/ping")).await.unwrap();
-        assert_eq!(res1.status(), StatusCode::OK, "first request should succeed");
+        assert_eq!(
+            res1.status(),
+            StatusCode::OK,
+            "first request should succeed"
+        );
 
         let res2 = app.clone().oneshot(make_request("/ping")).await.unwrap();
         assert_eq!(
@@ -886,6 +889,7 @@ mod rate_limit_tests {
 
 #[cfg(test)]
 mod security_header_tests {
+    use axum::http::{HeaderName, HeaderValue};
     use axum::{
         body::Body,
         http::{Request, StatusCode},
@@ -894,7 +898,6 @@ mod security_header_tests {
     };
     use tower::ServiceExt as _;
     use tower_http::set_header::SetResponseHeaderLayer;
-    use axum::http::{HeaderName, HeaderValue};
 
     /// Build a minimal test app with the three security header layers applied,
     /// mirroring the layers added in `main()`.
@@ -937,16 +940,12 @@ mod security_header_tests {
             "X-Content-Type-Options must be 'nosniff'"
         );
         assert_eq!(
-            headers
-                .get("x-frame-options")
-                .and_then(|v| v.to_str().ok()),
+            headers.get("x-frame-options").and_then(|v| v.to_str().ok()),
             Some("DENY"),
             "X-Frame-Options must be 'DENY'"
         );
         assert_eq!(
-            headers
-                .get("referrer-policy")
-                .and_then(|v| v.to_str().ok()),
+            headers.get("referrer-policy").and_then(|v| v.to_str().ok()),
             Some("strict-origin-when-cross-origin"),
             "Referrer-Policy must be 'strict-origin-when-cross-origin'"
         );
@@ -956,8 +955,8 @@ mod security_header_tests {
     /// by the `if_not_present` layer — the handler's value wins.
     #[tokio::test]
     async fn if_not_present_does_not_overwrite_handler_header() {
-        use axum::http::Response as AxumResponse;
         use axum::body::Body as AxumBody;
+        use axum::http::Response as AxumResponse;
 
         let app = Router::new()
             .route(

@@ -215,11 +215,9 @@ struct VerificationMethod {
 
 /// Attempt to decode the DID suffix as an inline 32-byte Ed25519 key.
 fn try_inline_key(encoded: &str) -> Result<VerifyingKey, SignError> {
-    let key_bytes = base64::Engine::decode(
-        &base64::engine::general_purpose::URL_SAFE_NO_PAD,
-        encoded,
-    )
-    .map_err(|_| SignError::Invalid)?;
+    let key_bytes =
+        base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, encoded)
+            .map_err(|_| SignError::Invalid)?;
 
     let key_array: [u8; 32] = key_bytes.try_into().map_err(|_| SignError::Invalid)?;
     VerifyingKey::from_bytes(&key_array).map_err(|_| SignError::Invalid)

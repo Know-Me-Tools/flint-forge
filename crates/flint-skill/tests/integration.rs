@@ -29,10 +29,7 @@ impl Database for MockDb {
         _sql: &'a str,
         _params: &'a [String],
     ) -> flint_skill::SkillResult<Vec<DbRow>> {
-        self.rows
-            .iter()
-            .map(|s| DbRow::from_json_str(s))
-            .collect()
+        self.rows.iter().map(|s| DbRow::from_json_str(s)).collect()
     }
 }
 
@@ -124,7 +121,10 @@ async fn database_query_decodes_rows() {
     let rows = db.query("SELECT * FROM users", &[]).await.unwrap();
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0].get("name").and_then(|v| v.as_str()), Some("ada"));
-    assert_eq!(rows[1].get("id").and_then(serde_json::Value::as_i64), Some(2));
+    assert_eq!(
+        rows[1].get("id").and_then(serde_json::Value::as_i64),
+        Some(2)
+    );
 }
 
 #[tokio::test]

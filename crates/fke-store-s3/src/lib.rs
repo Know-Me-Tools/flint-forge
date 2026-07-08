@@ -11,7 +11,7 @@ use fke_domain::ContentId;
 use fke_ports::{ComponentStore, StoreError};
 // object_store 0.14: put/get/head moved to ObjectStoreExt (not Arc<dyn>-safe).
 // Use put_opts/get_opts with GetOptions{head:true} on ObjectStore (required, dyn-safe).
-use object_store::{GetOptions, PutOptions, PutPayload, path::Path, ObjectStore};
+use object_store::{path::Path, GetOptions, ObjectStore, PutOptions, PutPayload};
 use sha2::{Digest, Sha256};
 
 // ── Public struct ────────────────────────────────────────────────────────────
@@ -43,8 +43,7 @@ impl StoreS3 {
         let bucket = std::env::var("KILN_S3_BUCKET")
             .map_err(|_| StoreError::Io("KILN_S3_BUCKET not set".to_string()))?;
 
-        let region =
-            std::env::var("KILN_S3_REGION").unwrap_or_else(|_| "us-east-1".to_string());
+        let region = std::env::var("KILN_S3_REGION").unwrap_or_else(|_| "us-east-1".to_string());
 
         let mut builder = AmazonS3Builder::new()
             .with_bucket_name(bucket)
@@ -61,15 +60,11 @@ impl StoreS3 {
         }
         // Allow plain HTTP endpoints (e.g. local MinIO in integration tests).
         // Set KILN_S3_ALLOW_HTTP=true or KILN_S3_ALLOW_HTTP=1 to enable.
-        if std::env::var("KILN_S3_ALLOW_HTTP")
-            .is_ok_and(|v| v == "true" || v == "1")
-        {
+        if std::env::var("KILN_S3_ALLOW_HTTP").is_ok_and(|v| v == "true" || v == "1") {
             builder = builder.with_allow_http(true);
         }
 
-        let store = builder
-            .build()
-            .map_err(|e| StoreError::Io(e.to_string()))?;
+        let store = builder.build().map_err(|e| StoreError::Io(e.to_string()))?;
 
         Ok(Self {
             store: Arc::new(store),
@@ -133,7 +128,8 @@ impl ComponentStore for StoreS3 {
     async fn get(&self, id: &ContentId) -> Result<Vec<u8>, StoreError> {
         let hex = digest_from_id(id)?;
         let path = Path::from(hex.as_str());
-        let result = self.store
+        let result = self
+            .store
             .get_opts(&path, GetOptions::default())
             .await
             .map_err(map_store_err)?;
@@ -146,7 +142,10 @@ impl ComponentStore for StoreS3 {
         let hex = digest_from_id(id)?;
         let path = Path::from(hex.as_str());
         // GetOptions { head: true } issues an HTTP HEAD — no body transferred.
-        let opts = GetOptions { head: true, ..GetOptions::default() };
+        let opts = GetOptions {
+            head: true,
+            ..GetOptions::default()
+        };
         match self.store.get_opts(&path, opts).await {
             Ok(_) => Ok(true),
             Err(object_store::Error::NotFound { .. }) => Ok(false),
@@ -185,14 +184,18 @@ mod tests {
     #[tokio::test]
     async fn exists_false_for_missing() {
         let store = in_memory_store();
-        let ghost = ContentId("sha256:deadbeef00000000000000000000000000000000000000000000000000000000".to_string());
+        let ghost = ContentId(
+            "sha256:deadbeef00000000000000000000000000000000000000000000000000000000".to_string(),
+        );
         assert!(!store.exists(&ghost).await.expect("exists failed"));
     }
 
     #[tokio::test]
     async fn get_missing_returns_not_found() {
         let store = in_memory_store();
-        let ghost = ContentId("sha256:deadbeef00000000000000000000000000000000000000000000000000000000".to_string());
+        let ghost = ContentId(
+            "sha256:deadbeef00000000000000000000000000000000000000000000000000000000".to_string(),
+        );
         let err = store.get(&ghost).await.unwrap_err();
         assert!(matches!(err, StoreError::NotFound));
     }

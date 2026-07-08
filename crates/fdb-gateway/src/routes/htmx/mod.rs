@@ -177,7 +177,7 @@ pub async fn admin_registry(
         for c in items {
             let desc = c.description.as_deref().unwrap_or("No description");
             let slug = renderers::html_escape(&c.slug);
-            let pt   = renderers::html_escape(&c.primitive_type);
+            let pt = renderers::html_escape(&c.primitive_type);
             let _ = write!(
                 html,
                 r#"
@@ -233,7 +233,9 @@ pub async fn render_component(
     let Some(c) = component else {
         return (
             StatusCode::NOT_FOUND,
-            Html(format!("<div class='alert alert-warning'>Component '{slug}' not found.</div>")),
+            Html(format!(
+                "<div class='alert alert-warning'>Component '{slug}' not found.</div>"
+            )),
         )
             .into_response();
     };
@@ -250,17 +252,20 @@ pub async fn render_component_with_props(
     headers: HeaderMap,
     axum::Json(props): axum::Json<Value>,
 ) -> Response {
-    let exists: Option<(bool,)> = sqlx::query_as("SELECT true FROM flint_a2ui.components WHERE slug = $1")
-        .bind(&slug)
-        .fetch_optional(&state.a2ui.pool)
-        .await
-        .ok()
-        .flatten();
+    let exists: Option<(bool,)> =
+        sqlx::query_as("SELECT true FROM flint_a2ui.components WHERE slug = $1")
+            .bind(&slug)
+            .fetch_optional(&state.a2ui.pool)
+            .await
+            .ok()
+            .flatten();
 
     if exists.is_none() {
         return (
             StatusCode::NOT_FOUND,
-            Html(format!("<div class='alert alert-warning'>Component '{slug}' not found.</div>")),
+            Html(format!(
+                "<div class='alert alert-warning'>Component '{slug}' not found.</div>"
+            )),
         )
             .into_response();
     }
@@ -303,13 +308,22 @@ pub async fn assemble_surface_html(
     <pre class="bg-base-200 p-4 rounded-lg overflow-x-auto"><code>{}</code></pre>
   </div>
 </div>"#,
-                renderers::html_escape(&serde_json::to_string_pretty(&surface_json.0).unwrap_or_default())
+                renderers::html_escape(
+                    &serde_json::to_string_pretty(&surface_json.0).unwrap_or_default()
+                )
             );
             render_fragment(&headers, "Assembled Surface", &html)
         }
         Err((status, axum::Json(v))) => {
-            let msg = v.get("error").and_then(Value::as_str).unwrap_or("assembly failed");
-            (status, Html(format!("<div class='alert alert-error'>{msg}</div>"))).into_response()
+            let msg = v
+                .get("error")
+                .and_then(Value::as_str)
+                .unwrap_or("assembly failed");
+            (
+                status,
+                Html(format!("<div class='alert alert-error'>{msg}</div>")),
+            )
+                .into_response()
         }
     }
 }
@@ -340,8 +354,8 @@ struct ComponentSchemaRow {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::renderers::*;
+    use super::*;
     use axum::{
         body::Body,
         extract::Request,
@@ -366,21 +380,28 @@ mod tests {
     async fn connect() -> Option<HtmxState> {
         let url = std::env::var("DATABASE_URL").ok()?;
         let pool = PgPool::connect(&url).await.ok()?;
-        Some(HtmxState { a2ui: A2uiState { pool } })
+        Some(HtmxState {
+            a2ui: A2uiState { pool },
+        })
     }
 
     fn htmx_app(state: HtmxState) -> Router {
         Router::new()
             .route("/htmx/", get(index))
             .route("/htmx/admin/registry", get(admin_registry))
-            .route("/htmx/components/{slug}", get(render_component).post(render_component_with_props))
+            .route(
+                "/htmx/components/{slug}",
+                get(render_component).post(render_component_with_props),
+            )
             .route("/htmx/surfaces/assemble", get(assemble_surface_html))
             .layer(Extension(fake_rls_context()))
             .with_state(state)
     }
 
     async fn read_body(resp: axum::response::Response) -> String {
-        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.expect("body");
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .expect("body");
         String::from_utf8(bytes.to_vec()).expect("utf8")
     }
 
@@ -449,7 +470,11 @@ mod tests {
 
     #[test]
     fn render_alert_uses_variant_class() {
-        let html = render_component_html("alert", &json!({"message":"Saved!", "variant":"success"}), None);
+        let html = render_component_html(
+            "alert",
+            &json!({"message":"Saved!", "variant":"success"}),
+            None,
+        );
         assert!(html.contains("data-flint-component=\"alert\""));
         assert!(html.contains("alert-success"));
         assert!(html.contains("Saved!"));
@@ -457,7 +482,8 @@ mod tests {
 
     #[test]
     fn render_badge_uses_color_class() {
-        let html = render_component_html("badge", &json!({"label":"New","color":"secondary"}), None);
+        let html =
+            render_component_html("badge", &json!({"label":"New","color":"secondary"}), None);
         assert!(html.contains("badge-secondary"));
         assert!(html.contains("New"));
     }
@@ -471,14 +497,19 @@ mod tests {
 
     #[test]
     fn render_stat_card_shows_label_value() {
-        let html = render_component_html("stat-card", &json!({"label":"Revenue","value":"$9k"}), None);
+        let html =
+            render_component_html("stat-card", &json!({"label":"Revenue","value":"$9k"}), None);
         assert!(html.contains("Revenue"));
         assert!(html.contains("$9k"));
     }
 
     #[test]
     fn render_breadcrumb_has_items() {
-        let html = render_component_html("breadcrumb", &json!({"items":[{"label":"Home"},{"label":"Products"}]}), None);
+        let html = render_component_html(
+            "breadcrumb",
+            &json!({"items":[{"label":"Home"},{"label":"Products"}]}),
+            None,
+        );
         assert!(html.contains("data-flint-component=\"breadcrumb\""));
         assert!(html.contains("Home"));
         assert!(html.contains("Products"));
@@ -486,7 +517,11 @@ mod tests {
 
     #[test]
     fn render_text_input_uses_name() {
-        let html = render_component_html("text-input", &json!({"name":"username","label":"Username"}), None);
+        let html = render_component_html(
+            "text-input",
+            &json!({"name":"username","label":"Username"}),
+            None,
+        );
         assert!(html.contains("name=\"username\""));
         assert!(html.contains("Username"));
     }
@@ -494,16 +529,61 @@ mod tests {
     #[test]
     fn render_all_55_slugs_do_not_panic() {
         let slugs = [
-            "container","row","column","grid","stack","divider","spacer","scroll-area",
-            "data-grid","data-table","text","badge","tag","avatar","stat-card","timeline",
-            "code-block","json-viewer","list","detail-view",
-            "form","text-input","number-input","select","multi-select","date-picker",
-            "checkbox","radio","toggle","textarea","file-upload","search-input",
-            "color-picker","slider",
-            "button","action-bar","dropdown-menu","context-menu","fab","link",
-            "nav-bar","sidebar","tabs","breadcrumb","pagination","stepper",
-            "alert","toast","modal","dialog","loading-spinner","progress-bar",
-            "empty-state","error-boundary","flint-meta-schema",
+            "container",
+            "row",
+            "column",
+            "grid",
+            "stack",
+            "divider",
+            "spacer",
+            "scroll-area",
+            "data-grid",
+            "data-table",
+            "text",
+            "badge",
+            "tag",
+            "avatar",
+            "stat-card",
+            "timeline",
+            "code-block",
+            "json-viewer",
+            "list",
+            "detail-view",
+            "form",
+            "text-input",
+            "number-input",
+            "select",
+            "multi-select",
+            "date-picker",
+            "checkbox",
+            "radio",
+            "toggle",
+            "textarea",
+            "file-upload",
+            "search-input",
+            "color-picker",
+            "slider",
+            "button",
+            "action-bar",
+            "dropdown-menu",
+            "context-menu",
+            "fab",
+            "link",
+            "nav-bar",
+            "sidebar",
+            "tabs",
+            "breadcrumb",
+            "pagination",
+            "stepper",
+            "alert",
+            "toast",
+            "modal",
+            "dialog",
+            "loading-spinner",
+            "progress-bar",
+            "empty-state",
+            "error-boundary",
+            "flint-meta-schema",
         ];
         let schema = serde_json::json!({});
         for slug in &slugs {
@@ -522,10 +602,16 @@ mod tests {
     #[tokio::test]
     async fn test_index_renders_base_layout_without_htmx_header() {
         let state = connect().await.unwrap_or_else(|| HtmxState {
-            a2ui: A2uiState { pool: PgPool::connect_lazy("postgres://x").unwrap() },
+            a2ui: A2uiState {
+                pool: PgPool::connect_lazy("postgres://x").unwrap(),
+            },
         });
         let app = htmx_app(state);
-        let req = Request::builder().method(Method::GET).uri("/htmx/").body(Body::empty()).unwrap();
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri("/htmx/")
+            .body(Body::empty())
+            .unwrap();
         let resp = app.oneshot(req).await.expect("req");
         assert_eq!(resp.status(), StatusCode::OK);
         let body = read_body(resp).await;
@@ -537,7 +623,11 @@ mod tests {
     async fn test_admin_registry_renders_with_db() {
         let Some(state) = connect().await else { return };
         let app = htmx_app(state);
-        let req = Request::builder().method(Method::GET).uri("/htmx/admin/registry").body(Body::empty()).unwrap();
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri("/htmx/admin/registry")
+            .body(Body::empty())
+            .unwrap();
         let resp = app.oneshot(req).await.expect("req");
         assert_eq!(resp.status(), StatusCode::OK);
         let body = read_body(resp).await;

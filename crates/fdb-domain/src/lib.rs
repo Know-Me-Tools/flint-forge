@@ -116,16 +116,10 @@ pub enum AgUiEvent {
     },
     /// Marks the beginning of a text message from the agent.
     #[serde(rename = "TextMessageStart")]
-    TextMessageStart {
-        message_id: String,
-        role: String,
-    },
+    TextMessageStart { message_id: String, role: String },
     /// A chunk of text content within a message.
     #[serde(rename = "TextMessageContent")]
-    TextMessageContent {
-        message_id: String,
-        content: String,
-    },
+    TextMessageContent { message_id: String, content: String },
     /// Marks the end of a text message.
     #[serde(rename = "TextMessageEnd")]
     TextMessageEnd { message_id: String },
@@ -138,10 +132,7 @@ pub enum AgUiEvent {
     },
     /// Arguments being streamed for a tool call (incremental JSON delta).
     #[serde(rename = "ToolCallArgs")]
-    ToolCallArgs {
-        tool_call_id: String,
-        args: String,
-    },
+    ToolCallArgs { tool_call_id: String, args: String },
     /// Marks the end of a tool call (args are complete).
     #[serde(rename = "ToolCallEnd")]
     ToolCallEnd { tool_call_id: String },
@@ -196,6 +187,9 @@ impl AgUiEvent {
 
     /// True if this event terminates the SSE stream for a run.
     pub fn is_terminal(&self) -> bool {
-        matches!(self, AgUiEvent::RunFinished { .. } | AgUiEvent::RunError { .. })
+        matches!(
+            self,
+            AgUiEvent::RunFinished { .. } | AgUiEvent::RunError { .. }
+        )
     }
 }

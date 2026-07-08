@@ -17,7 +17,7 @@ use axum::{
     response::{IntoResponse, Json},
     Extension,
 };
-use base64::{Engine as _, engine::general_purpose};
+use base64::{engine::general_purpose, Engine as _};
 use fdb_app::a2ui::{map_w3c_tokens, parse_design_md};
 use forge_identity::RlsContext;
 use serde::Deserialize;
@@ -101,14 +101,13 @@ async fn import_design_md(state: A2uiState, body: ImportBody) -> axum::response:
     let mut override_count = 0usize;
     for ov in &doc.component_overrides {
         // Resolve component_id by slug
-        let component_id: Option<(Uuid,)> = sqlx::query_as(
-            "SELECT id FROM flint_a2ui.components WHERE slug = $1",
-        )
-        .bind(&ov.slug)
-        .fetch_optional(&state.pool)
-        .await
-        .ok()
-        .flatten();
+        let component_id: Option<(Uuid,)> =
+            sqlx::query_as("SELECT id FROM flint_a2ui.components WHERE slug = $1")
+                .bind(&ov.slug)
+                .fetch_optional(&state.pool)
+                .await
+                .ok()
+                .flatten();
 
         if let Some((cid,)) = component_id {
             let res = sqlx::query(
@@ -167,7 +166,9 @@ async fn import_w3c_tokens(state: A2uiState, body: ImportBody) -> axum::response
         }
     };
 
-    let name = body.name.unwrap_or_else(|| "Imported Design System".to_owned());
+    let name = body
+        .name
+        .unwrap_or_else(|| "Imported Design System".to_owned());
     let ds_id = upsert_design_system(
         &state.pool,
         body.design_system_id,
@@ -227,7 +228,9 @@ async fn import_claude_design_zip(state: A2uiState, body: ImportBody) -> axum::r
     let design_md = {
         let mut found: Option<String> = None;
         for i in 0..archive.len() {
-            let Ok(mut file) = archive.by_index(i) else { continue };
+            let Ok(mut file) = archive.by_index(i) else {
+                continue;
+            };
             if file.name().ends_with("DESIGN.md") {
                 let mut buf = String::new();
                 if std::io::Read::read_to_string(&mut file, &mut buf).is_ok() {
@@ -324,9 +327,8 @@ mod tests {
     #[test]
     fn import_body_accepts_optional_design_system_id() {
         let id = Uuid::new_v4();
-        let json = format!(
-            r#"{{"format":"w3c_tokens","content":"{{}}","design_system_id":"{id}"}}"#
-        );
+        let json =
+            format!(r#"{{"format":"w3c_tokens","content":"{{}}","design_system_id":"{id}"}}"#);
         let body: ImportBody = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(body.design_system_id, Some(id));
     }

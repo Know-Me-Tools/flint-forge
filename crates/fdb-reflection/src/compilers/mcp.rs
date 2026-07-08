@@ -124,7 +124,13 @@ fn safe_name(schema: &str, name: &str) -> String {
     };
     combined
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 
@@ -460,9 +466,24 @@ mod tests {
             "public",
             "orders",
             vec![
-                Column { name: "id".into(), pg_type: "uuid".into(), nullable: false, default: Some("gen_random_uuid()".into()) },
-                Column { name: "status".into(), pg_type: "text".into(), nullable: false, default: None },
-                Column { name: "total".into(), pg_type: "numeric".into(), nullable: false, default: None },
+                Column {
+                    name: "id".into(),
+                    pg_type: "uuid".into(),
+                    nullable: false,
+                    default: Some("gen_random_uuid()".into()),
+                },
+                Column {
+                    name: "status".into(),
+                    pg_type: "text".into(),
+                    nullable: false,
+                    default: None,
+                },
+                Column {
+                    name: "total".into(),
+                    pg_type: "numeric".into(),
+                    nullable: false,
+                    default: None,
+                },
             ],
             vec!["id"],
         )]);
@@ -491,7 +512,9 @@ mod tests {
         // With no PK on orders: list + get + create = 3 tools
         assert_eq!(tools.len(), 3);
         let names: Vec<&str> = tools.iter().filter_map(|t| t["name"].as_str()).collect();
-        assert!(names.iter().all(|n| !n.contains("cache_tables") && !n.contains("users")));
+        assert!(names
+            .iter()
+            .all(|n| !n.contains("cache_tables") && !n.contains("users")));
     }
 
     #[test]
@@ -508,7 +531,12 @@ mod tests {
         let model = make_model(vec![make_table(
             "public",
             "orders",
-            vec![Column { name: "id".into(), pg_type: "uuid".into(), nullable: false, default: None }],
+            vec![Column {
+                name: "id".into(),
+                pg_type: "uuid".into(),
+                nullable: false,
+                default: None,
+            }],
             vec!["id"],
         )]);
         let result = McpCompiler::compile(&model);
@@ -526,8 +554,18 @@ mod tests {
             "public",
             "orders",
             vec![
-                Column { name: "id".into(), pg_type: "uuid".into(), nullable: false, default: Some("gen_random_uuid()".into()) },
-                Column { name: "total".into(), pg_type: "numeric".into(), nullable: false, default: None },
+                Column {
+                    name: "id".into(),
+                    pg_type: "uuid".into(),
+                    nullable: false,
+                    default: Some("gen_random_uuid()".into()),
+                },
+                Column {
+                    name: "total".into(),
+                    pg_type: "numeric".into(),
+                    nullable: false,
+                    default: None,
+                },
             ],
             vec!["id"],
         )]);
@@ -597,8 +635,14 @@ mod tests {
                 schema: "public".into(),
                 name: "calculate_total".into(),
                 args: vec![
-                    ArgMeta { name: "order_id".into(), pg_type: "uuid".into() },
-                    ArgMeta { name: "discount".into(), pg_type: "numeric".into() },
+                    ArgMeta {
+                        name: "order_id".into(),
+                        pg_type: "uuid".into(),
+                    },
+                    ArgMeta {
+                        name: "discount".into(),
+                        pg_type: "numeric".into(),
+                    },
                 ],
                 return_type: "numeric".into(),
                 security_definer: false,
@@ -613,6 +657,12 @@ mod tests {
         let props = &tools[0]["inputSchema"]["properties"];
         assert!(props.get("order_id").is_some());
         assert!(props.get("discount").is_some());
-        assert_eq!(tools[0]["inputSchema"]["required"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            tools[0]["inputSchema"]["required"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
     }
 }

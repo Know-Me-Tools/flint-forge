@@ -97,8 +97,16 @@ async fn deliver_agui_event(agui: &AgUiState, row: &OutboxRow) -> Result<(), Del
         .ok_or(DeliveryError::MissingRunId)?;
 
     let tool_call_id = Uuid::new_v4().to_string();
-    let table = row.payload.get("table").and_then(|v| v.as_str()).unwrap_or("unknown");
-    let schema = row.payload.get("schema").and_then(|v| v.as_str()).unwrap_or("public");
+    let table = row
+        .payload
+        .get("table")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+    let schema = row
+        .payload
+        .get("schema")
+        .and_then(|v| v.as_str())
+        .unwrap_or("public");
     let tool_name = format!("hook:{schema}.{table}");
 
     // publish() lazily creates the run channel — no need to call channel_for().
@@ -182,7 +190,10 @@ mod tests {
         // Same channel returned both times — verify by sending once and receiving twice.
         let mut rx1 = tx1.subscribe();
         let mut rx2 = tx2.subscribe();
-        tx1.send(AgUiEvent::RunFinished { run_id: "run-001".into() }).unwrap();
+        tx1.send(AgUiEvent::RunFinished {
+            run_id: "run-001".into(),
+        })
+        .unwrap();
         assert!(rx1.recv().await.is_ok());
         assert!(rx2.recv().await.is_ok());
     }

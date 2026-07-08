@@ -74,8 +74,8 @@ pub struct VerifierCosign {
 impl VerifierCosign {
     /// Create a verifier using environment variables for configuration.
     pub fn new() -> Self {
-        let rekor_url = std::env::var("FLINT_REKOR_URL")
-            .unwrap_or_else(|_| DEFAULT_REKOR_URL.to_owned());
+        let rekor_url =
+            std::env::var("FLINT_REKOR_URL").unwrap_or_else(|_| DEFAULT_REKOR_URL.to_owned());
         Self {
             rekor_url,
             client: reqwest::Client::new(),
@@ -206,10 +206,7 @@ fn check_cert_validity(cert: &Certificate) -> Result<(), SignError> {
 impl VerifierCosign {
     /// POST to Rekor `/api/v1/log/entries/retrieve` and return
     /// `(sig_der_bytes, pubkey_content_bytes)`.
-    async fn fetch_rekor_entry(
-        &self,
-        digest_hex: &str,
-    ) -> Result<(Vec<u8>, Vec<u8>), SignError> {
+    async fn fetch_rekor_entry(&self, digest_hex: &str) -> Result<(Vec<u8>, Vec<u8>), SignError> {
         let url = format!("{}/api/v1/log/entries/retrieve", self.rekor_url);
         let body = serde_json::json!({ "hashes": [format!("sha256:{digest_hex}")] });
 
@@ -228,8 +225,7 @@ impl VerifierCosign {
             return Err(SignError::Unsigned);
         }
 
-        let entries: serde_json::Value =
-            resp.json().await.map_err(|_| SignError::Invalid)?;
+        let entries: serde_json::Value = resp.json().await.map_err(|_| SignError::Invalid)?;
         let entry = entries
             .as_array()
             .and_then(|a| a.first())
@@ -240,11 +236,9 @@ impl VerifierCosign {
             .get("body")
             .and_then(|v| v.as_str())
             .ok_or(SignError::Invalid)?;
-        let body_bytes = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            body_b64,
-        )
-        .map_err(|_| SignError::Invalid)?;
+        let body_bytes =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, body_b64)
+                .map_err(|_| SignError::Invalid)?;
         let body_json: serde_json::Value =
             serde_json::from_slice(&body_bytes).map_err(|_| SignError::Invalid)?;
 
@@ -258,17 +252,12 @@ impl VerifierCosign {
             .and_then(|v| v.as_str())
             .ok_or(SignError::Invalid)?;
 
-        let sig_der = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            sig_b64,
-        )
-        .map_err(|_| SignError::Invalid)?;
+        let sig_der = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, sig_b64)
+            .map_err(|_| SignError::Invalid)?;
 
-        let pubkey_bytes = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            pubkey_b64,
-        )
-        .map_err(|_| SignError::Invalid)?;
+        let pubkey_bytes =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, pubkey_b64)
+                .map_err(|_| SignError::Invalid)?;
 
         Ok((sig_der, pubkey_bytes))
     }
@@ -328,10 +317,8 @@ mod tests {
                 }
             }
         });
-        let body_b64 = base64::Engine::encode(
-            &base64::engine::general_purpose::STANDARD,
-            body.to_string(),
-        );
+        let body_b64 =
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, body.to_string());
         json!([{ "body": body_b64, "logIndex": 1 }])
     }
 
@@ -429,10 +416,8 @@ mod tests {
             cert_pem.as_bytes(),
         );
         // Signature content is irrelevant — issuer check fires first.
-        let dummy_sig = base64::Engine::encode(
-            &base64::engine::general_purpose::STANDARD,
-            b"irrelevant",
-        );
+        let dummy_sig =
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, b"irrelevant");
         let body = mock_rekor_response(&dummy_sig, &pubkey_b64);
         Mock::given(method("POST"))
             .and(path("/api/v1/log/entries/retrieve"))
@@ -440,8 +425,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let verifier =
-            VerifierCosign::with_url_and_mode(server.uri(), VerifierCosignMode::Full);
+        let verifier = VerifierCosign::with_url_and_mode(server.uri(), VerifierCosignMode::Full);
         let manifest = make_manifest("2020-01-01T00:00:00Z", "2099-12-31T23:59:59Z");
         let result = verifier.verify(&manifest, &[], b"artifact").await;
         assert!(

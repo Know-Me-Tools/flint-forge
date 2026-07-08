@@ -68,8 +68,8 @@ async fn main() {
             None
         };
 
-    let db_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://localhost/flint".into());
+    let db_url =
+        std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgres://localhost/flint".into());
 
     let pool = sqlx::PgPool::connect(&db_url)
         .await
@@ -79,9 +79,8 @@ async fn main() {
     // Falls back to SourceUnavailable (deny-all) if the DB is unreachable.
     // kiln_policy::TestAllowAllPolicySource is #[cfg(test)]-gated and unavailable here.
     let policy_source = Arc::new(kiln_db_policy::DbKilnPolicySource::new(pool.clone()));
-    let pep: Arc<dyn forge_policy::Pep> = Arc::new(
-        forge_policy::CedarPolicyEngine::new(policy_source).await,
-    );
+    let pep: Arc<dyn forge_policy::Pep> =
+        Arc::new(forge_policy::CedarPolicyEngine::new(policy_source).await);
     let runtime = Arc::new(EdgeRuntime::new().expect("EdgeRuntime::new").with_pep(pep));
     let store = Arc::new(PgComponentStore::new(pool.clone()));
     let registry = Arc::new(fke_registry::PgRegistry::new(pool.clone()));
@@ -93,7 +92,11 @@ async fn main() {
         Arc::clone(&registry),
         Arc::clone(&store),
     );
-    let state = KilnState { runtime, store, registry };
+    let state = KilnState {
+        runtime,
+        store,
+        registry,
+    };
 
     let plane = if cfg!(feature = "control-plane") {
         "control"
@@ -106,14 +109,22 @@ async fn main() {
 
     let mut app = Router::new()
         .route("/healthz", get(healthz))
-        .route("/metrics", get(move || std::future::ready(metric_handle.render())))
+        .route(
+            "/metrics",
+            get(move || std::future::ready(metric_handle.render())),
+        )
         .route("/functions/v1/{name}", any(invoke_function))
-        .route("/functions/v1/{name}@{version}", any(invoke_function_versioned))
+        .route(
+            "/functions/v1/{name}@{version}",
+            any(invoke_function_versioned),
+        )
         .layer(metric_layer);
 
     if cfg!(feature = "control-plane") {
-        app = app
-            .route("/admin/functions", post(register_function).get(list_functions));
+        app = app.route(
+            "/admin/functions",
+            post(register_function).get(list_functions),
+        );
     }
 
     let app = app.with_state(state);
@@ -121,7 +132,9 @@ async fn main() {
     let addr = "0.0.0.0:8090";
     tracing::info!(%addr, plane, "flint-kiln listening");
     let listener = tokio::net::TcpListener::bind(addr).await.expect("bind");
-    axum::serve(listener, app.into_make_service()).await.expect("serve");
+    axum::serve(listener, app.into_make_service())
+        .await
+        .expect("serve");
 }
 
 // ─── Healthz ─────────────────────────────────────────────────────────────────
@@ -237,7 +250,9 @@ async fn invoke_impl(
         headers: headers
             .iter()
             .filter_map(|(k, v)| {
-                v.to_str().ok().map(|s| (k.as_str().to_owned(), s.to_owned()))
+                v.to_str()
+                    .ok()
+                    .map(|s| (k.as_str().to_owned(), s.to_owned()))
             })
             .collect(),
         body: body.to_vec(),
@@ -334,7 +349,12 @@ async fn register_function(
     )
     .bind(&body.name)
     .bind(&body.version)
-    .bind(content_id.0.strip_prefix("sha256:").unwrap_or(&content_id.0))
+    .bind(
+        content_id
+            .0
+            .strip_prefix("sha256:")
+            .unwrap_or(&content_id.0),
+    )
     .bind(serde_json::to_value(&body.manifest).unwrap_or(Value::Null))
     .fetch_one(state.store.pool())
     .await;

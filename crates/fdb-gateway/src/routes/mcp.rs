@@ -31,7 +31,7 @@ use sqlx::FromRow;
 use uuid::Uuid;
 
 use crate::routes::a2ui::{
-    self, AssembleSurfaceBody, A2uiState, ListComponentsQuery, SearchComponentsBody,
+    self, A2uiState, AssembleSurfaceBody, ListComponentsQuery, SearchComponentsBody,
 };
 
 /// MCP server-scoped state. Wraps the A2UI route state so tools can call the
@@ -63,7 +63,10 @@ pub struct RpcError {
 
 impl RpcError {
     pub fn new(code: i32, message: impl Into<String>) -> Self {
-        Self { code, message: message.into() }
+        Self {
+            code,
+            message: message.into(),
+        }
     }
 }
 
@@ -126,7 +129,10 @@ async fn dispatch(
             let args = params.and_then(|p| p.get("arguments"));
             dispatch_tool(state, who, name, args).await
         }
-        _ => Err(RpcError::new(METHOD_NOT_FOUND, format!("unknown method: {method}"))),
+        _ => Err(RpcError::new(
+            METHOD_NOT_FOUND,
+            format!("unknown method: {method}"),
+        )),
     }
 }
 
@@ -242,7 +248,10 @@ async fn dispatch_tool(
         "a2ui_resolve_tokens" => resolve_tokens(state, who, args).await?,
         "a2ui_assemble_surface" => call_assemble_surface(state, who, args).await?,
         other => {
-            return Err(RpcError::new(METHOD_NOT_FOUND, format!("unknown tool: {other}")));
+            return Err(RpcError::new(
+                METHOD_NOT_FOUND,
+                format!("unknown tool: {other}"),
+            ));
         }
     };
     // Wrap the JSON result in the MCP content envelope.
@@ -264,7 +273,10 @@ async fn call_list_components(
 ) -> Result<Value, RpcError> {
     let query = ListComponentsQuery {
         app_id: parse_uuid_opt(args, "app_id")?,
-        category: args.get("category").and_then(Value::as_str).map(str::to_owned),
+        category: args
+            .get("category")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
     };
     a2ui::list_components_value(&state.a2ui.pool, who, &query)
         .await
@@ -302,7 +314,11 @@ async fn call_semantic_search(
         .and_then(Value::as_i64)
         .map_or(10, |i| i32::try_from(i).unwrap_or(10));
     let app_id = parse_uuid_opt(args, "app_id")?;
-    let body = SearchComponentsBody { query, limit, app_id };
+    let body = SearchComponentsBody {
+        query,
+        limit,
+        app_id,
+    };
     a2ui::search_components_value(&state.a2ui.pool, who, &body)
         .await
         .map(|Json(v)| v)
@@ -521,11 +537,12 @@ pub async fn handle_sse() -> impl IntoResponse {
     use std::convert::Infallible;
     use std::time::Duration;
 
-    let stream = stream::repeat_with(|| Ok::<_, Infallible>(Event::default().event("ping").data("{}")))
-        .then(|ev| async move {
-            tokio::time::sleep(Duration::from_secs(15)).await;
-            ev
-        });
+    let stream =
+        stream::repeat_with(|| Ok::<_, Infallible>(Event::default().event("ping").data("{}")))
+            .then(|ev| async move {
+                tokio::time::sleep(Duration::from_secs(15)).await;
+                ev
+            });
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
@@ -565,7 +582,9 @@ mod tests {
     async fn connect() -> Option<McpState> {
         let url = std::env::var("DATABASE_URL").ok()?;
         let pool = PgPool::connect(&url).await.ok()?;
-        Some(McpState { a2ui: A2uiState { pool } })
+        Some(McpState {
+            a2ui: A2uiState { pool },
+        })
     }
 
     fn mcp_app(state: McpState, user_id: &str) -> Router {
@@ -577,7 +596,9 @@ mod tests {
     }
 
     async fn read_json(resp: axum::response::Response) -> Value {
-        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.expect("body");
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .expect("body");
         serde_json::from_slice(&bytes).expect("valid json")
     }
 
@@ -637,10 +658,14 @@ mod tests {
             .method(Method::POST)
             .uri("/mcp/v1/a2ui")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(3, "tools/call", &json!({
-                "name": "a2ui_list_components",
-                "arguments": {}
-            }))))
+            .body(Body::from(rpc(
+                3,
+                "tools/call",
+                &json!({
+                    "name": "a2ui_list_components",
+                    "arguments": {}
+                }),
+            )))
             .unwrap();
         let resp = app.oneshot(req).await.expect("req");
         let body = read_json(resp).await;
@@ -689,10 +714,14 @@ mod tests {
             .method(Method::POST)
             .uri("/mcp/v1/a2ui")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(5, "tools/call", &json!({
-                "name": "a2ui_get_component",
-                "arguments": { "slug": "button" }
-            }))))
+            .body(Body::from(rpc(
+                5,
+                "tools/call",
+                &json!({
+                    "name": "a2ui_get_component",
+                    "arguments": { "slug": "button" }
+                }),
+            )))
             .unwrap();
         let resp = app.oneshot(req).await.expect("req");
         let body = read_json(resp).await;
@@ -701,5 +730,3 @@ mod tests {
         assert_eq!(payload["component"]["slug"], "button");
     }
 }
-
-

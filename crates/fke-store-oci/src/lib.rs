@@ -311,8 +311,7 @@ mod tests {
     async fn get_unknown_returns_not_found() {
         let store = StoreOci::new().expect("env vars must be set for live test");
         let unknown = ContentId(
-            "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-                .to_string(),
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000".to_string(),
         );
         let err = store.get(&unknown).await.expect_err("must error");
         assert!(

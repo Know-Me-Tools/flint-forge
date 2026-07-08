@@ -42,7 +42,10 @@ async fn valid_signature_verifies() {
     let artifact = b"wasm bytes here";
     let manifest = make_manifest(&did, "2020-01-01T00:00:00Z", "2099-12-31T23:59:59Z");
     let sig = sign_artifact(&sk, artifact, &manifest.content_digest);
-    assert!(VerifierDid::new().verify(&manifest, &sig, artifact).await.is_ok());
+    assert!(VerifierDid::new()
+        .verify(&manifest, &sig, artifact)
+        .await
+        .is_ok());
 }
 
 #[tokio::test]
@@ -75,7 +78,9 @@ async fn wrong_signature_returns_invalid() {
     let manifest = make_manifest(&did, "2020-01-01T00:00:00Z", "2099-12-31T23:59:59Z");
     let sig = sign_artifact(&sk, b"different artifact", &manifest.content_digest);
     assert!(matches!(
-        VerifierDid::new().verify(&manifest, &sig, b"actual artifact").await,
+        VerifierDid::new()
+            .verify(&manifest, &sig, b"actual artifact")
+            .await,
         Err(SignError::Invalid)
     ));
 }
@@ -135,10 +140,12 @@ async fn inline_key_still_works_without_network() {
     let artifact = b"wasm bytes here";
     let manifest = make_manifest(&did, "2020-01-01T00:00:00Z", "2099-12-31T23:59:59Z");
     let sig = sign_artifact(&sk, artifact, &manifest.content_digest);
-    assert!(VerifierDid::with_resolver("http://this-host-does-not-exist.invalid")
-        .verify(&manifest, &sig, artifact)
-        .await
-        .is_ok());
+    assert!(
+        VerifierDid::with_resolver("http://this-host-does-not-exist.invalid")
+            .verify(&manifest, &sig, artifact)
+            .await
+            .is_ok()
+    );
 }
 
 #[tokio::test]
@@ -168,8 +175,14 @@ async fn http_resolution_fetches_key_and_caches() {
     let manifest = make_manifest(did, "2020-01-01T00:00:00Z", "2099-12-31T23:59:59Z");
     let sig = sign_artifact(&sk, artifact, &manifest.content_digest);
 
-    assert!(verifier.verify(&manifest, &sig, artifact).await.is_ok(), "first call");
-    assert!(verifier.verify(&manifest, &sig, artifact).await.is_ok(), "second (cached)");
+    assert!(
+        verifier.verify(&manifest, &sig, artifact).await.is_ok(),
+        "first call"
+    );
+    assert!(
+        verifier.verify(&manifest, &sig, artifact).await.is_ok(),
+        "second (cached)"
+    );
 }
 
 #[tokio::test]
@@ -219,6 +232,12 @@ async fn cached_key_returned_without_second_request() {
     let artifact = b"data";
     let manifest = make_manifest(did, "2020-01-01T00:00:00Z", "2099-12-31T23:59:59Z");
     let sig = sign_artifact(&sk, artifact, &manifest.content_digest);
-    verifier.verify(&manifest, &sig, artifact).await.expect("first");
-    verifier.verify(&manifest, &sig, artifact).await.expect("second (cached)");
+    verifier
+        .verify(&manifest, &sig, artifact)
+        .await
+        .expect("first");
+    verifier
+        .verify(&manifest, &sig, artifact)
+        .await
+        .expect("second (cached)");
 }

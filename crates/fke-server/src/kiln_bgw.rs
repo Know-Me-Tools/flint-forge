@@ -186,7 +186,9 @@ async fn invoke_function(
         }
     }
 
-    handle_result.map(|_| ()).map_err(|e| anyhow::anyhow!("handle: {e}"))
+    handle_result
+        .map(|_| ())
+        .map_err(|e| anyhow::anyhow!("handle: {e}"))
 }
 
 /// Build a `KilnRequest` from the outbox row payload.
@@ -195,10 +197,7 @@ fn build_request(row: &KilnOutboxRow, name: &str) -> KilnRequest {
     KilnRequest {
         method: "POST".into(),
         uri: format!("/functions/v1/{name}"),
-        headers: vec![(
-            "content-type".into(),
-            "application/json".into(),
-        )],
+        headers: vec![("content-type".into(), "application/json".into())],
         body,
     }
 }
@@ -259,7 +258,10 @@ mod tests {
         let req = build_request(&row, "my-func");
         assert_eq!(req.method, "POST");
         assert_eq!(req.uri, "/functions/v1/my-func");
-        assert!(!req.body.is_empty(), "body should contain serialized payload");
+        assert!(
+            !req.body.is_empty(),
+            "body should contain serialized payload"
+        );
     }
 
     #[test]
@@ -277,10 +279,7 @@ mod tests {
         // The runtime / registry are not needed to hit the early-exit guard.
         // We verify the error path synchronously via the payload extraction.
         let row = make_row(3, json!({"type": "INSERT"}), 0);
-        let name = row
-            .payload
-            .get("function_name")
-            .and_then(|v| v.as_str());
+        let name = row.payload.get("function_name").and_then(|v| v.as_str());
         assert!(name.is_none(), "expected missing function_name");
     }
 
@@ -300,8 +299,7 @@ mod tests {
         // Verify spawn() returns a JoinHandle that can be aborted immediately.
         // Uses a pool that cannot connect — process_batch errors and loops.
         let pool = Arc::new(
-            sqlx::PgPool::connect_lazy("postgres://localhost/nonexistent")
-                .expect("lazy pool"),
+            sqlx::PgPool::connect_lazy("postgres://localhost/nonexistent").expect("lazy pool"),
         );
         let rt = Arc::new(fke_runtime::EdgeRuntime::new().expect("runtime"));
         // Registry and store need pools too; use the same lazy pool.
@@ -323,7 +321,7 @@ mod tests {
             capabilities: vec![],
             version: "1.0.0".to_owned(),
             not_before: "2020-01-01T00:00:00Z".to_owned(),
-            not_after:  "2099-12-31T23:59:59Z".to_owned(),
+            not_after: "2099-12-31T23:59:59Z".to_owned(),
         };
         let rls = publisher_rls(&manifest);
         assert_eq!(rls.keto_subject, "did:prometheus:abc123");
@@ -338,10 +336,13 @@ mod tests {
             capabilities: vec![],
             version: "1.0.0".to_owned(),
             not_before: "2020-01-01T00:00:00Z".to_owned(),
-            not_after:  "2099-12-31T23:59:59Z".to_owned(),
+            not_after: "2099-12-31T23:59:59Z".to_owned(),
         };
         let rls = publisher_rls(&manifest);
-        assert!(rls.raw_bearer.is_empty(), "raw_bearer must be empty for BGW calls");
+        assert!(
+            rls.raw_bearer.is_empty(),
+            "raw_bearer must be empty for BGW calls"
+        );
         assert!(rls.vault_key_id.is_none());
     }
 }

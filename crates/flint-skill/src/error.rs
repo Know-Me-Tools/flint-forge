@@ -70,9 +70,9 @@ pub enum SkillError {
     },
 
     /// A WIT resource handle (e.g. `secrets::secret`) was used after the host
-        /// invalidated it. Components generally cannot observe this in v0.1.0
-        /// because handles are bound to a single incoming-handler invocation,
-        /// but it is provided for forward compatibility.
+    /// invalidated it. Components generally cannot observe this in v0.1.0
+    /// because handles are bound to a single incoming-handler invocation,
+    /// but it is provided for forward compatibility.
     #[error("host resource handle is stale or dropped")]
     StaleHandle,
 }
@@ -110,12 +110,10 @@ impl SkillError {
     #[must_use]
     pub fn code(&self) -> Option<&str> {
         match self {
-            Self::Db { code, .. }
-            | Self::Llm { code, .. }
-            | Self::Secrets { code, .. } => Some(code.as_str()),
-            Self::Utf8(_)
-            | Self::Json { .. }
-            | Self::StaleHandle => None,
+            Self::Db { code, .. } | Self::Llm { code, .. } | Self::Secrets { code, .. } => {
+                Some(code.as_str())
+            }
+            Self::Utf8(_) | Self::Json { .. } | Self::StaleHandle => None,
         }
     }
 

@@ -193,15 +193,13 @@ pub async fn stream_events(
             _ => "Unknown",
         };
         let data = serde_json::to_string(&event).unwrap_or_else(|_| "{}".into());
-        Ok::<_, std::convert::Infallible>(
-            Event::default()
-                .event(event_type)
-                .data(data),
-        )
+        Ok::<_, std::convert::Infallible>(Event::default().event(event_type).data(data))
     });
 
     // Send the terminal event as the final SSE message before closing.
-    Sse::new(mapped).keep_alive(KeepAlive::default()).into_response()
+    Sse::new(mapped)
+        .keep_alive(KeepAlive::default())
+        .into_response()
 }
 
 // ─── Publish endpoint ───────────────────────────────────────────────────────
@@ -405,7 +403,10 @@ mod tests {
         let json_str = serde_json::to_string(&event).expect("serialize");
         let parsed: AgUiEvent = serde_json::from_str(&json_str).expect("deserialize");
         match parsed {
-            AgUiEvent::TextMessageContent { message_id, content } => {
+            AgUiEvent::TextMessageContent {
+                message_id,
+                content,
+            } => {
                 assert_eq!(message_id, "m-001");
                 assert_eq!(content, "Hello!");
             }
@@ -429,7 +430,9 @@ mod tests {
 
     #[test]
     fn run_finished_is_terminal() {
-        let event = AgUiEvent::RunFinished { run_id: "r-001".into() };
+        let event = AgUiEvent::RunFinished {
+            run_id: "r-001".into(),
+        };
         assert!(event.is_terminal());
     }
 
