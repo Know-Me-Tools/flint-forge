@@ -25,6 +25,8 @@ jobs:
       # CVSS >= 7.0 that is not in .cargo/audit.toml allowlist.
       # Allowlisted: quick-xml (DoS via operator-controlled S3), rsa/sqlx-mysql
       # (PostgreSQL-only codebase), two unmaintained indirect deps.
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
       - name: Security audit
         run: cargo audit
       # p13-c004: API version consistency gate.
