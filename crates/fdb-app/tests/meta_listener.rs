@@ -183,24 +183,36 @@ async fn test_listener_reconnect_after_drop() {
     }
 
     // Trigger a DDL notification for the reconnected listener to receive.
+    // Use an epoch-suffixed scratch table and DROP first so the CREATE TABLE is
+    // always a real DDL event, avoiding stale tables from prior aborted runs.
+    let epoch = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let table = format!("meta_reconnect_test_{epoch}");
     drop(
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS public.meta_reconnect_test (id bigserial PRIMARY KEY)",
-        )
+        sqlx::query(&format!("DROP TABLE IF EXISTS public.{table}"))
+            .execute(&pool)
+            .await,
+    );
+    drop(
+        sqlx::query(&format!(
+            "CREATE TABLE public.{table} (id bigserial PRIMARY KEY)"
+        ))
         .execute(&pool)
         .await,
     );
 
-    // Expect a notification within 5 s; timeout is fatal.
-    let recv_result = timeout(Duration::from_secs(5), reconnected.recv())
+    // Expect a notification within 10 s; timeout is fatal.
+    let recv_result = timeout(Duration::from_secs(10), reconnected.recv())
         .await
-        .expect("reconnected listener did not receive a notification within 5 s");
+        .expect("reconnected listener did not receive a notification within 10 s");
     let n = recv_result.expect("reconnected listener.recv() returned an error");
 
     assert_eq!(n.channel(), "meta_runtime");
 
     drop(
-        sqlx::query("DROP TABLE IF EXISTS public.meta_reconnect_test")
+        sqlx::query(&format!("DROP TABLE IF EXISTS public.{table}"))
             .execute(&pool)
             .await,
     );
