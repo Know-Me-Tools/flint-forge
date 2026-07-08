@@ -1,0 +1,53 @@
+{{- if .Values.kiln.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "flint-forge.fullname" . }}-kiln
+  labels:
+    app.kubernetes.io/component: kiln
+    {{- include "flint-forge.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.kiln.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: kiln
+      {{- include "flint-forge.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: kiln
+        {{- include "flint-forge.selectorLabels" . | nindent 8 }}
+    spec:
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      containers:
+        - name: kiln
+          image: "{{ .Values.kiln.image.repository }}:{{ .Values.kiln.image.tag }}"
+          imagePullPolicy: {{ .Values.kiln.image.pullPolicy }}
+          command: ["fke-server"]
+          ports:
+            - containerPort: 8090
+              name: http
+          envFrom:
+            - configMapRef:
+                name: {{ include "flint-forge.fullname" . }}-config
+          env:
+            {{- range $key, $value := .Values.kiln.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.kiln.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+{{- end }}

@@ -1,4 +1,4 @@
--- Migration 0005: A2UI hybrid full-text + vector search
+-- Migration 0006: A2UI hybrid full-text + vector search
 -- Depends on: 0002_flint_a2ui (embeddings table), 0004_flint_a2ui_sdk_extensions
 -- Idempotent: CREATE OR REPLACE FUNCTION
 

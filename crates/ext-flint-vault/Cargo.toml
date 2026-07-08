@@ -10,10 +10,6 @@ description = "Flint Forge sovereign secret store. XChaCha20-Poly1305 AEAD; the 
 [lib]
 crate-type = ["cdylib", "lib"]
 
-[[bin]]
-name = "pgrx_embed_flint_vault"
-path = "src/bin/pgrx_embed.rs"
-
 [features]
 default = ["pg18"]
 pg17 = ["pgrx/pg17", "pgrx-tests/pg17"]

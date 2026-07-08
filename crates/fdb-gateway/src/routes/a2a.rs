@@ -428,7 +428,7 @@ mod tests {
         serde_json::from_slice(&bytes).expect("valid json")
     }
 
-    fn rpc(id: i64, method: &str, params: Value) -> Vec<u8> {
+    fn rpc(id: i64, method: &str, params: &Value) -> Vec<u8> {
         serde_json::to_vec(&json!({
             "jsonrpc": "2.0",
             "id": id,
@@ -465,7 +465,7 @@ mod tests {
             .method(Method::POST)
             .uri("/a2a/v1")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(1, "tasks/list", json!({}))))
+            .body(Body::from(rpc(1, "tasks/list", &json!({}))))
             .unwrap();
         let resp = app.oneshot(req).await.expect("req");
         let body = read_json(resp).await;
@@ -481,7 +481,7 @@ mod tests {
             .method(Method::POST)
             .uri("/a2a/v1")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(2, "tasks/send", json!({
+            .body(Body::from(rpc(2, "tasks/send", &json!({
                 "task": {
                     "id": "t-001",
                     "name": "a2ui.component.discover",
@@ -505,7 +505,7 @@ mod tests {
             .method(Method::POST)
             .uri("/a2a/v1")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(3, "tasks/send", json!({
+            .body(Body::from(rpc(3, "tasks/send", &json!({
                 "task": { "name": "nonexistent.task", "input": {} }
             }))))
             .unwrap();
@@ -522,7 +522,7 @@ mod tests {
             .method(Method::POST)
             .uri("/a2a/v1")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(4, "tasks/send", json!({
+            .body(Body::from(rpc(4, "tasks/send", &json!({
                 "task": { "name": "a2ui.component.assemble", "input": {} }
             }))))
             .unwrap();

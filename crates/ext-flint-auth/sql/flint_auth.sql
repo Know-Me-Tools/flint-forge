@@ -1,5 +1,21 @@
 -- flint_auth: GUC-backed identity helpers. Verification stays upstream in flint-gate.
-CREATE SCHEMA IF NOT EXISTS auth;
+-- The `auth` schema is created and owned by the extension control file.
+
+-- Application-facing JWT roles are created idempotently by this extension so
+-- downstream extensions (meta, hooks, vault) can grant to them at install time.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+        CREATE ROLE authenticated NOLOGIN;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        CREATE ROLE anon NOLOGIN;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+        CREATE ROLE service_role NOLOGIN;
+    END IF;
+END
+$$;
 
 CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS
 $$ SELECT coalesce(current_setting('request.jwt.claims', true), '{}')::jsonb $$;

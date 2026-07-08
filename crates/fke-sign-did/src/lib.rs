@@ -46,7 +46,7 @@ use fke_ports::{SignError, SignatureVerifier};
 use sha2::{Digest, Sha256};
 
 const DEFAULT_RESOLVER_URL: &str = "https://did.flint.example.com";
-const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(300);
+const DEFAULT_CACHE_TTL: Duration = Duration::from_mins(5);
 
 // ─── Public type ────────────────────────────────────────────────────────────
 

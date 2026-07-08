@@ -1,4 +1,4 @@
--- 0006_change_notify.sql
+-- 0007_change_notify.sql
 -- Flint Quarry — LISTEN/NOTIFY change feed (OQ-FRF-1 workaround).
 --
 -- WHY THIS EXISTS

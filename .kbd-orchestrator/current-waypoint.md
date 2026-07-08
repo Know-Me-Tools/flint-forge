@@ -1,20 +1,30 @@
 # Current Waypoint — Flint Forge
 
 ## Active Phase
-**p5-a2ui-registry** — Flint A2UI Component Registry
+**p15-v1.0-production-readiness** — v1.0 Production Readiness Gap Closure
 
 ## Phase State
-- Completed changes: p5-c001, p5-c002, p5-c003, p5-c007, p5-c009, p5-c010, p5-c011, p5-c014
-- Next change to implement: **p5-c008-protocol-surfaces**
+- Status: **in_progress**
+- Changes planned: 5 (0 done)
+- Active: `p15-c001`, `p15-c002`
 
 ## Immediate Next Action
-1. Review `openspec/changes/p5-c008-protocol-surfaces/proposal.md` and `tasks.md`.
-2. Implement protocol surface generation and message dispatch.
-3. Run `cargo clippy -p fdb-gateway -- -D warnings` after implementation.
+1. Upgrade pgrx extensions to 0.18.1 + pg18 (`p15-c001`).
+2. Renumber colliding migrations and add CI migrate test (`p15-c002`).
+3. Run workspace checks after each coherent slice.
+4. Update progress in `.kbd-orchestrator/phases/p15-v1.0-production-readiness/progress.json`.
 
-## Why A2UI before Kiln
-OpenSpec changes already use p5-* IDs for A2UI; the revised phase plan (RFC-FORGE-PHASES-002) validates this ordering. Kiln runtime moves to Phase 6.
+## Why This Phase
+The core server plane (Quarry + Kiln) compiles and passes 470+ unit tests, but
+the pgrx extension suite (Anvil) does not build, migrations have sequence
+collisions, the operator CLI is a stub, and end-to-end validation is missing.
+This phase closes those gaps so v1.0 is production-credible.
 
-## Recorded Decisions
-- Wiki: `flint-forge/phase-numbering-a2ui-before-kiln`
-- Memory: `egn27z6kazo7nl7wr7fl`
+## P0 Blockers
+- Anvil pgrx extensions do not compile.
+- Migration sequence collisions prevent clean `sqlx migrate run`.
+
+## Verification Baseline
+- `cargo check --workspace` passes.
+- `cargo test --workspace --lib --bins` passes.
+- `cargo clippy --workspace -- -D warnings` passes.

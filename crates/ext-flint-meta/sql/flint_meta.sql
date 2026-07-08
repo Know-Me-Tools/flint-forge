@@ -2,8 +2,8 @@
 -- All tables are populated by DDL event triggers (p1-c008) and queried
 -- by the Rust reflection engine (Phase 2). Never write to these from
 -- application code — they are internal infrastructure.
-
-CREATE SCHEMA IF NOT EXISTS flint_meta;
+--
+-- The `flint_meta` schema is created and owned by the extension control file.
 
 -- ── Cache: tables ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS flint_meta.cache_tables (

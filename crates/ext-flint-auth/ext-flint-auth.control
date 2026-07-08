@@ -1,0 +1,6 @@
+comment = 'Flint Forge auth.* identity/RLS context helpers'
+default_version = '0.1.0'
+module_pathname = '$libdir/ext-flint-auth'
+relocatable = false
+superuser = true
+schema = 'auth'

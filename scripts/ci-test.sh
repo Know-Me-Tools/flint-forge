@@ -13,10 +13,18 @@
 # pinned docker/postgres image. See docker/postgres/Dockerfile.
 set -euo pipefail
 
+echo "==> verify migrations"
+./scripts/verify-migrations.sh migrations
+
 echo "==> unit tests (no DB)"
 # --lib/--bins across the workspace: pure logic; DATABASE_URL-gated integration
 # tests live in tests/ and are handled in the db stage below.
 cargo test --workspace --lib --bins
+
+if command -v docker >/dev/null 2>&1; then
+  echo "==> build forge-cli container image"
+  docker build -t flint-forge-cli -f crates/forge-cli/Dockerfile .
+fi
 
 if [[ -z "${DATABASE_URL:-}" ]]; then
   echo "==> db-integration: SKIPPED (DATABASE_URL not set)"
@@ -36,8 +44,11 @@ else
 fi
 
 echo "==> db-integration tests (DATABASE_URL-gated)"
-# --include-ignored runs the #[ignore]d live-PG tests too; the DATABASE_URL-gated
-# ones self-skip when unset but run here since it is set.
-cargo test --workspace -- --include-ignored
+# DB-gated tests in src/ and tests/ skip gracefully when DATABASE_URL is unset.
+# #[ignore]d live-Postgres tests are run explicitly below.
+cargo test --workspace
+
+echo "==> live Postgres LISTEN/NOTIFY tests"
+cargo test -p fdb-realtime --test listen_live_pg -- --ignored
 
 echo "OK: unit + db-integration tests green"

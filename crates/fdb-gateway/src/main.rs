@@ -352,6 +352,35 @@ async fn main() {
         agui_state.clone(),
     );
 
+    // p14-c003: A2UI catalog hot-reload — when the StateManager hot-swaps the
+    // compiled state (on `meta_runtime` NOTIFY, fired by A2UI catalog changes
+    // via migration 0010), broadcast a `StateSnapshot` to every connected AG-UI
+    // run. SDKs receiving this event revalidate their registry (e.g., SWR
+    // `mutate()` in `@flint/react`'s `useFlintRegistry`).
+    //
+    // We subscribe to the StateManager's version watch channel and fan out on
+    // every bump. `AgUiState` is `Clone` (cheap Arc clone internally), so we
+    // clone it here before it is moved into the router below.
+    {
+        let mut version_rx = state_manager.subscribe_version();
+        let agui_for_version = agui_state.clone();
+        tokio::spawn(async move {
+            while version_rx.changed().await.is_ok() {
+                let version = *version_rx.borrow();
+                tracing::info!(
+                    version,
+                    "schema version changed — notifying AG-UI clients (a2ui hot-reload)"
+                );
+                agui_for_version
+                    .broadcast_all(fdb_domain::AgUiEvent::StateSnapshot {
+                        run_id: "schema".to_owned(),
+                        state: serde_json::json!({ "schema_version": version }),
+                    })
+                    .await;
+            }
+        });
+    }
+
     let agent_events_router = Router::new()
         .route("/agents/v1/runs", axum::routing::post(routes::agui::start_run))
         .route(
@@ -779,7 +808,7 @@ mod rate_limit_tests {
     /// Construct a plain GET request with a `ConnectInfo<SocketAddr>` extension so
     /// that `PeerIpKeyExtractor` can resolve the peer address without a TCP listener.
     fn make_request(path: &str) -> Request<Body> {
-        let peer = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 1234);
+        let peer = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 1234);
         let mut req = Request::builder()
             .uri(path)
             .body(Body::empty())

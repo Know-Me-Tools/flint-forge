@@ -1,4 +1,4 @@
--- Migration: 0009_flint_kiln_cedar_policies.sql
+-- Migration: 0011_flint_kiln_cedar_policies.sql
 -- Adds Cedar policy table for the Kiln function gateway (p7b-c002).
 -- Mirrors the schema of flint_meta.cedar_policies used by the Quarry,
 -- namespaced under flint_kiln for operational separation.

@@ -22,6 +22,7 @@ use axum::{
     routing::{any, get, post},
     Router,
 };
+use axum_prometheus::PrometheusMetricLayer;
 use fke_domain::ContentId;
 use fke_registry::PgComponentStore;
 use fke_runtime::{EdgeRuntime, KilnRequest};
@@ -100,10 +101,15 @@ async fn main() {
         "data"
     };
 
+    // p14-c005: Prometheus metrics layer + /metrics handler.
+    let (metric_layer, metric_handle) = PrometheusMetricLayer::pair();
+
     let mut app = Router::new()
         .route("/healthz", get(healthz))
+        .route("/metrics", get(move || std::future::ready(metric_handle.render())))
         .route("/functions/v1/{name}", any(invoke_function))
-        .route("/functions/v1/{name}@{version}", any(invoke_function_versioned));
+        .route("/functions/v1/{name}@{version}", any(invoke_function_versioned))
+        .layer(metric_layer);
 
     if cfg!(feature = "control-plane") {
         app = app
@@ -193,12 +199,7 @@ async fn invoke_impl(
     let content_id = ContentId(format!("sha256:{}", manifest.content_digest));
     {
         use fke_ports::ComponentStore;
-        let cache_miss = {
-            // Check if already loaded — peek at the cache via a no-op handle call
-            // (we don't expose the cache directly; attempt to get bytes only if needed)
-            false // TODO: expose a `is_loaded()` method on EdgeRuntime
-        };
-        if cache_miss {
+        if !state.runtime.is_loaded(&content_id) {
             match state.store.get(&content_id).await {
                 Ok(wasm_bytes) => {
                     if let Err(e) = state.runtime.load_wasm(content_id.clone(), &wasm_bytes) {
@@ -242,15 +243,18 @@ async fn invoke_impl(
         body: body.to_vec(),
     };
 
+    // p14-c005: per-function invocation counter.
+    metrics::counter!("kiln_invocations_total", "function" => name.to_owned()).increment(1);
+
     match state
         .runtime
-        .handle(&content_id, &manifest.capabilities, caller, request)
+        .handle_with_telemetry(&content_id, &manifest.capabilities, caller, request)
         .await
     {
-        Ok(resp) => (
-            StatusCode::from_u16(resp.status).unwrap_or(StatusCode::OK),
+        Ok(outcome) => (
+            StatusCode::from_u16(outcome.response.status).unwrap_or(StatusCode::OK),
             [(header::CONTENT_TYPE, "application/json")],
-            resp.body,
+            outcome.response.body,
         )
             .into_response(),
         Err(e) => {

@@ -2,9 +2,15 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS pg_net;
-CREATE EXTENSION IF NOT EXISTS flint_auth;   -- SQL-only
-CREATE EXTENSION IF NOT EXISTS flint_hooks;  -- SQL-only
-CREATE EXTENSION IF NOT EXISTS flint_llm;    -- pgrx (Flint Ember)
+
+-- Anvil pgrx extensions (all built from source in the anvil stage).
+-- Order matters: auth creates shared JWT roles; vault must precede meta
+-- because meta requires vault_admin and declares requires = 'flint_vault'.
+CREATE EXTENSION IF NOT EXISTS "ext-flint-auth";   -- auth.* identity helpers + roles
+CREATE EXTENSION IF NOT EXISTS "flint_vault";      -- encrypted secret store
+CREATE EXTENSION IF NOT EXISTS "ext-flint-meta";   -- flint_meta schema cache
+CREATE EXTENSION IF NOT EXISTS "ext-flint-hooks";  -- flint.webhooks / outbox
+CREATE EXTENSION IF NOT EXISTS "flint_llm";        -- LLM async job queue
 
 -- pg_graphql: provisional on PG18 (built from master; no released PG18 build yet).
 -- Tolerate absence so the image still boots; GraphQL passthrough degrades, not the data plane.
@@ -20,16 +26,12 @@ CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 -- Webhook outbox GC: delete processed/failed entries older than 7 days
 SELECT cron.schedule('webhook-outbox-gc', '0 3 * * *',
-  $$DELETE FROM flint.webhook_outbox WHERE status IN ('delivered', 'failed') AND updated_at < now() - interval '7 days'$$
-);
+  $$DELETE FROM flint.webhook_outbox WHERE status IN ('delivered', 'failed') AND updated_at < now() - interval '7 days'$$);
 
--- Meta full-refresh: nightly schema cache rebuild (function defined in p1-c009)
--- Registered as a stub; will call flint_meta.full_refresh() when p1-c009 ships.
+-- Meta full-refresh: nightly schema cache rebuild (function defined in ext-flint-meta).
 SELECT cron.schedule('meta-full-refresh', '0 2 * * *',
-  $$SELECT 1 -- placeholder: will be replaced with SELECT flint_meta.full_refresh() after p1-c009$$
-);
+  $$SELECT flint_meta.full_refresh()$$);
 
--- Durable webhook dispatcher: process outbox every minute (added p1-c003).
+-- Durable webhook dispatcher: process outbox every minute.
 SELECT cron.schedule('webhook-outbox-processor', '* * * * *',
-  $$SELECT flint.process_webhook_outbox()$$
-);
+  $$SELECT flint.process_webhook_outbox()$$);

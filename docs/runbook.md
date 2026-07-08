@@ -1016,3 +1016,78 @@ subsequent SSH command can pass it to `smoke_test.sh`.
 Tokens expire after 1 hour by design. A leaked CI log or artifact that contains
 the minted `SMOKE_TOKEN` poses only a brief, time-bounded risk compared with a
 static bearer token that remains valid indefinitely.
+
+---
+
+## §12 — Staging JWT Secret Rotation (p14-c004)
+
+### 12.1 Overview
+
+`scripts/rotate_staging_jwt.sh` rotates the raw HS256 signing key stored in the
+`STAGING_JWT_SECRET` GitHub Actions secret. It also writes the same key locally
+to `secrets/jwt_secret.txt` so operators can mint smoke tokens on the staging
+host during troubleshooting.
+
+The script is intended to be run manually when:
+
+- The key is suspected to be compromised.
+- A team member with access to the secret leaves the project.
+- The quarterly rotation cycle comes due.
+- You want to invalidate all previously minted staging smoke tokens.
+
+### 12.2 Prerequisites
+
+| Requirement | Verification |
+|---|---|
+| `gh` CLI installed | `gh --version` |
+| Authenticated to GitHub | `gh auth status` |
+| Push access to the repository | Confirm you can open the repo settings |
+| Local `secrets/` directory writable | `mkdir -p secrets` |
+
+### 12.3 Running the rotation
+
+```bash
+# Rotate for real
+./scripts/rotate_staging_jwt.sh
+
+# Preview only — no files or secrets are changed
+./scripts/rotate_staging_jwt.sh --dry-run
+```
+
+The script performs the following steps:
+
+1. Generates a new 32-byte hex random string with `openssl rand -hex 32`.
+2. Writes it to `secrets/jwt_secret.txt` with `chmod 600`.
+3. Updates `STAGING_JWT_SECRET` via `gh secret set STAGING_JWT_SECRET`.
+
+### 12.4 Applying the new key
+
+GitHub Actions uses the updated secret immediately, but `fdb-gateway` reads the
+key from the Docker secret file on startup. Restart the staging stack to load it:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+```
+
+Then mint a fresh token and validate the deployment:
+
+```bash
+TOKEN=$(./scripts/mint_smoke_token.sh)
+BASE_URL=https://forge.example.com KILN_URL=http://localhost:8090 \
+  SMOKE_TOKEN=$TOKEN ./scripts/smoke_test.sh
+```
+
+### 12.5 Rollback
+
+If the rotation breaks staging, restore the previous value of `STAGING_JWT_SECRET`
+from a secure backup and re-run the stack restart. Because old tokens are signed
+with the previous key, they will validate again once the gateway is using that key.
+
+### 12.6 Security notes
+
+- Never commit `secrets/jwt_secret.txt`; the directory is already gitignored.
+- Do not print the secret value in CI logs. The script passes it directly to `gh`
+  and redacts it from output.
+- Treat `STAGING_JWT_SECRET` with the same access controls as production signing
+  keys; staging keys can mint tokens that exercise the same code paths.
+

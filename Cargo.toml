@@ -8,6 +8,7 @@ members = [
   "crates/fke-store-oci", "crates/fke-store-ipfs", "crates/fke-store-s3", "crates/fke-store-fs",
   "crates/fke-sign-did", "crates/fke-sign-cosign", "crates/fke-registry", "crates/fke-server",
   "crates/forge-cli", "examples/hello-component",
+  "crates/flint-skill",
 ]
 # pgrx extensions are built with `cargo pgrx`, not the default workspace build, so they
 # are excluded here to keep `cargo check` green without a Postgres toolchain present.
@@ -16,7 +17,7 @@ exclude = ["crates/ext-flint-auth", "crates/ext-flint-hooks", "crates/ext-flint-
 [workspace.package]
 version = "1.0.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.96"
 license = "MIT"
 authors = ["Prometheus AGS"]
 

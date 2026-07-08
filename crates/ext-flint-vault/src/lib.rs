@@ -288,9 +288,10 @@ CREATE TABLE vault.secrets (
     key_id      uuid                  NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001',
     nonce       bytea                 NOT NULL,
     created_at  timestamptz           NOT NULL DEFAULT now(),
-    updated_at  timestamptz           NOT NULL DEFAULT now(),
-    UNIQUE (category, name, COALESCE(scope, ''))
+    updated_at  timestamptz           NOT NULL DEFAULT now()
 );
+CREATE UNIQUE INDEX vault_secrets_category_name_scope_uidx
+    ON vault.secrets (category, name, COALESCE(scope, ''));
 -- One active api_key per (provider, scope) — applies only to provider-keyed services.
 CREATE UNIQUE INDEX vault_secrets_provider_key
     ON vault.secrets (provider, COALESCE(scope, ''))

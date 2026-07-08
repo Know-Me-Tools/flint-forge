@@ -69,6 +69,47 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml \
 
 ---
 
+## `rotate_staging_jwt.sh`
+
+Rotates the `STAGING_JWT_SECRET` GitHub Actions secret used by the staging
+environment. It also updates `secrets/jwt_secret.txt` locally so
+`mint_smoke_token.sh` can produce tokens signed with the same key.
+
+```bash
+# Rotate the staging JWT secret (requires gh CLI to be authenticated)
+./scripts/rotate_staging_jwt.sh
+
+# Preview what would happen without touching the filesystem or GitHub
+./scripts/rotate_staging_jwt.sh --dry-run
+```
+
+**What it does:**
+
+| Step | Action |
+|---|---|
+| 1 | Generates a fresh 32-byte hex random JWT signing key |
+| 2 | Writes it to `secrets/jwt_secret.txt` with `chmod 600` |
+| 3 | Runs `gh secret set STAGING_JWT_SECRET` to update the GitHub secret |
+
+**Prerequisites:** `gh` CLI installed and authenticated with push access to the
+repository.
+
+After rotation, restart the staging stack so the gateway loads the new key:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+```
+
+Then mint a fresh token and re-run smoke tests:
+
+```bash
+TOKEN=$(./scripts/mint_smoke_token.sh)
+BASE_URL=https://forge.example.com KILN_URL=http://localhost:8090 \
+  SMOKE_TOKEN=$TOKEN ./scripts/smoke_test.sh
+```
+
+---
+
 ## `ci-check.sh`
 
 Canonical quality gate — runs `rustfmt --check`, `cargo clippy --workspace -- -D warnings`, and `cargo check`. Executes identically locally and in CI.

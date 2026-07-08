@@ -291,10 +291,22 @@ pub extern "C-unwind" fn flint_llm_worker_main(_arg: pg_sys::Datum) {
     }
 }
 
+/// True if we are running inside a background worker process.
+fn in_background_worker() -> bool {
+    unsafe { !pg_sys::MyBgworkerEntry.is_null() }
+}
+
 /// Register the background worker when the extension library is loaded.
 #[pg_guard]
 pub extern "C-unwind" fn _PG_init() {
     crate::sync::register_sync_gucs();
+
+    // The async background worker is opt-in for v1.0. It is only safe to
+    // register from the postmaster at shared_preload_libraries load time.
+    // When the library is re-loaded inside the worker itself, do not recurse.
+    if !crate::sync::background_worker_enabled() || in_background_worker() {
+        return;
+    }
 
     BackgroundWorkerBuilder::new(WORKER_NAME)
         .set_function("flint_llm_worker_main")

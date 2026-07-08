@@ -1,4 +1,4 @@
-CREATE SCHEMA IF NOT EXISTS flint;
+-- The `flint` schema is created and owned by the extension control file.
 
 CREATE TABLE IF NOT EXISTS flint.webhooks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -100,9 +100,7 @@ BEGIN
 END
 $$;
 
--- pgcrypto is required for hmac() used in HMAC-SHA256 signing.
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
+-- pgcrypto is required for hmac() used in HMAC-SHA256 signing (declared in control file).
 -- Generic SECURITY DEFINER dispatch trigger.
 -- standard tier: fire-and-forget HTTP POST via pg_net.
 -- durable tier:  INSERT into flint.webhook_outbox for BGW pickup (p1-c003).

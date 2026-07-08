@@ -1,4 +1,4 @@
--- Migration: 0007_flint_a2ui_design_systems.sql
+-- Migration: 0009_flint_a2ui_design_systems.sql
 -- Adds design system import support (p5-c013).
 --
 -- 1. Extends flint_a2ui.design_systems with import provenance columns.

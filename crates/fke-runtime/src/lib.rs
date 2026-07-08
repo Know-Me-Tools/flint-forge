@@ -100,7 +100,8 @@ pub struct EdgeRuntime {
     pep: Option<Arc<dyn Pep>>,
     /// Background epoch ticker. Held to document that its liveness is required;
     /// the engine is dropped together with the runtime so the ticker exits naturally.
-    _epoch_ticker: Option<tokio::task::JoinHandle<()>>,
+    #[allow(dead_code)]
+    epoch_ticker: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl EdgeRuntime {
@@ -137,7 +138,7 @@ impl EdgeRuntime {
             cache: Mutex::new(HashMap::new()),
             fuel_per_call: DEFAULT_FUEL,
             pep: None,
-            _epoch_ticker: epoch_ticker,
+            epoch_ticker,
         })
     }
 
@@ -170,9 +171,15 @@ impl EdgeRuntime {
         Ok(())
     }
 
+    /// Return true if a component with `id` is already loaded in the runtime cache.
+    pub fn is_loaded(&self, id: &ContentId) -> bool {
+        self.cache.lock().expect("cache lock").contains_key(id)
+    }
+
     /// Dispatch an HTTP-style request to the loaded component.
     ///
     /// `caller = None` → Cedar gate skipped (BGW / system-level).
+    /// Records `kiln_fuel_consumed_total` and `kiln_epoch_traps_total`.
     pub async fn handle(
         &self,
         id: &ContentId,
@@ -180,6 +187,19 @@ impl EdgeRuntime {
         caller: Option<&RlsContext>,
         request: KilnRequest,
     ) -> Result<KilnResponse> {
+        self.handle_with_telemetry(id, granted, caller, request)
+            .await
+            .map(|outcome| outcome.response)
+    }
+
+    /// Same as `handle`, but returns telemetry captured during the invocation.
+    pub async fn handle_with_telemetry(
+        &self,
+        id: &ContentId,
+        granted: &[Capability],
+        caller: Option<&RlsContext>,
+        request: KilnRequest,
+    ) -> Result<KilnHandleOutcome> {
         // ── Cedar gate ────────────────────────────────────────────────────
         if let (Some(pep), Some(who)) = (&self.pep, caller) {
             let decision = pep
@@ -216,6 +236,7 @@ impl EdgeRuntime {
         // Epoch deadline: trap when the background ticker increments past 1.
         // Works in concert with fuel; epoch catches slow host-call-heavy loops.
         store.set_epoch_deadline(1);
+        let initial_fuel = wt(store.get_fuel()).context("get_fuel")?;
 
         // ── Convert KilnRequest → hyper::Request ──────────────────────────
         let hyper_req = kiln_request_to_hyper(request)?;
@@ -243,25 +264,41 @@ impl EdgeRuntime {
             .context("ProxyPre::instantiate_async")?;
 
         // Run the handler in a separate task so long-running components don't
-        // block the current executor thread.
+        // block the current executor thread. Return the store so we can read
+        // the remaining fuel and detect epoch traps.
         let task = tokio::task::spawn(async move {
-            proxy
+            let result = proxy
                 .wasi_http_incoming_handler()
                 .call_handle(&mut store, incoming, out)
-                .await
+                .await;
+            (result, store)
         });
 
+        let (handler_result, store) = match task.await {
+            Ok((result, store)) => (result, store),
+            Err(e) => bail!("handler task panicked: {e}"),
+        };
+
+        let final_fuel = wt(store.get_fuel()).context("get_fuel")?;
+        let fuel_consumed = initial_fuel.saturating_sub(final_fuel);
+        metrics::counter!("kiln_fuel_consumed_total").increment(fuel_consumed);
+
+        let epoch_trap = handler_result
+            .as_ref()
+            .err()
+            .is_some_and(is_epoch_trap);
+        if epoch_trap {
+            metrics::counter!("kiln_epoch_traps_total").increment(1);
+        }
+
         // Collect the response.
-        let hyper_resp = match receiver.await {
-            Ok(Ok(resp)) => resp,
-            Ok(Err(e)) => bail!("component returned HTTP error: {e}"),
-            Err(_) => {
-                match task.await {
-                    Ok(Ok(())) => bail!("component never set response outparam"),
-                    Ok(Err(e)) => bail!("handler task error: {e}"),
-                    Err(e) => bail!("handler task panicked: {e}"),
-                }
-            }
+        let hyper_resp = match handler_result {
+            Ok(()) => match receiver.await {
+                Ok(Ok(resp)) => resp,
+                Ok(Err(e)) => bail!("component returned HTTP error: {e}"),
+                Err(_) => bail!("component never set response outparam"),
+            },
+            Err(e) => bail!("handler task error: {e}"),
         };
 
         // ── Convert hyper::Response → KilnResponse ────────────────────────
@@ -273,9 +310,13 @@ impl EdgeRuntime {
             .context("collect response body")?
             .to_bytes()
             .to_vec();
-        Ok(KilnResponse {
-            status,
-            body: body_bytes,
+        Ok(KilnHandleOutcome {
+            response: KilnResponse {
+                status,
+                body: body_bytes,
+            },
+            fuel_consumed,
+            epoch_trap,
         })
     }
 }
@@ -333,7 +374,20 @@ pub struct KilnResponse {
     pub body: Vec<u8>,
 }
 
+/// Telemetry captured during a single Kiln invocation.
+#[derive(Debug, Clone)]
+pub struct KilnHandleOutcome {
+    pub response: KilnResponse,
+    pub fuel_consumed: u64,
+    pub epoch_trap: bool,
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/// Detect whether a wasmtime error was caused by an epoch-interruption trap.
+fn is_epoch_trap(e: &wasmtime::Error) -> bool {
+    e.to_string().to_lowercase().contains("epoch")
+}
 
 /// Convert a `KilnRequest` into a `hyper::Request` compatible with
 /// `WasiHttpView::new_incoming_request` (`Body<Data=Bytes, Error=hyper::Error>`).
@@ -529,13 +583,10 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/../../target/wasm32-wasip1/debug/hello_component.wasm"
         );
-        let wasm_bytes = match std::fs::read(wasm_path) {
-            Ok(b) => b,
-            Err(_) => {
-                // Component not built yet — skip.
-                eprintln!("hello_component.wasm not found — run `cargo component build -p hello-component` to enable this test");
-                return;
-            }
+        let Ok(wasm_bytes) = std::fs::read(wasm_path) else {
+            // Component not built yet — skip.
+            eprintln!("hello_component.wasm not found — run `cargo component build -p hello-component` to enable this test");
+            return;
         };
 
         let rt = EdgeRuntime::new().expect("construct");
@@ -563,12 +614,45 @@ mod tests {
         );
     }
 
+    /// `is_loaded` tracks cache membership without needing a live invocation.
+    #[tokio::test]
+    async fn is_loaded_reflects_cache_state() {
+        let rt = EdgeRuntime::new().expect("construct");
+        let present = ContentId("sha256:cache-present".into());
+        let missing = ContentId("sha256:cache-missing".into());
+
+        assert!(
+            !rt.is_loaded(&present),
+            "unloaded component must report false"
+        );
+
+        let wasm_path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../target/wasm32-wasip1/debug/hello_component.wasm"
+        );
+        let Ok(wasm_bytes) = std::fs::read(wasm_path) else {
+            eprintln!("hello_component.wasm not found — skipping cache-state test");
+            return;
+        };
+
+        rt.load_wasm(present.clone(), &wasm_bytes)
+            .expect("load valid wasm");
+        assert!(
+            rt.is_loaded(&present),
+            "loaded component must report true"
+        );
+        assert!(
+            !rt.is_loaded(&missing),
+            "different id must still report false"
+        );
+    }
+
     /// Epoch ticker is spawned when constructed with default settings.
     #[tokio::test]
     async fn epoch_ticker_spawned_by_default() {
         let rt = EdgeRuntime::new().expect("construct");
         assert!(
-            rt._epoch_ticker.is_some(),
+            rt.epoch_ticker.is_some(),
             "expected epoch ticker with default 10ms interval"
         );
     }
@@ -581,12 +665,9 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/../../target/wasm32-wasip1/debug/hello_component.wasm"
         );
-        let wasm_bytes = match std::fs::read(wasm_path) {
-            Ok(b) => b,
-            Err(_) => {
-                eprintln!("hello_component.wasm not found — skipping epoch tick gate test");
-                return;
-            }
+        let Ok(wasm_bytes) = std::fs::read(wasm_path) else {
+            eprintln!("hello_component.wasm not found — skipping epoch tick gate test");
+            return;
         };
         let rt = EdgeRuntime::new().expect("construct");
         let id = ContentId("sha256:hello-component-epoch-test".into());

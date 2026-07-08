@@ -16,7 +16,7 @@
 | A03 | Injection | ✅ MITIGATED | `sqlx` parameterized queries throughout; no raw SQL string concatenation. Cedar policy text loaded from DB, not user input. pg_graphql handles SQL generation internally. |
 | A04 | Insecure Design | ✅ MITIGATED | `AllowAllPolicySource` renamed `TestAllowAllPolicySource` and gated `#[cfg(test)]`; production Kiln uses `DbKilnPolicySource` (deny-all until DB read). BGW publisher identity wired via `kiln_bgw`. |
 | A05 | Security Misconfiguration | ✅ MITIGATED | Security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`) applied globally via `SetResponseHeaderLayer`; pgrx extensions excluded from default workspace build. |
-| A06 | Vulnerable Components | ⚠️ PARTIAL | `cargo audit` is not yet in CI; recommend adding to `.github/workflows/ci.yml`. Workspace dependencies are pinned; `cargo update` is manual. |
+| A06 | Vulnerable Components | ✅ MITIGATED | `cargo audit` runs in CI (`.github/workflows/ci.yml`). High-severity advisories are blocked; remaining allowlist entries are documented in `.cargo/audit.toml`. Workspace dependencies are pinned; `cargo update` is manual. |
 | A07 | Identification and Authentication Failures | ✅ MITIGATED | Bearer token required on all data routes via `require_rls` middleware; WebSocket subscriptions authenticated at `connection_init`; fail-closed on missing or invalid tokens. |
 | A08 | Software and Data Integrity Failures | ✅ MITIGATED | Ed25519 / Cosign Kiln artifact verification (`fke-sign-did`, `fke-sign-cosign`); Fulcio certificate chain validated (x509-cert, p7b-c004). No unsigned WASM components executed in production. |
 | A09 | Security Logging and Monitoring Failures | ⚠️ PARTIAL | `tracing` in place with structured spans; rate-limiting events logged at `INFO`. No SIEM integration or alerting pipeline yet (p9-c004 pending). Auth failures logged at `WARN`. |
@@ -26,22 +26,25 @@
 
 ## Findings and Recommendations
 
-### ⚠️ A06 — Vulnerable Components
+### ✅ A06 — Vulnerable Components
 
-**Finding:** `cargo audit` is not integrated into CI. New CVEs in workspace dependencies
-(including `wasmtime`, `axum`, `sqlx`, `jsonwebtoken`, `tokio`) would not be automatically detected.
+**Finding:** `cargo audit` is integrated into CI and fails the build on any unfixed
+advisory with CVSS ≥ 7.0 that is not explicitly allowlisted. The allowlist in
+`.cargo/audit.toml` documents operator-controlled exceptions (e.g., `quick-xml` via S3,
+`rsa`/`sqlx-mysql` in a PostgreSQL-only codebase).
 
-**Severity:** Medium  
+**Severity:** Medium (mitigated)  
 **Affected components:** All crates  
+**Controls:**
+
+1. CI runs `cargo audit` on every push and pull request.
+2. Workspace dependencies are pinned at the workspace root; upgrades are intentional.
+3. `wasmtime` was upgraded to 46 to resolve RUSTSEC-2026-0095/0096 and related advisories.
+
 **Recommendation:**
 
-1. Add a `cargo-audit` step to `.github/workflows/ci.yml`:
-   ```yaml
-   - name: Security audit
-     run: cargo audit --deny warnings
-   ```
-2. Consider subscribing to the RustSec advisory database RSS feed.
-3. Evaluate `cargo deny` for combined license + advisory enforcement.
+1. Subscribe to the RustSec advisory database RSS feed.
+2. Evaluate `cargo deny` for combined license + advisory enforcement in a future cycle.
 
 ---
 
@@ -79,6 +82,16 @@ patterns (repeated auth failures, rate-limit spikes, schema-compile errors).
 | `TestAllowAllPolicySource` test-only gating | `#[cfg(test)]` on struct + impl in `fke-server/src/kiln_policy.rs` | Compile-time: struct not visible in release binary |
 
 ---
+
+## Operator CLI and Extension Threat Model (p15)
+
+| Control | Implementation | Verified by |
+|---|---|---|
+| CLI auth delegation | `forge token mint` only signs smoke-test JWTs; it does not mint production tokens. | Unit tests in `crates/forge-cli` |
+| CLI container isolation | `FORGE_CONTAINER=1` runs the CLI inside the `flint-forge-cli` image; host FS not required. | `crates/forge-cli/Dockerfile` + CI build |
+| pgrx extension build isolation | Extensions are excluded from the default workspace and built with `cargo pgrx` in a Linux CI container. | `.github/workflows/ci.yml` integration job |
+| Migration ordering integrity | `scripts/verify-migrations.sh` enforces strict prefix ordering; CI runs `sqlx migrate run` against an empty Postgres 18 DB. | `scripts/ci-test.sh` integration stage |
+| Kiln cache hit path | `EdgeRuntime::is_loaded()` prevents redundant WASM fetches from the DB store. | Unit test `is_loaded_reflects_cache_state` |
 
 ## Out of Scope / Future Work
 

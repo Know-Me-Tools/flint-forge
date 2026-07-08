@@ -339,18 +339,14 @@ CREATE EVENT TRIGGER flint_meta_ddl_refresh
     WHEN TAG IN (
         'CREATE TABLE', 'ALTER TABLE',
         'CREATE VIEW',  'ALTER VIEW',
-        'CREATE FUNCTION', 'CREATE OR REPLACE FUNCTION',
-        'CREATE TYPE',
-        'COMMENT'
+        'CREATE FUNCTION',
+        'CREATE TYPE'
     )
     EXECUTE FUNCTION flint_meta.refresh_cache();
 
 CREATE EVENT TRIGGER flint_meta_ddl_invalidate
     ON sql_drop
     EXECUTE FUNCTION flint_meta.invalidate_cache();
-
--- service_role may call full_refresh() explicitly (e.g. from a cron job or CLI).
-GRANT EXECUTE ON FUNCTION flint_meta.full_refresh() TO service_role;
 "#,
     name = "flint_meta_triggers",
     requires = ["flint_meta_bootstrap"]

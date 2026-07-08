@@ -1,0 +1,13 @@
+Flint Forge {{ .Chart.AppVersion }} has been installed.
+
+Services:
+- Quarry gateway: {{ include "flint-forge.fullname" . }}-gateway:{{ .Values.gateway.service.port }}
+- Kiln server:    {{ include "flint-forge.fullname" . }}-kiln:{{ .Values.kiln.service.port }}
+{{- if .Values.postgres.enabled }}
+- Postgres:       {{ include "flint-forge.fullname" . }}-postgres:5432
+{{- end }}
+
+{{ if not .Values.secrets.existingSecretName }}
+WARNING: the default JWT secret was generated from values.yaml. In production,
+create a secret out-of-band and set secrets.existingSecretName.
+{{ end }}

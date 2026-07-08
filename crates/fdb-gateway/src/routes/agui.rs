@@ -93,6 +93,20 @@ impl AgUiState {
         let _ = tx.send(event);
     }
 
+    /// Broadcast an event to ALL connected AG-UI runs.
+    /// Used for system-wide notifications like schema version changes that
+    /// every live session must observe regardless of which run it is in.
+    /// Bypasses `run_id()` routing — the same event is sent to every channel.
+    // p14-c003: A2UI catalog hot-reload — when the StateManager hot-swaps the
+    // compiled state on `meta_runtime` NOTIFY, this fan-outs the new version
+    // to every SSE subscriber so SDKs can revalidate their registry.
+    pub async fn broadcast_all(&self, event: AgUiEvent) {
+        let runs = self.inner.runs.lock().await;
+        for sender in runs.values() {
+            let _ = sender.send(event.clone());
+        }
+    }
+
     /// Subscribe to a run's event stream. Returns `None` if the run doesn't exist.
     pub async fn subscribe(&self, run_id: &str) -> Option<impl Stream<Item = AgUiEvent>> {
         let tx = {

@@ -8,6 +8,15 @@
  *
  * Usage:
  *   const { listComponents, getComponent, search, fromSlug, slugMap } = useFlintRegistry();
+ *
+ * TODO(p14-c003): Auto-refresh integration. When an AG-UI `StateSnapshot` event
+ * arrives on a run's SSE stream with `run_id: "schema"` and a `schema_version`
+ * field in `state`, call SWR's `mutate()` on every cache key bound to a
+ * registry fetch so the catalog revalidates against the hot-swapped backend.
+ * This is the client-side half of the A2UI catalog hot-reload pipeline; the
+ * server half is the `broadcast_all(StateSnapshot)` task wired in
+ * `crates/fdb-gateway/src/main.rs` (search "p14-c003"). Implement once the
+ * AG-UI event consumer lands in this provider (see `useFlint`).
  */
 import { useFlint } from './useFlint';
 import { fromSlug, SLUG_MAP } from '../registry/slugMap';

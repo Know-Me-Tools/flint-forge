@@ -20,6 +20,8 @@ packages/*/dist/
 # Research / documentation — reduces context size with no functional benefit
 research/
 images/
+!images/postgres18/init/
+!images/postgres18/init-baseline/
 docs/
 openspec/
 skills/

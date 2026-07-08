@@ -9,15 +9,15 @@ use pgrx::prelude::*;
 
 pg_module_magic!();
 
-extension_sql_file!("../sql/flint_meta.sql", bootstrap);
+extension_sql_file!("../sql/flint_meta.sql", bootstrap, name = "flint_meta_bootstrap");
 
 mod agui;
-mod functions;
 mod keto;
 mod schema;
 mod triggers;
 mod vault_meta;
 mod version;
+mod functions;
 
 /// Returns the current version string of the ext-flint-meta extension.
 #[pg_extern]

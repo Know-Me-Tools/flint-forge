@@ -15,6 +15,10 @@ use std::time::Duration;
 /// Can be changed per session/transaction with `SET llm.sync_timeout_ms = ...`.
 static SYNC_TIMEOUT_MS: GucSetting<i32> = GucSetting::<i32>::new(30_000);
 
+/// Whether to auto-register the async background worker on extension load.
+/// Default false for v1.0 stability; the sync surface is sufficient out of the box.
+static ENABLE_BACKGROUND_WORKER: GucSetting<bool> = GucSetting::<bool>::new(false);
+
 /// Register GUCs used by the sync surface. Called from `_PG_init`.
 pub fn register_sync_gucs() {
     GucRegistry::define_int_guc(
@@ -27,10 +31,23 @@ pub fn register_sync_gucs() {
         GucContext::Userset,
         GucFlags::UNIT_MS,
     );
+    GucRegistry::define_bool_guc(
+        c"llm.enable_background_worker",
+        c"Enable the async flint_llm background worker.",
+        c"When true, the extension registers flint_llm_worker at load time. Requires shared_preload_libraries for static workers.",
+        &ENABLE_BACKGROUND_WORKER,
+        GucContext::Postmaster,
+        GucFlags::default(),
+    );
 }
 
 fn sync_timeout_ms() -> i32 {
     SYNC_TIMEOUT_MS.get().max(1)
+}
+
+/// Current value of the background-worker enable GUC.
+pub fn background_worker_enabled() -> bool {
+    ENABLE_BACKGROUND_WORKER.get()
 }
 
 /// Resolve the origin JWT from the current session, if present.

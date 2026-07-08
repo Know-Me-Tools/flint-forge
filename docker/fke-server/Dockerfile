@@ -3,7 +3,7 @@
 # pgrx extension crates (ext-flint-*) are excluded from the workspace Cargo.toml
 # and are never compiled here.
 
-FROM rust:1.85-slim AS chef
+FROM rust:1.96-slim AS chef
 RUN cargo install cargo-chef --locked
 WORKDIR /app
 

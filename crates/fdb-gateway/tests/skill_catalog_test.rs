@@ -70,18 +70,16 @@ async fn skill_catalog_slugs_match_db() {
         }
     }
 
-    if !missing_from_catalog.is_empty() {
-        panic!(
-            "DB slugs missing from skills/flint-ui/catalogs/components.md:\n  {}",
-            missing_from_catalog.join(", ")
-        );
-    }
-    if !missing_from_db.is_empty() {
-        panic!(
-            "Catalog slugs not found in flint_a2ui.components:\n  {}",
-            missing_from_db.join(", ")
-        );
-    }
+    assert!(
+        missing_from_catalog.is_empty(),
+        "DB slugs missing from skills/flint-ui/catalogs/components.md:\n  {}",
+        missing_from_catalog.join(", ")
+    );
+    assert!(
+        missing_from_db.is_empty(),
+        "Catalog slugs not found in flint_a2ui.components:\n  {}",
+        missing_from_db.join(", ")
+    );
 
     assert_eq!(
         db_slugs.len(),
@@ -101,7 +99,7 @@ async fn skill_catalog_slugs_match_db() {
 
 #[test]
 fn parse_catalog_slugs_extracts_correct_slugs() {
-    let md = r#"
+    let md = r"
 ## LAYOUT (8)
 
 ### `container` — Container
@@ -114,19 +112,19 @@ Horizontal flex container.
 
 ### `text-input` — TextInput
 Single-line text field.
-"#;
+";
     let slugs = parse_catalog_slugs(md);
     assert_eq!(slugs, vec!["container", "row", "text-input"]);
 }
 
 #[test]
 fn parse_catalog_slugs_skips_non_heading_lines() {
-    let md = r#"
+    let md = r"
 Some prose with `backticks` in it.
 ### Not a slug heading
 ### `` — empty
 ### `data-grid` — DataGrid
-"#;
+";
     let slugs = parse_catalog_slugs(md);
     assert_eq!(slugs, vec!["data-grid"]);
 }

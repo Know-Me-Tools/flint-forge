@@ -346,7 +346,7 @@ mod tests {
         body::Body,
         extract::Request,
         http::{Method, StatusCode},
-        routing::{get, post},
+        routing::get,
         Router,
     };
     use serde_json::json;

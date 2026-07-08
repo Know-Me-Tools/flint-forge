@@ -1,5 +1,3 @@
-CREATE SCHEMA IF NOT EXISTS llm;
-
 CREATE TABLE IF NOT EXISTS llm.jobs (
   id bigserial PRIMARY KEY,
   kind text NOT NULL,                 -- 'embed' | 'summarize' | 'classify'
@@ -461,9 +459,6 @@ REVOKE ALL ON SCHEMA llm FROM PUBLIC;
 REVOKE ALL ON TABLE llm.jobs FROM PUBLIC;
 REVOKE ALL ON TABLE llm.embedding_configs FROM PUBLIC;
 REVOKE ALL ON TABLE llm.summary_configs FROM PUBLIC;
-REVOKE ALL ON FUNCTION llm._embed_text(text, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION llm._complete(text, text, jsonb) FROM PUBLIC;
-REVOKE ALL ON FUNCTION llm._render_template(text, jsonb) FROM PUBLIC;
 
 DO $$
 BEGIN

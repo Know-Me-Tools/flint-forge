@@ -581,7 +581,7 @@ mod tests {
         serde_json::from_slice(&bytes).expect("valid json")
     }
 
-    fn rpc(id: i64, method: &str, params: Value) -> Vec<u8> {
+    fn rpc(id: i64, method: &str, params: &Value) -> Vec<u8> {
         serde_json::to_vec(&json!({
             "jsonrpc": "2.0",
             "id": id,
@@ -599,7 +599,7 @@ mod tests {
             .method(Method::POST)
             .uri("/mcp/v1/a2ui")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(1, "initialize", json!({}))))
+            .body(Body::from(rpc(1, "initialize", &json!({}))))
             .unwrap();
         let resp = app.oneshot(req).await.expect("req");
         assert_eq!(resp.status(), StatusCode::OK);
@@ -618,7 +618,7 @@ mod tests {
             .method(Method::POST)
             .uri("/mcp/v1/a2ui")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(2, "tools/list", json!({}))))
+            .body(Body::from(rpc(2, "tools/list", &json!({}))))
             .unwrap();
         let resp = app.oneshot(req).await.expect("req");
         let body = read_json(resp).await;
@@ -637,7 +637,7 @@ mod tests {
             .method(Method::POST)
             .uri("/mcp/v1/a2ui")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(3, "tools/call", json!({
+            .body(Body::from(rpc(3, "tools/call", &json!({
                 "name": "a2ui_list_components",
                 "arguments": {}
             }))))
@@ -659,7 +659,7 @@ mod tests {
             .method(Method::POST)
             .uri("/mcp/v1/a2ui")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(4, "resources/read", json!({}))))
+            .body(Body::from(rpc(4, "resources/read", &json!({}))))
             .unwrap();
         let resp = app.oneshot(req).await.expect("req");
         let body = read_json(resp).await;
@@ -689,7 +689,7 @@ mod tests {
             .method(Method::POST)
             .uri("/mcp/v1/a2ui")
             .header("content-type", "application/json")
-            .body(Body::from(rpc(5, "tools/call", json!({
+            .body(Body::from(rpc(5, "tools/call", &json!({
                 "name": "a2ui_get_component",
                 "arguments": { "slug": "button" }
             }))))

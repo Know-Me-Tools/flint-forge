@@ -4,7 +4,7 @@ use pgrx::prelude::*;
 
 pgrx::pg_module_magic!();
 
-extension_sql_file!("sql/flint_auth.sql", name = "flint_auth_schema");
+extension_sql_file!("../sql/flint_auth.sql", name = "flint_auth_schema");
 
 #[pg_extern]
 fn flint_auth_version() -> &'static str { "0.1.0" }

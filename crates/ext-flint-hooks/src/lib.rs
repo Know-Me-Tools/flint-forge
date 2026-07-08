@@ -3,7 +3,7 @@ use pgrx::prelude::*;
 
 pgrx::pg_module_magic!();
 
-extension_sql_file!("sql/flint_hooks.sql", name = "flint_hooks_schema");
+extension_sql_file!("../sql/flint_hooks.sql", name = "flint_hooks_schema");
 
 /// Returns the version string for this extension.
 #[pg_extern]

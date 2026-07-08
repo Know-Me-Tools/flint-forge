@@ -1,0 +1,18 @@
+{{- if .Values.kiln.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "flint-forge.fullname" . }}-kiln
+  labels:
+    app.kubernetes.io/component: kiln
+    {{- include "flint-forge.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.kiln.service.type }}
+  ports:
+    - port: {{ .Values.kiln.service.port }}
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/component: kiln
+    {{- include "flint-forge.selectorLabels" . | nindent 4 }}
+{{- end }}

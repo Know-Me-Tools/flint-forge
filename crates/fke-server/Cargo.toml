@@ -36,6 +36,9 @@ serde_json = { workspace = true }
 sqlx = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.22"
+# p14-c005: Prometheus /metrics endpoint and custom Kiln counters.
+axum-prometheus = { workspace = true }
+metrics = "0.24"
 
 [lints]
 workspace = true

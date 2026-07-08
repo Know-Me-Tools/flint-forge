@@ -10,6 +10,22 @@ name = "forge"
 path = "src/main.rs"
 
 [dependencies]
+clap = { version = "4", features = ["derive", "env"] }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+base64 = { workspace = true }
+sha2 = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+jsonwebtoken = { workspace = true }
+sqlx = { workspace = true }
+fke-domain = { path = "../fke-domain" }
 
 [lints]
 workspace = true

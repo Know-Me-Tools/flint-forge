@@ -1,21 +1,21 @@
 {
   "phase": "p14-v1.1.0",
-  "status": "assessment_ready",
-  "changes_completed": 1,
+  "status": "completed",
+  "changes_completed": 5,
   "changes_total": 5,
   "assessment_complete": true,
   "plan_complete": true,
-  "execution_started": false,
+  "execution_started": true,
   "created_at": "2026-07-07",
   "seeded_from": "p13-continuous-operations/reflection.md",
   "last_updated_by": "opencode",
-  "last_updated_at": "2026-07-07T00:00:00Z",
+  "last_updated_at": "2026-07-07T18:30:00Z",
   "changes": [
     { "id": "p14-c001-sqlx-prometheus",   "status": "done", "completed_at": "2026-07-07", "priority": "P0", "note": "sqlx 0.9 deferred (SqlSafeStr breaks dynamic SQL); pool metrics added on 0.8" },
-    { "id": "p14-c002-kiln-guest-sdk",     "status": "pending", "priority": "P1" },
-    { "id": "p14-c003-a2ui-hot-reload",    "status": "pending", "priority": "P1" },
-    { "id": "p14-c004-jwt-rotation-automation", "status": "pending", "priority": "P2" },
-    { "id": "p14-c005-kiln-metrics",       "status": "pending", "priority": "P2" }
+    { "id": "p14-c002-kiln-guest-sdk",     "status": "done", "completed_at": "2026-07-07", "priority": "P1", "note": "fixed integration test syntax and serde_json assertion; cargo check/test/clippy pass" },
+    { "id": "p14-c003-a2ui-hot-reload",    "status": "done", "completed_at": "2026-07-07", "priority": "P1", "note": "migration, broadcast_all wiring, and SDK hook already present; verified by workspace test/clippy" },
+    { "id": "p14-c004-jwt-rotation-automation", "status": "done", "completed_at": "2026-07-07", "priority": "P2", "note": "added scripts/rotate_staging_jwt.sh with --dry-run; documented in scripts/README.md and docs/runbook.md §12" },
+    { "id": "p14-c005-kiln-metrics",       "status": "done", "completed_at": "2026-07-07", "priority": "P2", "note": "added /metrics via axum-prometheus; kiln_invocations_total{function}, kiln_fuel_consumed_total, kiln_epoch_traps_total" }
   ],
   "goals_file": ".kbd-orchestrator/phases/p14-v1.1.0/goals.md",
   "open_questions": [

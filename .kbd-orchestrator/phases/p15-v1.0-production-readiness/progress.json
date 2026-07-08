@@ -1,0 +1,43 @@
+{
+  "phase": "p15-v1.0-production-readiness",
+  "status": "in_progress",
+  "changes": {
+    "p15-c001-anvil-extension-stabilization": {
+      "status": "completed",
+      "startedAt": "2026-07-07",
+      "completedAt": "2026-07-08",
+      "wait_count": 0,
+      "notes": "Upgraded all five pgrx extensions to 0.18.1/pg18; removed obsolete pgrx_embed binaries; fixed DatumWithOid import and extension_sql_file paths; added missing control-file schema declarations; removed CREATE SCHEMA from extension SQL; moved post-extension grants to init script; disabled flint_llm background worker by default. Docker image flint-forge-pg:18 builds and boots cleanly through 99-assert.sql; all schemas present; Rust-backed functions created in target schemas (llm, flint_meta)."
+    },
+    "p15-c002-migration-integrity": {
+      "status": "completed",
+      "startedAt": "2026-07-07",
+      "completedAt": "2026-07-07",
+      "wait_count": 0,
+      "notes": "Renumbered migrations 0002-0012; added scripts/verify-migrations.sh; wired into scripts/ci-test.sh."
+    },
+    "p15-c003-operator-cli": {
+      "status": "completed",
+      "startedAt": "2026-07-08",
+      "completedAt": "2026-07-08",
+      "wait_count": 1,
+      "notes": "Implemented clap-based forge-cli with version, fn register, hook add, migrate, token mint; added --container / FORGE_CONTAINER=1 mode and Dockerfile; added unit tests. Workspace clippy green after Rust 1.96 lint fixes. cargo test -p forge-cli and targeted lib tests for affected crates pass. Wired CLI container build into scripts/ci-test.sh."
+    },
+    "p15-c004-e2e-performance-validation": {
+      "status": "completed",
+      "startedAt": "2026-07-08",
+      "completedAt": "2026-07-08",
+      "wait_count": 1,
+      "notes": "Added Postgres integration-test job to .github/workflows/ci.yml; sqlx pool gauges (sqlx_pool_connections_open / _idle) already emitted via telemetry::spawn_pool_metrics; updated perf/k6/regression.js and docs/performance.md with local Colima baseline thresholds. Workspace unit tests pass; full integration run exercised in CI via the new job."
+    },
+    "p15-c005-docs-production-artifacts": {
+      "status": "completed",
+      "startedAt": "2026-07-08",
+      "completedAt": "2026-07-08",
+      "wait_count": 1,
+      "notes": "Updated README.md (v1.0-ready status, unified pgrx 0.18.1/pg18 notes, current phase map), docs/security-audit.md (cargo audit is in CI, extension/CLI threat model), docs/ROADMAP.md (v1.0 delivered, v1.1.0 items). Added minimal Helm chart under deploy/helm/flint-forge (lints green). Fixed Kiln cache miss by exposing EdgeRuntime::is_loaded() and using it in fke-server; added unit test."
+    }
+  },
+  "total_waits": 3,
+  "updatedAt": "2026-07-08"
+}

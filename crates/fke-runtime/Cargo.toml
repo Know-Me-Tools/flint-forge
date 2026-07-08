@@ -19,6 +19,8 @@ wasmtime-wasi = { workspace = true }
 wasmtime-wasi-http = { workspace = true }
 hyper = { workspace = true }
 http-body-util = { workspace = true }
+# p14-c005: Custom Kiln counters emitted during Wasm invocation.
+metrics = "0.24"
 
 [features]
 default = []

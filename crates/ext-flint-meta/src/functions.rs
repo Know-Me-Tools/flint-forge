@@ -18,6 +18,7 @@
 //! - SQL wrappers are `SECURITY INVOKER` and `STABLE PARALLEL SAFE` where
 //!   correct; `set_identity` is Rust-only because `set_config` is not stable.
 
+use pgrx::datum::DatumWithOid;
 use pgrx::prelude::*;
 
 /// Check whether a Keto permission tuple exists in the local cache.
@@ -162,13 +163,6 @@ AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION flint_meta.functions(text) TO authenticated, anon, service_role;
-
--- ── GRANTs for the Rust-backed functions ─────────────────────────────────────
--- version() is declared in version.rs; grant here for role coverage.
-GRANT EXECUTE ON FUNCTION flint_meta.version() TO authenticated, anon, service_role;
--- check_permission and set_identity are restricted to service_role only.
-GRANT EXECUTE ON FUNCTION flint_meta.check_permission(text, text, text, text) TO service_role;
-GRANT EXECUTE ON FUNCTION flint_meta.set_identity(text) TO service_role;
 "#,
     name = "flint_meta_functions",
     requires = ["flint_meta_triggers"]

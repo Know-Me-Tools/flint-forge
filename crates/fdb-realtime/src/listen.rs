@@ -18,7 +18,7 @@
 //! re-fetch the current row under RLS, the raw `ChangeEvent` MUST always carry the
 //! primary-key column values — even when a wide row is truncated to fit the 8000-byte
 //! `NOTIFY` limit. The migration's trigger degrades to a PK-only image in that case
-//! (see `migrations/0006_change_notify.sql`). The full `record` in the untruncated
+//! (see `migrations/0007_change_notify.sql`). The full `record` in the untruncated
 //! case is an optimization the RLS re-query overwrites; it is NEVER trusted as the
 //! delivered row.
 //!
@@ -70,7 +70,7 @@ use tracing::instrument;
 use crate::{keto_check_via_http, KetoConfig};
 
 /// The single fixed `LISTEN`/`NOTIFY` channel. MUST match `pg_notify(...)` in
-/// `migrations/0006_change_notify.sql`.
+/// `migrations/0007_change_notify.sql`.
 const CHANNEL: &str = "flint_change";
 
 /// Migration-side threshold (bytes) at which the trigger degrades to a PK-only

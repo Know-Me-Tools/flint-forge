@@ -1,0 +1,18 @@
+{{- if .Values.gateway.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "flint-forge.fullname" . }}-gateway
+  labels:
+    app.kubernetes.io/component: gateway
+    {{- include "flint-forge.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.gateway.service.type }}
+  ports:
+    - port: {{ .Values.gateway.service.port }}
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/component: gateway
+    {{- include "flint-forge.selectorLabels" . | nindent 4 }}
+{{- end }}

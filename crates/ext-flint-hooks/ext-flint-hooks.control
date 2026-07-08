@@ -1,0 +1,7 @@
+comment = 'Flint Forge webhook dispatch (flint.webhooks / webhook_outbox)'
+default_version = '0.1.0'
+module_pathname = '$libdir/ext-flint-hooks'
+relocatable = false
+superuser = true
+schema = 'flint'
+requires = 'pg_net, pgcrypto'

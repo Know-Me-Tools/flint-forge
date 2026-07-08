@@ -39,6 +39,45 @@ jobs:
       - name: Build hello-component
         run: cargo component build -p hello-component
 
+# ── Postgres integration tests ────────────────────────────────────────────────
+# p15-c004: Builds the pinned Postgres 18 image (with all five Anvil pgrx
+# extensions) and runs the DATABASE_URL-gated integration tests against it.
+# This job is independent of the unit-test Rust job so the longer image build
+# does not block fmt/clippy/check.
+  integration:
+    name: Postgres integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build Postgres 18 + Anvil image
+        run: docker build -t flint-forge-pg:18 -f images/postgres18/Dockerfile .
+
+      - name: Start Postgres
+        run: |
+          docker run -d --name flint-db -p 5432:5432 \
+            -e POSTGRES_USER=flint \
+            -e POSTGRES_PASSWORD=flint \
+            -e POSTGRES_DB=flint \
+            flint-forge-pg:18
+          for i in $(seq 1 30); do
+            if docker exec flint-db pg_isready -U flint -d flint >/dev/null 2>&1; then
+              echo "Postgres ready after ${i} tries"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Postgres failed to become ready" >&2
+          docker logs flint-db >&2
+          exit 1
+
+      - name: Run integration tests
+        env:
+          DATABASE_URL: postgres://flint:flint@localhost:5432/flint
+        run: ./scripts/ci-test.sh
+
 # ── Performance regression gate ───────────────────────────────────────────────
 # p10-c005: Runs k6 regression.js against a live staging stack.
 # Triggered manually (workflow_dispatch) only — requires STAGING_BASE_URL secret

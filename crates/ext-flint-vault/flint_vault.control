@@ -4,3 +4,4 @@ module_pathname = '$libdir/flint_vault'
 relocatable = false
 superuser = true
 schema = 'vault'
+requires = 'pgcrypto'

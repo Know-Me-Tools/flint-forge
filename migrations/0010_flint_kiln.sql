@@ -1,4 +1,4 @@
--- Migration: 0008_flint_kiln.sql
+-- Migration: 0010_flint_kiln.sql
 -- Kiln function registry + artifact store (Phase 6 p6-c001/c002).
 -- Stores WASM component metadata, bytes, and execution records.
 

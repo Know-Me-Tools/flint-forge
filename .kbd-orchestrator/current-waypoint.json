@@ -1,11 +1,12 @@
 {
-  "phase": "p14-v1.1.0",
-  "previousPhase": "p13-continuous-operations",
-  "status": "execute_pending",
-  "updatedAt": "2026-07-07",
-  "next_action": "/kbd-build p14-c002-kiln-guest-sdk and /kbd-build p14-c003-a2ui-hot-reload (parallel)",
-  "seeded_from": "p13-continuous-operations/reflection.md",
-  "changes_completed": 1,
+  "phase": "p15-v1.0-production-readiness",
+  "previousPhase": "p14-v1.1.0",
+  "status": "completed",
+  "updatedAt": "2026-07-08",
+  "next_action": "Phase complete. Run final CI pipeline and helm lint, then run /kbd-reflect to close p15.",
+  "seeded_from": "user directive to close out v1.0",
+  "changes_completed": 5,
   "changes_total": 5,
-  "note": "c001 done — pool metrics on 0.8; sqlx 0.9 deferred (SqlSafeStr breaks dynamic SQL). Next: c002+c003 parallel."
+  "active_changes": [],
+  "note": "All five changes implemented and verified: c001/c002/c003 already green; c004 adds Postgres integration CI job and k6 baselines; c005 refreshes docs/README/ROADMAP, adds Helm chart, and fixes Kiln cache miss. Workspace unit tests and clippy pass; helm lint passes."
 }

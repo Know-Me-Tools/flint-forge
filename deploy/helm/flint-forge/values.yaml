@@ -1,0 +1,95 @@
+# Default values for flint-forge.
+# This is a minimal v1.0 chart — production operators should override secrets
+# and resource limits via a parent chart or `helm upgrade --set`.
+
+nameOverride: ""
+fullnameOverride: ""
+
+imagePullSecrets: []
+
+# ------------------------------------------------------------------------------
+# Postgres (Flint Anvil)
+# ------------------------------------------------------------------------------
+postgres:
+  enabled: true
+  image:
+    repository: prometheusags/flint-forge-pg
+    tag: "18"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  user: flint
+  password: flint
+  database: flint
+  storage:
+    size: 10Gi
+    storageClass: ""
+  resources:
+    limits:
+      memory: 1Gi
+    requests:
+      memory: 512Mi
+      cpu: 250m
+
+# ------------------------------------------------------------------------------
+# fdb-gateway (Quarry)
+# ------------------------------------------------------------------------------
+gateway:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: prometheusags/flint-forge-gateway
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      memory: 256Mi
+      cpu: 250m
+  env:
+    FLINT_RATE_LIMIT_REST: "100"
+    FLINT_RATE_LIMIT_BURST: "10"
+    FLINT_CHANGE_SOURCE: "listen"
+    FLINT_LISTEN_CAPACITY: "1024"
+
+# ------------------------------------------------------------------------------
+# fke-server (Kiln)
+# ------------------------------------------------------------------------------
+kiln:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: prometheusags/flint-forge-kiln
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8090
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      memory: 256Mi
+      cpu: 250m
+  env:
+    KILN_EPOCH_INTERVAL_MS: "10"
+
+# ------------------------------------------------------------------------------
+# Secrets
+# ------------------------------------------------------------------------------
+# In production, create these secrets out-of-band and set `existingSecretName`.
+secrets:
+  existingSecretName: ""
+  jwtSecret: "change-me-in-production"
+
+# ------------------------------------------------------------------------------
+# Observability
+# ------------------------------------------------------------------------------
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+    interval: 15s

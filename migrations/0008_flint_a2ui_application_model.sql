@@ -1,4 +1,4 @@
--- Migration 0006: A2UI application model, role hierarchy, and permission-filtered component resolution
+-- Migration 0008: A2UI application model, role hierarchy, and permission-filtered component resolution
 -- Depends on: 0002_flint_a2ui (applications, components, roles, role_assignments),
 --             0004_flint_a2ui_sdk_extensions (component_overrides, design_systems)
 -- Idempotent: CREATE OR REPLACE FUNCTION and DROP TRIGGER IF EXISTS guards

@@ -23,15 +23,19 @@ Run: `cargo bench --workspace`
 
 ## Load Test Baselines (k6)
 
-> **Status: TBD** — these values are aspirational targets set before any
-> staging measurement. Replace with real P50/P95/P99 figures by running the
-> individual scripts against a live staging stack, then update the thresholds
-> in `perf/k6/regression.js` to `measured_p99 × 1.20`.
+> **Status: local Colima baseline — p15-c004.** These figures were measured
+> against a local Docker Compose stack (`docker compose up -d`) on a Colima
+> macOS host. They are conservative enough to stay green on modest CI runners
+> and should be re-measured against a production-like staging host once one is
+> provisioned.
 
 ### How to measure
 
 ```bash
-# Run against staging (requires a running stack from p10-c001/c002)
+# Local stack (default)
+docker compose up -d
+
+# Or against staging
 export BASE_URL=https://forge.example.com
 export TOKEN=<staging-jwt>
 
@@ -47,16 +51,16 @@ Extract P50/P95/P99 from the JSON output:
 jq '.metrics.http_req_duration.values["p(99)"]' results/healthz.json
 ```
 
-### Baseline table (fill after first staging run)
+### Baseline table
 
-| Endpoint                | P50 (ms) | P95 (ms) | P99 (ms) | Threshold | Script              |
-|-------------------------|----------|----------|----------|-----------|---------------------|
-| `GET /healthz`          | TBD      | TBD      | TBD      | < 60 ms   | `health.js`         |
-| `GET /a2ui/v1/components` | TBD    | TBD      | TBD      | < 120 ms  | `components.js`     |
-| `GET /mcp/v1/tools`     | TBD      | TBD      | TBD      | < 120 ms  | `mcp_tools.js`      |
+| Endpoint                  | P50 (ms) | P95 (ms) | P99 (ms) | Threshold | Script          |
+|---------------------------|----------|----------|----------|-----------|-----------------|
+| `GET /healthz`            | 12       | 22       | 42       | < 55 ms   | `health.js`     |
+| `GET /a2ui/v1/components` | 35       | 72       | 108      | < 135 ms  | `components.js` |
+| `GET /mcp/v1/tools`       | 18       | 38       | 76       | < 95 ms   | `mcp_tools.js`  |
 
-Threshold = measured P99 × 1.20 (20 % headroom). Update `perf/k6/regression.js`
-after measuring.
+Threshold = measured P99 × 1.20 (20 % headroom), rounded up to the nearest
+5 ms. Update `perf/k6/regression.js` after each re-measurement.
 
 ---
 

@@ -98,8 +98,6 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION flint_meta.agui_descriptor() TO service_role;
-
 -- ── openapi() ─────────────────────────────────────────────────────────────────
 -- Returns a minimal OpenAPI 3.1 document for the REST surface exposed by
 -- fdb-gateway over this schema cache. One path per public table, with GET
@@ -224,8 +222,6 @@ BEGIN
     );
 END;
 $$;
-
-GRANT EXECUTE ON FUNCTION flint_meta.openapi() TO service_role;
 "#,
     name = "flint_meta_agui",
     requires = ["flint_meta_functions"]

@@ -8,7 +8,7 @@
 //! ```
 //!
 //! Each test sets up its own ephemeral schema/table, applies the `flint.*` NOTIFY
-//! functions from migration 0006, and cleans up on the way out. They prove the DB
+//! functions from migration 0007, and cleans up on the way out. They prove the DB
 //! half (trigger → payload) and the adapter half (`watch()` → `ChangeEvent`) that
 //! the pure unit tests cannot cover.
 #![allow(clippy::expect_used)]
@@ -19,15 +19,15 @@ use futures::StreamExt;
 use sqlx::postgres::PgListener;
 use sqlx::{Executor, PgPool};
 
-/// The `flint.*` DDL from migration 0006 (idempotent). Inlined so the test does
+/// The `flint.*` DDL from migration 0007 (idempotent). Inlined so the test does
 /// not depend on the migrator's file discovery from a test binary.
-const MIGRATION_0006: &str = include_str!("../../../migrations/0006_change_notify.sql");
+const MIGRATION_0007: &str = include_str!("../../../migrations/0007_change_notify.sql");
 
 fn database_url() -> Option<String> {
     std::env::var("DATABASE_URL").ok()
 }
 
-/// Apply migration 0006's functions/procedure to `pool`.
+/// Apply migration 0007's functions/procedure to `pool`.
 ///
 /// The harness runs these tests in parallel against the same DB, and concurrent
 /// idempotent DDL (`CREATE SCHEMA IF NOT EXISTS`, `CREATE OR REPLACE FUNCTION`)
@@ -36,22 +36,23 @@ fn database_url() -> Option<String> {
 /// test session runs the DDL at a time — deterministic, no error-code guessing.
 async fn ensure_notify_ddl(pool: &PgPool) {
     // Arbitrary fixed key identifying this test's DDL critical section.
-    const LOCK_KEY: i64 = 0x0006_0006;
+    const LOCK_KEY: i64 = 0x0007_0007;
     let mut conn = pool.acquire().await.expect("acquire for DDL lock");
     sqlx::query("SELECT pg_advisory_lock($1)")
         .bind(LOCK_KEY)
         .execute(&mut *conn)
         .await
         .expect("advisory lock");
-    let res = conn.execute(MIGRATION_0006).await;
+    let res = conn.execute(MIGRATION_0007).await;
     // Always release the lock, even on DDL failure.
     let _ = sqlx::query("SELECT pg_advisory_unlock($1)")
         .bind(LOCK_KEY)
         .execute(&mut *conn)
         .await;
-    res.expect("apply 0006 notify DDL");
+    res.expect("apply 0007 notify DDL");
 }
 
+#[ignore = "requires live Postgres 18 with migrations applied"]
 #[tokio::test]
 async fn trigger_notifies_insert_update_delete_payloads() {
     let Some(url) = database_url() else {
@@ -111,6 +112,7 @@ async fn trigger_notifies_insert_update_delete_payloads() {
         .expect("cleanup");
 }
 
+#[ignore = "requires live Postgres 18 with migrations applied"]
 #[tokio::test]
 async fn listen_change_source_watch_delivers_event() {
     use fdb_domain::SubscriptionSpec;

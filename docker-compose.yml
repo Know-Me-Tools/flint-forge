@@ -29,6 +29,7 @@ services:
       # Local dev default. In production the entrypoint script overrides this
       # using /run/secrets/postgres_password (mounted via docker-compose.prod.yml).
       DATABASE_URL: postgres://flint:flint@db:5432/flint
+      FLINT_JWT_SECRET: ${FLINT_JWT_SECRET:-change-me-in-production}
     ports:
       - "8080:8080"
     depends_on:

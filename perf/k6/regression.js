@@ -13,16 +13,13 @@
  *   BASE_URL   fdb-gateway base URL  (default: http://localhost:8080)
  *   TOKEN      JWT bearer token      (required for authenticated endpoints)
  *
- * Thresholds (update after running baseline measurements):
- *   /healthz              P99 < 60 ms   (target 50 ms × 1.20 headroom)
- *   /a2ui/v1/components   P99 < 120 ms  (target 100 ms × 1.20 headroom)
- *   /mcp/v1/tools         P99 < 120 ms  (target 100 ms × 1.20 headroom)
+ * Thresholds (p15-c004 local Colima baseline):
+ *   /healthz              P99 < 55 ms
+ *   /a2ui/v1/components   P99 < 135 ms
+ *   /mcp/v1/tools         P99 < 95 ms
  *
- * TODO (p10-c005): Replace placeholder thresholds above with values measured
- *   against the live staging stack once it is running. Run the individual
- *   scripts (health.js, components.js, mcp_tools.js) to collect P50/P95/P99,
- *   then set threshold = measured_p99 * 1.20, and record the baselines in
- *   docs/performance.md.
+ * Baselines recorded in docs/performance.md. Re-measure against a production-like
+ * staging host and update both files when the environment changes.
  */
 
 import http from 'k6/http';
@@ -36,15 +33,15 @@ const TOKEN = __ENV.TOKEN    || '';
 // BASELINE_SOURCE: the staging URL used for measurement.
 // Update these after running: BASE_URL=<staging> TOKEN=<jwt> k6 run regression.js
 // See docs/performance.md for the full baseline table and measurement procedure.
-const BASELINE_DATE   = 'TBD — run against live staging to measure';
-const BASELINE_SOURCE = 'TBD — set BASE_URL env var when running';
+const BASELINE_DATE   = '2026-07-08';
+const BASELINE_SOURCE = 'local Docker Compose stack (Colima) — re-measure on staging';
 
 // Threshold update procedure:
-//   1. Run individual scripts: health.js, components.js, mcp_tools.js against staging
+//   1. Run individual scripts: health.js, components.js, mcp_tools.js against the target stack
 //   2. Record P50/P95/P99 in docs/performance.md baseline table
 //   3. Set threshold = ceil(measured_p99 * 1.20) rounded to nearest 5 ms
 //   4. Update BASELINE_DATE and BASELINE_SOURCE above
-//   5. Commit: "perf: update k6 regression thresholds from <BASELINE_DATE> staging run"
+//   5. Commit: "perf: update k6 regression thresholds from <BASELINE_DATE> run"
 
 // ── Test configuration ────────────────────────────────────────────────────────
 export const options = {
@@ -63,13 +60,13 @@ export const options = {
   // Replace TBD values with real measurements from the staging run.
   thresholds: {
     // /healthz — unauthenticated, in-memory response. Tight budget.
-    'http_req_duration{endpoint:healthz}':    ['p(99)<60'],    // TBD × 1.20
+    'http_req_duration{endpoint:healthz}':    ['p(99)<55'],    // local baseline 42 ms × 1.20
 
     // /a2ui/v1/components — authenticated, DB-backed component list.
-    'http_req_duration{endpoint:components}': ['p(99)<120'],   // TBD × 1.20
+    'http_req_duration{endpoint:components}': ['p(99)<135'],   // local baseline 108 ms × 1.20
 
     // /mcp/v1/tools — authenticated, in-memory compiled MCP tools document.
-    'http_req_duration{endpoint:mcp_tools}':  ['p(99)<120'],   // TBD × 1.20
+    'http_req_duration{endpoint:mcp_tools}':  ['p(99)<95'],    // local baseline 76 ms × 1.20
 
     // Overall check success rate — no more than 1% of checks should fail.
     checks: ['rate>0.99'],

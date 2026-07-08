@@ -1,0 +1,12 @@
+apiVersion: v2
+name: flint-forge
+description: Flint Forge — sovereign data and edge-compute plane for the Flint platform
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+home: https://github.com/prometheusags/flint-forge
+sources:
+  - https://github.com/prometheusags/flint-forge
+maintainers:
+  - name: Prometheus AGS
+    email: ops@prometheusags.com

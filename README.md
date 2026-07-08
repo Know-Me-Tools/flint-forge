@@ -9,10 +9,10 @@ The full functional specification, architecture, and development plan is
 **RFC-FORGE-001** — see [`docs/FLINT-FORGE-SPEC.md`](docs/FLINT-FORGE-SPEC.md)
 (branded HTML: [`docs/FLINT-FORGE-SPEC.html`](docs/FLINT-FORGE-SPEC.html)).
 
-> **Status: scaffold.** Ports, module structure, and the workspace layout are in place;
-> most bodies are stubbed with `todo!()`. Contracts (trait signatures, SQL DDL, WIT
-> interfaces, route tables) are defined. Active development is tracked as phased OpenSpec
-> change sets (see [Phased build](#phased-build)).
+> **Status: v1.0-ready.** The core server plane (Quarry + Kiln), Anvil pgrx extension
+> suite, operator CLI, client SDKs, and production packaging are implemented, tested, and
+> internally consistent. Active development is tracked as phased OpenSpec change sets
+> (see [Phased build](#phased-build)).
 
 ---
 
@@ -140,16 +140,20 @@ cargo fmt --all                  # format
 ### pgrx extensions (Flint Anvil)
 
 Built separately — they require a Postgres toolchain and are excluded from the default
-workspace:
+workspace. All five extensions target **Postgres 18** with **pgrx 0.18.1**:
 
 ```bash
-cargo install cargo-pgrx && cargo pgrx init
-cargo pgrx run -p ext-flint-auth    # targets Postgres 17 (pgrx 0.12)
-cargo pgrx run -p flint_vault       # targets Postgres 18 (pgrx 0.18.1)
+cargo install cargo-pgrx --version 0.18.1 --locked && cargo pgrx init
+cargo pgrx run -p ext-flint-auth
+cargo pgrx run -p ext-flint-hooks
+cargo pgrx run -p ext-flint-llm
+cargo pgrx run -p ext-flint-meta
+cargo pgrx run -p ext-flint-vault
 ```
 
-> `ext-flint-auth` pins `pgrx = "0.12"` (pg17); `flint_vault` pins `pgrx = "=0.18.1"`
-> (pg18). These differ intentionally — do not unify without reconciling pgrx PG support.
+A pinned Postgres 18 image with all extensions pre-installed is built from
+[`images/postgres18/Dockerfile`](images/postgres18/Dockerfile) and used by
+`docker-compose.yml` and the CI integration-test job.
 
 ### CI
 
@@ -159,9 +163,9 @@ cargo pgrx run -p flint_vault       # targets Postgres 18 (pgrx 0.18.1)
 
 ### Toolchain
 
-- **Edition:** 2021 · **MSRV:** `1.85` (channel `1.90`, pinned in `rust-toolchain.toml`)
+- **Edition:** 2021 · **MSRV:** `1.96` (channel `stable`, pinned in `rust-toolchain.toml`)
 - **Key deps:** Axum 0.8.8, Tokio, `sqlx`/`deadpool-postgres`, `async-graphql` 7,
-  `tonic` 0.12, `pgvector` 0.4, `arc-swap`
+  `tonic` 0.12, `pgvector` 0.4, `wasmtime` 46, `arc-swap`
 
 ---
 
@@ -185,8 +189,9 @@ examples/          hello-component (sample WASM component)
 wit/               WASM Component Model interface definitions (WIT)
 migrations/        SQL migrations (Flint A2UI schema, triggers, SDK extensions)
 docs/              RFC-FORGE-001 spec, phase plans, A2UI specs, competitive analysis
+deploy/            Production deployment artifacts (Helm chart)
 openspec/          Phased OpenSpec change sets (proposal.md + tasks.md per change)
-scripts/           ci-check.sh, seed SQL
+scripts/           ci-check.sh, ci-test.sh, seed SQL
 .kbd-orchestrator/ KBD process state (phases, plans, progress) — tracked, source of truth
 ```
 
@@ -204,9 +209,13 @@ approval. Broad phase map:
 - **P2** — Flint Quarry reflection engine: `fdb-auth`, `fdb-postgres`, `flint-reflection`
   REST compiler, `ArcSwap` hot-reload, pgvector RPC, OpenAPI compiler
 - **P3** — GraphQL hybrid (passthrough + subscriptions + introspection merge), Keto sync,
-  Cedar policy, full RLS CRUD handlers, gate tests *(active phase: `p3-auth-rls-keto`)*
+  Cedar policy, full RLS CRUD handlers, gate tests
 - **P5** — Flint A2UI registry: schema, component seeds, embeddings pipeline, REST API,
   protocol surfaces, React/Flutter/HTMX SDKs
+- **P6/P7** — Kiln runtime hardening, signing/capability stores, AG-UI/MCP/A2A protocol surfaces
+- **P8–P13** — SDK completeness, production launch, API stability, v1 release, continuous operations
+- **P15** — v1.0 production-readiness gap closure: Anvil extension stabilization, migration
+  integrity, operator CLI, E2E/performance validation, docs + Helm chart *(active phase)*
 
 Start reading at `openspec/changes/p0-c001-workspace`.
 

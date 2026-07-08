@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn resolve_interval_reads_numeric_value() {
-        assert_eq!(resolve_interval(Some("60")), Duration::from_secs(60));
+        assert_eq!(resolve_interval(Some("60")), Duration::from_mins(1));
         assert_eq!(resolve_interval(Some("1")), Duration::from_secs(1));
     }
 

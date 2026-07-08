@@ -9,10 +9,6 @@ license = "MIT"
 [lib]
 crate-type = ["cdylib", "lib"]
 
-[[bin]]
-name = "pgrx_embed_flint_llm"
-path = "src/bin/pgrx_embed.rs"
-
 [features]
 default = ["pg18"]
 pg16 = ["pgrx/pg16", "pgrx-tests/pg16"]
