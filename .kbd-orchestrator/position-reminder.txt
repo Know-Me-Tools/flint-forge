@@ -1,8 +1,8 @@
 POSITION REMINDER — read this as your FIRST tool call every turn
 Phase: anon_and_service_role_keys
 Step: 5 of 5
-Stage: execute-complete
-Next command: /kbd-reflect anon_and_service_role_keys
+Stage: reflect-complete
+Next command: /kbd-new-phase
 
 Required signal format (emit BEFORE any tool call):
   Starting <kbd-skill> — anon_and_service_role_keys (step 5 of 5)

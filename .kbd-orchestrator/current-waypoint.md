@@ -4,13 +4,13 @@
 **anon_and_service_role_keys** — Supabase-style anon/service-role key support
 
 ## Phase State
-- Status: **completed**
+- Status: **reflected**
 - Changes planned: 5 (5 done)
 - Active: none
 
 ## Immediate Next Action
-1. Run `/kbd-reflect anon_and_service_role_keys` when ready.
-2. Review the wait-budget overrun recorded in `progress.json`.
+1. Run `/kbd-new-phase` for the next phase.
+2. Recommended focus: `key-lifecycle-production-hardening`.
 
 ## Why This Phase
 This phase adds the shared Flint key contract: client-safe anon keys,
@@ -34,3 +34,9 @@ Gate, and Realtime.
 - Artifact-refiner logs were not present for p15 changes.
 - The p15 progress ledger records 5 waits, above the 3-wait budget.
 - k6 baselines are local Colima baselines and should be re-run against production-like staging.
+
+## Carry-Forward From anon_and_service_role_keys
+- Artifact-refiner logs were not present for this phase.
+- The phase progress ledger records 6 waits, above the 3-wait budget.
+- Gate full clippy remains blocked by a pre-existing `result_large_err` lint in `admin/mod.rs`.
+- Production rotation needs coordinated current/next/previous signing-secret validation windows.
