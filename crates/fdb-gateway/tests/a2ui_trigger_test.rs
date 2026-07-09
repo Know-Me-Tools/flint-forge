@@ -51,7 +51,9 @@ async fn test_column_type_to_component_text_types() {
 #[tokio::test]
 async fn test_auto_binding_trigger_generates_bindings() {
     let Some(pool) = connect().await else { return };
-    let mut tx = pool.begin().await.ok()?;
+    let Ok(mut tx) = pool.begin().await else {
+        return;
+    };
 
     let test_table = format!(
         "_a2ui_trigger_test_{}",
@@ -149,7 +151,9 @@ async fn test_auto_binding_trigger_generates_bindings() {
 #[tokio::test]
 async fn test_trigger_no_form_for_view() {
     let Some(pool) = connect().await else { return };
-    let mut tx = pool.begin().await.ok()?;
+    let Ok(mut tx) = pool.begin().await else {
+        return;
+    };
 
     let test_view = format!(
         "_a2ui_view_test_{}",
