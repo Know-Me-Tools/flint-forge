@@ -259,7 +259,7 @@ async fn full_text_search(
                 ts_rank(
                     to_tsvector('english', COALESCE(c.description, '') || ' ' || c.slug),
                     plainto_tsquery('english', $1)
-                ) AS score
+                )::double precision AS score
          FROM flint_a2ui.components c
          WHERE (
              c.is_base = true
@@ -550,9 +550,6 @@ fn claims_json(who: &RlsContext) -> Value {
 
 fn internal_error<E: std::fmt::Display>(err: E) -> (StatusCode, Json<Value>) {
     tracing::error!(error = %err, "a2ui api error");
-    // Temporary diagnostic for CI-gated DB tests; remove once integration suite
-    // is stable.
-    eprintln!("a2ui internal_error: {err}");
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         Json(json!({ "error": "internal server error" })),
