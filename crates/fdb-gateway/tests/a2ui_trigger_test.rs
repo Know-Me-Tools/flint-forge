@@ -51,6 +51,7 @@ async fn test_column_type_to_component_text_types() {
 #[tokio::test]
 async fn test_auto_binding_trigger_generates_bindings() {
     let Some(pool) = connect().await else { return };
+    let mut tx = pool.begin().await.ok()?;
 
     let test_table = format!(
         "_a2ui_trigger_test_{}",
@@ -68,7 +69,7 @@ async fn test_auto_binding_trigger_generates_bindings() {
          ON CONFLICT (schema_name, table_name) DO NOTHING",
     )
     .bind(&test_table)
-    .execute(&pool)
+    .execute(&mut *tx)
     .await;
 
     // If the table doesn't exist or the insert is blocked, skip the trigger test
@@ -84,7 +85,7 @@ async fn test_auto_binding_trigger_generates_bindings() {
         )",
     )
     .bind(&test_table)
-    .fetch_one(&pool)
+    .fetch_one(&mut *tx)
     .await
     .expect("bindings query failed");
     assert!(
@@ -100,7 +101,7 @@ async fn test_auto_binding_trigger_generates_bindings() {
         )",
     )
     .bind(&test_table)
-    .fetch_one(&pool)
+    .fetch_one(&mut *tx)
     .await
     .expect("bindings query failed");
     assert!(
@@ -116,7 +117,7 @@ async fn test_auto_binding_trigger_generates_bindings() {
         )",
     )
     .bind(&test_table)
-    .fetch_one(&pool)
+    .fetch_one(&mut *tx)
     .await
     .expect("bindings query failed");
     assert!(
@@ -133,7 +134,7 @@ async fn test_auto_binding_trigger_generates_bindings() {
         )",
     )
     .bind(&test_table)
-    .fetch_one(&pool)
+    .fetch_one(&mut *tx)
     .await
     .expect("events query failed");
     assert!(
@@ -141,19 +142,14 @@ async fn test_auto_binding_trigger_generates_bindings() {
         "binding_auto_generated event must be logged for {test_table}"
     );
 
-    // Cleanup
-    let _ = sqlx::query(
-        "DELETE FROM flint_a2ui.bindings WHERE table_name = $1;
-         DELETE FROM flint_meta.cache_tables WHERE table_name = $1",
-    )
-    .bind(&test_table)
-    .execute(&pool)
-    .await;
+    // Rollback so the synthetic cache row and bindings never leak to other tests.
+    let _ = tx.rollback().await;
 }
 
 #[tokio::test]
 async fn test_trigger_no_form_for_view() {
     let Some(pool) = connect().await else { return };
+    let mut tx = pool.begin().await.ok()?;
 
     let test_view = format!(
         "_a2ui_view_test_{}",
@@ -170,7 +166,7 @@ async fn test_trigger_no_form_for_view() {
          ON CONFLICT (schema_name, table_name) DO NOTHING",
     )
     .bind(&test_view)
-    .execute(&pool)
+    .execute(&mut *tx)
     .await;
 
     let Ok(_) = insert_result else { return };
@@ -183,7 +179,7 @@ async fn test_trigger_no_form_for_view() {
         )",
     )
     .bind(&test_view)
-    .fetch_one(&pool)
+    .fetch_one(&mut *tx)
     .await
     .expect("query failed");
     assert!(!row.0, "VIEW must not receive a form binding: {test_view}");
@@ -195,7 +191,7 @@ async fn test_trigger_no_form_for_view() {
            AND binding_type IN ('grid', 'detail')",
     )
     .bind(&test_view)
-    .fetch_one(&pool)
+    .fetch_one(&mut *tx)
     .await
     .expect("query failed");
     assert_eq!(
@@ -203,12 +199,6 @@ async fn test_trigger_no_form_for_view() {
         "VIEW must have grid + detail bindings: {test_view}"
     );
 
-    // Cleanup
-    let _ = sqlx::query(
-        "DELETE FROM flint_a2ui.bindings WHERE table_name = $1;
-         DELETE FROM flint_meta.cache_tables WHERE table_name = $1",
-    )
-    .bind(&test_view)
-    .execute(&pool)
-    .await;
+    // Rollback so the synthetic cache row and bindings never leak to other tests.
+    let _ = tx.rollback().await;
 }
