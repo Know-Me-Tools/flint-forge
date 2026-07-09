@@ -153,7 +153,7 @@ async fn test_role_hierarchy_inheritance() {
     .await
     .expect("insert parent role failed");
 
-    let child_role_id: Uuid = sqlx::query_scalar(
+    let _child_role_id: Uuid = sqlx::query_scalar(
         "INSERT INTO flint_a2ui.roles (application_id, slug, name, parent_role_id)
          VALUES ($1, 'editor', 'Editor', $2)
          ON CONFLICT (application_id, slug) DO UPDATE SET name = EXCLUDED.name
@@ -165,18 +165,19 @@ async fn test_role_hierarchy_inheritance() {
     .await
     .expect("insert child role failed");
 
-    // Assign user to child role only.
+    // Assign user to the parent role. resolve_application_roles returns the
+    // assigned role plus all descendant roles, so the user should be resolved
+    // as both 'admin' and 'editor'.
     sqlx::query(
         "INSERT INTO flint_a2ui.role_assignments (application_id, role_id, user_id)
          VALUES ($1, $2, 'hierarchy-user')",
     )
     .bind(app_id)
-    .bind(child_role_id)
+    .bind(parent_role_id)
     .execute(&pool)
     .await
     .expect("insert role assignment failed");
 
-    // The user should be resolvable as a descendant of the parent role.
     let roles: Vec<(String,)> = sqlx::query_as(
         "SELECT slug FROM flint_a2ui.resolve_application_roles($1, '{\"flint\":{\"user_id\":\"hierarchy-user\"}}'::jsonb)",
     )
@@ -187,12 +188,12 @@ async fn test_role_hierarchy_inheritance() {
 
     let slugs: Vec<_> = roles.into_iter().map(|r| r.0).collect();
     assert!(
-        slugs.contains(&"editor".to_string()),
-        "user should have direct child role 'editor'"
+        slugs.contains(&"admin".to_string()),
+        "user should have direct assigned role 'admin'"
     );
     assert!(
-        slugs.contains(&"admin".to_string()),
-        "user should inherit parent role 'admin'"
+        slugs.contains(&"editor".to_string()),
+        "user should inherit descendant role 'editor'"
     );
 
     // Cleanup
