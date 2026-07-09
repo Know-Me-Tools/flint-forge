@@ -61,6 +61,7 @@ async fn pgrest_execute_returns_filtered_rows() {
              INSERT INTO pgrest_it.widget VALUES (1,'active'),(2,'archived'),(3,'active');",
         )
         .await
+        .inspect_err(|e| eprintln!("pgrest setup failed: {e}"))
         .expect("ephemeral setup");
     drop(setup);
 
