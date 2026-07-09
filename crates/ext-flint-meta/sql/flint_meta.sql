@@ -18,15 +18,16 @@ CREATE TABLE IF NOT EXISTS flint_meta.cache_tables (
 
 -- ── Cache: columns ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS flint_meta.cache_columns (
-    schema_name   text    NOT NULL,
-    table_name    text    NOT NULL,
-    column_name   text    NOT NULL,
-    data_type     text    NOT NULL,
-    is_nullable   bool    NOT NULL DEFAULT true,
-    is_pk         bool    NOT NULL DEFAULT false,
-    is_fk         bool    NOT NULL DEFAULT false,
-    description   text,
-    ordinal       int     NOT NULL,
+    schema_name    text    NOT NULL,
+    table_name     text    NOT NULL,
+    column_name    text    NOT NULL,
+    data_type      text    NOT NULL,
+    column_default text,
+    is_nullable    bool    NOT NULL DEFAULT true,
+    is_pk          bool    NOT NULL DEFAULT false,
+    is_fk          bool    NOT NULL DEFAULT false,
+    description    text,
+    ordinal        int     NOT NULL,
     PRIMARY KEY (schema_name, table_name, column_name),
     FOREIGN KEY (schema_name, table_name) REFERENCES flint_meta.cache_tables (schema_name, table_name) ON DELETE CASCADE
 );

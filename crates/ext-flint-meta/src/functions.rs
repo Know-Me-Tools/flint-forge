@@ -98,21 +98,20 @@ $$;
 GRANT EXECUTE ON FUNCTION flint_meta.tables(text) TO authenticated, anon, service_role;
 
 -- ── columns(p_schema text, p_table text) ─────────────────────────────────────
+-- Shape matches what the fdb-reflection engine consumes:
+-- (column_name, pg_type, is_nullable, column_default).
 CREATE OR REPLACE FUNCTION flint_meta.columns(p_schema text, p_table text)
 RETURNS TABLE (
-    column_name  text,
-    data_type    text,
-    is_nullable  bool,
-    is_pk        bool,
-    is_fk        bool,
-    description  text,
-    ordinal      int
+    column_name    text,
+    pg_type        text,
+    is_nullable    bool,
+    column_default text
 )
 LANGUAGE sql
 STABLE PARALLEL SAFE
 SECURITY INVOKER
 AS $$
-    SELECT column_name, data_type, is_nullable, is_pk, is_fk, description, ordinal
+    SELECT column_name, data_type AS pg_type, is_nullable, column_default
     FROM   flint_meta.cache_columns
     WHERE  schema_name = p_schema AND table_name = p_table
     ORDER  BY ordinal;
@@ -143,26 +142,79 @@ $$;
 
 GRANT EXECUTE ON FUNCTION flint_meta.relationships(text, text) TO authenticated, anon, service_role;
 
--- ── functions(p_schema text DEFAULT 'public') ─────────────────────────────────
-CREATE OR REPLACE FUNCTION flint_meta.functions(p_schema text DEFAULT 'public')
+-- ── functions(p_schema text DEFAULT NULL) ────────────────────────────────────
+-- Shape matches what the fdb-reflection engine consumes:
+-- (schema_name, function_name, return_type, security_definer).
+CREATE OR REPLACE FUNCTION flint_meta.functions(p_schema text DEFAULT NULL)
 RETURNS TABLE (
-    function_name   text,
-    return_type     text,
-    argument_types  text[],
-    is_stable       bool,
-    description     text
+    schema_name      text,
+    function_name    text,
+    return_type      text,
+    security_definer bool
 )
 LANGUAGE sql
 STABLE PARALLEL SAFE
 SECURITY INVOKER
 AS $$
-    SELECT function_name, return_type, argument_types, is_stable, description
+    SELECT schema_name,
+           function_name,
+           return_type,
+           false AS security_definer
     FROM   flint_meta.cache_functions
-    WHERE  schema_name = p_schema
-    ORDER  BY function_name;
+    WHERE  p_schema IS NULL OR schema_name = p_schema
+    ORDER  BY schema_name, function_name;
 $$;
 
 GRANT EXECUTE ON FUNCTION flint_meta.functions(text) TO authenticated, anon, service_role;
+
+-- ── function_args(p_schema text, p_function text) ────────────────────────────
+-- Returns argument metadata for a single function by querying pg_proc directly.
+-- Vector args come through as "vector(N)" e.g. "vector(1536)".
+CREATE OR REPLACE FUNCTION flint_meta.function_args(p_schema text, p_function text)
+RETURNS TABLE (
+    arg_name text,
+    arg_type text
+)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+SECURITY INVOKER
+SET search_path = flint_meta, pg_catalog
+AS $$
+    SELECT COALESCE(p.proargnames[a.ord], 'arg' || a.ord) AS arg_name,
+           pg_catalog.format_type(a.atttypid, NULL) AS arg_type
+    FROM   pg_proc     p
+    JOIN   pg_namespace n ON n.oid = p.pronamespace
+    CROSS JOIN LATERAL unnest(p.proargtypes)
+                        WITH ORDINALITY AS a(atttypid, ord)
+    WHERE  n.nspname = p_schema
+      AND  p.proname = p_function
+    ORDER  BY a.ord;
+$$;
+
+GRANT EXECUTE ON FUNCTION flint_meta.function_args(text, text) TO authenticated, anon, service_role;
+
+-- ── views() ──────────────────────────────────────────────────────────────────
+-- Shape matches what the fdb-reflection engine consumes:
+-- (schema_name, view_name, security_barrier).
+CREATE OR REPLACE FUNCTION flint_meta.views()
+RETURNS TABLE (
+    schema_name      text,
+    view_name        text,
+    security_barrier bool
+)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+SECURITY INVOKER
+AS $$
+    SELECT schema_name,
+           table_name AS view_name,
+           false AS security_barrier
+    FROM   flint_meta.cache_tables
+    WHERE  is_view = true
+    ORDER  BY schema_name, table_name;
+$$;
+
+GRANT EXECUTE ON FUNCTION flint_meta.views() TO authenticated, anon, service_role;
 "#,
     name = "flint_meta_functions",
     requires = ["flint_meta_triggers"]

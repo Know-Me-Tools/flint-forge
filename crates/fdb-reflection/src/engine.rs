@@ -103,7 +103,7 @@ impl ReflectionEngine {
 
     async fn fetch_functions(&self) -> Result<Vec<FnMeta>, ReflectionError> {
         let rows: Vec<(String, String, String, bool)> = sqlx::query_as(
-            "SELECT schema_name, fn_name, return_type, security_definer \
+            "SELECT schema_name, function_name, return_type, security_definer \
              FROM flint_meta.functions()",
         )
         .fetch_all(&self.pool)

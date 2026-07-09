@@ -217,12 +217,13 @@ BEGIN
 
     -- Repopulate cache_columns.
     INSERT INTO flint_meta.cache_columns
-                (schema_name, table_name, column_name, data_type,
+                (schema_name, table_name, column_name, data_type, column_default,
                  is_nullable, is_pk, is_fk, ordinal)
     SELECT n.nspname,
            c.relname,
            a.attname,
            pg_catalog.format_type(a.atttypid, a.atttypmod),
+           pg_catalog.pg_get_expr(d.adbin, d.adrelid),
            NOT a.attnotnull,
            EXISTS (SELECT 1 FROM pg_constraint co
                    WHERE  co.conrelid = c.oid AND co.contype = 'p'
@@ -234,6 +235,7 @@ BEGIN
     FROM   pg_attribute a
     JOIN   pg_class     c ON c.oid = a.attrelid
     JOIN   pg_namespace n ON n.oid = c.relnamespace
+    LEFT JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
     WHERE  a.attnum > 0
       AND  NOT a.attisdropped
       AND  c.relkind IN ('r', 'v', 'm')
