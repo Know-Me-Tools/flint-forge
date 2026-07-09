@@ -19,8 +19,50 @@ on:
     - cron: '17 4 * * 0'
 
 jobs:
-  postgres:
-    name: Build and push flint-forge-pg:18
+  build:
+    name: Build and push ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            suffix: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            suffix: arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.platform }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: images/postgres18/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            tribehealth/flint-forge-pg:${{ github.sha }}-${{ matrix.suffix }}
+            tribehealth/flint-forge-pg:18-${{ matrix.suffix }}
+            tribehealth/flint-forge-pg:latest-${{ matrix.suffix }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  manifest:
+    name: Create multi-arch manifest
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,16 +76,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: images/postgres18/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: |
-            tribehealth/flint-forge-pg:18
-            tribehealth/flint-forge-pg:${{ github.sha }}
-            tribehealth/flint-forge-pg:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Create and push multi-arch manifests
+        run: |
+          for tag in "${{ github.sha }}" "18" "latest"; do
+            docker buildx imagetools create \
+              -t "tribehealth/flint-forge-pg:${tag}" \
+              "tribehealth/flint-forge-pg:${tag}-amd64" \
+              "tribehealth/flint-forge-pg:${tag}-arm64"
+          done
