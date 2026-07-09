@@ -1,10 +1,10 @@
 POSITION REMINDER — read this as your FIRST tool call every turn
-Phase: p3-auth-rls-keto
-Step: 6 of 9
-Stage: unknown
-Next command: unknown
+Phase: anon_and_service_role_keys
+Step: 5 of 5
+Stage: execute-complete
+Next command: /kbd-reflect anon_and_service_role_keys
 
 Required signal format (emit BEFORE any tool call):
-  Starting <kbd-skill> — p3-auth-rls-keto (step 6 of 9)
+  Starting <kbd-skill> — anon_and_service_role_keys (step 5 of 5)
   [do work]
-  Completed <kbd-skill> — p3-auth-rls-keto (step 6 of 9)
+  Completed <kbd-skill> — anon_and_service_role_keys (step 5 of 5)

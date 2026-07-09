@@ -1,30 +1,36 @@
 # Current Waypoint — Flint Forge
 
 ## Active Phase
-**p15-v1.0-production-readiness** — v1.0 Production Readiness Gap Closure
+**anon_and_service_role_keys** — Supabase-style anon/service-role key support
 
 ## Phase State
-- Status: **in_progress**
-- Changes planned: 5 (0 done)
-- Active: `p15-c001`, `p15-c002`
+- Status: **completed**
+- Changes planned: 5 (5 done)
+- Active: none
 
 ## Immediate Next Action
-1. Upgrade pgrx extensions to 0.18.1 + pg18 (`p15-c001`).
-2. Renumber colliding migrations and add CI migrate test (`p15-c002`).
-3. Run workspace checks after each coherent slice.
-4. Update progress in `.kbd-orchestrator/phases/p15-v1.0-production-readiness/progress.json`.
+1. Run `/kbd-reflect anon_and_service_role_keys` when ready.
+2. Review the wait-budget overrun recorded in `progress.json`.
 
 ## Why This Phase
-The core server plane (Quarry + Kiln) compiles and passes 470+ unit tests, but
-the pgrx extension suite (Anvil) does not build, migrations have sequence
-collisions, the operator CLI is a stub, and end-to-end validation is missing.
-This phase closes those gaps so v1.0 is production-credible.
+This phase adds the shared Flint key contract: client-safe anon keys,
+server-only service-role keys, and agent-aware claims that flow across Forge,
+Gate, and Realtime.
 
 ## P0 Blockers
-- Anvil pgrx extensions do not compile.
-- Migration sequence collisions prevent clean `sqlx migrate run`.
+- None remaining for this implementation slice.
 
-## Verification Baseline
-- `cargo check --workspace` passes.
-- `cargo test --workspace --lib --bins` passes.
-- `cargo clippy --workspace -- -D warnings` passes.
+## Verification
+- `cargo test -p forge-cli` passes.
+- `cargo clippy -p forge-cli -- -D warnings` passes.
+- `cargo check -p flint-gate-core` passes.
+- `cargo test -p flint-gate-core api_key --lib` passes.
+- `cargo check -p frf-ports -p frf-identity-ory` passes.
+- `cargo check -p frf-app -p frf-gateway` passes.
+- `cargo clippy -p frf-ports -p frf-identity-ory -- -D warnings` passes.
+- `cargo run -p forge-cli -- keygen init --project smoke --env test --format json --quiet` emits anon and service-role JWTs.
+
+## Carry-Forward From p15
+- Artifact-refiner logs were not present for p15 changes.
+- The p15 progress ledger records 5 waits, above the 3-wait budget.
+- k6 baselines are local Colima baselines and should be re-run against production-like staging.

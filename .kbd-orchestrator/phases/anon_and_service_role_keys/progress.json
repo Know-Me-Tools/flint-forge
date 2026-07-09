@@ -1,0 +1,45 @@
+{
+  "phase": "anon_and_service_role_keys",
+  "status": "completed",
+  "changes_completed": 5,
+  "changes_total": 5,
+  "changes": {
+    "ark-c001-forge-keygen-and-token-claims": {
+      "status": "completed",
+      "startedAt": "2026-07-08",
+      "completedAt": "2026-07-08",
+      "wait_count": 4,
+      "notes": "Added forge keygen init/rotate, env/json/yaml/shell output, local HS256/HS384/HS512 signing, anon/service_role key emission, richer token mint claims for principal_type, agent_id, workflow_id, scope, tenant/session, and extra JSON claims. Runtime smoke produced anon and service_role JWTs."
+    },
+    "ark-c002-forge-auth-sql-role-model": {
+      "status": "completed",
+      "startedAt": "2026-07-08",
+      "completedAt": "2026-07-08",
+      "wait_count": 0,
+      "notes": "Extended ext-flint-auth SQL with agent/authenticator roles, grants, timeouts, agent helper functions, principal_type/is_service_role helpers, and auth.api_keys table."
+    },
+    "ark-c003-gate-api-key-roles-and-trusted-headers": {
+      "status": "completed",
+      "startedAt": "2026-07-08",
+      "completedAt": "2026-07-08",
+      "wait_count": 1,
+      "notes": "Gate api_keys now carries role/principal_type metadata, API-key authentication maps principal kind accordingly, browser-like clients are denied for flint_sk_* keys, and the proxy strips client X-Flint-* headers before injecting trusted Flint identity headers."
+    },
+    "ark-c004-realtime-principal-metadata-propagation": {
+      "status": "completed",
+      "startedAt": "2026-07-08",
+      "completedAt": "2026-07-08",
+      "wait_count": 1,
+      "notes": "Realtime VerifiedClaims now preserves role, principal_type, agent_id, workflow_id, and scope from verified JWTs; identity tests and dependent app/gateway checks pass."
+    },
+    "ark-c005-cross-project-configuration-docs": {
+      "status": "completed",
+      "startedAt": "2026-07-08",
+      "completedAt": "2026-07-08",
+      "wait_count": 0,
+      "notes": "Added key contract docs to flint-forge, flint-gate, and flint-realtime-fabric."
+    }
+  },
+  "total_waits": 6,
+  "updatedAt": "2026-07-08"
+}

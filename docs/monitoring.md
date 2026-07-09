@@ -44,10 +44,10 @@ The dashboard has four panels:
 | HTTP Error Rate | 5xx fraction | 1% |
 | Active DB Connections | `sqlx_pool_connections_open` | 8 / 10 |
 
-**Note:** The DB connections panel shows "no data" until sqlx ships a
-Prometheus integration that emits `sqlx_pool_connections_open`. The
-alert rule is pre-configured and will activate automatically once the
-metric is emitted.
+**Note:** Flint Forge emits `sqlx_pool_connections_open` and
+`sqlx_pool_connections_idle` from the gateway telemetry task. If the DB
+connections panel shows "no data", confirm the gateway `/metrics` endpoint is
+scraped and that database pooling is enabled for the running service.
 
 ---
 
@@ -98,8 +98,7 @@ Every 90 days:
 
 | Limitation | Impact | Resolution |
 |---|---|---|
-| `sqlx_pool_connections_open` not emitted | DB connections panel shows "no data" | Fix: future sqlx Prometheus integration |
-| k6 baselines are aspirational | `regression.js` thresholds unvalidated | Fix: run k6 against staging (see p13-c001) |
+| Local-only k6 baselines | Thresholds were measured on Colima, not a production-like staging host | Fix: re-run k6 against staging and update `docs/performance.md` |
 | Alertmanager webhook URL not configured | No notifications sent | Fix: set `ALERTMANAGER_WEBHOOK_URL` in `.env` and configure `observability/alertmanager.yml` |
 
 ---

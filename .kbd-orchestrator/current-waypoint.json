@@ -1,12 +1,12 @@
 {
-  "phase": "p15-v1.0-production-readiness",
-  "previousPhase": "p14-v1.1.0",
+  "phase": "anon_and_service_role_keys",
+  "previousPhase": "p15-v1.0-production-readiness",
   "status": "completed",
   "updatedAt": "2026-07-08",
-  "next_action": "Phase complete. Run final CI pipeline and helm lint, then run /kbd-reflect to close p15.",
+  "next_action": "Phase implementation complete. Run /kbd-reflect anon_and_service_role_keys when ready.",
   "seeded_from": "user directive to close out v1.0",
   "changes_completed": 5,
   "changes_total": 5,
   "active_changes": [],
-  "note": "All five changes implemented and verified: c001/c002/c003 already green; c004 adds Postgres integration CI job and k6 baselines; c005 refreshes docs/README/ROADMAP, adds Helm chart, and fixes Kiln cache miss. Workspace unit tests and clippy pass; helm lint passes."
+  "note": "Implemented Supabase-style anon and service_role keys across flint-forge, flint-gate, and flint-realtime-fabric. Targeted checks pass; total_waits=6 due clippy fix iterations, exceeding the 3-wait target."
 }
