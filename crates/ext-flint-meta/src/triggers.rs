@@ -58,6 +58,36 @@ BEGIN
               SET rls_enabled = EXCLUDED.rls_enabled,
                   updated_at  = now();
 
+            -- Incrementally mirror column metadata for the affected table.
+            DELETE FROM flint_meta.cache_columns
+            WHERE  schema_name = obj.schema_name
+              AND  table_name  = split_part(obj.object_identity, '.', 2);
+
+            INSERT INTO flint_meta.cache_columns
+                        (schema_name, table_name, column_name, data_type, column_default,
+                         is_nullable, is_pk, is_fk, ordinal)
+            SELECT n.nspname,
+                   c.relname,
+                   a.attname,
+                   pg_catalog.format_type(a.atttypid, a.atttypmod),
+                   pg_catalog.pg_get_expr(d.adbin, d.adrelid),
+                   NOT a.attnotnull,
+                   EXISTS (SELECT 1 FROM pg_constraint co
+                           WHERE  co.conrelid = c.oid AND co.contype = 'p'
+                             AND  a.attnum = ANY(co.conkey)),
+                   EXISTS (SELECT 1 FROM pg_constraint co
+                           WHERE  co.conrelid = c.oid AND co.contype = 'f'
+                             AND  a.attnum = ANY(co.conkey)),
+                   a.attnum
+            FROM   pg_attribute a
+            JOIN   pg_class     c ON c.oid = a.attrelid
+            JOIN   pg_namespace n ON n.oid = c.relnamespace
+            LEFT JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
+            WHERE  n.nspname = obj.schema_name
+              AND  c.relname = split_part(obj.object_identity, '.', 2)
+              AND  a.attnum > 0
+              AND  NOT a.attisdropped;
+
         ELSIF obj.command_tag IN ('CREATE VIEW', 'ALTER VIEW') THEN
             INSERT INTO flint_meta.cache_tables
                         (schema_name, table_name, is_view, rls_enabled, updated_at)
@@ -69,6 +99,30 @@ BEGIN
             ON CONFLICT (schema_name, table_name) DO UPDATE
               SET is_view    = true,
                   updated_at = now();
+
+            DELETE FROM flint_meta.cache_columns
+            WHERE  schema_name = obj.schema_name
+              AND  table_name  = split_part(obj.object_identity, '.', 2);
+
+            INSERT INTO flint_meta.cache_columns
+                        (schema_name, table_name, column_name, data_type, column_default,
+                         is_nullable, is_pk, is_fk, ordinal)
+            SELECT n.nspname,
+                   c.relname,
+                   a.attname,
+                   pg_catalog.format_type(a.atttypid, a.atttypmod),
+                   NULL,
+                   NOT a.attnotnull,
+                   false,
+                   false,
+                   a.attnum
+            FROM   pg_attribute a
+            JOIN   pg_class     c ON c.oid = a.attrelid
+            JOIN   pg_namespace n ON n.oid = c.relnamespace
+            WHERE  n.nspname = obj.schema_name
+              AND  c.relname = split_part(obj.object_identity, '.', 2)
+              AND  a.attnum > 0
+              AND  NOT a.attisdropped;
 
         ELSIF obj.command_tag IN ('CREATE FUNCTION',
                                    'CREATE OR REPLACE FUNCTION') THEN
