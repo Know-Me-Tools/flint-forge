@@ -283,7 +283,7 @@ async fn main() {
             get(routes::a2ui::get_application),
         )
         .route(
-            "/a2ui/v1/catalog/{catalog_id}",
+            "/a2ui/v1/catalog/{*catalog_id}",
             get(routes::a2ui::get_catalog),
         )
         .route(

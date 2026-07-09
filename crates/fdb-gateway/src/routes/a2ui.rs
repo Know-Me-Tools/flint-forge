@@ -12,7 +12,7 @@
 //! - `GET    /a2ui/v1/components/bindings/{schema}/{table}`
 //! - `GET    /a2ui/v1/applications`
 //! - `GET    /a2ui/v1/applications/{id}`
-//! - `GET    /a2ui/v1/catalog/{catalog_id}`
+//! - `GET    /a2ui/v1/catalog/{*catalog_id}`
 //! - `POST   /a2ui/v1/surfaces/assemble`
 #![forbid(unsafe_code)]
 
@@ -440,7 +440,7 @@ pub async fn get_design_system_tokens(
 
 // ─── Catalog ────────────────────────────────────────────────────────────────
 
-/// `GET /a2ui/v1/catalog/{catalog_id}`
+/// `GET /a2ui/v1/catalog/{*catalog_id}`
 ///
 /// Serves the A2UI catalog as a JSON Schema compatible with A2UI v0.9.1 and
 /// CopilotKit's `<CopilotKit a2ui={{ catalog }}>` prop.
@@ -550,6 +550,9 @@ fn claims_json(who: &RlsContext) -> Value {
 
 fn internal_error<E: std::fmt::Display>(err: E) -> (StatusCode, Json<Value>) {
     tracing::error!(error = %err, "a2ui api error");
+    // Temporary diagnostic for CI-gated DB tests; remove once integration suite
+    // is stable.
+    eprintln!("a2ui internal_error: {err}");
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         Json(json!({ "error": "internal server error" })),
@@ -639,7 +642,7 @@ mod tests {
             .route("/a2ui/v1/components/{slug}", get(get_component))
             .route("/a2ui/v1/applications", get(list_applications))
             .route("/a2ui/v1/applications/{id}", get(get_application))
-            .route("/a2ui/v1/catalog/{catalog_id}", get(get_catalog))
+            .route("/a2ui/v1/catalog/{*catalog_id}", get(get_catalog))
             .route("/a2ui/v1/surfaces/assemble", post(assemble_surface))
             .route(
                 "/a2ui/v1/design-systems/{id}/tokens",
