@@ -21,10 +21,14 @@
 
 # ─────────────────────────── Stage: Anvil (all Flint pgrx extensions) ────────────────────
 FROM rust:1.96-bookworm AS anvil
-RUN apt-get update && apt-get install -y --no-install-recommends \
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
       postgresql-common gnupg ca-certificates clang pkg-config libssl-dev \
  && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
+ && apt-get update \
  && apt-get install -y --no-install-recommends postgresql-server-dev-18 \
+ && apt-get install -y -f --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 RUN cargo install cargo-pgrx --version 0.18.1 --locked
 RUN cargo pgrx init --pg18 "$(which pg_config)"
@@ -62,10 +66,14 @@ RUN cargo pgrx package --pg-config "$PGRX_PG_CONFIG" --out-dir /out
 
 # ─────────────────────────── Stage: pg_net (C, from source) ──────────────────────────────
 FROM rust:1.96-bookworm AS pgnet
-RUN apt-get update && apt-get install -y --no-install-recommends \
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
       postgresql-common gnupg ca-certificates git make gcc libcurl4-openssl-dev \
  && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
+ && apt-get update \
  && apt-get install -y --no-install-recommends postgresql-server-dev-18 \
+ && apt-get install -y -f --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 RUN git clone --depth 1 https://github.com/supabase/pg_net /src/pg_net
 WORKDIR /src/pg_net
@@ -73,10 +81,14 @@ RUN make && make install DESTDIR=/out
 
 # ──────────────────────────────── Stage: pg_cron (C, from source) ────────────────────────
 FROM postgres:18 AS pgcron
-RUN apt-get update && apt-get install -y --no-install-recommends \
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
       postgresql-common gnupg ca-certificates git make gcc \
  && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
+ && apt-get update \
  && apt-get install -y --no-install-recommends postgresql-server-dev-18 \
+ && apt-get install -y -f --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 RUN git clone --depth 1 https://github.com/citusdata/pg_cron /src/pg_cron
 WORKDIR /src/pg_cron
