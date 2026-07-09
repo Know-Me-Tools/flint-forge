@@ -24,6 +24,10 @@ END $$;
 -- pg_cron: scheduled jobs
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
+-- Prime the flint_meta schema cache so reflection sees columns for all tables
+-- (including extension tables such as cron.job) from the first boot.
+SELECT flint_meta.full_refresh();
+
 -- Webhook outbox GC: delete processed/failed entries older than 7 days
 SELECT cron.schedule('webhook-outbox-gc', '0 3 * * *',
   $$DELETE FROM flint.webhook_outbox WHERE status IN ('delivered', 'failed') AND updated_at < now() - interval '7 days'$$);
