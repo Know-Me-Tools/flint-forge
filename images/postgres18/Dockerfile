@@ -80,7 +80,9 @@ WORKDIR /src/pg_net
 RUN make && make install DESTDIR=/out
 
 # ──────────────────────────────── Stage: pg_cron (C, from source) ────────────────────────
-FROM postgres:18 AS pgcron
+# Use the same Rust/Debian base as the other builder stages to avoid the broken
+# python3-minimal postinst state present in the slim postgres runtime image.
+FROM rust:1.96-bookworm AS pgcron
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
