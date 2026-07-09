@@ -126,6 +126,8 @@ BEGIN
 
         ELSIF obj.command_tag IN ('CREATE FUNCTION',
                                    'CREATE OR REPLACE FUNCTION') THEN
+            -- object_identity for a function includes its signature:
+            -- schema.function_name(arg_type, ...). Strip the schema and args.
             INSERT INTO flint_meta.cache_functions
                         (schema_name, function_name, return_type,
                          argument_types, is_stable)
@@ -137,7 +139,7 @@ BEGIN
             FROM   pg_proc      p
             JOIN   pg_namespace n ON n.oid = p.pronamespace
             WHERE  n.nspname = obj.schema_name
-              AND  p.proname = split_part(obj.object_identity, '.', 2)
+              AND  p.proname = split_part(split_part(obj.object_identity, '.', 2), '(', 1)
             ON CONFLICT (schema_name, function_name, argument_types) DO UPDATE
               SET return_type = EXCLUDED.return_type,
                   is_stable   = EXCLUDED.is_stable;
