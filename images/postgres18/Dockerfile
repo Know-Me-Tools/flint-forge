@@ -13,7 +13,8 @@
 # Apt extensions:
 #   pgvector, pgcrypto
 #
-# pg_graphql remains deferred — no PG18 release yet (supabase/pg_graphql#614).
+# pg_graphql: installed from the Pigsty PG18 apt repo when available; the build
+# continues without it if the package is not yet published for the current base.
 #
 # Build (context = repo root):
 #   docker build -f images/postgres18/Dockerfile -t flint-forge-pg:18 .
@@ -91,6 +92,19 @@ RUN apt-get update \
 COPY --from=anvil /out/ /
 COPY --from=pgnet /out/ /
 COPY --from=pgcron /out/ /
+
+# Optional third-party extensions not yet in PGDG for Postgres 18.
+# Pigsty publishes prebuilt PG18 packages; if a package is missing the build
+# continues so the image remains usable.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
+ && curl -fsSL https://repo.pigsty.io/key/pigsty-repo.pub \
+      | gpg --dearmor -o /usr/share/keyrings/pigsty.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/pigsty.gpg] https://repo.pigsty.io/apt/pg18 generic main" \
+      > /etc/apt/sources.list.d/pigsty.list \
+ && apt-get update \
+ && (apt-get install -y --no-install-recommends postgresql-18-pg-graphql || true) \
+ && rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/pigsty.list /usr/share/keyrings/pigsty.gpg
 
 # First-boot: create extensions, grant permissions, and assert the data plane is complete.
 COPY images/postgres18/init/01-extensions.sql      /docker-entrypoint-initdb.d/01-extensions.sql
