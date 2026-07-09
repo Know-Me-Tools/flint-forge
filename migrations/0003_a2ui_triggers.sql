@@ -33,6 +33,7 @@ DECLARE
     v_grid_id   uuid;
     v_form_id   uuid;
     v_detail_id uuid;
+    v_table_type text;
 BEGIN
     -- Look up base component IDs (resolved once per trigger invocation)
     SELECT id INTO v_grid_id   FROM flint_a2ui.components WHERE slug = 'data-grid'   AND is_base = true;
@@ -44,17 +45,20 @@ BEGIN
         RETURN NEW;
     END IF;
 
+    -- cache_tables uses schema_name/table_name/is_view; bindings use table_schema/table_name.
+    v_table_type := CASE WHEN NEW.is_view THEN 'VIEW' ELSE 'BASE TABLE' END;
+
     -- Grid binding: every table/view gets a data-grid
     INSERT INTO flint_a2ui.bindings
         (table_schema, table_name, component_id, binding_type, auto_generated, config)
     VALUES (
-        NEW.table_schema,
+        NEW.schema_name,
         NEW.table_name,
         v_grid_id,
         'grid',
         true,
         jsonb_build_object(
-            'data_source', NEW.table_schema || '.' || NEW.table_name,
+            'data_source', NEW.schema_name || '.' || NEW.table_name,
             'auto_columns', true
         )
     )
@@ -63,17 +67,17 @@ BEGIN
             component_id = EXCLUDED.component_id;
 
     -- Form binding: writable base tables only (not views or system tables)
-    IF NEW.table_type = 'BASE TABLE' THEN
+    IF NOT NEW.is_view THEN
         INSERT INTO flint_a2ui.bindings
             (table_schema, table_name, component_id, binding_type, auto_generated, config)
         VALUES (
-            NEW.table_schema,
+            NEW.schema_name,
             NEW.table_name,
             v_form_id,
             'form',
             true,
             jsonb_build_object(
-                'table',         NEW.table_schema || '.' || NEW.table_name,
+                'table',         NEW.schema_name || '.' || NEW.table_name,
                 'auto_fields',   true,
                 'submit_action', 'create'
             )
@@ -86,13 +90,13 @@ BEGIN
     INSERT INTO flint_a2ui.bindings
         (table_schema, table_name, component_id, binding_type, auto_generated, config)
     VALUES (
-        NEW.table_schema,
+        NEW.schema_name,
         NEW.table_name,
         v_detail_id,
         'detail',
         true,
         jsonb_build_object(
-            'table',       NEW.table_schema || '.' || NEW.table_name,
+            'table',       NEW.schema_name || '.' || NEW.table_name,
             'auto_fields', true
         )
     )
@@ -105,14 +109,14 @@ BEGIN
     VALUES (
         'binding_auto_generated',
         'system',
-        NEW.table_schema || '.' || NEW.table_name,
+        NEW.schema_name || '.' || NEW.table_name,
         'create',
         true,
         jsonb_build_object(
-            'table_schema',  NEW.table_schema,
+            'table_schema',  NEW.schema_name,
             'table_name',    NEW.table_name,
-            'table_type',    NEW.table_type,
-            'binding_types', CASE WHEN NEW.table_type = 'BASE TABLE'
+            'table_type',    v_table_type,
+            'binding_types', CASE WHEN NOT NEW.is_view
                                   THEN ARRAY['grid', 'form', 'detail']
                                   ELSE ARRAY['grid', 'detail']
                              END

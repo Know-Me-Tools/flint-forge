@@ -63,9 +63,9 @@ async fn test_auto_binding_trigger_generates_bindings() {
     // Insert a test row into flint_meta.cache_tables to fire the trigger
     let insert_result = sqlx::query(
         "INSERT INTO flint_meta.cache_tables
-             (table_schema, table_name, table_type, estimated_rows)
-         VALUES ('public', $1, 'BASE TABLE', 0)
-         ON CONFLICT (table_schema, table_name) DO NOTHING",
+             (schema_name, table_name, is_view)
+         VALUES ('public', $1, false)
+         ON CONFLICT (schema_name, table_name) DO NOTHING",
     )
     .bind(&test_table)
     .execute(&pool)
@@ -165,9 +165,9 @@ async fn test_trigger_no_form_for_view() {
 
     let insert_result = sqlx::query(
         "INSERT INTO flint_meta.cache_tables
-             (table_schema, table_name, table_type, estimated_rows)
-         VALUES ('public', $1, 'VIEW', 0)
-         ON CONFLICT (table_schema, table_name) DO NOTHING",
+             (schema_name, table_name, is_view)
+         VALUES ('public', $1, true)
+         ON CONFLICT (schema_name, table_name) DO NOTHING",
     )
     .bind(&test_view)
     .execute(&pool)
