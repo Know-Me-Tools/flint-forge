@@ -55,18 +55,17 @@ jobs:
       # ── Pull images and bring the stack up ─────────────────────────────────
       - name: Deploy stack
         run: |
-          owner_lc="$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
           ssh -i ~/.ssh/deploy_key \
               "${{ secrets.STAGING_SSH_USER }}@${{ secrets.STAGING_SSH_HOST }}" \
               "cd ~/flint-forge && \
                TAG=${{ inputs.tag }} \
-               REGISTRY=ghcr.io/${owner_lc}/flint-forge \
+               REGISTRY=ghcr.io/${{ github.repository_owner }}/flint-forge \
                docker compose \
                  -f docker-compose.yml \
                  -f docker-compose.staging.yml \
                  pull --quiet && \
                TAG=${{ inputs.tag }} \
-               REGISTRY=ghcr.io/${owner_lc}/flint-forge \
+               REGISTRY=ghcr.io/${{ github.repository_owner }}/flint-forge \
                docker compose \
                  -f docker-compose.yml \
                  -f docker-compose.staging.yml \

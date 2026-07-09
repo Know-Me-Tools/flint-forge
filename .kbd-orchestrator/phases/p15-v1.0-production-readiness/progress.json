@@ -1,8 +1,6 @@
 {
   "phase": "p15-v1.0-production-readiness",
-  "status": "completed",
-  "changes_completed": 5,
-  "changes_total": 5,
+  "status": "in_progress",
   "changes": {
     "p15-c001-anvil-extension-stabilization": {
       "status": "completed",
@@ -26,18 +24,18 @@
       "notes": "Implemented clap-based forge-cli with version, fn register, hook add, migrate, token mint; added --container / FORGE_CONTAINER=1 mode and Dockerfile; added unit tests. Workspace clippy green after Rust 1.96 lint fixes. cargo test -p forge-cli and targeted lib tests for affected crates pass. Wired CLI container build into scripts/ci-test.sh."
     },
     "p15-c004-e2e-performance-validation": {
-      "status": "completed",
+      "status": "in_progress",
       "startedAt": "2026-07-08",
-      "completedAt": "2026-07-08",
+      "completedAt": null,
       "wait_count": 2,
-      "notes": "Added Postgres integration-test job to .github/workflows/ci.yml; sqlx pool gauges emitted; k6 baselines and regression thresholds committed. Post-push CI fixes: seed base A2UI components before DB-gated tests; run DB-free unit tests with DATABASE_URL unset; add full-text fallback when hybrid search returns no results; deflake fdb-app/meta_listener reconnect test. Targeted final checks passed: scripts/check_api_versions.sh and helm lint deploy/helm/flint-forge."
+      "notes": "Added Postgres integration-test job to .github/workflows/ci.yml; sqlx pool gauges already emitted. Post-push CI fixes: seed base A2UI components before DB-gated tests; run DB-free unit tests with DATABASE_URL unset; add full-text fallback when hybrid search returns no results; deflake fdb-app/meta_listener reconnect test. Integration run is now green except for final CI confirmation."
     },
     "p15-c005-docs-production-artifacts": {
-      "status": "completed",
+      "status": "in_progress",
       "startedAt": "2026-07-08",
-      "completedAt": "2026-07-08",
+      "completedAt": null,
       "wait_count": 2,
-      "notes": "Updated README.md, docs/security-audit.md, docs/ROADMAP.md, and docs/monitoring.md. Added Helm chart. Fixed Kiln cache miss. Post-push fixes: harden scripts/check_api_versions.sh against pipefail/grep edge cases; lowercase github.repository_owner in Docker workflow so ghcr.io tags validate. Helm lint passes."
+      "notes": "Updated README.md, docs/security-audit.md, docs/ROADMAP.md. Added Helm chart. Fixed Kiln cache miss. Post-push fixes: harden scripts/check_api_versions.sh against pipefail/grep edge cases; lowercase github.repository_owner in Docker workflow so ghcr.io tags validate."
     }
   },
   "total_waits": 5,
