@@ -94,6 +94,10 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 RUN git clone --depth 1 https://github.com/citusdata/pg_cron /src/pg_cron
 WORKDIR /src/pg_cron
+# pg_cron's Makefile hardcodes `SHLIB_LINK = $(libpq) -lintl`, but glibc provides
+# intl internally and ships no `libintl.so` link target on Debian bookworm (any
+# arch), so `-lintl` fails at link time. Strip the spurious flag.
+RUN sed -i 's/^SHLIB_LINK = $(libpq) -lintl/SHLIB_LINK = $(libpq)/' Makefile
 RUN make PG_CONFIG=$(which pg_config) && make install DESTDIR=/out PG_CONFIG=$(which pg_config)
 
 # ─────────────────────────────────── Stage: runtime ─────────────────────────────────────
