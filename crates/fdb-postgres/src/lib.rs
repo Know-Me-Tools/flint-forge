@@ -150,11 +150,13 @@ impl GraphQlExecutor for PgGraphQl {
             .await
             .map_err(|e| BackendError::Internal(format!("graphql.resolve: {e}")))?;
 
-        // pg_graphql returns JSONB. tokio-postgres can read it as a String
-        // (the text representation of JSONB), then we deserialize.
-        let raw: String = row.get(0);
-        let result: serde_json::Value = serde_json::from_str(&raw)
-            .map_err(|e| BackendError::Internal(format!("graphql.resolve json parse: {e}")))?;
+        // graphql.resolve() RETURNS jsonb; read it directly as serde_json::Value
+        // (tokio-postgres's `with-serde_json-1` FromSql impl). `String`'s FromSql
+        // only accepts TEXT/VARCHAR/BPCHAR/NAME/UNKNOWN, not JSON/JSONB, so
+        // `row.get::<_, String>` would panic on every real pg_graphql response.
+        let result: serde_json::Value = row
+            .try_get(0)
+            .map_err(|e| BackendError::Internal(format!("graphql.resolve: {e}")))?;
         Ok(result)
     }
 }
