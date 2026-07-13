@@ -14,6 +14,7 @@
 //! `RlsContext`; RLS is enforced by the executor's `SET LOCAL` GUCs.
 #![forbid(unsafe_code)]
 
+pub mod cast;
 pub mod clause;
 pub mod embed;
 pub mod filter;
@@ -24,6 +25,7 @@ pub mod operator;
 pub mod param;
 pub mod plan;
 
+pub use cast::CastHints;
 pub use clause::{CountStrategy, Limits, Order, Select};
 pub use embed::{
     parse_embed_select, render_inner_guards, render_projection, resolve_embeds,

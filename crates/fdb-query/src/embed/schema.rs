@@ -6,6 +6,7 @@
 
 use std::collections::BTreeMap;
 
+use crate::cast::CastHints;
 use crate::clause::{Order, OrderError};
 use crate::filter::{FilterError, FilterTree};
 use crate::ident::IdentError;
@@ -45,6 +46,10 @@ pub struct TableDesc {
     pub columns: Vec<String>,
     /// FK edges usable for a join, in either direction.
     pub fks: Vec<FkEdge>,
+    /// Column → Postgres base-type cast hints for this table, used to cast
+    /// bound parameters in filters routed onto an embed of this table (e.g.
+    /// `?orders.total=gt.50` against a non-text `total` column).
+    pub cast_hints: CastHints,
 }
 
 impl TableDesc {
@@ -65,6 +70,13 @@ impl TableDesc {
     #[must_use]
     pub fn with_fk(mut self, e: FkEdge) -> Self {
         self.fks.push(e);
+        self
+    }
+
+    /// Set this table's cast hints (builder style).
+    #[must_use]
+    pub fn with_cast_hints(mut self, hints: CastHints) -> Self {
+        self.cast_hints = hints;
         self
     }
 }
@@ -174,6 +186,8 @@ pub struct ResolvedEmbed {
     pub columns: Vec<ScalarCol>,
     /// Resolved nested embeds.
     pub children: Vec<ResolvedEmbed>,
+    /// The target table's cast hints (bare column names, unqualified).
+    pub cast_hints: CastHints,
 }
 
 // ---------------------------------------------------------------------------

@@ -275,10 +275,52 @@ impl RestExecutor for PgRest {
     }
 }
 
+/// A bind value whose Postgres type is resolved from SQL context (`id = $1`
+/// infers `$1` as `id`'s column type), not declared by the client — mirroring
+/// how PostgREST/hasql binds every scalar filter value as an untyped literal.
+///
+/// `tokio_postgres`'s native `String`/`&str` `ToSql` only `accepts()`
+/// TEXT-family types, so binding a filter value like `"5"` against an `int4`
+/// column fails client-side ("error serializing parameter") before the value
+/// ever reaches Postgres — even though `int4in("5")` would happily parse it.
+/// `AnyText` accepts every resolved type and sends the raw text bytes in TEXT
+/// wire format, letting Postgres's own type-specific input function parse them.
+/// This is exactly as safe as any other bind: the bytes are never parsed as SQL
+/// syntax, only as a value literal via the target type's input function — a bad
+/// literal (e.g. non-numeric text for `int4`) is rejected by Postgres, not
+/// executed.
+#[derive(Debug)]
+struct AnyText(String);
+
+impl tokio_postgres::types::ToSql for AnyText {
+    fn to_sql(
+        &self,
+        _ty: &tokio_postgres::types::Type,
+        out: &mut bytes::BytesMut,
+    ) -> Result<tokio_postgres::types::IsNull, Box<dyn std::error::Error + Sync + Send>> {
+        out.extend_from_slice(self.0.as_bytes());
+        Ok(tokio_postgres::types::IsNull::No)
+    }
+
+    fn accepts(_ty: &tokio_postgres::types::Type) -> bool {
+        true
+    }
+
+    fn encode_format(&self, _ty: &tokio_postgres::types::Type) -> tokio_postgres::types::Format {
+        tokio_postgres::types::Format::Text
+    }
+
+    tokio_postgres::types::to_sql_checked!();
+}
+
 /// Owned bind value bridging `fdb_query::QueryParam` to a `tokio_postgres` param.
 enum RestBind {
-    Text(String),
-    TextArray(Vec<String>),
+    Text(AnyText),
+    /// Pre-formatted as a Postgres array text literal (`{a,b,c}`, via
+    /// `fdb_query::pg_text_array`) and bound as a single [`AnyText`] scalar —
+    /// Postgres's array-typed `array_in` parses it against whatever element
+    /// type `= ANY($n)`'s context resolves, same as any other scalar literal.
+    TextArray(AnyText),
     Json(serde_json::Value),
     Null,
 }
@@ -286,8 +328,10 @@ enum RestBind {
 impl RestBind {
     fn from_param(p: fdb_query::QueryParam) -> Self {
         match p {
-            fdb_query::QueryParam::Text(s) => Self::Text(s),
-            fdb_query::QueryParam::TextArray(v) => Self::TextArray(v),
+            fdb_query::QueryParam::Text(s) => Self::Text(AnyText(s)),
+            fdb_query::QueryParam::TextArray(v) => {
+                Self::TextArray(AnyText(fdb_query::pg_text_array(&v)))
+            }
             fdb_query::QueryParam::Json(s) => {
                 Self::Json(serde_json::from_str(&s).unwrap_or(serde_json::Value::String(s)))
             }
@@ -299,8 +343,7 @@ impl RestBind {
 
     fn as_to_sql(&self) -> &(dyn tokio_postgres::types::ToSql + Sync) {
         match self {
-            Self::Text(s) => s,
-            Self::TextArray(v) => v,
+            Self::Text(a) | Self::TextArray(a) => a,
             Self::Json(j) => j,
             Self::Null => &Option::<String>::None,
         }

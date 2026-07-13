@@ -16,6 +16,7 @@ serde_json = { workspace = true }
 tokio = { workspace = true }
 deadpool-postgres = { workspace = true }
 tokio-postgres = { workspace = true }
+bytes = { workspace = true }
 thiserror = { workspace = true }
 pgvector = { workspace = true }
 tracing = { workspace = true }

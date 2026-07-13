@@ -13,10 +13,30 @@
 
 use std::collections::HashMap;
 
-use fdb_query::{FilterTree, Operator, Quantifier, QueryParam};
+use fdb_query::{CastHints, FilterTree, Operator, Quantifier, QueryParam};
+
+use crate::model::{DatabaseModel, Table};
 
 /// Query-parameter keys that are NOT column filters (re-exported from `fdb-query`).
 pub use fdb_query::RESERVED_PARAMS;
+
+/// Build the [`CastHints`] for one table from its reflected column types.
+#[must_use]
+pub fn cast_hints_for_table(table: &Table) -> CastHints {
+    CastHints::from_pairs(table.columns.iter().map(|c| (c.name.clone(), &c.pg_type)))
+}
+
+/// Look up `schema.table` in `model` and build its [`CastHints`]. An empty
+/// (no-op) hint set when the table is not found — filters/mutations against an
+/// unreflected table already fail elsewhere; this never blocks that path.
+#[must_use]
+pub fn cast_hints_for(model: &DatabaseModel, schema: &str, table: &str) -> CastHints {
+    model
+        .tables
+        .iter()
+        .find(|t| t.schema == schema && t.name == table)
+        .map_or_else(CastHints::none, cast_hints_for_table)
+}
 
 /// Error building a filter tree from query parameters. Maps to HTTP 400.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -83,7 +103,25 @@ fn parse_leaf(column: &str, raw: &str) -> Result<FilterTree, FilterError> {
 /// # Errors
 /// Returns a message string on identifier/render failure (maps to HTTP 400).
 pub fn render_where(tree: &FilterTree, start_index: usize) -> Result<WhereClause, String> {
-    let (sql, params, _) = tree.render(start_index).map_err(|e| e.to_string())?;
+    render_where_with_hints(tree, start_index, &CastHints::none())
+}
+
+/// As [`render_where`], but casting each leaf's bound placeholder to `hints`'s
+/// resolved Postgres type for that leaf's base column, when one exists — the
+/// fix for filtering a non-text column (`int4`/`int8`/`bool`/`uuid`/...): the
+/// sqlx driver declares a bound `String` as `text` explicitly, so `id = $1`
+/// against an `int4` column fails server-side without the `$1::int4` cast.
+///
+/// # Errors
+/// Returns a message string on identifier/render failure (maps to HTTP 400).
+pub fn render_where_with_hints(
+    tree: &FilterTree,
+    start_index: usize,
+    hints: &CastHints,
+) -> Result<WhereClause, String> {
+    let (sql, params, _) = tree
+        .render_with_hints(start_index, hints)
+        .map_err(|e| e.to_string())?;
     // A top-level empty AND renders to "TRUE"; treat that as "no filter".
     if sql == "TRUE" {
         return Ok(WhereClause::default());
@@ -121,6 +159,60 @@ pub fn bind_param<'q>(
         }
         // Null and any future (#[non_exhaustive]) variant bind as a NULL text.
         _ => q.bind(Option::<String>::None),
+    }
+}
+
+/// A JSON request-body value resolved to its SQL bind channel.
+///
+/// Mirrors [`QueryParam`]'s text-by-default binding for scalar values so a
+/// mutation body value gets the same `$n::pg_type` cast treatment as a URL
+/// filter value — `sqlx` declares a bound `String` as `text` explicitly, so
+/// writing `5` into an `int4` column needs the same cast, not just filtering.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MutationBind {
+    /// A scalar value (string/number/bool), bound as text, optionally cast.
+    Text(String),
+    /// A JSON container (array/object) — the only sensible target is a
+    /// `json`/`jsonb` column, so it binds unchanged, never cast.
+    Json(serde_json::Value),
+    /// `null` — binds SQL `NULL` (polymorphic; no cast needed).
+    Null,
+}
+
+/// Convert a JSON body value into its bind channel. Scalars become PostgREST-
+/// style text (numbers/bools via `to_string()`, strings verbatim, no JSON
+/// quoting); containers stay JSON.
+#[must_use]
+pub fn mutation_value_to_bind(v: &serde_json::Value) -> MutationBind {
+    match v {
+        serde_json::Value::Null => MutationBind::Null,
+        serde_json::Value::String(s) => MutationBind::Text(s.clone()),
+        serde_json::Value::Number(n) => MutationBind::Text(n.to_string()),
+        serde_json::Value::Bool(b) => MutationBind::Text(b.to_string()),
+        serde_json::Value::Array(_) | serde_json::Value::Object(_) => MutationBind::Json(v.clone()),
+    }
+}
+
+/// The `$n` placeholder for a mutation bind, cast to `cast` when the bind is
+/// text and a cast is resolved (never for `Json`/`Null` — a container value
+/// already targets `jsonb`, and casting `NULL` is unnecessary).
+#[must_use]
+pub fn mutation_placeholder(idx: usize, bind: &MutationBind, cast: Option<&str>) -> String {
+    match (bind, cast) {
+        (MutationBind::Text(_), Some(t)) => format!("${idx}::{t}"),
+        _ => format!("${idx}"),
+    }
+}
+
+/// Bind a [`MutationBind`] onto a sqlx Postgres query builder.
+pub fn bind_mutation_value<'q>(
+    q: sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments>,
+    bind: &'q MutationBind,
+) -> sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments> {
+    match bind {
+        MutationBind::Text(s) => q.bind(s),
+        MutationBind::Json(j) => q.bind(j),
+        MutationBind::Null => q.bind(Option::<String>::None),
     }
 }
 
@@ -189,5 +281,59 @@ mod tests {
         // Column safety is enforced by fdb-query at render time.
         let tree = parse_filter_tree(&params(&[("col; DROP", "eq.1")])).unwrap();
         assert!(render_where(&tree, 1).is_err());
+    }
+
+    #[test]
+    fn render_where_with_hints_casts_typed_column() {
+        let tree = parse_filter_tree(&params(&[("id", "eq.5")])).unwrap();
+        let hints = CastHints::from_pairs([("id", "int4")]);
+        let wc = render_where_with_hints(&tree, 1, &hints).unwrap();
+        assert_eq!(wc.sql, "WHERE id = $1::int4");
+    }
+
+    #[test]
+    fn mutation_value_to_bind_converts_json_scalars_to_text() {
+        assert_eq!(
+            mutation_value_to_bind(&serde_json::json!(5)),
+            MutationBind::Text("5".into())
+        );
+        assert_eq!(
+            mutation_value_to_bind(&serde_json::json!(true)),
+            MutationBind::Text("true".into())
+        );
+        assert_eq!(
+            mutation_value_to_bind(&serde_json::json!("alice")),
+            MutationBind::Text("alice".into())
+        );
+        assert_eq!(
+            mutation_value_to_bind(&serde_json::Value::Null),
+            MutationBind::Null
+        );
+        assert!(matches!(
+            mutation_value_to_bind(&serde_json::json!([1, 2])),
+            MutationBind::Json(_)
+        ));
+    }
+
+    #[test]
+    fn mutation_placeholder_casts_only_text_binds() {
+        assert_eq!(
+            mutation_placeholder(1, &MutationBind::Text("5".into()), Some("int4")),
+            "$1::int4"
+        );
+        assert_eq!(
+            mutation_placeholder(1, &MutationBind::Text("5".into()), None),
+            "$1"
+        );
+        assert_eq!(
+            mutation_placeholder(1, &MutationBind::Null, Some("int4")),
+            "$1",
+            "NULL is never cast"
+        );
+        assert_eq!(
+            mutation_placeholder(1, &MutationBind::Json(serde_json::json!([1])), Some("int4")),
+            "$1",
+            "JSON containers are never cast"
+        );
     }
 }

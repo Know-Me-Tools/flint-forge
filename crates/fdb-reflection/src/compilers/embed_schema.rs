@@ -15,6 +15,7 @@ use std::collections::BTreeMap;
 
 use fdb_query::embed::{Cardinality, EmbedSchema, FkEdge, TableDesc};
 
+use crate::compilers::filters::cast_hints_for_table;
 use crate::model::DatabaseModel;
 
 /// Build an [`EmbedSchema`] from the live database model.
@@ -29,6 +30,7 @@ pub fn embed_schema_from_model(model: &DatabaseModel) -> EmbedSchema {
         for col in &table.columns {
             desc = desc.with_column(col.name.clone());
         }
+        desc = desc.with_cast_hints(cast_hints_for_table(table));
         descs.insert(table.name.clone(), desc);
     }
 
