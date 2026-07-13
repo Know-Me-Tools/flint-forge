@@ -13,6 +13,6 @@
 - [x] Verify `tools/call` in `routes/mcp.rs` validates tool name against `tool_definitions()` before dispatch — `dispatch_tool`'s exhaustive `match` rejects any name outside the fixed 7-tool set with `METHOD_NOT_FOUND`
 - [x] Create `docs/security-audit.md` — OWASP Top 10 findings and mitigations
 - [x] Unit test: security headers present on `GET /healthz` response — `security_headers_present_on_healthz`
-- [ ] Unit test: security headers present on `GET /a2ui/v1/components` response — p16-c006: genuinely missing; only the `/healthz` variant exists. Open debt.
+- [x] Unit test: security headers present on `GET /a2ui/v1/components` response — p16-c006: was genuinely missing (only `/healthz` existed) — added `security_headers_present_on_a2ui_components` to `crates/fdb-gateway/src/main.rs`'s `security_header_tests` module, mirroring the existing `/healthz` test.
 - [x] `cargo clippy --workspace -- -D warnings` clean — confirmed
 - [x] `cargo test --workspace` passes — confirmed

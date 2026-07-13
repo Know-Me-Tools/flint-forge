@@ -940,6 +940,7 @@ mod security_header_tests {
     fn secure_app() -> Router {
         Router::new()
             .route("/healthz", get(|| async { "ok" }))
+            .route("/a2ui/v1/components", get(|| async { "[]" }))
             .layer(SetResponseHeaderLayer::if_not_present(
                 HeaderName::from_static("x-content-type-options"),
                 HeaderValue::from_static("nosniff"),
@@ -961,6 +962,41 @@ mod security_header_tests {
         let app = secure_app();
         let req = Request::builder()
             .uri("/healthz")
+            .body(Body::empty())
+            .unwrap();
+
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+
+        let headers = res.headers();
+        assert_eq!(
+            headers
+                .get("x-content-type-options")
+                .and_then(|v| v.to_str().ok()),
+            Some("nosniff"),
+            "X-Content-Type-Options must be 'nosniff'"
+        );
+        assert_eq!(
+            headers.get("x-frame-options").and_then(|v| v.to_str().ok()),
+            Some("DENY"),
+            "X-Frame-Options must be 'DENY'"
+        );
+        assert_eq!(
+            headers.get("referrer-policy").and_then(|v| v.to_str().ok()),
+            Some("strict-origin-when-cross-origin"),
+            "Referrer-Policy must be 'strict-origin-when-cross-origin'"
+        );
+    }
+
+    /// p16-c006 reconcile (p9-c005 gap): the same three security headers must
+    /// also be present on `GET /a2ui/v1/components`, not just `/healthz` — the
+    /// layers are applied blanket to the whole router in `main()`, so this
+    /// proves that generalizes beyond the one route the original test covered.
+    #[tokio::test]
+    async fn security_headers_present_on_a2ui_components() {
+        let app = secure_app();
+        let req = Request::builder()
+            .uri("/a2ui/v1/components")
             .body(Body::empty())
             .unwrap();
 

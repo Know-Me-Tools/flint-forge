@@ -11,4 +11,4 @@
 - [x] §6 On-Call Severity Matrix: P0–P3 with SLAs and escalation paths
 - [x] §7 Security Contacts: breach notification procedure (names/channels can be placeholders)
 - [x] §8 Monitoring Checklist: what to check first on any incident alert
-- [ ] Link `docs/runbook.md` from the project `README.md` (or root `README.md` if it exists) — p16-c006: verified genuinely missing; neither root `README.md` nor `docs/README.md` references `runbook.md`. Left unchecked as open debt rather than fixed here (out of this reconcile change's scope).
+- [x] Link `docs/runbook.md` from the project `README.md` (or root `README.md` if it exists) — p16-c006: found genuinely missing (neither root `README.md` nor `docs/README.md` referenced it) — fixed by adding an "Operations" section to root `README.md`'s Build section pointing to `docs/runbook.md`.

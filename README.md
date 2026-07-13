@@ -155,6 +155,11 @@ A pinned Postgres 18 image with all extensions pre-installed is built from
 [`images/postgres18/Dockerfile`](images/postgres18/Dockerfile) and used by
 `docker-compose.yml` and the CI integration-test job.
 
+### Operations
+
+Local startup, migrations, rollback, on-call severity, and troubleshooting all live in
+[`docs/runbook.md`](docs/runbook.md).
+
 ### CI
 
 ```bash
