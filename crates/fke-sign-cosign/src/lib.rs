@@ -24,7 +24,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use fke_domain::FunctionManifest;
 use fke_ports::{SignError, SignatureVerifier};
-use p256::ecdsa::{signature::Verifier as _, DerSignature, VerifyingKey};
+use p256::ecdsa::{signature::hazmat::PrehashVerifier as _, DerSignature, VerifyingKey};
 use sha2::{Digest, Sha256};
 use x509_cert::{der::DecodePem, Certificate};
 
@@ -135,11 +135,17 @@ impl SignatureVerifier for VerifierCosign {
         };
 
         // 5. Parse and verify the DER signature over sha256(artifact).
+        //
+        // cosign/sigstore-go sign the SHA-256 digest directly via Go's
+        // `crypto.Signer` convention (`ecdsa.SignASN1(rand, priv, digest)`,
+        // no additional hashing) — so verification must use `verify_prehash`,
+        // not `Verifier::verify`, which would hash `digest_bytes` a second
+        // time and reject every genuine cosign signature.
         let signature =
             DerSignature::try_from(sig_der.as_slice()).map_err(|_| SignError::Invalid)?;
         let digest_bytes = hex::decode(&digest_hex).map_err(|_| SignError::Invalid)?;
         verifying_key
-            .verify(&digest_bytes, &signature)
+            .verify_prehash(&digest_bytes, &signature)
             .map_err(|_| SignError::Invalid)
     }
 }
@@ -432,6 +438,48 @@ mod tests {
             matches!(result, Err(SignError::Invalid)),
             "expected Invalid for non-Fulcio issuer, got {result:?}"
         );
+    }
+
+    /// Regression test for the prehash-vs-auto-hash ECDSA verification bug:
+    /// cosign/sigstore-go sign the SHA-256 digest directly via Go's
+    /// `crypto.Signer` convention (`ecdsa.SignASN1(rand, priv, digest)`, no
+    /// additional hashing — confirmed against sigstore-go's
+    /// `ECDSASigner.SignMessage`/`ECDSAVerifier.VerifySignature`). A
+    /// signature produced the same way (`PrehashSigner::sign_prehash` over
+    /// the artifact's SHA-256 digest) must verify successfully. Using the
+    /// auto-hashing `Verifier::verify` here would double-hash the digest and
+    /// reject every genuine cosign signature.
+    #[tokio::test]
+    async fn accepts_cosign_style_prehash_signature() {
+        use p256::ecdsa::{signature::hazmat::PrehashSigner as _, SigningKey};
+
+        let server = MockServer::start().await;
+        let sk = SigningKey::random(&mut rand_core::OsRng);
+        let artifact = b"cosign-style-artifact";
+        let digest = Sha256::digest(artifact);
+        let der_sig: DerSignature = sk
+            .sign_prehash(digest.as_slice())
+            .expect("prehash signing must succeed");
+
+        let sig_b64 = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            der_sig.as_bytes(),
+        );
+        let pubkey_b64 = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            sk.verifying_key().to_sec1_bytes(),
+        );
+        let body = mock_rekor_response(&sig_b64, &pubkey_b64);
+        Mock::given(method("POST"))
+            .and(path("/api/v1/log/entries/retrieve"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(body))
+            .mount(&server)
+            .await;
+
+        let verifier = VerifierCosign::with_url_and_mode(server.uri(), VerifierCosignMode::Legacy);
+        let manifest = make_manifest("2020-01-01T00:00:00Z", "2099-12-31T23:59:59Z");
+        let result = verifier.verify(&manifest, &[], artifact).await;
+        assert!(result.is_ok(), "expected Ok, got {result:?}");
     }
 
     /// `FLINT_COSIGN_MODE=legacy` selects the legacy (raw SEC1) path.
