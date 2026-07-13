@@ -2,7 +2,7 @@ POSITION REMINDER — read this as your FIRST tool call every turn
 Phase: p16-production-remediation
 Step: 5 of 9
 Stage: executing
-Next command: /kbd-apply p16-c006-config-truth-tracker-reconcile
+Next command: /kbd-apply p16-c007-file-size-compliance
 
 Required signal format (emit BEFORE any tool call):
   Starting <kbd-skill> — p16-production-remediation (step 5 of 9)

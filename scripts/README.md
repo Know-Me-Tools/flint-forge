@@ -141,6 +141,32 @@ The database must have `vector` (pgvector) and `pg_graphql` available — use th
 
 ---
 
+## `verify-migrations.sh`
+
+Migration integrity check. Validates that `migrations/` has a strict, gap-free numeric prefix sequence with no duplicate prefixes — catches the collision class that broke v1.0 boot (e.g. two migrations both claiming prefix `0005`). When `sqlx-cli` and `DATABASE_URL` are present, also runs `sqlx migrate info`.
+
+```bash
+./scripts/verify-migrations.sh
+# or against a non-default directory
+./scripts/verify-migrations.sh path/to/migrations
+```
+
+No environment variables required (`DATABASE_URL` is optional, for the extra `sqlx migrate info` check).
+
+---
+
+## `ci-stack-test.sh`
+
+Full-stack integration + k6 regression gate. Starts the local Docker Compose stack (Postgres 18 + extensions + fdb-gateway + fke-server), applies migrations, runs `DATABASE_URL`-gated tests, and runs `perf/k6/regression.js`. Tears the stack down on exit.
+
+```bash
+./scripts/ci-stack-test.sh
+```
+
+Environment overrides: `FLINT_JWT_SECRET` (default: generated), `DATABASE_URL` (default: `postgres://flint:flint@localhost:5432/flint`), `BASE_URL` (default: `http://localhost:8080`), `KILN_ADMIN_URL` (default: `http://localhost:8090`).
+
+---
+
 ## `smoke_test.sh`
 
 Post-deploy smoke checks. Validates that fdb-gateway and fke-server are responding correctly after a `docker compose up`.

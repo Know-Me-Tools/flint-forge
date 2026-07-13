@@ -3,11 +3,11 @@
   "previousPhase": "p15-v1.0-production-readiness",
   "status": "executing",
   "updatedAt": "2026-07-13",
-  "next_action": "Run /kbd-apply p16-c006-config-truth-tracker-reconcile (Round 2's last change — depends on c001, done). Round 1 and c003 of Round 2 are complete.",
-  "next_pending_change": "p16-c006-config-truth-tracker-reconcile",
-  "exact_next_command": "/kbd-apply p16-c006-config-truth-tracker-reconcile",
+  "next_action": "Run /kbd-apply p16-c007-file-size-compliance or /kbd-apply p16-c008-production-operations (Round 3, parallel, no cross-dependency). Rounds 1 and 2 are both fully complete.",
+  "next_pending_change": "p16-c007-file-size-compliance",
+  "exact_next_command": "/kbd-apply p16-c007-file-size-compliance",
   "seeded_from": "2026-07-12 production-readiness audit (docs/audits/2026-07-12-production-readiness.md)",
-  "changes_completed": 5,
+  "changes_completed": 6,
   "changes_total": 9,
   "active_changes": [],
   "execution_round_order": {
@@ -16,7 +16,7 @@
     "round_3_parallel": ["p16-c007-file-size-compliance", "p16-c008-production-operations"],
     "round_4": ["p16-c009-vgv-quality-gates"]
   },
-  "note": "Round 1 is fully COMPLETE: p16-c001, p16-c002, p16-c004, and p16-c005 all archived. c003 (Kiln sandbox + authz) is now ALSO archived: fixed the check_capabilities(granted, granted) no-op — requested (component's declared manifest capabilities) is now compared against granted, independently computed per-capability via Cedar (action naming kiln:capability:<name>; caller=None/BGW and no-Pep-attached cases trust requested wholesale, matching the existing kiln:invoke Cedar-skip precedent) — denial now happens before instantiate_async, not silently. Added mandatory bearer auth to /functions/v1/<name> (caller=None now unreachable from that HTTP path) and to /admin/functions (register_function + list_functions), the latter also requiring role==service_role. Deliberately DEFERRED (flagged as task_91a44033, its own follow-up): wiring flint:host@0.1.0's actual host-side Db/Llm/Kv/Identity/Secrets functions into the linker — the WIT contract (wit/flint/host/world.wit) exists but flint-skill is explicitly guest-only SDK scaffolding with no host-side implementation anywhere; this is substantial new engineering (5 new host functions each touching a different backend, Secrets needing careful default-deny/audit semantics), not a bug fix, and wasn't safely completable alongside this change's P0 items without its own design review. cargo clippy --workspace and cargo test --workspace both fully green (the fke-sign-cosign blocker noted in c005's entry, task_7d88a8a6, has since resolved). Round 2's remaining change: p16-c006 (config-truth-tracker-reconcile) depends on c001 (done) — safe to start.",
+  "note": "Round 1 and Round 2 are both fully COMPLETE: p16-c001, p16-c002, p16-c004, p16-c005, p16-c003, and p16-c006 all archived. c003 (Kiln sandbox + authz): fixed the check_capabilities(granted, granted) no-op via independent per-capability Cedar checks (action naming kiln:capability:<name>); mandatory bearer auth added to /functions/v1/<name> and /admin/functions (role==service_role for the latter). Deliberately DEFERRED (flagged as task_91a44033, its own follow-up): wiring flint:host@0.1.0's actual host-side Db/Llm/Kv/Identity/Secrets functions — substantial new engineering, not a bug fix, no host-side implementation exists anywhere yet. c006 (config truth + tracker reconcile): agui_run webhook target is now a deployment-configurable Postgres GUC (flint.agui_base_url, defaults to localhost); stale doc-comments in fdb-reflection/rest/mod.rs and fdb-gateway/main.rs corrected to match actual (post-p16-c001) behavior. The big deliverable: ALL 26 openspec/changes/p9-c001 through p14-c005 tasks.md files reconciled against real shipped artifacts (grep/read/cargo check/clippy/test evidence per line, executed via 4 parallel verification agents) — confirmed genuine, non-rubber-stamped open debt in several: p10-c003 (2 CVEs allowlisted not fixed), p10-c006/p12-c002 (v0.10.0 tag unsigned; v1.0.0 Docker publish actually failed on a lowercase-repo-name error, never republished), p11-c004 (k6 staging baselines still not measured against live staging — the exact gap the 2026-07-12 audit flagged), p14-c001 (sqlx 0.8→0.9 bump never happened, only the unrelated pool-metrics half of that change shipped), p9-c003/c006 (partial GraphQL rate-limit config, missing graphql.js k6 script, bench numbers still TBD), p9-c002/c007/c001 (a few doc-link and untested-smoke-test gaps). cargo clippy --workspace and cargo test --workspace (76/76) both fully green. Round 3 is next: p16-c007 (file-size compliance) and p16-c008 (production operations) are independent and may run in parallel.",
   "assessment_complete": true,
   "plan_complete": true,
   "execution_complete": true
