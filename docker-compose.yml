@@ -30,6 +30,10 @@ services:
       # using /run/secrets/postgres_password (mounted via docker-compose.prod.yml).
       DATABASE_URL: postgres://flint:flint@db:5432/flint
       FLINT_JWT_SECRET: ${FLINT_JWT_SECRET:-change-me-in-production}
+      # Explicit (matches the code default as of p16-c004): Postgres LISTEN/NOTIFY
+      # change-stream source for GraphQL subscriptions. `fabric` (FRF gRPC) still
+      # returns an empty stream pending OQ-FRF-1 — do not select it here.
+      FLINT_CHANGE_SOURCE: listen
     ports:
       - "8080:8080"
     depends_on:

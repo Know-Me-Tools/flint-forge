@@ -67,6 +67,10 @@ services:
     # No FLINT_JWT_SECRET_FILE annotation needed — the entrypoint handles this.
     environment:
       RUST_LOG: info
+      # Explicit (matches the code default as of p16-c004): Postgres LISTEN/NOTIFY
+      # change-stream source for GraphQL subscriptions. `fabric` (FRF gRPC) still
+      # returns an empty stream pending OQ-FRF-1 — do not select it here.
+      FLINT_CHANGE_SOURCE: listen
     secrets:
       - jwt_secret
       - postgres_password

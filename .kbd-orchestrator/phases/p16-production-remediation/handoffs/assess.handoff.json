@@ -1,0 +1,11 @@
+{
+  "stage": "assess",
+  "completedAt": "2026-07-12T13:55:51Z",
+  "outputs": [
+    "assessment.md"
+  ],
+  "nextStage": "analyze",
+  "summaryForNext": "4 P0 security defects block a production 1.0: REST RLS bypass, unsigned-WASM execution, unenforced Kiln sandbox/authz, empty-stream realtime default. Every P0 has an in-tree precedent (GraphQL acquire() RLS, written-but-unwired signer crates, working listen adapter) so remediation is wiring+tests. Open question for plan: sequence c001-c004 first; decide whether p16 cuts v1.0.1 or re-tags v1.0.0.",
+  "skipped": false,
+  "skipReason": null
+}

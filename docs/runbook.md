@@ -94,7 +94,26 @@ KETO_BASE_URL=http://keto:4466
 FRF_ENDPOINT=http://frf:50051
 FLINT_CHANGE_SOURCE=listen          # "listen" = Postgres LISTEN/NOTIFY; "fabric" = FRF gRPC
 FLINT_LISTEN_CAPACITY=1024
+
+# JWKS-based bearer verification (forge-identity::verify_and_build, via fdb-auth) — p16-c005
+FLINT_GATE_JWKS_URL=https://gate.example.com/.well-known/jwks.json
+FLINT_GATE_ISSUER=https://gate.example.com
+FLINT_GATE_AUDIENCE=                # required unless FLINT_GATE_MODE=development (see below)
+FLINT_GATE_MODE=production          # default; "development" skips the mandatory-audience check
+FLINT_GATE_JWKS_TTL_SECS=600        # JWKS cache TTL before a background refetch (default 10 min)
 ```
+
+**`FLINT_GATE_MODE` / `FLINT_GATE_AUDIENCE`:** production is the default —
+unset, empty, or anything other than exactly `development` requires
+`FLINT_GATE_AUDIENCE` to be set, and every bearer-verification call fails
+closed (`MissingEnv("FLINT_GATE_AUDIENCE")`) until it is. Set
+`FLINT_GATE_MODE=development` for local iteration against a gate that hasn't
+configured an audience yet.
+
+**`FLINT_GATE_JWKS_TTL_SECS`:** the JWKS cache refreshes automatically once an
+entry is older than this TTL, and separately refetches immediately (rate-limited
+to once per 5 seconds) whenever a token's `kid` isn't found in the cached set —
+so an upstream signing-key rotation is picked up without a gateway restart.
 
 ### 2.3 Step-by-Step Startup
 
@@ -458,6 +477,27 @@ docker compose restart fdb-gateway
 docker compose logs fdb-gateway 2>&1 | grep "migrations applied"
 # Expected: INFO database migrations applied
 ```
+
+### 4.3 Row-Level Security on Tenant Tables (operator responsibility)
+
+Flint Forge's own migrations (`migrations/0013_force_rls.sql`) apply
+`FORCE ROW LEVEL SECURITY` to its internal tables (`flint_a2ui.*`,
+`flint_kiln.*`). Tenant/application tables — anything an operator creates in
+their own schema and exposes via the REST/GraphQL reflection compiler — are
+**not** owned by these migrations. When creating a table with an RLS policy,
+always apply both statements, not just the first:
+
+```sql
+ALTER TABLE public.my_table ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.my_table FORCE ROW LEVEL SECURITY;
+```
+
+`ENABLE` alone does not apply RLS to the table's owner or to a superuser
+session. Every REST/GraphQL request runs under `SET LOCAL ROLE authenticated`
+(a non-owner, non-superuser role — see `fdb-postgres::PgBackend::acquire`),
+so `FORCE` is defense-in-depth rather than the primary enforcement mechanism —
+but it is what keeps RLS holding even if a future connection somehow acquires
+a session without that role de-escalation.
 
 ### 4.3 View Applied Migrations
 

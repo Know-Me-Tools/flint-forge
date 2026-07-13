@@ -1,18 +1,18 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Query, State},
     http::{header, HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{delete, get, patch, post},
-    Json, Router,
+    Extension, Json, Router,
 };
 use forge_domain::is_safe_identifier;
-use serde_json::{json, Value};
-use sqlx::PgPool;
+use forge_identity::RlsContext;
+use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::instrument;
 
-use fdb_ports::KetoCheck;
+use fdb_ports::{KetoCheck, SqlExecutor};
 use forge_policy::Pep;
 
 mod mutations;
@@ -25,7 +25,7 @@ use fdb_query::embed::{
 use fdb_query::QueryParam;
 
 use crate::compilers::embed_schema::embed_schema_from_model;
-use crate::compilers::filters::{bind_param, parse_filter_tree, render_where};
+use crate::compilers::filters::{parse_filter_tree, render_where};
 use crate::model::DatabaseModel;
 use crate::passes::endpoint_generation::{generate, EndpointKind};
 
@@ -37,15 +37,17 @@ pub(super) const KETO_NAMESPACE: &str = "entities";
 
 /// Shared state threaded into every route handler.
 ///
-/// `keto` and `pep` are optional gates. When present, mutation handlers call
-/// them before executing SQL and return `403` on denial; when absent (early
-/// boot, tests) the gates are skipped. Both trait objects are `Send + Sync`,
-/// satisfying the web-domain requirement that handler state be shareable across
-/// worker threads.
+/// `executor` runs every CRUD/`rpc` SQL statement inside an RLS-scoped
+/// transaction (`SqlExecutor::execute_raw` → `PgBackend::acquire(rls)`) — no
+/// handler ever touches a raw, unscoped connection. `keto` and `pep` are
+/// optional gates. When present, mutation handlers call them before executing
+/// SQL and return `403` on denial; when absent (early boot, tests) the gates
+/// are skipped. All fields are `Send + Sync`, satisfying the web-domain
+/// requirement that handler state be shareable across worker threads.
 #[derive(Clone)]
 pub(super) struct RestState {
     pub(super) model: Arc<DatabaseModel>,
-    pub(super) pool: PgPool,
+    pub(super) executor: Arc<dyn SqlExecutor>,
     pub(super) keto: Option<Arc<dyn KetoCheck>>,
     pub(super) pep: Option<Arc<dyn Pep>>,
 }
@@ -59,16 +61,19 @@ pub(super) struct RestState {
 /// - `DELETE /<schema>/<table>/:id` — delete row
 /// - `POST /rpc/<schema>/<fn>`      — call stored function (vector args supported)
 ///
-/// CRUD handlers remain `todo!()` stubs pending the query-builder landing.
-/// `handle_rpc` is fully implemented: it detects `vector(N)` arg types and binds
+/// Every handler runs its SQL through `executor.execute_raw(sql, params, rls)`
+/// (`SqlExecutor`, `fdb-ports`), which `acquire(rls)`s a connection and issues
+/// the `SET LOCAL` GUCs before the statement runs — RLS is enforced on every
+/// route this compiler mounts, not assumed from the pool's ambient role.
+/// `handle_rpc` additionally detects `vector(N)` arg types and binds
 /// `pgvector::Vector` typed parameters automatically.
 pub struct RestCompiler;
 
 impl RestCompiler {
     /// Compile without authorization gates (early boot / tests). Mutations run
     /// with RLS only. Prefer [`RestCompiler::compile_with_gates`] in production.
-    pub fn compile(model: &DatabaseModel, pool: PgPool) -> Router {
-        Self::compile_with_gates(model, pool, None, None)
+    pub fn compile(model: &DatabaseModel, executor: Arc<dyn SqlExecutor>) -> Router {
+        Self::compile_with_gates(model, executor, None, None)
     }
 
     /// Compile with optional Keto (coarse relationship) and Cedar (capability)
@@ -76,13 +81,13 @@ impl RestCompiler {
     /// SQL and returns `403` on denial.
     pub fn compile_with_gates(
         model: &DatabaseModel,
-        pool: PgPool,
+        executor: Arc<dyn SqlExecutor>,
         keto: Option<Arc<dyn KetoCheck>>,
         pep: Option<Arc<dyn Pep>>,
     ) -> Router {
         let state = RestState {
             model: Arc::new(model.clone()),
-            pool,
+            executor,
             keto,
             pep,
         };
@@ -91,20 +96,109 @@ impl RestCompiler {
 
         let mut router: Router<RestState> = Router::new();
 
+        // Every route below is a concrete, literal path — `schema`/`table` (or
+        // `func`'s schema/name) are compile-time-known from the `DatabaseModel`,
+        // not runtime path parameters (axum never captures them: there is no
+        // `{schema}`/`{table}` segment in any registered path). Each handler
+        // closure binds its own table/function identity via capture instead of
+        // a `Path` extractor — the extractor approach silently mismatched (0
+        // captured segments vs. 2 expected) and every CRUD/`rpc` request 500'd
+        // before reaching a handler body. Discovered running this change's own
+        // live-Postgres gate test.
         for endpoint in &endpoints {
             let path = endpoint.path.clone();
             router = match (&endpoint.kind, endpoint.method) {
-                (EndpointKind::TableList { .. }, "GET") => router.route(&path, get(handle_list)),
-                (EndpointKind::TableList { .. }, "POST") => {
-                    router.route(&path, post(mutations::handle_insert))
+                (EndpointKind::TableList { table }, "GET") => {
+                    let schema = table.schema.clone();
+                    let name = table.name.clone();
+                    router.route(
+                        &path,
+                        get(move |State(state): State<RestState>,
+                                  Extension(rls): Extension<RlsContext>,
+                                  Query(params): Query<HashMap<String, String>>,
+                                  headers: HeaderMap| {
+                            let schema = schema.clone();
+                            let name = name.clone();
+                            async move {
+                                handle_list(state, rls, schema, name, params, headers).await
+                            }
+                        }),
+                    )
                 }
-                (EndpointKind::TableById { .. }, "PATCH") => {
-                    router.route(&path, patch(mutations::handle_update))
+                (EndpointKind::TableList { table }, "POST") => {
+                    let schema = table.schema.clone();
+                    let name = table.name.clone();
+                    router.route(
+                        &path,
+                        post(move |State(state): State<RestState>,
+                                   Extension(rls): Extension<RlsContext>,
+                                   Json(body): Json<Map<String, Value>>| {
+                            let schema = schema.clone();
+                            let name = name.clone();
+                            async move {
+                                mutations::handle_insert(state, schema, name, rls, Json(body)).await
+                            }
+                        }),
+                    )
                 }
-                (EndpointKind::TableById { .. }, "DELETE") => {
-                    router.route(&path, delete(mutations::handle_delete))
+                (EndpointKind::TableById { table }, "PATCH") => {
+                    let schema = table.schema.clone();
+                    let name = table.name.clone();
+                    router.route(
+                        &path,
+                        patch(move |State(state): State<RestState>,
+                                    Extension(rls): Extension<RlsContext>,
+                                    Query(params): Query<HashMap<String, String>>,
+                                    Json(body): Json<Map<String, Value>>| {
+                            let schema = schema.clone();
+                            let name = name.clone();
+                            async move {
+                                mutations::handle_update(
+                                    state,
+                                    schema,
+                                    name,
+                                    rls,
+                                    Query(params),
+                                    Json(body),
+                                )
+                                .await
+                            }
+                        }),
+                    )
                 }
-                (EndpointKind::Rpc { .. }, "POST") => router.route(&path, post(rpc::handle_rpc)),
+                (EndpointKind::TableById { table }, "DELETE") => {
+                    let schema = table.schema.clone();
+                    let name = table.name.clone();
+                    router.route(
+                        &path,
+                        delete(move |State(state): State<RestState>,
+                                     Extension(rls): Extension<RlsContext>,
+                                     Query(params): Query<HashMap<String, String>>| {
+                            let schema = schema.clone();
+                            let name = name.clone();
+                            async move {
+                                mutations::handle_delete(state, schema, name, rls, Query(params))
+                                    .await
+                            }
+                        }),
+                    )
+                }
+                (EndpointKind::Rpc { func }, "POST") => {
+                    let schema = func.schema.clone();
+                    let name = func.name.clone();
+                    router.route(
+                        &path,
+                        post(move |State(state): State<RestState>,
+                                   Extension(rls): Extension<RlsContext>,
+                                   Json(body): Json<Map<String, Value>>| {
+                            let schema = schema.clone();
+                            let name = name.clone();
+                            async move {
+                                rpc::handle_rpc(state, rls, schema, name, Json(body)).await
+                            }
+                        }),
+                    )
+                }
                 _ => router,
             };
         }
@@ -118,17 +212,21 @@ impl RestCompiler {
 /// Query params are PostgREST-style filters (`?col=eq.value`) except for the
 /// reserved keys in [`RESERVED_PARAMS`]. Pagination is driven by the `Range`
 /// header (`rows=<start>-<end>`); a `Content-Range` header echoes the served
-/// window and total. RLS is enforced by the connection's GUC context — this
-/// handler adds no extra GUC work.
+/// window and total. RLS is enforced by `executor.execute_raw`, which
+/// `acquire(rls)`s a connection and issues the `SET LOCAL` GUCs before this
+/// statement runs — the caller's `RlsContext` is threaded from the bearer
+/// token verified upstream by `require_rls` (`fdb-gateway`).
 ///
 /// SECURITY: schema, table, and every filter column pass through
 /// [`is_safe_identifier`]; all values are bound as `$n`. No user-supplied
 /// string is interpolated into SQL.
-#[instrument(skip(state, params, headers), fields(schema = %schema, table = %table))]
+#[instrument(skip(state, rls, params, headers), fields(schema = %schema, table = %table))]
 async fn handle_list(
-    State(state): State<RestState>,
-    Path((schema, table)): Path<(String, String)>,
-    Query(params): Query<HashMap<String, String>>,
+    state: RestState,
+    rls: RlsContext,
+    schema: String,
+    table: String,
+    params: HashMap<String, String>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
     if !is_safe_identifier(&schema) || !is_safe_identifier(&table) {
@@ -146,6 +244,13 @@ async fn handle_list(
 
     let (offset, limit) = parse_range(&headers);
     // LIMIT/OFFSET placeholders follow every bound param already threaded.
+    // No explicit cast: Postgres infers `int8` for a bare `LIMIT $n OFFSET
+    // $n` parameter on its own. Bind as `QueryParam::BigInt`, not `Text` — an
+    // explicit `::bigint` cast here would make Postgres infer the
+    // placeholder's type as `int8`, and `Text`'s client-side `ToSql::accepts`
+    // does not include `INT8`, which fails to serialize before the query
+    // ever reaches the server (discovered running this change's own
+    // live-Postgres gate test — see `QueryParam::BigInt`'s doc comment).
     let limit_idx = inner.binds.len() + 1;
     let offset_idx = inner.binds.len() + 2;
 
@@ -157,14 +262,15 @@ async fn handle_list(
         inner_sql = inner.sql,
     );
 
-    let mut q = sqlx::query(&sql);
-    for bind in &inner.binds {
-        q = bind_param(q, bind);
-    }
-    q = q.bind(limit).bind(offset);
+    let mut binds = inner.binds;
+    binds.push(QueryParam::BigInt(limit));
+    binds.push(QueryParam::BigInt(offset));
 
-    match q.fetch_one(&state.pool).await {
-        Ok(row) => list_response(&row, offset, limit),
+    match state.executor.execute_raw(&sql, binds, &rls).await {
+        Ok(rows) => match rows.into_iter().next() {
+            Some(row) => list_response(&row, offset, limit),
+            None => list_response(&serde_json::Map::new(), offset, limit),
+        },
         Err(e) => {
             tracing::error!(error = %e, "handle_list query error");
             internal_error()
@@ -317,10 +423,13 @@ fn parse_range(headers: &HeaderMap) -> (i64, i64) {
 }
 
 /// Build the `200 OK` list response with a `Content-Range` header.
-fn list_response(row: &sqlx::postgres::PgRow, offset: i64, limit: i64) -> axum::response::Response {
-    use sqlx::Row;
-    let rows: Value = row.try_get("rows").unwrap_or(Value::Array(vec![]));
-    let total: i64 = row.try_get("total").unwrap_or(0);
+fn list_response(
+    row: &serde_json::Map<String, Value>,
+    offset: i64,
+    limit: i64,
+) -> axum::response::Response {
+    let rows: Value = row.get("rows").cloned().unwrap_or(Value::Array(vec![]));
+    let total: i64 = row.get("total").and_then(Value::as_i64).unwrap_or(0);
 
     let count = rows.as_array().map_or(0, Vec::len) as i64;
     let start = offset;
@@ -345,25 +454,40 @@ pub(super) fn parse_filters(
     parse_filter_tree(params).map_err(|e| Box::new(bad_request(&e.to_string())))
 }
 
-/// Bind a JSON value as a Postgres parameter.
+/// Bind a JSON body value as an uncast `$n` parameter, letting Postgres infer
+/// the placeholder's type from the INSERT/UPDATE target column.
 ///
-/// Strings bind as text; everything else binds as JSONB (`Value`), letting
-/// Postgres coerce to the target column type. This keeps the value on the
-/// parameter channel — it is never interpolated into SQL.
-pub(super) fn json_bind(v: &Value) -> Value {
-    v.clone()
+/// A `Value::String` binds as `QueryParam::Text` — matching Postgres's
+/// inference for the common case of a `text`/`varchar` target column, so no
+/// cast is needed or wanted. Casting `$n::jsonb` here was tried and is wrong:
+/// Postgres's `jsonb → text` assignment cast preserves the JSON
+/// representation (quotes included, e.g. `"tenant-a"` instead of
+/// `tenant-a`), which silently corrupts string values and made every insert
+/// whose value happened to also be compared by an RLS `WITH CHECK` policy
+/// fail with "new row violates row-level security policy" — the value never
+/// matched the unquoted comparison, discovered running this change's own
+/// live-Postgres gate test. Non-string values still bind as
+/// `QueryParam::Json` (uncast) for a genuinely `jsonb`-typed target column;
+/// binding into a *typed, non-text, non-jsonb* column (`int4`, `bool`, `uuid`,
+/// …) remains a known, separately-tracked gap (see this change's proposal.md
+/// §3) since Postgres would infer that column's own type and neither
+/// `Text` nor `Json` accepts it.
+pub(super) fn json_bind(v: &Value) -> QueryParam {
+    match v {
+        Value::String(s) => QueryParam::Text(s.clone()),
+        other => QueryParam::Json(other.to_string()),
+    }
 }
 
 /// `201 Created` response for an insert, with a `Location` header pointing at
 /// the new row. The primary-key value is read from the returned row when a
 /// single-column `id` is present; otherwise `Location` targets the collection.
 pub(super) fn insert_response(
-    row: &sqlx::postgres::PgRow,
+    row: &serde_json::Map<String, Value>,
     schema: &str,
     table: &str,
 ) -> axum::response::Response {
-    use sqlx::Row;
-    let body: Value = row.try_get("row").unwrap_or(Value::Null);
+    let body: Value = row.get("row").cloned().unwrap_or(Value::Null);
     let location = body
         .get("id")
         .map(|id| format!("/{schema}/{table}/{}", value_to_path(id)))
@@ -378,11 +502,10 @@ pub(super) fn insert_response(
 }
 
 /// `200 OK` response wrapping a JSON array of returned rows.
-pub(super) fn rows_response(rows: &[sqlx::postgres::PgRow]) -> axum::response::Response {
-    use sqlx::Row;
+pub(super) fn rows_response(rows: &[serde_json::Map<String, Value>]) -> axum::response::Response {
     let out: Vec<Value> = rows
         .iter()
-        .filter_map(|r| r.try_get::<Value, _>("row").ok())
+        .filter_map(|r| r.get("row").cloned())
         .collect();
     (StatusCode::OK, Json(Value::Array(out))).into_response()
 }
@@ -420,6 +543,8 @@ mod tests {
     use super::RestCompiler;
     use super::{build_inner_query, embed_schema_from_model};
     use crate::model::{Column, DatabaseModel, ForeignKey, Table};
+    use fdb_query::QueryParam;
+    use serde_json::Value;
     use std::collections::HashMap;
 
     fn minimal_model() -> DatabaseModel {
@@ -559,13 +684,26 @@ mod tests {
         assert!(r.is_err(), "unsafe parent table must error");
     }
 
+    /// Never-invoked `SqlExecutor` for tests that only exercise route
+    /// registration (`RestCompiler::compile`), which never runs a query.
+    struct UnusedExecutor;
+    #[async_trait::async_trait]
+    impl fdb_ports::SqlExecutor for UnusedExecutor {
+        async fn execute_raw(
+            &self,
+            _sql: &str,
+            _params: Vec<QueryParam>,
+            _rls: &forge_identity::RlsContext,
+        ) -> Result<Vec<serde_json::Map<String, Value>>, fdb_ports::BackendError> {
+            unreachable!("compile() never executes a query")
+        }
+    }
+
     #[tokio::test]
     async fn compiles_without_panic_for_minimal_model() {
-        // compile() must not panic during route registration.
-        // Uses a disconnected lazy pool — compilation never touches the DB.
-        let pool = sqlx::PgPool::connect_lazy("postgres://localhost/test").expect("lazy pool");
+        // compile() must not panic during route registration; it never runs a query.
         let model = minimal_model();
-        let _router = RestCompiler::compile(&model, pool);
+        let _router = RestCompiler::compile(&model, std::sync::Arc::new(UnusedExecutor));
     }
 
     // json_to_vector tests live with the handler in `rpc.rs`.

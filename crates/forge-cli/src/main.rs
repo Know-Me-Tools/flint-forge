@@ -67,9 +67,17 @@ struct RegisterArgs {
     /// Function version.
     #[arg(short, long, default_value = "1.0.0")]
     version: String,
-    /// Publisher DID recorded in the manifest.
+    /// Publisher DID recorded in the manifest. Ignored (and overridden) when
+    /// `--signing-key` is supplied, since the DID is derived from the key.
     #[arg(long, default_value = "did:flint:operator")]
     publisher_did: String,
+    /// Path to a raw 32-byte Ed25519 seed file. When supplied, the CLI signs
+    /// the component and sets `publisher_did` to `did:prometheus:<pubkey>`
+    /// (base64url), which `fke-sign-did`'s verifier resolves without a
+    /// network call. Without this, the server's mandatory signature check
+    /// (p16-c002) rejects the registration.
+    #[arg(long)]
+    signing_key: Option<PathBuf>,
     /// Granted capabilities (comma-separated).
     #[arg(long, value_delimiter = ',', default_value = "HttpOutgoing")]
     capabilities: Vec<String>,
@@ -210,6 +218,40 @@ fn print_version() {
     println!("{}", env!("CARGO_PKG_VERSION"));
 }
 
+/// Sign `wasm_bytes` for registration: `did:prometheus:<pubkey>` derived from
+/// the key, and a signature over `sha256(artifact) || content_digest` — the
+/// exact message `fke-sign-did::VerifierDid` reconstructs and checks.
+fn sign_component(
+    seed_path: &std::path::Path,
+    wasm_bytes: &[u8],
+    content_digest: &str,
+) -> Result<(String, String)> {
+    use ed25519_dalek::Signer as _;
+
+    let seed_bytes = std::fs::read(seed_path)
+        .with_context(|| format!("failed to read signing key {}", seed_path.display()))?;
+    let seed: [u8; 32] = seed_bytes
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("signing key must be exactly 32 raw bytes"))?;
+    let signing_key = ed25519_dalek::SigningKey::from_bytes(&seed);
+    let did = format!(
+        "did:prometheus:{}",
+        base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(signing_key.verifying_key().to_bytes())
+    );
+
+    let artifact_hash = Sha256::digest(wasm_bytes);
+    let mut msg = Vec::with_capacity(32 + content_digest.len());
+    msg.extend_from_slice(&artifact_hash);
+    msg.extend_from_slice(content_digest.as_bytes());
+
+    let signature = signing_key.sign(&msg);
+    let signature_b64 =
+        base64::engine::general_purpose::STANDARD.encode(signature.to_bytes());
+
+    Ok((did, signature_b64))
+}
+
 async fn register(args: RegisterArgs) -> Result<()> {
     let wasm_bytes = tokio::fs::read(&args.path)
         .await
@@ -233,13 +275,22 @@ async fn register(args: RegisterArgs) -> Result<()> {
         .map(|s| parse_capability(s))
         .collect::<Result<Vec<_>>>()?;
 
+    let (publisher_did, signature_b64) = match &args.signing_key {
+        Some(path) => {
+            let (did, sig) = sign_component(path, &wasm_bytes, &digest)?;
+            (did, Some(sig))
+        }
+        None => (args.publisher_did, None),
+    };
+
     let manifest = FunctionManifest {
-        publisher_did: args.publisher_did,
+        publisher_did,
         content_digest: digest.clone(),
         capabilities,
         version: args.version.clone(),
         not_before: args.not_before,
         not_after: args.not_after,
+        signature_b64,
     };
 
     let body = RegisterBody {

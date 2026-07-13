@@ -25,6 +25,7 @@ fn make_manifest(did: &str, not_before: &str, not_after: &str) -> FunctionManife
         version: "1.0.0".to_owned(),
         not_before: not_before.to_owned(),
         not_after: not_after.to_owned(),
+        signature_b64: None,
     }
 }
 

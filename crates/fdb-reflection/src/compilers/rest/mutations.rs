@@ -4,12 +4,7 @@
 //! Shared state (`RestState`) and response/SQL helpers live in the parent
 //! module and are re-used here via `super::`.
 
-use axum::{
-    extract::{Path, Query, State},
-    http::StatusCode,
-    response::IntoResponse,
-    Extension, Json,
-};
+use axum::{extract::Query, http::StatusCode, response::IntoResponse, Json};
 use forge_domain::is_safe_identifier;
 use forge_identity::RlsContext;
 use forge_policy::{Decision, Request as PolicyRequest};
@@ -17,7 +12,7 @@ use serde_json::{Map, Value};
 use std::collections::HashMap;
 use tracing::instrument;
 
-use crate::compilers::filters::{bind_param, render_where};
+use crate::compilers::filters::render_where;
 
 use super::{
     bad_request, forbidden, insert_response, internal_error, json_bind, parse_filters,
@@ -74,9 +69,10 @@ pub(super) async fn mutation_guard(
 /// with the inserted row and a `Location: /<schema>/<table>/<pk>` header.
 #[instrument(skip(state, rls, body), fields(schema = %schema, table = %table))]
 pub(super) async fn handle_insert(
-    State(state): State<RestState>,
-    Path((schema, table)): Path<(String, String)>,
-    Extension(rls): Extension<RlsContext>,
+    state: RestState,
+    schema: String,
+    table: String,
+    rls: RlsContext,
     Json(body): Json<Map<String, Value>>,
 ) -> impl IntoResponse {
     if !is_safe_identifier(&schema) || !is_safe_identifier(&table) {
@@ -100,6 +96,10 @@ pub(super) async fn handle_insert(
         values.push(val.clone());
     }
 
+    // No cast: Postgres infers each `$n`'s type from the target column being
+    // inserted into (see `json_bind`'s doc comment for why an explicit
+    // `::jsonb` cast here is wrong — it silently corrupts string values via
+    // the `jsonb → text` assignment cast's JSON-quoting).
     let placeholders: Vec<String> = (1..=columns.len()).map(|i| format!("${i}")).collect();
     let sql = format!(
         "INSERT INTO {schema}.{table} ({cols}) VALUES ({ph}) RETURNING row_to_json({table}) AS row",
@@ -107,13 +107,13 @@ pub(super) async fn handle_insert(
         ph = placeholders.join(", "),
     );
 
-    let mut q = sqlx::query(&sql);
-    for v in &values {
-        q = q.bind(json_bind(v));
-    }
+    let binds = values.iter().map(json_bind).collect();
 
-    match q.fetch_one(&state.pool).await {
-        Ok(row) => insert_response(&row, &schema, &table),
+    match state.executor.execute_raw(&sql, binds, &rls).await {
+        Ok(rows) => match rows.into_iter().next() {
+            Some(row) => insert_response(&row, &schema, &table),
+            None => internal_error(),
+        },
         Err(e) => {
             tracing::error!(error = %e, "handle_insert query error");
             internal_error()
@@ -128,9 +128,10 @@ pub(super) async fn handle_insert(
 /// rows, or `204 No Content` when nothing matched.
 #[instrument(skip(state, rls, params, body), fields(schema = %schema, table = %table))]
 pub(super) async fn handle_update(
-    State(state): State<RestState>,
-    Path((schema, table)): Path<(String, String)>,
-    Extension(rls): Extension<RlsContext>,
+    state: RestState,
+    schema: String,
+    table: String,
+    rls: RlsContext,
     Query(params): Query<HashMap<String, String>>,
     Json(body): Json<Map<String, Value>>,
 ) -> impl IntoResponse {
@@ -144,16 +145,18 @@ pub(super) async fn handle_update(
         return bad_request("update body must not be empty");
     }
 
-    // SET clause — validate columns, bind values starting at $1.
+    // SET clause — validate columns, bind values starting at $1. No cast: see
+    // `json_bind`'s doc comment for why an explicit `::jsonb` cast here is
+    // wrong (silently corrupts string values via JSON-quoting on assignment).
     let mut set_parts: Vec<String> = Vec::with_capacity(body.len());
-    let mut binds: Vec<Value> = Vec::new();
+    let mut binds: Vec<fdb_query::QueryParam> = Vec::new();
     let mut idx = 1_usize;
     for (col, val) in &body {
         if !is_safe_identifier(col) {
             return bad_request(&format!("invalid column identifier: {col}"));
         }
         set_parts.push(format!("{col} = ${idx}"));
-        binds.push(val.clone());
+        binds.push(json_bind(val));
         idx += 1;
     }
 
@@ -172,15 +175,9 @@ pub(super) async fn handle_update(
         where_sql = where_clause.sql,
     );
 
-    let mut q = sqlx::query(&sql);
-    for v in &binds {
-        q = q.bind(json_bind(v));
-    }
-    for b in &where_clause.binds {
-        q = bind_param(q, b);
-    }
+    binds.extend(where_clause.binds);
 
-    match q.fetch_all(&state.pool).await {
+    match state.executor.execute_raw(&sql, binds, &rls).await {
         Ok(rows) if rows.is_empty() => StatusCode::NO_CONTENT.into_response(),
         Ok(rows) => rows_response(&rows),
         Err(e) => {
@@ -195,9 +192,10 @@ pub(super) async fn handle_update(
 /// Returns `204 No Content`.
 #[instrument(skip(state, rls, params), fields(schema = %schema, table = %table))]
 pub(super) async fn handle_delete(
-    State(state): State<RestState>,
-    Path((schema, table)): Path<(String, String)>,
-    Extension(rls): Extension<RlsContext>,
+    state: RestState,
+    schema: String,
+    table: String,
+    rls: RlsContext,
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
     if !is_safe_identifier(&schema) || !is_safe_identifier(&table) {
@@ -221,12 +219,7 @@ pub(super) async fn handle_delete(
         where_sql = where_clause.sql,
     );
 
-    let mut q = sqlx::query(&sql);
-    for b in &where_clause.binds {
-        q = bind_param(q, b);
-    }
-
-    match q.execute(&state.pool).await {
+    match state.executor.execute_raw(&sql, where_clause.binds, &rls).await {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => {
             tracing::error!(error = %e, "handle_delete query error");
@@ -238,15 +231,15 @@ pub(super) async fn handle_delete(
 #[cfg(test)]
 mod tests {
     //! Mutation gate tests — exercise `mutation_guard` directly with mock
-    //! Keto/Cedar gates. The guard runs BEFORE any SQL, so a lazy (never-dialed)
-    //! pool is sufficient: a denial returns before the pool is touched.
+    //! Keto/Cedar gates. The guard runs BEFORE any SQL, so a never-invoked
+    //! executor is sufficient: a denial returns before the executor is touched.
 
     use super::mutation_guard;
     use crate::compilers::rest::RestState;
     use crate::model::{DatabaseModel, Table};
     use async_trait::async_trait;
     use axum::http::StatusCode;
-    use fdb_ports::KetoCheck;
+    use fdb_ports::{BackendError, KetoCheck, SqlExecutor};
     use forge_identity::RlsContext;
     use forge_policy::{Decision, Pep, Request as PolicyRequest};
     use std::sync::Arc;
@@ -294,11 +287,23 @@ mod tests {
         }
     }
 
+    struct UnusedExecutor;
+    #[async_trait]
+    impl SqlExecutor for UnusedExecutor {
+        async fn execute_raw(
+            &self,
+            _sql: &str,
+            _params: Vec<fdb_query::QueryParam>,
+            _rls: &RlsContext,
+        ) -> Result<Vec<serde_json::Map<String, serde_json::Value>>, BackendError> {
+            unreachable!("a denial returns before the executor is touched")
+        }
+    }
+
     fn state_with_gates(keto: Option<Arc<dyn KetoCheck>>, pep: Option<Arc<dyn Pep>>) -> RestState {
-        let pool = sqlx::PgPool::connect_lazy("postgres://localhost/test").expect("lazy pool");
         RestState {
             model: Arc::new(minimal_model()),
-            pool,
+            executor: Arc::new(UnusedExecutor),
             keto,
             pep,
         }

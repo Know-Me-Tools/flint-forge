@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 fdb-domain = { path = "../fdb-domain" }
+fdb-query  = { path = "../fdb-query" }
 forge-domain = { path = "../forge-domain" }
 forge-identity = { path = "../forge-identity" }
 async-trait = { workspace = true }

@@ -1,5 +1,43 @@
 # Update Log
 
+## 2026-07-13
+* **Creation**: [Executor Progress Record: p16-production-remediation 3 of 9 (19:44:37Z)](/executor-progress-record-p16-production-remediation-3-of-9-19-44-37z.md)
+* **Creation**: [Executor Completion Duplicate: p16 Production Remediation](/executor-completion-duplicate-p16-production-remediation.md)
+* **Creation**: [Executor Progress Record: p16-production-remediation 3 of 9 (19:44Z)](/executor-progress-record-p16-production-remediation-3-of-9-19-44z.md)
+* **Creation**: [Executor Progress Record: uar-grade-a-upgrade 2 of 25](/executor-progress-record-uar-grade-a-upgrade-2-of-25.md)
+* **Creation**: [Executor Completion Duplicate: p16 Production Remediation](/executor-completion-duplicate-p16-production-remediation.md)
+* **Creation**: [Executor Progress Record: p16-production-remediation 3 of 9](/executor-progress-record-p16-production-remediation-3-of-9.md)
+* **Creation**: [Duplicate Executor Completion Marker for p16 Production Remediation](/duplicate-executor-completion-marker-for-p16-production-remediation.md)
+* **Creation**: [Duplicate p16 Production Remediation Completion Record](/duplicate-p16-production-remediation-completion-record.md)
+* **Creation**: [Executor Progress Record: p16-production-remediation 2 of 9 (18:10Z)](/executor-progress-record-p16-production-remediation-2-of-9-18-10z.md)
+* **Creation**: [Executor Progress Record: soak-run candidate GA promotion 0 of 0](/executor-progress-record-soak-run-candidate-ga-promotion-0-of-0.md)
+* **Creation**: [Executor Completion Duplicate: p16 Production Remediation](/executor-completion-duplicate-p16-production-remediation.md)
+* **Creation**: [Executor Progress Record: soak-run candidate GA promotion 0 of 0](/executor-progress-record-soak-run-candidate-ga-promotion-0-of-0.md)
+* **Creation**: [Executor Progress Record: p16-production-remediation 2 of 9](/executor-progress-record-p16-production-remediation-2-of-9.md)
+* **Creation**: [Executor Progress Record: p16-production-remediation 2 of 9](/executor-progress-record-p16-production-remediation-2-of-9.md)
+* **Creation**: [Executor Progress Record: p15-v1.0-production-readiness 5 of 5](/executor-progress-record-p15-v1-0-production-readiness-5-of-5.md)
+* **Creation**: [Executor Progress Record: p16-production-remediation 1 of 9 (17:00Z)](/executor-progress-record-p16-production-remediation-1-of-9-17-00z.md)
+* **Creation**: [Duplicate p16 Production Remediation Completion Marker](/duplicate-p16-production-remediation-completion-marker.md)
+* **Creation**: [Executor Progress Record: handle-production-issues 4 of 10](/executor-progress-record-handle-production-issues-4-of-10.md)
+* **Creation**: [Executor Completion Duplicate: p16-production-remediation Unknown Change](/executor-completion-duplicate-p16-production-remediation-unknown-change.md)
+* **Creation**: [Executor Progress Record: p16-production-remediation 1 of 9](/executor-progress-record-p16-production-remediation-1-of-9.md)
+* **Creation**: [Executor Progress Record: unknown phase 0 of 0](/executor-progress-record-unknown-phase-0-of-0.md)
+
+## 2026-07-12
+* **Creation**: [Executor Completion Marker: p16 Production Remediation](/executor-completion-marker-p16-production-remediation.md)
+* **Creation**: [Executor Progress Record: p16-production-remediation 0 of 9](/executor-progress-record-p16-production-remediation-0-of-9.md)
+* **Creation**: [Executor Progress Record: handle-production-issues 1 of 10](/executor-progress-record-handle-production-issues-1-of-10.md)
+* **Creation**: [Executor Completion Marker: p16-production-remediation Unknown Change](/executor-completion-marker-p16-production-remediation-unknown-change.md)
+* **Creation**: [Executor Progress Record: p15-v1.0-production-readiness 5 of 5](/executor-progress-record-p15-v1-0-production-readiness-5-of-5.md)
+* **Creation**: [Executor Completion Record: p16-production-remediation](/executor-completion-record-p16-production-remediation.md)
+* **Creation**: [Executor Progress Record: phase-18-production-remediation 0 of 0](/executor-progress-record-phase-18-production-remediation-0-of-0.md)
+* **Creation**: [Executor Session Completion: p16-production-remediation Unknown Change](/executor-session-completion-p16-production-remediation-unknown-change.md)
+* **Creation**: [Executor Progress Record: phase-codex-plugin-verify-and-publish 0 of 6](/executor-progress-record-phase-codex-plugin-verify-and-publish-0-of-6.md)
+* **Creation**: [Executor Completion Duplicate: p15-v1.0-production-readiness](/executor-completion-duplicate-p15-v1-0-production-readiness.md)
+* **Creation**: [Executor Progress Record: phase-codex-plugin-verify-and-publish 6 of 6](/executor-progress-record-phase-codex-plugin-verify-and-publish-6-of-6.md)
+* **Creation**: [Executor Session Completion: p15-v1.0-production-readiness](/executor-session-completion-p15-v1-0-production-readiness.md)
+* **Creation**: [Executor Progress Record: sdk-ecosystem-and-docs 12 of 12](/executor-progress-record-sdk-ecosystem-and-docs-12-of-12.md)
+
 ## 2026-07-03
 * **Creation**: [Executor Completion Record: p3.5-ci-postgres-hardening](/executor-completion-record-p3-5-ci-postgres-hardening.md)
 * **Creation**: [cowork-integration Step 3 Status After Kimi and DSG Changes](/cowork-integration-step-3-status-after-kimi-and-dsg-changes.md)

@@ -21,6 +21,11 @@ services:
     # rebuilding locally.  Set REGISTRY and TAG in the CI environment.
     image: ${REGISTRY:-ghcr.io/prometheusags/flint-forge}/fdb-gateway:${TAG:-latest}
     restart: unless-stopped
+    environment:
+      # Explicit (matches the code default as of p16-c004): Postgres LISTEN/NOTIFY
+      # change-stream source for GraphQL subscriptions. `fabric` (FRF gRPC) still
+      # returns an empty stream pending OQ-FRF-1 — do not select it here.
+      FLINT_CHANGE_SOURCE: listen
     deploy:
       resources:
         limits:

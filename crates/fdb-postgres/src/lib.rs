@@ -7,7 +7,7 @@ pub mod error;
 use async_trait::async_trait;
 use deadpool_postgres::{Config as PoolConfig, Pool, Runtime};
 use fdb_domain::{GraphQlRequest, RestQuery, RestResult, VectorRpcRequest};
-use fdb_ports::{BackendError, Conn, DatabaseBackend, GraphQlExecutor, RestExecutor};
+use fdb_ports::{BackendError, Conn, DatabaseBackend, GraphQlExecutor, RestExecutor, SqlExecutor};
 use forge_domain::Json;
 use forge_identity::RlsContext;
 use tracing::instrument;
@@ -231,12 +231,52 @@ impl RestExecutor for PgRest {
     /// this method binds the parameters and projects rows to a JSON array.
     #[instrument(skip(self, rls), fields(role = %rls.role, table = %q.table), err)]
     async fn execute(&self, q: RestQuery, rls: &RlsContext) -> Result<RestResult, BackendError> {
-        use fdb_ports::DatabaseBackend;
-
         let plan = plan_from_rest_query(&q)?;
         let (sql, params) = plan
             .render()
             .map_err(|e| BackendError::Query(e.to_string()))?;
+
+        let rows = self.run_bound(&sql, params, rls).await?;
+        let count = Some(rows.len() as u64);
+        Ok(RestResult {
+            rows: serde_json::Value::Array(
+                rows.into_iter().map(serde_json::Value::Object).collect(),
+            ),
+            count,
+        })
+    }
+}
+
+#[async_trait]
+impl SqlExecutor for PgRest {
+    /// Run an already-rendered `(sql, params)` pair — produced by `fdb-reflection`
+    /// via the same `fdb_query` planner `RestExecutor::execute` uses above — inside
+    /// an RLS-scoped transaction. This is the seam `fdb-reflection`'s REST CRUD and
+    /// `/rpc` handlers use so they never touch a raw, unscoped connection.
+    #[instrument(skip(self, rls, params), fields(role = %rls.role), err)]
+    async fn execute_raw(
+        &self,
+        sql: &str,
+        params: Vec<fdb_query::QueryParam>,
+        rls: &RlsContext,
+    ) -> Result<Vec<serde_json::Map<String, serde_json::Value>>, BackendError> {
+        self.run_bound(sql, params, rls).await
+    }
+}
+
+impl PgRest {
+    /// Shared bind + execute + row-projection: `acquire(rls)` the connection,
+    /// bind `params` in `$n` order, run `sql`, project each row to a JSON object
+    /// keyed by column name. Used by both [`RestExecutor::execute`] (which
+    /// builds `sql`/`params` from a `RestQuery`) and [`SqlExecutor::execute_raw`]
+    /// (which takes an already-rendered `sql`/`params` pair directly).
+    async fn run_bound(
+        &self,
+        sql: &str,
+        params: Vec<fdb_query::QueryParam>,
+        rls: &RlsContext,
+    ) -> Result<Vec<serde_json::Map<String, serde_json::Value>>, BackendError> {
+        use fdb_ports::DatabaseBackend;
 
         let conn = self.backend.acquire(rls).await?;
         let pg_conn = PgConn::from_conn(&conn)
@@ -249,28 +289,86 @@ impl RestExecutor for PgRest {
 
         let rows = pg_conn
             .inner
-            .query(&sql, &binds)
+            .query(sql, &binds)
             .await
-            .map_err(|e| BackendError::Query(format!("rest query: {e}")))?;
+            .map_err(|e| BackendError::Query(format!("bound query: {e}")))?;
 
-        let mut out: Vec<serde_json::Value> = Vec::with_capacity(rows.len());
-        for row in &rows {
-            let mut obj = serde_json::Map::new();
-            for (i, col) in row.columns().iter().enumerate() {
-                let val: Option<String> = row.try_get(i).ok();
-                obj.insert(
-                    col.name().to_owned(),
-                    val.map_or(serde_json::Value::Null, serde_json::Value::String),
-                );
-            }
-            out.push(serde_json::Value::Object(obj));
-        }
-        let count = Some(out.len() as u64);
-        Ok(RestResult {
-            rows: serde_json::Value::Array(out),
-            count,
-        })
+        Ok(project_rows(&rows))
     }
+}
+
+/// Project `tokio_postgres::Row`s to JSON objects keyed by column name.
+///
+/// Every `fdb-reflection` handler wraps its meaningful output as a single
+/// `json`/`jsonb` column (`row_to_json`/`json_agg`), with `handle_list` adding
+/// a `bigint` count sidecar — so this dispatches on the column's Postgres
+/// `Type` rather than blindly decoding as text. `String`'s `FromSql::accepts`
+/// only matches `TEXT`/`VARCHAR`/`BPCHAR`/`NAME`/`UNKNOWN`
+/// (`postgres-types` `accepts!` list) — it does **not** accept `JSON`/`JSONB`/
+/// integer/boolean/float types, so a naive `Option<String>` decode would
+/// silently return `null` for exactly the columns this port exists to carry.
+/// `serde_json::Value: FromSql` is available via the workspace's
+/// `tokio-postgres = { features = ["with-serde_json-1"] }`.
+///
+/// Falls back to a text decode, then `NULL`, for any column type not listed
+/// below — a reasonable degradation for a general-purpose executor, matching
+/// the existing fallback convention in [`RestBind::from_param`].
+fn project_rows(rows: &[tokio_postgres::Row]) -> Vec<serde_json::Map<String, serde_json::Value>> {
+    use tokio_postgres::types::Type;
+
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        let mut obj = serde_json::Map::new();
+        for (i, col) in row.columns().iter().enumerate() {
+            let value = match *col.type_() {
+                Type::JSON | Type::JSONB => row
+                    .try_get::<_, Option<serde_json::Value>>(i)
+                    .ok()
+                    .flatten()
+                    .unwrap_or(serde_json::Value::Null),
+                Type::BOOL => row
+                    .try_get::<_, Option<bool>>(i)
+                    .ok()
+                    .flatten()
+                    .map_or(serde_json::Value::Null, serde_json::Value::from),
+                Type::INT2 => row
+                    .try_get::<_, Option<i16>>(i)
+                    .ok()
+                    .flatten()
+                    .map_or(serde_json::Value::Null, serde_json::Value::from),
+                Type::INT4 => row
+                    .try_get::<_, Option<i32>>(i)
+                    .ok()
+                    .flatten()
+                    .map_or(serde_json::Value::Null, serde_json::Value::from),
+                Type::INT8 => row
+                    .try_get::<_, Option<i64>>(i)
+                    .ok()
+                    .flatten()
+                    .map_or(serde_json::Value::Null, serde_json::Value::from),
+                Type::FLOAT4 => row
+                    .try_get::<_, Option<f32>>(i)
+                    .ok()
+                    .flatten()
+                    .map_or(serde_json::Value::Null, |f| {
+                        serde_json::Value::from(f64::from(f))
+                    }),
+                Type::FLOAT8 => row
+                    .try_get::<_, Option<f64>>(i)
+                    .ok()
+                    .flatten()
+                    .map_or(serde_json::Value::Null, serde_json::Value::from),
+                _ => row
+                    .try_get::<_, Option<String>>(i)
+                    .ok()
+                    .flatten()
+                    .map_or(serde_json::Value::Null, serde_json::Value::String),
+            };
+            obj.insert(col.name().to_owned(), value);
+        }
+        out.push(obj);
+    }
+    out
 }
 
 /// Owned bind value bridging `fdb_query::QueryParam` to a `tokio_postgres` param.
@@ -278,6 +376,8 @@ enum RestBind {
     Text(String),
     TextArray(Vec<String>),
     Json(serde_json::Value),
+    Vector(pgvector::Vector),
+    BigInt(i64),
     Null,
 }
 
@@ -289,6 +389,8 @@ impl RestBind {
             fdb_query::QueryParam::Json(s) => {
                 Self::Json(serde_json::from_str(&s).unwrap_or(serde_json::Value::String(s)))
             }
+            fdb_query::QueryParam::Vector(v) => Self::Vector(pgvector::Vector::from(v)),
+            fdb_query::QueryParam::BigInt(n) => Self::BigInt(n),
             // `Null` and any future (`#[non_exhaustive]`) variant bind as NULL,
             // never panicking on a live query path.
             _ => Self::Null,
@@ -300,6 +402,8 @@ impl RestBind {
             Self::Text(s) => s,
             Self::TextArray(v) => v,
             Self::Json(j) => j,
+            Self::BigInt(n) => n,
+            Self::Vector(v) => v,
             Self::Null => &Option::<String>::None,
         }
     }

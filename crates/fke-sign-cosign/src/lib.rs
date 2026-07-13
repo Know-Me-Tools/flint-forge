@@ -5,20 +5,49 @@
 //!
 //! Two verification modes are selected by `FLINT_COSIGN_MODE`:
 //!
-//! * **`full`** (default) — full Sigstore chain: the Rekor `publicKey.content`
-//!   is parsed as a Fulcio-issued X.509 certificate. The issuer must contain
-//!   `"fulcio"` or `"sigstore"` (case-insensitive), the certificate validity
-//!   window is checked, and the `VerifyingKey` is derived from
-//!   `SubjectPublicKeyInfo`.
+//! * **`full`** (default) — full Sigstore chain-of-trust: the Rekor
+//!   `publicKey.content` is parsed as a Fulcio-issued X.509 certificate, and
+//!   all of the following must hold:
+//!   1. **Chain** ([`chain`]) — the leaf's signature cryptographically
+//!      verifies against the pinned Sigstore Fulcio intermediate CA, and the
+//!      intermediate against the pinned root — not a string match on the
+//!      issuer field. The certificate validity window is checked for the
+//!      leaf, intermediate, and root.
+//!   2. **SCT** ([`sct`]) — at least one of the leaf's embedded Signed
+//!      Certificate Timestamps verifies against the pinned Sigstore CT log
+//!      public key, per RFC 6962 §3.2. Without this, a compromised or
+//!      misbehaving Fulcio instance's certs would still be accepted as long
+//!      as they chain to the pinned root.
+//!   3. **Identity** ([`identity`]) — if `FLINT_COSIGN_IDENTITY_ALLOWLIST` is
+//!      configured, the leaf's embedded OIDC issuer/subject identity must
+//!      match an allowlist entry. Unconfigured (the default) accepts any
+//!      identity Fulcio was willing to issue a certificate for.
+//!
+//!   The `VerifyingKey` used for the *artifact* signature is derived from the
+//!   leaf's `SubjectPublicKeyInfo` (P-256); chain verification itself is
+//!   P-384 (the CA certs' curve).
 //! * **`legacy`** — raw ECDSA P-256 only: `publicKey.content` is treated as
 //!   SEC1-encoded key bytes with no certificate chain checks.
+//!
+//! # Scope boundaries
+//!
+//! Only the currently active (2022+) Fulcio CA generation and CT log
+//! generation are pinned; a 2021–2022 predecessor generation (no separate
+//! intermediate CA) is intentionally not accepted. SCT verification only
+//! recognizes the sha256+ecdsa combination Sigstore actually issues.
 //!
 //! # Environment variables
 //!
 //! * `FLINT_REKOR_URL` — Rekor API base URL
 //!   (default: `https://rekor.sigstore.dev`).
 //! * `FLINT_COSIGN_MODE` — `"full"` (default) or `"legacy"`.
+//! * `FLINT_COSIGN_IDENTITY_ALLOWLIST` — optional, `full` mode only. See
+//!   [`identity`] for format.
 #![forbid(unsafe_code)]
+
+mod chain;
+mod identity;
+mod sct;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -35,10 +64,8 @@ const DEFAULT_REKOR_URL: &str = "https://rekor.sigstore.dev";
 /// Controls how `publicKey.content` from the Rekor log entry is interpreted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum VerifierCosignMode {
-    /// Full Sigstore verification: parse the Rekor `publicKey.content` as a
-    /// Fulcio-issued X.509 certificate, validate the issuer and the
-    /// certificate validity window, then derive the `VerifyingKey` from
-    /// `SubjectPublicKeyInfo`.
+    /// Full Sigstore verification: chain, SCT, and (if configured) identity
+    /// allowlist — see the module docs.
     #[default]
     Full,
     /// Legacy path: treat `publicKey.content` as raw SEC1 key bytes.
@@ -144,61 +171,29 @@ impl SignatureVerifier for VerifierCosign {
     }
 }
 
-// ─── Full-mode: Fulcio certificate chain ─────────────────────────────────────
+// ─── Full-mode: Fulcio certificate chain + SCT + identity ───────────────────
 
-/// Parse `pubkey_bytes` as PEM-encoded X.509, validate the Fulcio issuer and
-/// cert validity window, then extract the ECDSA P-256 verifying key.
+/// Parse `pubkey_bytes` as PEM-encoded X.509, cryptographically verify the
+/// chain to the pinned Sigstore root, verify an embedded SCT against the
+/// pinned CT log, check the operator-configured identity allowlist (if any),
+/// validate every cert's validity window, then extract the leaf's ECDSA
+/// P-256 verifying key.
 fn extract_key_from_fulcio_cert(pubkey_bytes: &[u8]) -> Result<VerifyingKey, SignError> {
     let pem_str = std::str::from_utf8(pubkey_bytes).map_err(|_| SignError::Invalid)?;
-    let cert = Certificate::from_pem(pem_str).map_err(|_| SignError::Invalid)?;
+    let leaf = Certificate::from_pem(pem_str).map_err(|_| SignError::Invalid)?;
 
-    check_fulcio_issuer(&cert)?;
-    check_cert_validity(&cert)?;
+    let intermediate = chain::verify_chain_to_pinned_root(&leaf)?;
+    chain::check_cert_validity(&leaf)?;
+    sct::verify_embedded_scts(&leaf, &intermediate)?;
+    identity::verify_identity_allowlist(&leaf)?;
 
     // `subject_public_key.raw_bytes()` returns the SEC1 EC point bytes.
-    let key_bytes = cert
+    let key_bytes = leaf
         .tbs_certificate
         .subject_public_key_info
         .subject_public_key
         .raw_bytes();
     VerifyingKey::from_sec1_bytes(key_bytes).map_err(|_| SignError::Invalid)
-}
-
-/// Require the issuer DN to contain "fulcio" or "sigstore" (case-insensitive).
-fn check_fulcio_issuer(cert: &Certificate) -> Result<(), SignError> {
-    let issuer = cert.tbs_certificate.issuer.to_string().to_lowercase();
-    if issuer.contains("fulcio") || issuer.contains("sigstore") {
-        Ok(())
-    } else {
-        Err(SignError::Invalid)
-    }
-}
-
-/// Verify the certificate `notBefore`/`notAfter` window against system time.
-fn check_cert_validity(cert: &Certificate) -> Result<(), SignError> {
-    let now_secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|_| SignError::Invalid)?
-        .as_secs();
-
-    let nb = cert
-        .tbs_certificate
-        .validity
-        .not_before
-        .to_unix_duration()
-        .as_secs();
-    let na = cert
-        .tbs_certificate
-        .validity
-        .not_after
-        .to_unix_duration()
-        .as_secs();
-
-    if now_secs < nb || now_secs > na {
-        Err(SignError::Invalid)
-    } else {
-        Ok(())
-    }
 }
 
 // ─── Rekor entry fetch ───────────────────────────────────────────────────────
@@ -304,6 +299,7 @@ mod tests {
             version: "1.0.0".into(),
             not_before: not_before.into(),
             not_after: not_after.into(),
+            signature_b64: None,
         }
     }
 
@@ -321,8 +317,6 @@ mod tests {
             base64::Engine::encode(&base64::engine::general_purpose::STANDARD, body.to_string());
         json!([{ "body": body_b64, "logIndex": 1 }])
     }
-
-    // ─── Existing tests (must remain passing) ────────────────────────────────
 
     /// Rekor returns 404 → `SignError::Unsigned`.
     #[tokio::test]
@@ -400,22 +394,21 @@ mod tests {
         assert_eq!(sha256_hex(b"test").len(), 64);
     }
 
-    // ─── New tests ────────────────────────────────────────────────────────────
-
-    /// Full mode rejects a Rekor entry whose cert issuer has no
-    /// "fulcio" / "sigstore" → `SignError::Invalid`.
+    /// Full mode rejects a Rekor entry whose cert doesn't cryptographically
+    /// chain to the pinned Fulcio intermediate (a self-signed cert, in this
+    /// case) → `SignError::Invalid`.
     #[tokio::test]
-    async fn full_mode_rejects_non_fulcio_issuer() {
+    async fn full_mode_rejects_cert_not_chaining_to_pinned_intermediate() {
         let server = MockServer::start().await;
 
-        // A self-signed P-256 cert with CN=Test CA, O=Test Org.
-        // The issuer contains neither "fulcio" nor "sigstore".
+        // A self-signed P-256 cert with CN=Test CA, O=Test Org — not signed
+        // by the pinned Fulcio intermediate, so chain verification fails.
         let cert_pem = NON_FULCIO_CERT_PEM;
         let pubkey_b64 = base64::Engine::encode(
             &base64::engine::general_purpose::STANDARD,
             cert_pem.as_bytes(),
         );
-        // Signature content is irrelevant — issuer check fires first.
+        // Signature content is irrelevant — chain check fires first.
         let dummy_sig =
             base64::Engine::encode(&base64::engine::general_purpose::STANDARD, b"irrelevant");
         let body = mock_rekor_response(&dummy_sig, &pubkey_b64);
@@ -430,7 +423,7 @@ mod tests {
         let result = verifier.verify(&manifest, &[], b"artifact").await;
         assert!(
             matches!(result, Err(SignError::Invalid)),
-            "expected Invalid for non-Fulcio issuer, got {result:?}"
+            "expected Invalid for a cert not chaining to the pinned intermediate, got {result:?}"
         );
     }
 
@@ -451,7 +444,9 @@ mod tests {
     // ─── Test cert fixture ────────────────────────────────────────────────────
 
     /// Self-signed P-256 certificate. Issuer: CN=Test CA, O=Test Org.
-    /// Valid 2026-07-06 → 2126-06-12.  No "fulcio" or "sigstore" anywhere.
+    /// Valid 2026-07-06 → 2126-06-12. Not signed by the pinned Fulcio
+    /// intermediate, so chain verification rejects it regardless of its
+    /// issuer DN text.
     ///
     /// Generated with:
     /// ```text

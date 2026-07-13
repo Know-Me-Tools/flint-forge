@@ -2,3 +2,4 @@
 #![forbid(unsafe_code)]
 
 pub mod a2ui_embedder;
+pub mod realtime_source;

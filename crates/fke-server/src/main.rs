@@ -12,6 +12,8 @@
 mod kiln_bgw;
 mod kiln_db_policy;
 mod kiln_policy;
+#[cfg(test)]
+mod tests;
 
 use std::sync::Arc;
 
@@ -26,6 +28,7 @@ use axum_prometheus::PrometheusMetricLayer;
 use fke_domain::ContentId;
 use fke_registry::PgComponentStore;
 use fke_runtime::{EdgeRuntime, KilnRequest};
+use forge_identity::RlsContext;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_otlp::WithExportConfig as _;
 use opentelemetry_sdk::trace::SdkTracerProvider;
@@ -40,6 +43,54 @@ struct KilnState {
     runtime: Arc<EdgeRuntime>,
     store: Arc<PgComponentStore>,
     registry: Arc<fke_registry::PgRegistry>,
+    /// `did:prometheus:`-scheme verifier (in-memory/HTTP key resolution, no
+    /// per-call network cost after the first). Constructed once and shared —
+    /// `VerifierDid` holds a TTL key cache that must persist across calls.
+    verifier_did: Arc<fke_sign_did::VerifierDid>,
+    /// Cosign/Sigstore verifier (Rekor transparency-log lookup keyed by
+    /// content digest). Constructed once for a shared `reqwest::Client`.
+    verifier_cosign: Arc<fke_sign_cosign::VerifierCosign>,
+}
+
+/// Dispatch to the verifier matching `manifest.publisher_did`'s scheme, and
+/// reject outright when a `did:prometheus:` manifest carries no signature
+/// (`VerifierCosign` doesn't need one — it looks the signature up from Rekor
+/// by content digest — so only the DID path can fail this check before
+/// dispatch).
+///
+/// p16-c002: this is the supply-chain trust gate. It must run (a) at
+/// register, so an unsigned/invalid upload is rejected before it is ever
+/// stored, and (b) at invoke on every cold cache-load (see `invoke_impl`) —
+/// the same lifecycle as the WASM bytes cache itself, so a component is
+/// re-verified independently of whatever checks ran at register, without
+/// paying a full verification cost (a Rekor HTTP round-trip, for Cosign) on
+/// every single request.
+async fn verify_manifest_signature(
+    state: &KilnState,
+    manifest: &fke_domain::FunctionManifest,
+    artifact: &[u8],
+) -> Result<(), fke_ports::SignError> {
+    use base64::Engine as _;
+    use fke_ports::SignatureVerifier;
+
+    if manifest.publisher_did.starts_with("did:prometheus:") {
+        let sig_b64 = manifest
+            .signature_b64
+            .as_deref()
+            .ok_or(fke_ports::SignError::Unsigned)?;
+        let sig_bytes = base64::engine::general_purpose::STANDARD
+            .decode(sig_b64)
+            .map_err(|_| fke_ports::SignError::Invalid)?;
+        state
+            .verifier_did
+            .verify(manifest, &sig_bytes, artifact)
+            .await
+    } else {
+        // Cosign path: the verifier fetches its own signature material from
+        // Rekor by content digest, so the (possibly absent) signature_b64 is
+        // irrelevant here — pass an empty slice.
+        state.verifier_cosign.verify(manifest, &[], artifact).await
+    }
 }
 
 #[tokio::main]
@@ -96,6 +147,8 @@ async fn main() {
         runtime,
         store,
         registry,
+        verifier_did: Arc::new(fke_sign_did::VerifierDid::new()),
+        verifier_cosign: Arc::new(fke_sign_cosign::VerifierCosign::new()),
     };
 
     let plane = if cfg!(feature = "control-plane") {
@@ -178,15 +231,28 @@ async fn invoke_impl(
 ) -> axum::response::Response {
     use fke_ports::ComponentRegistry;
 
-    // Extract optional caller identity from Authorization header.
-    // Present on direct HTTP invocations; absent on BGW (system-level) calls.
-    // The Cedar gate in EdgeRuntime is skipped when caller = None.
-    let caller_rls = if let Some(bearer) = extract_bearer(&headers) {
-        fdb_auth::rls_from_bearer(&bearer).await.ok()
-    } else {
-        None
+    // p16-c003: a valid bearer is now mandatory on this data-plane HTTP path
+    // — `caller = None` must never reach `EdgeRuntime::handle_with_telemetry`
+    // from here, since that's exactly the case that used to silently skip
+    // the Cedar `kiln:invoke`/capability gates. (The Kiln BGW's system-level
+    // invocations are a separate call path — `kiln_bgw.rs` calls
+    // `EdgeRuntime::handle` directly with a synthesized caller identity, not
+    // through this HTTP handler — so this doesn't affect it.)
+    let Some(bearer) = extract_bearer(&headers) else {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "missing Authorization header"})),
+        )
+            .into_response();
     };
-    let caller = caller_rls.as_ref();
+    let Ok(caller_rls) = fdb_auth::rls_from_bearer(&bearer).await else {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "invalid or expired token"})),
+        )
+            .into_response();
+    };
+    let caller = Some(&caller_rls);
 
     // 1. Resolve manifest
     let manifest = match state.registry.resolve(name, version).await {
@@ -210,37 +276,8 @@ async fn invoke_impl(
 
     // 2. Load WASM bytes from store (load once into runtime cache per content_digest)
     let content_id = ContentId(format!("sha256:{}", manifest.content_digest));
-    {
-        use fke_ports::ComponentStore;
-        if !state.runtime.is_loaded(&content_id) {
-            match state.store.get(&content_id).await {
-                Ok(wasm_bytes) => {
-                    if let Err(e) = state.runtime.load_wasm(content_id.clone(), &wasm_bytes) {
-                        tracing::error!(error = %e, "load_wasm failed");
-                        return (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            Json(json!({"error": "runtime load failed"})),
-                        )
-                            .into_response();
-                    }
-                }
-                Err(fke_ports::StoreError::NotFound) => {
-                    return (
-                        StatusCode::NOT_FOUND,
-                        Json(json!({"error": "artifact not found"})),
-                    )
-                        .into_response();
-                }
-                Err(e) => {
-                    tracing::error!(error = %e, "store get failed");
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({"error": "store error"})),
-                    )
-                        .into_response();
-                }
-            }
-        }
+    if let Err(resp) = ensure_loaded_and_verified(state, &manifest, &content_id, name, version).await {
+        return resp;
     }
 
     // 3. Invoke with granted capabilities (all declared caps; Cedar gate is future p6-c005)
@@ -283,6 +320,64 @@ async fn invoke_impl(
     }
 }
 
+/// Load `content_id`'s WASM bytes into the runtime cache on a cold miss,
+/// verifying the manifest's signature first (p16-c002) — extracted from
+/// `invoke_impl` to keep it under the line-count lint; also makes the
+/// "verify once per cache-load, not once per request" lifecycle explicit as
+/// its own unit.
+async fn ensure_loaded_and_verified(
+    state: &KilnState,
+    manifest: &fke_domain::FunctionManifest,
+    content_id: &ContentId,
+    name: &str,
+    version: &str,
+) -> Result<(), axum::response::Response> {
+    use fke_ports::ComponentStore;
+
+    if state.runtime.is_loaded(content_id) {
+        return Ok(());
+    }
+
+    let wasm_bytes = match state.store.get(content_id).await {
+        Ok(bytes) => bytes,
+        Err(fke_ports::StoreError::NotFound) => {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": "artifact not found"})),
+            )
+                .into_response());
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "store get failed");
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "store error"})),
+            )
+                .into_response());
+        }
+    };
+
+    if let Err(e) = verify_manifest_signature(state, manifest, &wasm_bytes).await {
+        tracing::warn!(name, version, error = %e, "signature verification failed at load");
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "signature verification failed"})),
+        )
+            .into_response());
+    }
+
+    if let Err(e) = state.runtime.load_wasm(content_id.clone(), &wasm_bytes) {
+        tracing::error!(error = %e, "load_wasm failed");
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "runtime load failed"})),
+        )
+            .into_response());
+    }
+
+    Ok(())
+}
+
 /// Extract the raw bearer token from an `Authorization: Bearer <token>` header.
 fn extract_bearer(headers: &HeaderMap) -> Option<String> {
     headers
@@ -293,6 +388,41 @@ fn extract_bearer(headers: &HeaderMap) -> Option<String> {
 }
 
 // ─── Control-plane: register + list ─────────────────────────────────────────
+
+/// The Postgres/JWT role this repo treats as privileged everywhere else
+/// (`ext-flint-meta`, `fdb-gateway`'s policy source — see their doc comments)
+/// — reused here so `/admin/functions` matches the same admin convention
+/// rather than inventing a Kiln-specific one.
+const ADMIN_ROLE: &str = "service_role";
+
+/// p16-c003: require a valid bearer AND an admin-scoped role for
+/// `/admin/functions` — previously this route had no auth middleware at all,
+/// gated only by the compile-time `control-plane` feature flag (which
+/// controls whether the route is mounted, not who may call it).
+async fn require_admin(headers: &HeaderMap) -> Result<RlsContext, axum::response::Response> {
+    let Some(bearer) = extract_bearer(headers) else {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "missing Authorization header"})),
+        )
+            .into_response());
+    };
+    let Ok(caller) = fdb_auth::rls_from_bearer(&bearer).await else {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "invalid or expired token"})),
+        )
+            .into_response());
+    };
+    if caller.role != ADMIN_ROLE {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "admin role required"})),
+        )
+            .into_response());
+    }
+    Ok(caller)
+}
 
 #[derive(Debug, Deserialize)]
 struct RegisterBody {
@@ -313,10 +443,15 @@ struct RegisterResponse {
 #[allow(unused_variables)]
 async fn register_function(
     State(state): State<KilnState>,
+    headers: HeaderMap,
     Json(body): Json<RegisterBody>,
 ) -> impl IntoResponse {
     use base64::Engine as _;
     use fke_ports::ComponentStore;
+
+    if let Err(resp) = require_admin(&headers).await {
+        return resp;
+    }
 
     let Ok(wasm_bytes) = base64::engine::general_purpose::STANDARD.decode(&body.wasm_base64) else {
         return (
@@ -325,6 +460,17 @@ async fn register_function(
         )
             .into_response();
     };
+
+    // p16-c002: reject unsigned/invalid components before they are ever
+    // stored or made resolvable.
+    if let Err(e) = verify_manifest_signature(&state, &body.manifest, &wasm_bytes).await {
+        tracing::warn!(name = %body.name, version = %body.version, error = %e, "signature verification failed at register");
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "signature verification failed"})),
+        )
+            .into_response();
+    }
 
     let content_id = match state.store.put(&wasm_bytes).await {
         Ok(id) => id,
@@ -376,7 +522,11 @@ async fn register_function(
     }
 }
 
-async fn list_functions(State(state): State<KilnState>) -> impl IntoResponse {
+async fn list_functions(State(state): State<KilnState>, headers: HeaderMap) -> impl IntoResponse {
+    if let Err(resp) = require_admin(&headers).await {
+        return resp;
+    }
+
     let rows: Result<Vec<(String, String, String, bool)>, _> = sqlx::query_as(
         "SELECT id::text, name, version, active
          FROM flint_kiln.functions

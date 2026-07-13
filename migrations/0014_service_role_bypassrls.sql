@@ -1,0 +1,22 @@
+-- Migration: 0014_service_role_bypassrls.sql
+-- service_role gets a real Postgres BYPASSRLS attribute — the fabric's "GOD"
+-- role (see docs/FLINT-KEYS.md in flint-gate) currently has none. Bypass is
+-- simulated per-policy via `current_setting('role') = 'service_role'`
+-- predicates, which silently fails to bypass on any table that omits the
+-- predicate or carries a RESTRICTIVE policy.
+--
+-- This has gotten stricter, not more forgiving: 0013_force_rls.sql applies
+-- FORCE ROW LEVEL SECURITY to this repo's internal tables, closing the
+-- owner/superuser accidental-bypass path — meaning the per-policy predicate
+-- is now the ONLY way service_role can act on those tables, with zero margin
+-- for a missed predicate. A real BYPASSRLS attribute removes that fragility.
+--
+-- Idempotent: ALTER ROLE ... BYPASSRLS is a no-op if the role already has the
+-- attribute (e.g. on a fresh install where crates/ext-flint-auth/sql/flint_auth.sql
+-- already creates the role with BYPASSRLS).
+--
+-- NOT applied automatically by this migration file landing in the repo — run
+-- through the normal migration flow only after explicit operator approval,
+-- since this is a real privilege escalation on an existing database.
+
+ALTER ROLE service_role BYPASSRLS;

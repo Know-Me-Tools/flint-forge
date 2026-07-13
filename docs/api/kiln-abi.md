@@ -306,6 +306,38 @@ Key points:
 
 ---
 
+## 10a. `FunctionManifest` Schema (Registration Wire Format)
+
+The JSON manifest submitted with every `POST /admin/functions` registration
+(`RegisterBody.manifest`, mirroring `fke_domain::FunctionManifest`):
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `publisher_did` | `string` | `did:prometheus:<base64url-pubkey>` (Ed25519, `fke-sign-did`) or any other DID scheme, verified via Cosign/Rekor (`fke-sign-cosign`) |
+| `content_digest` | `string` | Hex SHA-256 of the artifact bytes (see §11) |
+| `capabilities` | `string[]` | Declared host capabilities (`Db`, `Llm`, `Kv`, `Identity`, `Secrets`, `HttpOutgoing`) |
+| `version` | `string` | Semver-ish function version string |
+| `not_before` / `not_after` | `string` (RFC 3339) | Validity window checked by both signature verifiers |
+| `signature_b64` | `string \| null` | **Added p16-c002.** Base64-encoded raw Ed25519 signature bytes, **required** when `publisher_did` uses the `did:prometheus:` scheme (`fke-sign-did::VerifierDid` needs the blob explicitly — it does not derive a signature from anywhere else). **Not required** for Cosign-scheme manifests: `fke-sign-cosign::VerifierCosign` looks its signature material up from the Rekor transparency log, keyed by `content_digest`, and ignores this field. `null`/absent under either scheme means unsigned, and registration is rejected. |
+
+**Compatibility**: this is an **additive** change under §13's versioning policy —
+`signature_b64` is `Option<String>` with a serde default, so manifests
+predating this field still deserialize (as unsigned, and are now rejected at
+register/invoke — see below, not a wire-format break). No ABI version bump
+required.
+
+**Security change (p16-c002, not a schema change per se, but load-bearing):**
+as of this release, `POST /admin/functions` and the invoke-time cold
+cache-load path (§8/§9) both call the signature verifier matching
+`publisher_did`'s scheme and reject unsigned/invalid components (previously,
+no verification occurred at any ingress — see
+`docs/audits/2026-07-12-production-readiness.md`). `forge-cli fn register`
+gained a `--signing-key <path-to-32-byte-raw-ed25519-seed>` flag to produce a
+valid `did:prometheus:` registration; omitting it registers unsigned, which a
+verification-enforcing server now rejects.
+
+---
+
 ## 11. ContentId Format
 
 Content addresses use the convention:

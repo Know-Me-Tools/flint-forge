@@ -44,4 +44,13 @@ pub struct FunctionManifest {
     pub version: String,
     pub not_before: String,
     pub not_after: String,
+    /// Base64-encoded raw signature bytes, present when `publisher_did` uses
+    /// the `did:prometheus:` scheme (verified by `fke-sign-did`'s
+    /// `VerifierDid`, which needs the signature blob explicitly). Cosign-signed
+    /// components (`fke-sign-cosign`'s `VerifierCosign`) look up their
+    /// signature from the Rekor transparency log keyed by `content_digest` and
+    /// ignore this field — it stays `None` for them. `None` for either scheme
+    /// means unsigned and must be rejected at register and invoke.
+    #[serde(default)]
+    pub signature_b64: Option<String>,
 }

@@ -63,7 +63,16 @@ chrono = { version = "0.4", features = ["serde"] }
 base64 = "0.22"
 zip = "2"
 p256 = { version = "0.13", features = ["ecdsa"] }
-x509-cert = { version = "0.2", features = ["pem", "std"] }
+# p16-c002: Fulcio intermediate/root CA certs are P-384 (leaf certs are P-256).
+p384 = { version = "0.13", features = ["ecdsa"] }
+x509-cert = { version = "0.2", features = ["pem", "std", "sct"] }
+# p16-c005: test-only ES256 keypair generation for JWKS-rotation integration tests
+# (already a transitive dep of jsonwebtoken's "use_pem"/ring backend).
+ring = "0.17"
+# p16-c002: OID matching (Fulcio identity extensions) and SPKI DER encoding
+# (SCT issuer_key_hash) independent of x509-cert's re-exports.
+const-oid = "0.9"
+spki = { version = "0.7", features = ["alloc", "pem"] }
 oci-client = { version = "0.17", default-features = false, features = ["rustls-tls"] }
 # p10-c003: Upgraded 0.11→0.14 to resolve RUSTSEC-2026-0194/0195 (CVSS 7.5,
 # quick-xml via object_store 0.11). object_store 0.14 uses quick-xml >=0.41.

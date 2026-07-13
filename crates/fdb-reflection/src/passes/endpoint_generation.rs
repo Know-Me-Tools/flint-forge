@@ -37,16 +37,21 @@ pub fn generate(model: &DatabaseModel) -> Vec<Endpoint> {
                 table: table.clone(),
             },
         });
+        // PATCH/DELETE select rows via PostgREST-style query filters
+        // (`?id=eq.5`), exactly like GET — not a path-parameterized `{id}`
+        // segment, which `handle_update`/`handle_delete` never extract. Same
+        // literal `prefix` as GET/POST; axum merges multiple `.route()` calls
+        // for the same path into one `MethodRouter`.
         endpoints.push(Endpoint {
             method: "PATCH",
-            path: format!("{}/{{id}}", prefix),
+            path: prefix.clone(),
             kind: EndpointKind::TableById {
                 table: table.clone(),
             },
         });
         endpoints.push(Endpoint {
             method: "DELETE",
-            path: format!("{}/{{id}}", prefix),
+            path: prefix.clone(),
             kind: EndpointKind::TableById {
                 table: table.clone(),
             },

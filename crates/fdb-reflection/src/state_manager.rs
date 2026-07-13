@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
-use fdb_ports::KetoCheck;
+use fdb_ports::{KetoCheck, SqlExecutor};
 use forge_policy::Pep;
 use tokio::sync::watch;
 
@@ -31,7 +31,11 @@ pub struct MutationGates {
 pub struct StateManager {
     compiled: Arc<ArcSwap<CompiledState>>,
     engine: Arc<ReflectionEngine>,
-    pool: sqlx::PgPool,
+    /// REST/`rpc` executor — runs every reflection-compiler statement inside
+    /// an RLS-scoped transaction. MUST be backed by a non-owner Postgres role
+    /// distinct from `engine`'s privileged introspection/catalog pool; never
+    /// the migration-owner pool (see `p16-c001`).
+    executor: Arc<dyn SqlExecutor>,
     db_url: String,
     gates: MutationGates,
     /// Live-stream seam for GraphQL subscriptions, injected by the composition
@@ -50,10 +54,10 @@ impl StateManager {
     /// The process must not accept requests until this returns successfully.
     pub async fn new(
         engine: ReflectionEngine,
-        pool: sqlx::PgPool,
+        executor: Arc<dyn SqlExecutor>,
         db_url: String,
     ) -> Result<Self, ReflectionError> {
-        Self::new_with_gates(engine, pool, db_url, MutationGates::default(), None).await
+        Self::new_with_gates(engine, executor, db_url, MutationGates::default(), None).await
     }
 
     /// Build a `StateManager` with authorization gates that are applied to
@@ -63,18 +67,23 @@ impl StateManager {
     /// (`None` disables live subscription events — fields yield empty streams).
     pub async fn new_with_gates(
         engine: ReflectionEngine,
-        pool: sqlx::PgPool,
+        executor: Arc<dyn SqlExecutor>,
         db_url: String,
         gates: MutationGates,
         sub_stream_factory: Option<SubStreamFactory>,
     ) -> Result<Self, ReflectionError> {
-        let initial =
-            Self::do_compile(&engine, pool.clone(), &gates, sub_stream_factory.as_ref()).await?;
+        let initial = Self::do_compile(
+            &engine,
+            Arc::clone(&executor),
+            &gates,
+            sub_stream_factory.as_ref(),
+        )
+        .await?;
         let (version_tx, _) = watch::channel(initial.version);
         Ok(Self {
             compiled: Arc::new(ArcSwap::from_pointee(initial)),
             engine: Arc::new(engine),
-            pool,
+            executor,
             db_url,
             gates,
             sub_stream_factory,
@@ -117,7 +126,7 @@ impl StateManager {
                     // Force full recompile on reconnect — notifications may have been missed.
                     match Self::do_compile(
                         &self.engine,
-                        self.pool.clone(),
+                        Arc::clone(&self.executor),
                         &self.gates,
                         self.sub_stream_factory.as_ref(),
                     )
@@ -158,7 +167,7 @@ impl StateManager {
 
             match Self::do_compile(
                 &self.engine,
-                self.pool.clone(),
+                Arc::clone(&self.executor),
                 &self.gates,
                 self.sub_stream_factory.as_ref(),
             )
@@ -180,13 +189,17 @@ impl StateManager {
 
     async fn do_compile(
         engine: &ReflectionEngine,
-        pool: sqlx::PgPool,
+        executor: Arc<dyn SqlExecutor>,
         gates: &MutationGates,
         sub_stream_factory: Option<&SubStreamFactory>,
     ) -> Result<CompiledState, ReflectionError> {
         let model = engine.reflect().await?;
-        let router =
-            RestCompiler::compile_with_gates(&model, pool, gates.keto.clone(), gates.pep.clone());
+        let router = RestCompiler::compile_with_gates(
+            &model,
+            executor,
+            gates.keto.clone(),
+            gates.pep.clone(),
+        );
         let openapi_doc = OpenApiCompiler::compile(&model);
         let mcp_tools_doc = crate::compilers::mcp::McpCompiler::compile(&model);
         let mcp_count = mcp_tools_doc

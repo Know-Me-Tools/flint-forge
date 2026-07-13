@@ -2,13 +2,10 @@
 //! `pgvector::Vector` argument binding. Split out of `rest/mod.rs` to keep files
 //! under the 500-line limit.
 
-use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
+use axum::{http::StatusCode, response::IntoResponse, Json};
+use fdb_query::QueryParam;
 use forge_domain::is_safe_identifier;
+use forge_identity::RlsContext;
 use serde_json::{json, Map, Value};
 use tracing::instrument;
 
@@ -24,10 +21,12 @@ use crate::model::is_vector_type;
 ///
 /// Returns the result rows as a JSON array. Returns 400 on malformed vector args
 /// or unknown function, 500 on database errors.
-#[instrument(skip(state, body), fields(schema = %schema, fn_name = %fn_name))]
+#[instrument(skip(state, rls, body), fields(schema = %schema, fn_name = %fn_name))]
 pub(super) async fn handle_rpc(
-    State(state): State<RestState>,
-    Path((schema, fn_name)): Path<(String, String)>,
+    state: RestState,
+    rls: RlsContext,
+    schema: String,
+    fn_name: String,
     Json(body): Json<Map<String, Value>>,
 ) -> impl IntoResponse {
     // Locate the function metadata in the compiled model.
@@ -47,10 +46,6 @@ pub(super) async fn handle_rpc(
         }
     };
 
-    // Build the parameterised SQL call:
-    //   SELECT * FROM <schema>.<fn>($1, $2, ...) AS t
-    // Placeholder numbering matches the arg order from FnMeta.
-    let placeholders: Vec<String> = (1..=fn_meta.args.len()).map(|i| format!("${i}")).collect();
     // SECURITY: interpolate the identifiers from the *compiled model*
     // (`fn_meta`), not the raw path params — the model is reflected from
     // pg_catalog and is the trusted source. Belt-and-braces, re-validate.
@@ -61,6 +56,39 @@ pub(super) async fn handle_rpc(
         )
             .into_response();
     }
+
+    // Bind arguments in declaration order, dispatching on pg_type. Vector args
+    // cast `::vector` (matching `PgVectorRpc`'s convention) — Postgres infers
+    // `$n`'s type from the function's declared parameter type, and
+    // `pgvector::Vector`'s `ToSql::accepts` matches it. Everything else binds
+    // uncast via `json_bind` (string values as plain text; see its doc
+    // comment) so Postgres infers the parameter's type from the function
+    // signature directly, matching whatever `json_bind` produces for `text`
+    // parameters — the common case.
+    let mut placeholders: Vec<String> = Vec::with_capacity(fn_meta.args.len());
+    let mut binds: Vec<QueryParam> = Vec::with_capacity(fn_meta.args.len());
+    for (i, arg) in fn_meta.args.iter().enumerate() {
+        let idx = i + 1;
+        let val = body.get(&arg.name).cloned().unwrap_or(Value::Null);
+        if is_vector_type(&arg.pg_type) {
+            match json_to_vector(val) {
+                Ok(vec) => {
+                    placeholders.push(format!("${idx}::vector"));
+                    binds.push(QueryParam::Vector(vec.into()));
+                }
+                Err(msg) => {
+                    return (StatusCode::BAD_REQUEST, Json(json!({"error": msg}))).into_response();
+                }
+            }
+        } else {
+            placeholders.push(format!("${idx}"));
+            binds.push(super::json_bind(&val));
+        }
+    }
+
+    // Build the parameterised SQL call:
+    //   SELECT * FROM <schema>.<fn>($1, $2::vector, ...) AS t
+    // Placeholder numbering matches the arg order from FnMeta.
     let call_sql = format!(
         "SELECT row_to_json(t) AS row FROM {}.{}({}) AS t",
         fn_meta.schema,
@@ -68,33 +96,12 @@ pub(super) async fn handle_rpc(
         placeholders.join(", ")
     );
 
-    // Bind arguments in declaration order, dispatching on pg_type.
-    let mut q = sqlx::query(&call_sql);
-    for arg in &fn_meta.args {
-        let val = body.get(&arg.name).cloned().unwrap_or(Value::Null);
-        if is_vector_type(&arg.pg_type) {
-            match json_to_vector(val) {
-                Ok(vec) => {
-                    q = q.bind(vec);
-                }
-                Err(msg) => {
-                    return (StatusCode::BAD_REQUEST, Json(json!({"error": msg}))).into_response();
-                }
-            }
-        } else {
-            q = q.bind(val);
-        }
-    }
-
     // Execute and collect result rows.
-    match q.fetch_all(&state.pool).await {
+    match state.executor.execute_raw(&call_sql, binds, &rls).await {
         Ok(rows) => {
             let result: Vec<Value> = rows
                 .into_iter()
-                .filter_map(|row| {
-                    use sqlx::Row;
-                    row.try_get::<Value, _>("row").ok()
-                })
+                .filter_map(|mut row| row.remove("row"))
                 .collect();
             Json(Value::Array(result)).into_response()
         }

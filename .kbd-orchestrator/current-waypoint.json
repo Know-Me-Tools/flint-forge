@@ -1,12 +1,23 @@
 {
-  "phase": "p15-v1.0-production-readiness",
-  "previousPhase": "p14-v1.1.0",
-  "status": "completed",
-  "updatedAt": "2026-07-08",
-  "next_action": "Phase complete. Run final CI pipeline and helm lint, then run /kbd-reflect to close p15.",
-  "seeded_from": "user directive to close out v1.0",
-  "changes_completed": 5,
-  "changes_total": 5,
+  "phase": "p16-production-remediation",
+  "previousPhase": "p15-v1.0-production-readiness",
+  "status": "executing",
+  "updatedAt": "2026-07-13",
+  "next_action": "Run /kbd-apply p16-c003-kiln-sandbox-authz (Round 2 — depends on c002, done) or /kbd-apply p16-c006-config-truth-tracker-reconcile (Round 2 — depends on c001, done). Round 1 is fully complete.",
+  "next_pending_change": "p16-c003-kiln-sandbox-authz",
+  "exact_next_command": "/kbd-apply p16-c003-kiln-sandbox-authz",
+  "seeded_from": "2026-07-12 production-readiness audit (docs/audits/2026-07-12-production-readiness.md)",
+  "changes_completed": 4,
+  "changes_total": 9,
   "active_changes": [],
-  "note": "All five changes implemented and verified: c001/c002/c003 already green; c004 adds Postgres integration CI job and k6 baselines; c005 refreshes docs/README/ROADMAP, adds Helm chart, and fixes Kiln cache miss. Workspace unit tests and clippy pass; helm lint passes."
+  "execution_round_order": {
+    "round_1_parallel": ["p16-c001-rest-rls-enforcement", "p16-c002-kiln-supply-chain-trust", "p16-c004-realtime-default-delivery", "p16-c005-auth-hardening"],
+    "round_2_parallel": ["p16-c003-kiln-sandbox-authz", "p16-c006-config-truth-tracker-reconcile"],
+    "round_3_parallel": ["p16-c007-file-size-compliance", "p16-c008-production-operations"],
+    "round_4": ["p16-c009-vgv-quality-gates"]
+  },
+  "note": "Round 1 is fully COMPLETE: p16-c001, p16-c002, p16-c004, and p16-c005 all archived. c005 (auth hardening): replaced forge-identity's OnceLock JWKS cache with an ArcSwapOption-backed TTL cache (FLINT_GATE_JWKS_TTL_SECS, default 600s) plus a rate-limited refetch-on-unknown-kid fast path (max once per 5s); made FLINT_GATE_AUDIENCE mandatory by default (FLINT_GATE_MODE=production is now the default, matching every other default-flip in this phase — development is the explicit opt-out). Confirmed safe: no docker-compose/helm file configures FLINT_GATE_* today, so nothing currently deployed relies on the old lenient default. 4 new integration tests (crates/forge-identity/tests/) against a real wiremock JWKS server + ring-generated ES256 keys, each in its own process for isolation. cargo test --workspace green; cargo clippy clean for everything c005 touched (a workspace-wide clippy run is currently blocked by unrelated, separately-tracked in-flight work in fke-sign-cosign from task_7d88a8a6 — see progress.json's c005 entry for the full account). Round 2 is now unblocked: p16-c003 (Kiln sandbox/authz) depends on c002 (done); p16-c006 (config-truth-tracker-reconcile) depends on c001 (done). Both may run in parallel per the plan.",
+  "assessment_complete": true,
+  "plan_complete": true,
+  "execution_complete": true
 }

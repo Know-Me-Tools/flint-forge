@@ -1781,6 +1781,7 @@ dependencies = [
  "ff",
  "generic-array",
  "group",
+ "hkdf",
  "pem-rfc7468",
  "pkcs8",
  "rand_core 0.6.4",
@@ -1852,7 +1853,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1995,6 +1996,7 @@ version = "1.0.0"
 dependencies = [
  "async-trait",
  "fdb-domain",
+ "fdb-query",
  "forge-domain",
  "forge-identity",
  "futures",
@@ -2148,6 +2150,7 @@ dependencies = [
  "fke-domain",
  "fke-ports",
  "serde_json",
+ "sha2 0.10.9",
  "sqlx",
 ]
 
@@ -2180,11 +2183,14 @@ dependencies = [
  "axum 0.8.9",
  "axum-prometheus",
  "base64",
+ "ed25519-dalek",
  "fdb-auth",
  "fke-domain",
  "fke-ports",
  "fke-registry",
  "fke-runtime",
+ "fke-sign-cosign",
+ "fke-sign-did",
  "forge-identity",
  "forge-policy",
  "metrics",
@@ -2193,6 +2199,7 @@ dependencies = [
  "opentelemetry_sdk",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "sqlx",
  "tokio",
  "tracing",
@@ -2208,14 +2215,17 @@ dependencies = [
  "async-trait",
  "base64",
  "chrono",
+ "const-oid 0.9.6",
  "fke-domain",
  "fke-ports",
  "hex",
  "p256",
+ "p384",
  "rand_core 0.6.4",
  "reqwest 0.12.28",
  "serde_json",
  "sha2 0.10.9",
+ "spki",
  "tokio",
  "wiremock",
  "x509-cert",
@@ -2248,6 +2258,7 @@ dependencies = [
  "async-trait",
  "fke-domain",
  "fke-ports",
+ "sha2 0.10.9",
  "tempfile",
  "tokio",
 ]
@@ -2374,6 +2385,7 @@ dependencies = [
  "base64",
  "chrono",
  "clap",
+ "ed25519-dalek",
  "fke-domain",
  "jsonwebtoken 9.3.1",
  "reqwest 0.12.28",
@@ -2402,14 +2414,18 @@ dependencies = [
 name = "forge-identity"
 version = "1.0.0"
 dependencies = [
+ "arc-swap",
+ "base64",
  "forge-domain",
  "jsonwebtoken 9.3.1",
  "reqwest 0.12.28",
+ "ring",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "wiremock",
 ]
 
 [[package]]
@@ -3034,7 +3050,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.4",
  "tokio",
  "tower-service",
  "tracing",
@@ -3256,7 +3272,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3897,7 +3913,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4265,6 +4281,18 @@ name = "p256"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c9863ad85fa8f4460f9c48cb909d38a0d689dba1f6f6988a5e3e0d31071bcd4b"
+dependencies = [
+ "ecdsa",
+ "elliptic-curve",
+ "primeorder",
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "p384"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe42f1670a52a47d448f14b6a5c61dd78fce51856e68edaa38f7ae3a46b8d6b6"
 dependencies = [
  "ecdsa",
  "elliptic-curve",
@@ -4804,7 +4832,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.4",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -4843,9 +4871,9 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.4",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5273,7 +5301,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5351,7 +5379,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6151,7 +6179,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6160,7 +6188,7 @@ version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8c27177b12a6399ffc08b98f76f7c9a1f4fe9fc967c784c5a071fa8d93cf7e1"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7558,7 +7586,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

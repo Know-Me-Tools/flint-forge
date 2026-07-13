@@ -322,6 +322,7 @@ mod tests {
             version: "1.0.0".to_owned(),
             not_before: "2020-01-01T00:00:00Z".to_owned(),
             not_after: "2099-12-31T23:59:59Z".to_owned(),
+            signature_b64: None,
         };
         let rls = publisher_rls(&manifest);
         assert_eq!(rls.keto_subject, "did:prometheus:abc123");
@@ -337,6 +338,7 @@ mod tests {
             version: "1.0.0".to_owned(),
             not_before: "2020-01-01T00:00:00Z".to_owned(),
             not_after: "2099-12-31T23:59:59Z".to_owned(),
+            signature_b64: None,
         };
         let rls = publisher_rls(&manifest);
         assert!(

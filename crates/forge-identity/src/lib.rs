@@ -11,7 +11,7 @@ use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::jwks::get_jwks;
+use crate::jwks::{get_jwks, refetch_on_unknown_kid};
 
 /// Decoded JWT claims minted by flint-gate.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,12 +55,34 @@ impl RlsContext {
     }
 }
 
+/// Is `FLINT_GATE_MODE` set to anything other than exactly `"development"`?
+///
+/// Production is the default: unset, empty, or any misspelling of
+/// `"development"` stays on the strict path rather than silently falling
+/// back to lenient audience checking.
+fn gate_mode_is_production() -> bool {
+    std::env::var("FLINT_GATE_MODE").as_deref() != Ok("development")
+}
+
+/// Look up `kid` in `jwks` and build a `DecodingKey` from the matching JWK.
+fn decoding_key_for(jwks: &jsonwebtoken::jwk::JwkSet, kid: &str) -> Result<DecodingKey, IdentityError> {
+    let jwk = jwks
+        .find(kid)
+        .ok_or_else(|| IdentityError::UnknownKid(kid.to_string()))?;
+    DecodingKey::from_jwk(jwk).map_err(|e| IdentityError::Verification(e.to_string()))
+}
+
 /// Verify a bearer JWT against flint-gate's issuer/JWKS and build an `RlsContext`.
 ///
 /// # Environment variables
 /// - `FLINT_GATE_JWKS_URL` — JWKS endpoint (e.g. `https://gate.example.com/.well-known/jwks.json`)
 /// - `FLINT_GATE_ISSUER` — expected `iss` claim
-/// - `FLINT_GATE_AUDIENCE` — expected `aud` claim (optional; validation skipped if absent)
+/// - `FLINT_GATE_AUDIENCE` — expected `aud` claim (required in production mode; see
+///   `FLINT_GATE_MODE`)
+/// - `FLINT_GATE_MODE` — `production` (default) or `development`. In `production`
+///   mode a missing `FLINT_GATE_AUDIENCE` is a fail-closed configuration error
+///   rather than a silently-skipped audience check. `development` keeps the
+///   lenient (skip-if-absent) behavior for local iteration.
 ///
 /// # Security contract
 /// - `role` absent from JWT → coerced to `"anon"` (NOT an error per jwt-contract.md)
@@ -75,17 +97,29 @@ pub async fn verify_and_build(bearer: &str) -> Result<RlsContext, IdentityError>
         .map_err(|_| IdentityError::MissingEnv("FLINT_GATE_ISSUER"))?;
     let audience = std::env::var("FLINT_GATE_AUDIENCE").ok();
 
-    let jwks = get_jwks(&jwks_url).await?;
+    // Fail closed by default: any value other than the explicit `development`
+    // opt-out (including unset, "production", or a typo) requires an audience.
+    // A misconfigured deployment must refuse to start verifying tokens, not
+    // silently skip the check.
+    if audience.is_none() && gate_mode_is_production() {
+        return Err(IdentityError::MissingEnv("FLINT_GATE_AUDIENCE"));
+    }
 
     let header = decode_header(bearer).map_err(|_| IdentityError::InvalidToken)?;
     let kid = header.kid.ok_or(IdentityError::MissingKid)?;
 
-    let jwk = jwks
-        .find(&kid)
-        .ok_or_else(|| IdentityError::UnknownKid(kid.clone()))?;
-
-    let decoding_key =
-        DecodingKey::from_jwk(jwk).map_err(|e| IdentityError::Verification(e.to_string()))?;
+    let jwks = get_jwks(&jwks_url).await?;
+    let decoding_key = match decoding_key_for(&jwks, &kid) {
+        Ok(key) => key,
+        // Unknown kid: the upstream signing key may have rotated since our
+        // cache was last refreshed. Force one rate-limited refetch and retry
+        // before failing — see `jwks::refetch_on_unknown_kid`.
+        Err(IdentityError::UnknownKid(_)) => {
+            let refreshed = refetch_on_unknown_kid(&jwks_url).await?;
+            decoding_key_for(&refreshed, &kid)?
+        }
+        Err(e) => return Err(e),
+    };
 
     let algorithm = match header.alg {
         Algorithm::RS256 => Algorithm::RS256,

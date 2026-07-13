@@ -61,8 +61,6 @@ struct KilnHostState {
     table: ResourceTable,
     http_ctx: WasiHttpCtx,
     http_hooks: [(); 0], // zero-size default WasiHttpHooks impl
-    #[allow(dead_code)]
-    granted: Vec<Capability>,
 }
 
 impl WasiView for KilnHostState {
@@ -191,10 +189,17 @@ impl EdgeRuntime {
     }
 
     /// Same as `handle`, but returns telemetry captured during the invocation.
+    ///
+    /// `requested` is the component's declared `capabilities` (from its
+    /// manifest) — what it asks to use, not what it is authorized for. The
+    /// authorized set is computed here, per capability, via Cedar (or —
+    /// matching the existing `caller = None` Cedar-skip convention for
+    /// system-level/BGW invocations, and the no-`Pep`-attached case used by
+    /// most unit tests — trusted wholesale).
     pub async fn handle_with_telemetry(
         &self,
         id: &ContentId,
-        granted: &[Capability],
+        requested: &[Capability],
         caller: Option<&RlsContext>,
         request: KilnRequest,
     ) -> Result<KilnHandleOutcome> {
@@ -209,7 +214,10 @@ impl EdgeRuntime {
         }
 
         // ── Capability check ──────────────────────────────────────────────
-        check_capabilities(granted, granted)?;
+        // Real requested-vs-granted comparison (not the same value twice):
+        // `granted` is computed independently, per capability, via Cedar.
+        let granted = self.granted_capabilities(requested, caller).await;
+        check_capabilities(requested, &granted)?;
 
         // ── Retrieve cached ProxyPre ──────────────────────────────────────
         let cached = self
@@ -227,7 +235,6 @@ impl EdgeRuntime {
             table: ResourceTable::new(),
             http_ctx: WasiHttpCtx::new(),
             http_hooks: [],
-            granted: granted.to_vec(),
         };
         let mut store = Store::new(&self.engine, host);
         store.set_fuel(self.fuel_per_call)?;
@@ -304,6 +311,33 @@ impl EdgeRuntime {
             fuel_consumed,
             epoch_trap,
         })
+    }
+
+    /// Compute the capabilities `caller` is actually authorized to use, out
+    /// of `requested` (the component's manifest-declared capabilities).
+    ///
+    /// Matches the existing Cedar-skip convention: with no `Pep` attached, or
+    /// `caller = None` (system-level/BGW invocation — already vetted by the
+    /// `kiln:invoke` gate above, or intentionally ungated), every requested
+    /// capability is trusted wholesale. Otherwise each capability is checked
+    /// independently against Cedar, so `requested` and `granted` are never
+    /// the same value by construction.
+    async fn granted_capabilities(
+        &self,
+        requested: &[Capability],
+        caller: Option<&RlsContext>,
+    ) -> Vec<Capability> {
+        let (Some(pep), Some(who)) = (&self.pep, caller) else {
+            return requested.to_vec();
+        };
+        let mut granted = Vec::with_capacity(requested.len());
+        for cap in requested {
+            let decision = pep.check(who, &capability_request(cap)).await;
+            if decision == Decision::Allow {
+                granted.push(cap.clone());
+            }
+        }
+        granted
     }
 }
 
@@ -401,6 +435,27 @@ fn kiln_request_to_hyper(
 }
 
 /// Build a linker with WASI + WASI-HTTP host functions.
+///
+/// WASI preview2 + WASI-HTTP are the required baseline for `ProxyPre` (every
+/// edge function targets `wit/flint/host/world.wit`'s `edge-function` world,
+/// which is a `wasi:http` proxy) — they are not one of `fke_domain::Capability`'s
+/// governed capabilities, and are not gated per-component the way `flint:host`'s
+/// custom `db`/`llm`/`kv`/`identity`/`secrets` interfaces are (p16-c003 design
+/// doc). The real per-invocation sandbox boundary for WASI itself is the
+/// `WasiCtx` built fresh in `handle_with_telemetry` (`WasiCtxBuilder::new()
+/// .inherit_stdio().build()`), which grants no filesystem preopens, network,
+/// env vars, or args beyond stdio passthrough.
+///
+/// `flint:host`'s five custom interfaces are deliberately NOT wired here yet:
+/// `db`/`llm`/`secrets` need live backing clients (a flint-gate DB proxy, a
+/// UAR/LLM gateway client, a flint_vault client) this crate doesn't have
+/// access to, and none of the five can be verified end-to-end without the
+/// `cargo-component` toolchain (unavailable in this environment — matching
+/// the pre-existing self-skip in this module's own WASM-execution gate
+/// tests) to build even one real test component that imports them. A
+/// component declaring any of these capabilities today fails to instantiate
+/// with a "missing import" error — fail-closed, not fail-open, but also not
+/// yet functional. Tracked as a follow-up (spawned during p16-c003).
 fn build_linker(engine: &Engine) -> Result<Linker<KilnHostState>> {
     let mut linker = Linker::<KilnHostState>::new(engine);
     wt(wasmtime_wasi::p2::add_to_linker_async(&mut linker)).context("add wasi to linker")?;
@@ -412,6 +467,33 @@ fn build_linker(engine: &Engine) -> Result<Linker<KilnHostState>> {
 }
 
 // ─── Capability gate ─────────────────────────────────────────────────────────
+
+/// Build the Cedar request for a single `flint:host` capability. Distinct
+/// from `kiln:invoke` (which gates whether the caller may invoke the
+/// function at all) — this gates whether the caller may use a specific
+/// governed host capability the function's manifest declares.
+fn capability_request(cap: &Capability) -> forge_policy::Request {
+    forge_policy::kiln::request(&format!(
+        "kiln:capability:{}",
+        capability_action_name(cap)
+    ))
+}
+
+fn capability_action_name(cap: &Capability) -> &'static str {
+    match cap {
+        Capability::Db => "db",
+        Capability::Llm => "llm",
+        Capability::Kv => "kv",
+        Capability::Identity => "identity",
+        Capability::Secrets => "secrets",
+        Capability::HttpOutgoing => "http-outgoing",
+        // `Capability` is `#[non_exhaustive]` — treat any future variant as
+        // deny-by-default (an unrecognized action string matches no Cedar
+        // policy, so `capability_request` for it always denies) rather than
+        // silently granting it.
+        _ => "unknown",
+    }
+}
 
 pub fn check_capabilities(required: &[Capability], granted: &[Capability]) -> Result<()> {
     for cap in required {
@@ -445,6 +527,24 @@ mod tests {
     impl Pep for DenyAll {
         async fn check(&self, _who: &RlsContext, _req: &Request) -> Decision {
             Decision::Deny
+        }
+    }
+
+    /// Allows `kiln:invoke` (so the outer Cedar gate passes) but denies the
+    /// `kiln:capability:db` action specifically — everything else is
+    /// allowed. Used to prove the capability check is a REAL per-capability
+    /// Cedar comparison, not the historical `check_capabilities(granted,
+    /// granted)` no-op.
+    struct AllowInvokeDenyDbCapability;
+
+    #[async_trait]
+    impl Pep for AllowInvokeDenyDbCapability {
+        async fn check(&self, _who: &RlsContext, req: &Request) -> Decision {
+            if req.action == "kiln:capability:db" {
+                Decision::Deny
+            } else {
+                Decision::Allow
+            }
         }
     }
 
@@ -566,6 +666,52 @@ mod tests {
     #[test]
     fn check_capabilities_empty_required_always_passes() {
         assert!(check_capabilities(&[], &[]).is_ok());
+    }
+
+    /// p16-c003 gate: a component requesting a capability Cedar denies is
+    /// rejected BEFORE instantiate (never reaches the cache lookup) — not
+    /// the historical no-op that compared `granted` to itself and could
+    /// never fail.
+    #[tokio::test]
+    async fn ungranted_capability_denied_before_instantiate() {
+        let rt = EdgeRuntime::new()
+            .expect("construct")
+            .with_pep(Arc::new(AllowInvokeDenyDbCapability));
+        let id = ContentId("sha256:notloaded".into());
+        let who = fake_rls();
+        let err = rt
+            .handle(&id, &[Capability::Db], Some(&who), dummy_request())
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("Db"),
+            "expected a capability-denial error mentioning Db, got: {err}"
+        );
+        assert!(
+            !err.to_string().contains("not loaded"),
+            "must fail at the capability gate, before ever reaching the cache lookup; got: {err}"
+        );
+    }
+
+    /// p16-c003 gate (no-regression half): a component requesting only
+    /// capabilities Cedar grants passes the check and proceeds to the
+    /// runtime as before (reaching the cache-miss error, since nothing is
+    /// actually loaded in this unit test).
+    #[tokio::test]
+    async fn granted_capability_passes_check_and_reaches_runtime() {
+        let rt = EdgeRuntime::new()
+            .expect("construct")
+            .with_pep(Arc::new(AllowInvokeDenyDbCapability));
+        let id = ContentId("sha256:notloaded".into());
+        let who = fake_rls();
+        let err = rt
+            .handle(&id, &[Capability::Kv], Some(&who), dummy_request())
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("not loaded"),
+            "granted capability must pass the check and reach the cache lookup; got: {err}"
+        );
     }
 
     /// Gate test: load the hello-component WASM and verify it returns HTTP 200.
