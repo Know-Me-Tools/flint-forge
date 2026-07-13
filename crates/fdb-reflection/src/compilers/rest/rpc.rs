@@ -2,12 +2,7 @@
 //! `pgvector::Vector` argument binding. Split out of `rest/mod.rs` to keep files
 //! under the 500-line limit.
 
-use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
+use axum::{http::StatusCode, response::IntoResponse, Json};
 use forge_domain::is_safe_identifier;
 use serde_json::{json, Map, Value};
 use tracing::instrument;
@@ -26,9 +21,10 @@ use crate::model::is_vector_type;
 /// or unknown function, 500 on database errors.
 #[instrument(skip(state, body), fields(schema = %schema, fn_name = %fn_name))]
 pub(super) async fn handle_rpc(
-    State(state): State<RestState>,
-    Path((schema, fn_name)): Path<(String, String)>,
-    Json(body): Json<Map<String, Value>>,
+    schema: String,
+    fn_name: String,
+    state: RestState,
+    body: Map<String, Value>,
 ) -> impl IntoResponse {
     // Locate the function metadata in the compiled model.
     let fn_meta = match state
