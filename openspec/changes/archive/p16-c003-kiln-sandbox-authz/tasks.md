@@ -9,12 +9,12 @@
 - [x] Remove `#[allow(dead_code)]` from `KilnHostState.granted` once it's actually read
 - [x] Add bearer-verification middleware to `/functions/v1/<name>` (reuse `forge-identity`/`fdb-auth` JWT verify)
 - [x] Ensure `caller = None` is unreachable post-auth — missing/invalid bearer is a 401 before the Cedar gate, not a policy-skip path
-- [ ] Add bearer-verification middleware to `/admin/functions` (not just the `control-plane` compile feature)
-- [ ] Add admin-scoped claim/role check for `/admin/functions`
+- [x] Add bearer-verification middleware to `/admin/functions` (not just the `control-plane` compile feature)
+- [x] Add admin-scoped claim/role check for `/admin/functions`
 - [x] Integration test: ungranted-capability component denied at instantiate
-- [ ] Integration test: anonymous `/functions/v1/<name>` call is 401
-- [ ] Integration test: anonymous `/admin/functions` call is 401
+- [x] Integration test: anonymous `/functions/v1/<name>` call is 401
+- [x] Integration test: anonymous `/admin/functions` call is 401
 - [x] Integration test: well-behaved component using only granted capabilities still runs (no regression) — `granted_capability_passes_check_and_reaches_runtime`
 - [x] Coordinate with `flint-skill` WIT bindings if the host-function surface changes — N/A: the host-function surface is unchanged in this PR (deferred, see above)
-- [ ] `cargo clippy --workspace -- -D warnings` clean
-- [ ] `cargo test --workspace` passes
+- [x] `cargo clippy --workspace -- -D warnings` clean
+- [x] `cargo test --workspace` passes

@@ -7,48 +7,40 @@ agentic/AI-agent systems).
 
 ## Phase State
 - Status: **executing**
-- Changes planned: 9 (4 done, 0 in progress)
-- OpenSpec changes: `p16-c001`, `p16-c002`, `p16-c004`, `p16-c005` archived (`openspec/changes/archive/`); `p16-c003`, `p16-c006` … `p16-c009` scaffolded (proposal.md + tasks.md each)
+- Changes planned: 9 (5 done, 0 in progress)
+- OpenSpec changes: `p16-c001`, `p16-c002`, `p16-c003`, `p16-c004`, `p16-c005` archived (`openspec/changes/archive/`); `p16-c006` … `p16-c009` scaffolded (proposal.md + tasks.md each)
 - Execution backend: **openspec**, self-executing (Claude Code CLI) via `/kbd-apply` — see `execution.md`
 
 ## Immediate Next Action
-**Round 1 is fully COMPLETE: `p16-c001`, `p16-c002`, `p16-c004`, and `p16-c005`
-are all DONE and archived.** c005 (auth hardening): replaced
-`forge-identity`'s process-lifetime `OnceLock<JwkSet>`
-(`crates/forge-identity/src/jwks.rs`) with an `ArcSwapOption`-backed TTL cache
-(`FLINT_GATE_JWKS_TTL_SECS`, default 600s) plus a rate-limited
-refetch-on-unknown-`kid` fast path (max once per 5s) for unplanned rotations;
-made `FLINT_GATE_AUDIENCE` mandatory by default (`FLINT_GATE_MODE=production`
-is now the default — `development` is the explicit, documented opt-out for
-local iteration), matching every other default-flip already done in this
-phase. Confirmed safe: no `docker-compose*.yml`/Helm file configures
-`FLINT_GATE_*` today, so nothing currently deployed relied on the old lenient
-default. Added 4 integration tests
-(`crates/forge-identity/tests/{jwks_rotation,jwks_refetch_rate_limit,
-audience_missing_fails_closed,audience_wrong_rejected}.rs`) against a real
-`wiremock` JWKS server with genuine `ring`-generated ES256 keypairs — one test
-per file so each gets its own process and never shares the crate's
-process-global JWKS-cache statics or `FLINT_GATE_*` env vars with another
-test. `cargo test --workspace` green; `cargo clippy` clean for everything
-c005 touched (see `progress.json`'s `p16-c005` entry for a caveat about an
-unrelated, separately-tracked in-flight task currently blocking the
-whole-workspace clippy gate in `fke-sign-cosign`).
+**Round 1 AND `p16-c003` (Round 2) are all DONE and archived** —
+`p16-c001`, `p16-c002`, `p16-c003`, `p16-c004`, `p16-c005`. c003 (Kiln
+sandbox + authz): fixed the literal `check_capabilities(granted, granted)`
+no-op — `granted` is now computed independently per capability via a new
+per-capability Cedar action (`kiln:capability:<name>`, distinct from
+`kiln:invoke`); added mandatory bearer auth to `/functions/v1/<name>`
+(missing/invalid → 401 before ever reaching the runtime, making
+`caller = None` genuinely unreachable from that HTTP path) and a new
+`require_admin()` gate to `/admin/functions` (401 unauthenticated, 403
+non-`service_role`) — previously gated only by a compile-time feature flag.
+Deliberately deferred wiring the `flint:host@0.1.0` WIT host functions
+(Db/Llm/Kv/Identity/Secrets) into the linker — investigated first: no
+component anywhere in this repo imports them yet, `db`/`llm`/`secrets` need
+live backing clients this crate has no access to, and none of the five can
+be verified end-to-end without the still-unavailable `cargo-component`
+toolchain — spawned as its own follow-up (`task_22a1dcc7`) rather than
+shipped unverified, matching c002's SCT/OIDC-allowlist precedent. See
+`progress.json`'s `p16-c003` entry for the full account, including a note
+on independent convergence with a concurrently-running background session
+that reached the same conclusions.
 
 Run next:
-
-```
-/kbd-apply p16-c003-kiln-sandbox-authz
-```
-
-or, in parallel:
 
 ```
 /kbd-apply p16-c006-config-truth-tracker-reconcile
 ```
 
-Round 2: `p16-c003-kiln-sandbox-authz` (depends on c002, done — touches the
-same `fke-server`/`fke-runtime` files) and `p16-c006` (depends on c001,
-done) may run in parallel per the plan.
+Round 2 is now fully complete (`p16-c003` done here; `p16-c006` depends on
+c001, done — safe to start next).
 Then Round 3: `p16-c007`, `p16-c008` (the latter needs human/operator
 involvement for credentials and backup drills).
 Then Round 4: `p16-c009`.

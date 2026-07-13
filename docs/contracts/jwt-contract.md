@@ -1,10 +1,26 @@
 # JWT Contract — Flint Forge × Flint Gate
 
 **Status:** PINNED — derived from flint-gate source code by the flint-gate team  
-**Version:** 1.0.0  
-**Date:** 2026-06-30  
+**Version:** 1.1.0  
+**Date:** 2026-07-13  
 **Source:** `/Users/gqadonis/Projects/prometheus/flint-gate` (authenticated read)  
+**Canonical fabric-wide spec:** [`flint-gate/docs/FLINT-KEYS.md`](../../../flint-gate/docs/FLINT-KEYS.md) —
+this document is Forge's implementation-level elaboration of that spec, not a competing
+source of truth. Where the two disagree, `FLINT-KEYS.md` wins and this file must be
+corrected.  
 **Resolves:** OQ-4 (claim shape), OQ-5 (service-identity token format)
+
+**v1.1.0 correction:** §2.2 and §4 previously stated `HS256` as the default signing
+algorithm. That was wrong even at v1.0.0 time — flint-gate's own inbound-verification
+algorithm allowlist (`default_jwt_algorithms()`) and its JWKS endpoint have only ever
+supported asymmetric algorithms, and this repo's verifier
+(`forge-identity::verify_and_build`) has never accepted `HS*` at all. flint-gate's
+*outbound minting* config still defaults to `HS256`
+(`default_jwt_algorithm()` in `flint-gate-core/src/config/types.rs`, and
+`config.example.yaml`) — that is a live misconfiguration trap, not a documentation
+choice: a gate deployment left on that default mints tokens Forge can never verify.
+Treat `signing_algorithm: RS256` (or `ES256`) as mandatory for any gate instance that
+fronts Forge, until flint-gate closes that default/allowlist mismatch itself.
 
 ---
 
@@ -89,10 +105,20 @@ Flint Gate mints a **new** service-identity JWT via `JwtMinter` for upstream for
 
 ### 2.2 Algorithm
 
-Default: **HS256** (HMAC-SHA256, `jwt.signing_key_secret`)  
-Production recommended: **ES256** (EC P-256, `jwt.signing_key_path`) or **RS256**  
-DB-sourced key path: supported (DB key takes precedence over config)  
-Supported algorithms: HS256, HS384, HS512, RS256, RS384, RS512, ES256, ES384
+**Asymmetric only — no exceptions.** Per the canonical `FLINT-KEYS.md`: RS256 by default,
+matching flint-gate's own inbound-verification allowlist (`["RS256", "ES256"]`) and its
+JWKS endpoint, which can only ever serve DB-sourced *public* keys.
+
+- Default: **RS256** (`jwt.signing_key_path`, PEM-encoded private key)
+- Also accepted: **ES256** / **ES384** (EC P-256 / P-384)
+- DB-sourced key path: supported (DB key takes precedence over config)
+- Algorithms Forge's verifier (`forge-identity::verify_and_build`) will accept:
+  `RS256`, `RS384`, `RS512`, `ES256`, `ES384`
+- **`HS256`/`HS384`/`HS512` are rejected outright** by Forge's verifier — and cannot work
+  with JWKS-based verification in principle, since there is no way to publish a symmetric
+  HMAC secret via a public JWKS endpoint. flint-gate's own `signing_algorithm` config
+  currently *defaults* to `HS256` (see the v1.1.0 correction note above) — that default
+  MUST be overridden to `RS256`/`ES256` for any deployment that fronts Forge.
 
 ### 2.3 Header injection into upstream
 
@@ -176,7 +202,12 @@ When flint-gate routes on behalf of internal services (hooks BGW, LLM worker, ad
 
 The `role: "service_role"` claim maps to the `service_role` Postgres role, which bypasses RLS. This is how `flint_hooks` and `flint_llm` operate on rows they need without being filtered by per-user policies.
 
-**Algorithm for service tokens:** same as user tokens — configurable per gate deployment. Defaults to HS256, production should use ES256.
+**Algorithm for service tokens:** same constraint as user tokens (§2.2) — asymmetric only
+(RS256 default, ES256/ES384 also accepted). flint-gate's deployment-wide
+`signing_algorithm` config currently *defaults* to `HS256`; that default MUST be
+overridden to `RS256`/`ES256` for any deployment fronting Forge, or service-identity
+tokens for `flint_hooks`/`flint_llm` are unverifiable here for the same structural
+reason user tokens are (§2.2).
 
 **NEVER log:** The service token or its claims. Auth.bearer() must not appear in server logs.
 

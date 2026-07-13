@@ -56,8 +56,13 @@ pub struct FrfConfig {
 ///
 /// FRF currently exposes `WatchEntity(entity_id, tenant_id)` — a single entity watcher.
 /// Table-level subscriptions require `WatchEntityType(entity_type, tenant_id)`, which has
-/// been proposed to the FRF team. Until that RPC lands, the `watch()` stub will `todo!()`.
-/// All surrounding infrastructure (Keto check, RLS re-query) is fully implemented.
+/// been proposed to the FRF team. Until that RPC lands, `watch()` performs the Keto
+/// check and then returns `stream::empty()` with a `tracing::warn!` — NOT a panic — so
+/// a caller opting into this backend (`FLINT_CHANGE_SOURCE=fabric`) degrades to "no
+/// events" rather than crashing. `listen` (Postgres LISTEN/NOTIFY, real events) is the
+/// default backend as of p16-c004 for exactly this reason; opt into `fabric` only once
+/// `WatchEntityType` is confirmed available upstream. All surrounding infrastructure
+/// (Keto check, RLS re-query) is fully implemented and shared with `ListenChangeSource`.
 #[derive(Clone)]
 pub struct FabricChangeSource {
     /// tonic channel to the FRF `EntityService`.

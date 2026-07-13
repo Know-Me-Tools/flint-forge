@@ -3,11 +3,11 @@
   "previousPhase": "p15-v1.0-production-readiness",
   "status": "executing",
   "updatedAt": "2026-07-13",
-  "next_action": "Run /kbd-apply p16-c003-kiln-sandbox-authz (Round 2 — depends on c002, done) or /kbd-apply p16-c006-config-truth-tracker-reconcile (Round 2 — depends on c001, done). Round 1 is fully complete.",
-  "next_pending_change": "p16-c003-kiln-sandbox-authz",
-  "exact_next_command": "/kbd-apply p16-c003-kiln-sandbox-authz",
+  "next_action": "Run /kbd-apply p16-c006-config-truth-tracker-reconcile (Round 2's last change — depends on c001, done). Round 1 and c003 of Round 2 are complete.",
+  "next_pending_change": "p16-c006-config-truth-tracker-reconcile",
+  "exact_next_command": "/kbd-apply p16-c006-config-truth-tracker-reconcile",
   "seeded_from": "2026-07-12 production-readiness audit (docs/audits/2026-07-12-production-readiness.md)",
-  "changes_completed": 4,
+  "changes_completed": 5,
   "changes_total": 9,
   "active_changes": [],
   "execution_round_order": {
@@ -16,7 +16,7 @@
     "round_3_parallel": ["p16-c007-file-size-compliance", "p16-c008-production-operations"],
     "round_4": ["p16-c009-vgv-quality-gates"]
   },
-  "note": "Round 1 is fully COMPLETE: p16-c001, p16-c002, p16-c004, and p16-c005 all archived. c005 (auth hardening): replaced forge-identity's OnceLock JWKS cache with an ArcSwapOption-backed TTL cache (FLINT_GATE_JWKS_TTL_SECS, default 600s) plus a rate-limited refetch-on-unknown-kid fast path (max once per 5s); made FLINT_GATE_AUDIENCE mandatory by default (FLINT_GATE_MODE=production is now the default, matching every other default-flip in this phase — development is the explicit opt-out). Confirmed safe: no docker-compose/helm file configures FLINT_GATE_* today, so nothing currently deployed relies on the old lenient default. 4 new integration tests (crates/forge-identity/tests/) against a real wiremock JWKS server + ring-generated ES256 keys, each in its own process for isolation. cargo test --workspace green; cargo clippy clean for everything c005 touched (a workspace-wide clippy run is currently blocked by unrelated, separately-tracked in-flight work in fke-sign-cosign from task_7d88a8a6 — see progress.json's c005 entry for the full account). Round 2 is now unblocked: p16-c003 (Kiln sandbox/authz) depends on c002 (done); p16-c006 (config-truth-tracker-reconcile) depends on c001 (done). Both may run in parallel per the plan.",
+  "note": "Round 1 is fully COMPLETE: p16-c001, p16-c002, p16-c004, and p16-c005 all archived. c003 (Kiln sandbox + authz) is now ALSO archived: fixed the check_capabilities(granted, granted) no-op — requested (component's declared manifest capabilities) is now compared against granted, independently computed per-capability via Cedar (action naming kiln:capability:<name>; caller=None/BGW and no-Pep-attached cases trust requested wholesale, matching the existing kiln:invoke Cedar-skip precedent) — denial now happens before instantiate_async, not silently. Added mandatory bearer auth to /functions/v1/<name> (caller=None now unreachable from that HTTP path) and to /admin/functions (register_function + list_functions), the latter also requiring role==service_role. Deliberately DEFERRED (flagged as task_91a44033, its own follow-up): wiring flint:host@0.1.0's actual host-side Db/Llm/Kv/Identity/Secrets functions into the linker — the WIT contract (wit/flint/host/world.wit) exists but flint-skill is explicitly guest-only SDK scaffolding with no host-side implementation anywhere; this is substantial new engineering (5 new host functions each touching a different backend, Secrets needing careful default-deny/audit semantics), not a bug fix, and wasn't safely completable alongside this change's P0 items without its own design review. cargo clippy --workspace and cargo test --workspace both fully green (the fke-sign-cosign blocker noted in c005's entry, task_7d88a8a6, has since resolved). Round 2's remaining change: p16-c006 (config-truth-tracker-reconcile) depends on c001 (done) — safe to start.",
   "assessment_complete": true,
   "plan_complete": true,
   "execution_complete": true

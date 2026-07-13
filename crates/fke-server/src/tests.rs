@@ -119,3 +119,113 @@ async fn validly_signed_component_verifies() {
     let result = verify_manifest_signature(&state, &manifest, artifact).await;
     assert!(result.is_ok(), "expected Ok, got {result:?}");
 }
+
+// ─── p16-c003: mandatory auth on the data and control planes ──────────────
+//
+// These call the private handler functions directly (not through a mounted
+// axum Router/TestClient) since the auth check is the FIRST thing each
+// handler does, before any DB access — `test_state()`'s lazy, never-dialed
+// pool is safe here for exactly the same reason it's safe in the p16-c002
+// tests above.
+
+/// p16-c003 task 11 (invalid-token variant): a syntactically-present but
+/// unverifiable bearer is also rejected 401, not treated as anonymous.
+#[tokio::test]
+async fn invoke_with_garbage_bearer_is_rejected_401() {
+    let state = test_state();
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        axum::http::header::AUTHORIZATION,
+        "Bearer not-a-real-jwt".parse().expect("header value"),
+    );
+    let resp = invoke_impl(
+        &state,
+        "some-function",
+        "latest",
+        headers,
+        axum::body::Bytes::new(),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+/// p16-c003 task 12: an anonymous call to `GET /admin/functions` is rejected
+/// 401 — previously this route had no auth middleware at all.
+#[tokio::test]
+async fn anonymous_admin_list_is_rejected_401() {
+    let state = test_state();
+    let resp = list_functions(State(state), HeaderMap::new())
+        .await
+        .into_response();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+/// p16-c003 task 12 (register variant): an anonymous call to
+/// `POST /admin/functions` is also rejected 401, before signature
+/// verification or storage are ever reached.
+#[tokio::test]
+async fn anonymous_admin_register_is_rejected_401() {
+    let state = test_state();
+    let key = test_signing_key();
+    let artifact = b"fake wasm bytes";
+    let manifest = signed_manifest(&key, artifact, "sha256:test");
+    let body = RegisterBody {
+        name: "some-function".into(),
+        version: "1.0.0".into(),
+        manifest,
+        wasm_base64: {
+            use base64::Engine as _;
+            base64::engine::general_purpose::STANDARD.encode(artifact)
+        },
+    };
+
+    let resp = register_function(State(state), HeaderMap::new(), Json(body))
+        .await
+        .into_response();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+/// p16-c003 gate: an anonymous (no `Authorization` header) call to
+/// `/functions/v1/<name>` is rejected with 401 before ever touching the
+/// registry/store/runtime — `invoke_impl`'s bearer check is the very first
+/// thing it does, so a lazy (never-dialed) pool in `test_state()` is safe.
+#[tokio::test]
+async fn invoke_without_bearer_is_401() {
+    let state = test_state();
+    let resp = invoke_impl(
+        &state,
+        "some-function",
+        "latest",
+        HeaderMap::new(),
+        axum::body::Bytes::new(),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+/// p16-c003 gate: an anonymous call to `/admin/functions` (either
+/// `register_function` or `list_functions`, both gated by `require_admin`
+/// first) is rejected with 401 — previously this route had no runtime auth
+/// at all, gated only by the compile-time `control-plane` feature flag.
+#[tokio::test]
+async fn admin_route_without_bearer_is_401() {
+    let resp = require_admin(&HeaderMap::new())
+        .await
+        .expect_err("missing bearer must be rejected");
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+/// p16-c003 gate: a syntactically-present but invalid/unparseable bearer is
+/// also 401 (not merely "missing header" — the JWT itself must verify).
+#[tokio::test]
+async fn admin_route_with_garbage_bearer_is_401() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::AUTHORIZATION,
+        "Bearer not-a-real-jwt".parse().unwrap(),
+    );
+    let resp = require_admin(&headers)
+        .await
+        .expect_err("invalid bearer must be rejected");
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}

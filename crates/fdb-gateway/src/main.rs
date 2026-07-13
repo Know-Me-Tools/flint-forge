@@ -51,11 +51,14 @@ pub(crate) struct GatewayState {
     /// SECURITY: never expose this pool to per-user RLS contexts.
     pool: PgPool,
     /// Keto relation-check adapter backed by the background sync cache.
-    /// Injected into `Quarry::with_keto()` when mutation use-cases are wired,
-    /// or called directly by handlers via `State<GatewayState>`.
     //
-    // Scaffold-stage concession: the field is not yet read by any handler.
-    // CRUD mutation handlers (p3-c014) will call `state.keto.as_ref()`.
+    // p16-c006: corrected — this field itself is genuinely never read by any
+    // handler (verified: `state.keto`/`.keto.as_ref()` has no call sites).
+    // That is NOT a gap: REST/GraphQL mutation Keto enforcement is wired
+    // through `MutationGates` (see `gates`/`with_keto()` at construction),
+    // which handlers reach via the reflection compiler, not via this field
+    // directly. Retained as a construction-site convenience for any future
+    // handler needing direct Keto access outside the gates path.
     #[allow(dead_code)]
     keto: Option<Arc<dyn fdb_ports::KetoCheck>>,
 }
