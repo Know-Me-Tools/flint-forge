@@ -4,7 +4,9 @@
 
 ```bash
 cp .env.example .env
-# Edit .env: set FLINT_JWT_SECRET to a secure random value
+# Edit .env: set FLINT_GATE_JWKS_URL and FLINT_GATE_ISSUER so fdb-gateway can
+# verify bearer tokens — see docs/runbook.md §2.2 for details (required for
+# any authenticated endpoint; FLINT_JWT_SECRET is unrelated to this path).
 docker compose up
 ```
 

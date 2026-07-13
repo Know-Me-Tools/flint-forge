@@ -138,6 +138,11 @@ binary. This eliminates the requirement for a `.env` file on production hosts.
 - `DATABASE_URL` is now constructed from `/run/secrets/postgres_password` inside
   the container. The `.env` file on the host is no longer required in production.
 - `FLINT_JWT_SECRET` is set from `/run/secrets/jwt_secret` in the gateway container.
+  Note: as of the JWKS-based rewrite of bearer verification, `fdb-gateway`
+  itself does not read `FLINT_JWT_SECRET` — inbound auth requires
+  `FLINT_GATE_JWKS_URL`/`FLINT_GATE_ISSUER` instead (see
+  [`docs/runbook.md §2.2`](docs/runbook.md)). This entrypoint behavior is
+  unchanged but no longer feeds the active auth path.
 
 **What you need to do:**
 1. Run `./scripts/rotate_secrets.sh` to generate `secrets/*.txt` files
