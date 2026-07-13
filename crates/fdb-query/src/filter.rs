@@ -6,6 +6,7 @@
 //! module turns those into a [`FilterTree`] and renders it to a parameterized SQL
 //! predicate, reusing [`crate::operator::render_condition`] for leaves.
 
+use crate::cast::CastHints;
 use crate::fts::FtsConfig;
 use crate::ident::{parse_column_ref, IdentError};
 use crate::operator::{render_condition, Operator, Quantifier, RenderError};
@@ -36,7 +37,9 @@ pub enum FilterTree {
 
 impl FilterTree {
     /// Render the tree to a SQL predicate plus ordered bind params, numbering
-    /// placeholders from `start_index`.
+    /// placeholders from `start_index`. Equivalent to
+    /// `render_with_hints(start_index, &CastHints::none())` — no leaf gets a
+    /// `::type` cast.
     ///
     /// Returns `(sql, params, next_index)`. An empty `And`/`Or` renders to the
     /// identity for its connective (`TRUE` for AND, `FALSE` for OR), matching SQL
@@ -48,6 +51,24 @@ impl FilterTree {
         &self,
         start_index: usize,
     ) -> Result<(String, Vec<QueryParam>, usize), FilterError> {
+        self.render_with_hints(start_index, &CastHints::none())
+    }
+
+    /// Render the tree, casting each leaf's bound placeholder to `hints`'s
+    /// resolved type for that leaf's base column, when one exists.
+    ///
+    /// A cast is applied only to a *plain* column reference (no JSON path steps,
+    /// no existing explicit `::cast` in the column reference itself) — a JSON
+    /// path expression already yields text/jsonb, and an explicit cast reflects
+    /// the caller's own intent, so neither is second-guessed here.
+    ///
+    /// # Errors
+    /// Propagates [`FilterError`] from identifier validation or condition rendering.
+    pub fn render_with_hints(
+        &self,
+        start_index: usize,
+        hints: &CastHints,
+    ) -> Result<(String, Vec<QueryParam>, usize), FilterError> {
         match self {
             Self::Leaf {
                 column,
@@ -58,6 +79,10 @@ impl FilterTree {
                 fts_config,
             } => {
                 let col_ref = parse_column_ref(column)?;
+                let cast = col_ref
+                    .is_plain()
+                    .then(|| hints.get(col_ref.base()))
+                    .flatten();
                 let (sql, params, next) = render_condition(
                     &col_ref.to_sql(),
                     *op,
@@ -65,24 +90,30 @@ impl FilterTree {
                     *negate,
                     *quantifier,
                     fts_config.as_ref(),
+                    cast,
                     start_index,
                 )?;
                 Ok((sql, params, next))
             }
-            Self::And(children) => Self::render_group(children, "AND", "TRUE", start_index),
-            Self::Or(children) => Self::render_group(children, "OR", "FALSE", start_index),
+            Self::And(children) => {
+                Self::render_group_with_hints(children, "AND", "TRUE", start_index, hints)
+            }
+            Self::Or(children) => {
+                Self::render_group_with_hints(children, "OR", "FALSE", start_index, hints)
+            }
             Self::Not(inner) => {
-                let (sql, params, next) = inner.render(start_index)?;
+                let (sql, params, next) = inner.render_with_hints(start_index, hints)?;
                 Ok((format!("NOT ({sql})"), params, next))
             }
         }
     }
 
-    fn render_group(
+    fn render_group_with_hints(
         children: &[FilterTree],
         connective: &str,
         identity: &str,
         start_index: usize,
+        hints: &CastHints,
     ) -> Result<(String, Vec<QueryParam>, usize), FilterError> {
         if children.is_empty() {
             return Ok((identity.to_owned(), vec![], start_index));
@@ -91,7 +122,7 @@ impl FilterTree {
         let mut params = Vec::new();
         let mut idx = start_index;
         for child in children {
-            let (sql, mut p, next) = child.render(idx)?;
+            let (sql, mut p, next) = child.render_with_hints(idx, hints)?;
             parts.push(sql);
             params.append(&mut p);
             idx = next;

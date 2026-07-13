@@ -62,6 +62,15 @@ impl ColumnRef {
     pub fn base(&self) -> &str {
         &self.base
     }
+
+    /// True for a bare column reference — no JSON path steps, no explicit
+    /// `::cast`. Used to decide whether an automatic parameter-side cast hint
+    /// applies: a JSON path already yields text/jsonb, and an explicit cast
+    /// reflects the caller's own intent, so neither is second-guessed.
+    #[must_use]
+    pub fn is_plain(&self) -> bool {
+        self.json_path.is_empty() && self.cast.is_none()
+    }
 }
 
 /// Validate a bare identifier (schema, table, column, relation, alias, cast type).

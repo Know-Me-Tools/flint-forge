@@ -40,6 +40,7 @@ jsonwebtoken = "9"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 deadpool-postgres = "0.14"
 tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
+bytes = "1"
 async-graphql = { version = "7", features = ["dynamic-schema"] }
 async-graphql-axum = "7"
 tonic = { version = "0.12", features = ["transport"] }

@@ -200,12 +200,19 @@ impl Operator {
 /// operators; it MUST be `None` for every non-FTS operator (the parser enforces
 /// this) and is ignored there.
 ///
+/// `cast` is an optional, already-validated Postgres base type (e.g. `int4`).
+/// When present, it is appended to the bound placeholder (`$n::int4`, or
+/// `$n::int4[]` for an array bind) so a driver that declares the bound value's
+/// type explicitly as text (`sqlx`) still resolves against a non-text column.
+/// Ignored for containment operators (already bind `jsonb`) and `is` (no bind).
+///
 /// Returns `(sql_fragment, params, next_index_after)`.
 ///
 /// # Errors
 /// Returns [`RenderError`] when the `is` operand is not a recognized literal or a
 /// quantifier is applied to an operator that does not support it (including any
 /// of the four FTS operators, which never accept a quantifier).
+#[allow(clippy::too_many_arguments)] // each param is an independently-meaningful render input; grouping into a struct would not clarify this low-level primitive
 pub fn render_condition(
     col_ref: &str,
     op: Operator,
@@ -213,6 +220,7 @@ pub fn render_condition(
     negate: bool,
     quantifier: Option<Quantifier>,
     fts_config: Option<&FtsConfig>,
+    cast: Option<&str>,
     next_index: usize,
 ) -> Result<(String, Vec<QueryParam>, usize), RenderError> {
     // Full-text-search operators render bespoke `<col> @@ <fn>([cfg,] $n)` and
@@ -240,8 +248,9 @@ pub fn render_condition(
             }
             // `col IN (a,b,c)` → `col = ANY($n)` with a single text[] bind.
             let items = split_in_list(value);
+            let ph = array_placeholder(next_index, cast);
             (
-                format!("{col_ref} = ANY(${next_index})"),
+                format!("{col_ref} = ANY({ph})"),
                 vec![QueryParam::TextArray(items)],
                 next_index + 1,
             )
@@ -259,8 +268,9 @@ pub fn render_condition(
                     Quantifier::All => "ALL",
                 };
                 let items = split_in_list(value);
+                let ph = array_placeholder(next_index, cast);
                 (
-                    format!("{col_ref} {infix} {kw}(${next_index})"),
+                    format!("{col_ref} {infix} {kw}({ph})"),
                     vec![QueryParam::TextArray(items)],
                     next_index + 1,
                 )
@@ -270,8 +280,14 @@ pub fn render_condition(
                 } else {
                     QueryParam::Text(value.to_owned())
                 };
+                // Containment operators already bind `jsonb`; never cast them.
+                let ph = if scalar.binds_json() {
+                    format!("${next_index}")
+                } else {
+                    scalar_placeholder(next_index, cast)
+                };
                 (
-                    format!("{col_ref} {infix} ${next_index}"),
+                    format!("{col_ref} {infix} {ph}"),
                     vec![param],
                     next_index + 1,
                 )
@@ -283,6 +299,22 @@ pub fn render_condition(
         Ok((format!("NOT ({frag})"), params, idx))
     } else {
         Ok((frag, params, idx))
+    }
+}
+
+/// A scalar placeholder, cast to `cast` when present: `$n` or `$n::int4`.
+fn scalar_placeholder(idx: usize, cast: Option<&str>) -> String {
+    match cast {
+        Some(t) => format!("${idx}::{t}"),
+        None => format!("${idx}"),
+    }
+}
+
+/// An array-bind placeholder, cast to `cast[]` when present: `$n` or `$n::int4[]`.
+fn array_placeholder(idx: usize, cast: Option<&str>) -> String {
+    match cast {
+        Some(t) => format!("${idx}::{t}[]"),
+        None => format!("${idx}"),
     }
 }
 
@@ -396,7 +428,13 @@ mod tests {
 
     fn render(col: &str, op: Operator, val: &str) -> (String, Vec<QueryParam>) {
         let (sql, params, _) =
-            render_condition(col, op, val, false, None, None, 1).expect("render");
+            render_condition(col, op, val, false, None, None, None, 1).expect("render");
+        (sql, params)
+    }
+
+    fn render_cast(col: &str, op: Operator, val: &str, cast: &str) -> (String, Vec<QueryParam>) {
+        let (sql, params, _) =
+            render_condition(col, op, val, false, None, None, Some(cast), 1).expect("render");
         (sql, params)
     }
 
@@ -486,14 +524,15 @@ mod tests {
 
     #[test]
     fn is_operator_rejects_bad_operand() {
-        let err = render_condition("c", Operator::Is, "maybe", false, None, None, 1).unwrap_err();
+        let err =
+            render_condition("c", Operator::Is, "maybe", false, None, None, None, 1).unwrap_err();
         assert!(matches!(err, RenderError::InvalidIs(_)));
     }
 
     #[test]
     fn negation_wraps_condition() {
         let (sql, _, _) =
-            render_condition("c", Operator::Eq, "1", true, None, None, 1).expect("render");
+            render_condition("c", Operator::Eq, "1", true, None, None, None, 1).expect("render");
         assert_eq!(sql, "NOT (c = $1)");
     }
 
@@ -505,6 +544,7 @@ mod tests {
             "(1,2)",
             false,
             Some(Quantifier::Any),
+            None,
             None,
             1,
         )
@@ -522,6 +562,7 @@ mod tests {
             false,
             Some(Quantifier::All),
             None,
+            None,
             1,
         )
         .expect("render");
@@ -531,8 +572,8 @@ mod tests {
     #[test]
     fn quantifier_rejected_on_unsupported_operators() {
         for op in [Operator::In, Operator::Is, Operator::Cs, Operator::Ov] {
-            let err =
-                render_condition("c", op, "x", false, Some(Quantifier::Any), None, 1).unwrap_err();
+            let err = render_condition("c", op, "x", false, Some(Quantifier::Any), None, None, 1)
+                .unwrap_err();
             assert!(
                 matches!(err, RenderError::QuantifierNotAllowed(_)),
                 "op {op:?} should reject quantifier"
@@ -543,10 +584,10 @@ mod tests {
     #[test]
     fn index_advances_by_bind_count() {
         let (_, _, next) =
-            render_condition("c", Operator::Eq, "1", false, None, None, 5).expect("render");
+            render_condition("c", Operator::Eq, "1", false, None, None, None, 5).expect("render");
         assert_eq!(next, 6, "one bind consumed");
-        let (_, _, next) =
-            render_condition("c", Operator::Is, "null", false, None, None, 5).expect("render");
+        let (_, _, next) = render_condition("c", Operator::Is, "null", false, None, None, None, 5)
+            .expect("render");
         assert_eq!(next, 5, "is binds nothing");
     }
 
@@ -589,7 +630,7 @@ mod tests {
     #[test]
     fn render_condition_dispatches_fts_without_config() {
         let (sql, params, next) =
-            render_condition("c", Operator::Fts, "cat & dog", false, None, None, 1)
+            render_condition("c", Operator::Fts, "cat & dog", false, None, None, None, 1)
                 .expect("render");
         assert_eq!(sql, "c @@ to_tsquery($1)");
         assert_eq!(params, vec![QueryParam::Text("cat & dog".into())]);
@@ -600,7 +641,7 @@ mod tests {
     fn render_condition_dispatches_fts_with_config() {
         let cfg = FtsConfig::parse("english").unwrap();
         let (sql, params, _) =
-            render_condition("c", Operator::Fts, "cat", false, None, Some(&cfg), 1)
+            render_condition("c", Operator::Fts, "cat", false, None, Some(&cfg), None, 1)
                 .expect("render");
         assert_eq!(sql, "c @@ to_tsquery('english', $1)");
         assert_eq!(params, vec![QueryParam::Text("cat".into())]);
@@ -614,8 +655,8 @@ mod tests {
             Operator::Phfts,
             Operator::Wfts,
         ] {
-            let err =
-                render_condition("c", op, "q", false, Some(Quantifier::Any), None, 1).unwrap_err();
+            let err = render_condition("c", op, "q", false, Some(Quantifier::Any), None, None, 1)
+                .unwrap_err();
             assert!(
                 matches!(err, RenderError::QuantifierNotAllowed(_)),
                 "FTS op {op:?} must reject quantifier"
@@ -624,9 +665,73 @@ mod tests {
     }
 
     #[test]
+    fn cast_appends_to_scalar_placeholder() {
+        assert_eq!(
+            render_cast("id", Operator::Eq, "1", "int4").0,
+            "id = $1::int4"
+        );
+        assert_eq!(
+            render_cast("id", Operator::Gte, "1", "int8").0,
+            "id >= $1::int8"
+        );
+    }
+
+    #[test]
+    fn cast_appends_array_suffix_for_in_and_quantifiers() {
+        let (sql, _, _) = render_condition(
+            "id",
+            Operator::In,
+            "(1,2)",
+            false,
+            None,
+            None,
+            Some("int4"),
+            1,
+        )
+        .expect("render");
+        assert_eq!(sql, "id = ANY($1::int4[])");
+
+        let (sql, _, _) = render_condition(
+            "id",
+            Operator::Eq,
+            "(1,2)",
+            false,
+            Some(Quantifier::Any),
+            None,
+            Some("int4"),
+            1,
+        )
+        .expect("render");
+        assert_eq!(sql, "id = ANY($1::int4[])");
+    }
+
+    #[test]
+    fn cast_is_ignored_for_containment_and_is() {
+        // Containment operators already bind jsonb; casting would be wrong.
+        assert_eq!(
+            render_cast("tags", Operator::Cs, r#"{"a":1}"#, "int4").0,
+            "tags @> $1"
+        );
+        // `is` never binds a param, so there is nothing to cast.
+        let (sql, params, _) = render_condition(
+            "c",
+            Operator::Is,
+            "null",
+            false,
+            None,
+            None,
+            Some("int4"),
+            1,
+        )
+        .expect("render");
+        assert_eq!(sql, "c IS NULL");
+        assert!(params.is_empty());
+    }
+
+    #[test]
     fn render_condition_negates_fts() {
         let (sql, _, _) =
-            render_condition("c", Operator::Fts, "q", true, None, None, 1).expect("render");
+            render_condition("c", Operator::Fts, "q", true, None, None, None, 1).expect("render");
         assert_eq!(sql, "NOT (c @@ to_tsquery($1))");
     }
 }

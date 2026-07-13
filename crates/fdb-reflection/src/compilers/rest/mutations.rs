@@ -17,11 +17,14 @@ use serde_json::{Map, Value};
 use std::collections::HashMap;
 use tracing::instrument;
 
-use crate::compilers::filters::{bind_param, render_where};
+use crate::compilers::filters::{
+    bind_mutation_value, bind_param, cast_hints_for, mutation_placeholder, mutation_value_to_bind,
+    render_where_with_hints,
+};
 
 use super::{
-    bad_request, forbidden, insert_response, internal_error, json_bind, parse_filters,
-    rows_response, RestState, KETO_NAMESPACE,
+    bad_request, forbidden, insert_response, internal_error, parse_filters, rows_response,
+    RestState, KETO_NAMESPACE,
 };
 
 /// Run the mutation authorization gates for `<schema>.<table>` under `rls`.
@@ -90,17 +93,20 @@ pub(super) async fn handle_insert(
     }
 
     // Validate every column name before it is interpolated.
+    let hints = cast_hints_for(&state.model, &schema, &table);
     let mut columns: Vec<String> = Vec::with_capacity(body.len());
-    let mut values: Vec<Value> = Vec::with_capacity(body.len());
-    for (col, val) in &body {
+    let mut binds = Vec::with_capacity(body.len());
+    let mut placeholders: Vec<String> = Vec::with_capacity(body.len());
+    for (idx, (col, val)) in (1_usize..).zip(&body) {
         if !is_safe_identifier(col) {
             return bad_request(&format!("invalid column identifier: {col}"));
         }
+        let bind = mutation_value_to_bind(val);
+        placeholders.push(mutation_placeholder(idx, &bind, hints.get(col)));
         columns.push(col.clone());
-        values.push(val.clone());
+        binds.push(bind);
     }
 
-    let placeholders: Vec<String> = (1..=columns.len()).map(|i| format!("${i}")).collect();
     let sql = format!(
         "INSERT INTO {schema}.{table} ({cols}) VALUES ({ph}) RETURNING row_to_json({table}) AS row",
         cols = columns.join(", "),
@@ -108,8 +114,8 @@ pub(super) async fn handle_insert(
     );
 
     let mut q = sqlx::query(&sql);
-    for v in &values {
-        q = q.bind(json_bind(v));
+    for b in &binds {
+        q = bind_mutation_value(q, b);
     }
 
     match q.fetch_one(&state.pool).await {
@@ -145,15 +151,20 @@ pub(super) async fn handle_update(
     }
 
     // SET clause — validate columns, bind values starting at $1.
+    let hints = cast_hints_for(&state.model, &schema, &table);
     let mut set_parts: Vec<String> = Vec::with_capacity(body.len());
-    let mut binds: Vec<Value> = Vec::new();
+    let mut binds = Vec::new();
     let mut idx = 1_usize;
     for (col, val) in &body {
         if !is_safe_identifier(col) {
             return bad_request(&format!("invalid column identifier: {col}"));
         }
-        set_parts.push(format!("{col} = ${idx}"));
-        binds.push(val.clone());
+        let bind = mutation_value_to_bind(val);
+        set_parts.push(format!(
+            "{col} = {}",
+            mutation_placeholder(idx, &bind, hints.get(col))
+        ));
+        binds.push(bind);
         idx += 1;
     }
 
@@ -161,7 +172,7 @@ pub(super) async fn handle_update(
         Ok(f) => f,
         Err(resp) => return *resp,
     };
-    let where_clause = match render_where(&filter_tree, idx) {
+    let where_clause = match render_where_with_hints(&filter_tree, idx, &hints) {
         Ok(wc) => wc,
         Err(msg) => return bad_request(&msg),
     };
@@ -173,8 +184,8 @@ pub(super) async fn handle_update(
     );
 
     let mut q = sqlx::query(&sql);
-    for v in &binds {
-        q = q.bind(json_bind(v));
+    for b in &binds {
+        q = bind_mutation_value(q, b);
     }
     for b in &where_clause.binds {
         q = bind_param(q, b);
@@ -207,11 +218,12 @@ pub(super) async fn handle_delete(
         return *resp;
     }
 
+    let hints = cast_hints_for(&state.model, &schema, &table);
     let filter_tree = match parse_filters(&params) {
         Ok(f) => f,
         Err(resp) => return *resp,
     };
-    let where_clause = match render_where(&filter_tree, 1) {
+    let where_clause = match render_where_with_hints(&filter_tree, 1, &hints) {
         Ok(wc) => wc,
         Err(msg) => return bad_request(&msg),
     };

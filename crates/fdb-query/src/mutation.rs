@@ -4,6 +4,7 @@
 //! `Prefer` directives (`return=`, `resolution=`, `missing=`) are parsed into typed
 //! options that shape the rendered statement.
 
+use crate::cast::CastHints;
 use crate::filter::{FilterError, FilterTree};
 use crate::ident::validate_identifier;
 use crate::param::QueryParam;
@@ -95,9 +96,17 @@ impl InsertPlan {
         })
     }
 
-    /// Render the INSERT to `(sql, flattened params)`.
+    /// Render the INSERT to `(sql, flattened params)`. Equivalent to
+    /// `render_with_hints(&CastHints::none())` — no column gets a `::type` cast.
     #[must_use]
     pub fn render(&self) -> (String, Vec<QueryParam>) {
+        self.render_with_hints(&CastHints::none())
+    }
+
+    /// Render the INSERT, casting each column's placeholder to `hints`'s
+    /// resolved type for that column, when one exists.
+    #[must_use]
+    pub fn render_with_hints(&self, hints: &CastHints) -> (String, Vec<QueryParam>) {
         let cols = self.columns.join(", ");
         let mut params = Vec::with_capacity(self.rows.len() * self.columns.len());
         let mut idx = 1usize;
@@ -105,8 +114,12 @@ impl InsertPlan {
         for row in &self.rows {
             let placeholders: Vec<String> = row
                 .iter()
-                .map(|p| {
-                    let ph = format!("${idx}");
+                .zip(&self.columns)
+                .map(|(p, col)| {
+                    let ph = match (p, hints.get(col)) {
+                        (QueryParam::Text(_), Some(t)) => format!("${idx}::{t}"),
+                        _ => format!("${idx}"),
+                    };
                     params.push(p.clone());
                     idx += 1;
                     ph
@@ -161,7 +174,19 @@ pub struct UpdatePlan {
 }
 
 impl UpdatePlan {
-    /// Render the UPDATE to `(sql, params)`. SET params come first, then WHERE params.
+    /// Render the UPDATE to `(sql, params)`. Equivalent to
+    /// `render_with_hints(&CastHints::none())` — no column gets a `::type` cast.
+    ///
+    /// # Errors
+    /// Returns [`FilterError::Ident`] on an unsafe relation/column, or propagates
+    /// [`FilterError`] from the WHERE tree.
+    pub fn render(&self) -> Result<(String, Vec<QueryParam>), FilterError> {
+        self.render_with_hints(&CastHints::none())
+    }
+
+    /// Render the UPDATE, casting each SET column's placeholder and each WHERE
+    /// leaf's placeholder to `hints`'s resolved type, when one exists. SET
+    /// params come first, then WHERE params.
     ///
     /// The relation and every SET column are validated here (defense-in-depth):
     /// the struct has public fields, so `render` never trusts them — an unsafe
@@ -170,7 +195,10 @@ impl UpdatePlan {
     /// # Errors
     /// Returns [`FilterError::Ident`] on an unsafe relation/column, or propagates
     /// [`FilterError`] from the WHERE tree.
-    pub fn render(&self) -> Result<(String, Vec<QueryParam>), FilterError> {
+    pub fn render_with_hints(
+        &self,
+        hints: &CastHints,
+    ) -> Result<(String, Vec<QueryParam>), FilterError> {
         validate_identifier(&self.relation)
             .map_err(|_| FilterError::Ident(crate::IdentError::Unsafe(self.relation.clone())))?;
         let mut params = Vec::new();
@@ -179,11 +207,15 @@ impl UpdatePlan {
         for (col, val) in &self.assignments {
             validate_identifier(col)
                 .map_err(|_| FilterError::Ident(crate::IdentError::Unsafe(col.clone())))?;
-            sets.push(format!("{col} = ${idx}"));
+            let ph = match (val, hints.get(col)) {
+                (QueryParam::Text(_), Some(t)) => format!("${idx}::{t}"),
+                _ => format!("${idx}"),
+            };
+            sets.push(format!("{col} = {ph}"));
             params.push(val.clone());
             idx += 1;
         }
-        let (where_sql, mut where_params, _) = self.filter.render(idx)?;
+        let (where_sql, mut where_params, _) = self.filter.render_with_hints(idx, hints)?;
         params.append(&mut where_params);
         let mut sql = format!("UPDATE {} SET {}", self.relation, sets.join(", "));
         if where_sql != "TRUE" {
@@ -206,7 +238,18 @@ pub struct DeletePlan {
 }
 
 impl DeletePlan {
-    /// Render the DELETE to `(sql, params)`.
+    /// Render the DELETE to `(sql, params)`. Equivalent to
+    /// `render_with_hints(&CastHints::none())` — no leaf gets a `::type` cast.
+    ///
+    /// # Errors
+    /// Returns [`FilterError::Ident`] on an unsafe relation, or propagates
+    /// [`FilterError`] from the WHERE tree.
+    pub fn render(&self) -> Result<(String, Vec<QueryParam>), FilterError> {
+        self.render_with_hints(&CastHints::none())
+    }
+
+    /// Render the DELETE, casting each WHERE leaf's placeholder to `hints`'s
+    /// resolved type, when one exists.
     ///
     /// The relation is validated here (defense-in-depth) since the struct has
     /// public fields — an unsafe relation yields an error, never reaching SQL.
@@ -214,10 +257,13 @@ impl DeletePlan {
     /// # Errors
     /// Returns [`FilterError::Ident`] on an unsafe relation, or propagates
     /// [`FilterError`] from the WHERE tree.
-    pub fn render(&self) -> Result<(String, Vec<QueryParam>), FilterError> {
+    pub fn render_with_hints(
+        &self,
+        hints: &CastHints,
+    ) -> Result<(String, Vec<QueryParam>), FilterError> {
         validate_identifier(&self.relation)
             .map_err(|_| FilterError::Ident(crate::IdentError::Unsafe(self.relation.clone())))?;
-        let (where_sql, params, _) = self.filter.render(1)?;
+        let (where_sql, params, _) = self.filter.render_with_hints(1, hints)?;
         let mut sql = format!("DELETE FROM {}", self.relation);
         if where_sql != "TRUE" {
             sql.push_str(" WHERE ");
@@ -447,6 +493,60 @@ mod tests {
             returning: ReturnKind::Minimal,
         };
         assert!(ok.render().is_ok());
+    }
+
+    #[test]
+    fn insert_render_with_hints_casts_typed_columns() {
+        let hints = CastHints::from_pairs([("id", "int4"), ("name", "text")]);
+        let plan = InsertPlan::new(
+            "t",
+            vec!["id".into(), "name".into()],
+            vec![vec![txt("5"), txt("alice")]],
+            InsertOptions::default(),
+        )
+        .unwrap();
+        let (sql, _) = plan.render_with_hints(&hints);
+        // id is cast; name is text-compatible so it is left bare.
+        assert_eq!(sql, "INSERT INTO t (id, name) VALUES ($1::int4, $2)");
+    }
+
+    #[test]
+    fn update_render_with_hints_casts_set_and_where() {
+        let hints = CastHints::from_pairs([("status", "int4"), ("id", "int8")]);
+        let plan = UpdatePlan {
+            relation: "t".into(),
+            assignments: vec![("status".into(), txt("1"))],
+            filter: FilterTree::Leaf {
+                column: "id".into(),
+                op: crate::Operator::Eq,
+                value: "5".into(),
+                negate: false,
+                quantifier: None,
+                fts_config: None,
+            },
+            returning: ReturnKind::Minimal,
+        };
+        let (sql, _) = plan.render_with_hints(&hints).expect("render");
+        assert_eq!(sql, "UPDATE t SET status = $1::int4 WHERE id = $2::int8");
+    }
+
+    #[test]
+    fn delete_render_with_hints_casts_where() {
+        let hints = CastHints::from_pairs([("id", "uuid")]);
+        let plan = DeletePlan {
+            relation: "t".into(),
+            filter: FilterTree::Leaf {
+                column: "id".into(),
+                op: crate::Operator::Eq,
+                value: "11111111-1111-1111-1111-111111111111".into(),
+                negate: false,
+                quantifier: None,
+                fts_config: None,
+            },
+            returning: ReturnKind::Minimal,
+        };
+        let (sql, _) = plan.render_with_hints(&hints).expect("render");
+        assert_eq!(sql, "DELETE FROM t WHERE id = $1::uuid");
     }
 
     #[test]
