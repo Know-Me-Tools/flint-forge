@@ -39,14 +39,14 @@ pub fn generate(model: &DatabaseModel) -> Vec<Endpoint> {
         });
         endpoints.push(Endpoint {
             method: "PATCH",
-            path: format!("{}/{{id}}", prefix),
+            path: prefix.clone(),
             kind: EndpointKind::TableById {
                 table: table.clone(),
             },
         });
         endpoints.push(Endpoint {
             method: "DELETE",
-            path: format!("{}/{{id}}", prefix),
+            path: prefix.clone(),
             kind: EndpointKind::TableById {
                 table: table.clone(),
             },
