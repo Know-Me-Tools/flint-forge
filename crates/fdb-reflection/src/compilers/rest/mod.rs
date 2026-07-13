@@ -1,18 +1,19 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Query, State},
     http::{header, HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{delete, get, patch, post},
-    Json, Router,
+    Extension, Json, Router,
 };
 use forge_domain::is_safe_identifier;
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::instrument;
 
 use fdb_ports::KetoCheck;
+use forge_identity::RlsContext;
 use forge_policy::Pep;
 
 mod mutations;
@@ -91,20 +92,77 @@ impl RestCompiler {
 
         let mut router: Router<RestState> = Router::new();
 
+        // Every generated route is table/function-specific: `endpoint.path` bakes
+        // `schema`/`table` (or `schema`/`fn_name`) in as literal path segments, not
+        // dynamic captures — each table/function gets its own route registration.
+        // Handlers therefore take `schema`/`table` as plain arguments (known at
+        // compile time from `endpoint.kind`) rather than an axum `Path` extractor,
+        // which would require the URL template to declare matching captures.
         for endpoint in &endpoints {
             let path = endpoint.path.clone();
             router = match (&endpoint.kind, endpoint.method) {
-                (EndpointKind::TableList { .. }, "GET") => router.route(&path, get(handle_list)),
-                (EndpointKind::TableList { .. }, "POST") => {
-                    router.route(&path, post(mutations::handle_insert))
+                (EndpointKind::TableList { table: t }, "GET") => {
+                    let schema = t.schema.clone();
+                    let name = t.name.clone();
+                    router.route(
+                        &path,
+                        get(
+                            move |State(state): State<RestState>,
+                                  Query(params): Query<HashMap<String, String>>,
+                                  headers: HeaderMap| {
+                                handle_list(schema, name, state, params, headers)
+                            },
+                        ),
+                    )
                 }
-                (EndpointKind::TableById { .. }, "PATCH") => {
-                    router.route(&path, patch(mutations::handle_update))
+                (EndpointKind::TableList { table: t }, "POST") => {
+                    let schema = t.schema.clone();
+                    let name = t.name.clone();
+                    router.route(
+                        &path,
+                        post(move |State(state): State<RestState>,
+                                   Extension(rls): Extension<RlsContext>,
+                                   Json(body): Json<Map<String, Value>>| {
+                            mutations::handle_insert(schema, name, state, rls, body)
+                        }),
+                    )
                 }
-                (EndpointKind::TableById { .. }, "DELETE") => {
-                    router.route(&path, delete(mutations::handle_delete))
+                (EndpointKind::TableById { table: t }, "PATCH") => {
+                    let schema = t.schema.clone();
+                    let name = t.name.clone();
+                    router.route(
+                        &path,
+                        patch(move |State(state): State<RestState>,
+                                    Extension(rls): Extension<RlsContext>,
+                                    Query(params): Query<HashMap<String, String>>,
+                                    Json(body): Json<Map<String, Value>>| {
+                            mutations::handle_update(schema, name, state, rls, params, body)
+                        }),
+                    )
                 }
-                (EndpointKind::Rpc { .. }, "POST") => router.route(&path, post(rpc::handle_rpc)),
+                (EndpointKind::TableById { table: t }, "DELETE") => {
+                    let schema = t.schema.clone();
+                    let name = t.name.clone();
+                    router.route(
+                        &path,
+                        delete(move |State(state): State<RestState>,
+                                     Extension(rls): Extension<RlsContext>,
+                                     Query(params): Query<HashMap<String, String>>| {
+                            mutations::handle_delete(schema, name, state, rls, params)
+                        }),
+                    )
+                }
+                (EndpointKind::Rpc { func }, "POST") => {
+                    let schema = func.schema.clone();
+                    let name = func.name.clone();
+                    router.route(
+                        &path,
+                        post(move |State(state): State<RestState>,
+                                   Json(body): Json<Map<String, Value>>| {
+                            rpc::handle_rpc(schema, name, state, body)
+                        }),
+                    )
+                }
                 _ => router,
             };
         }
@@ -126,9 +184,10 @@ impl RestCompiler {
 /// string is interpolated into SQL.
 #[instrument(skip(state, params, headers), fields(schema = %schema, table = %table))]
 async fn handle_list(
-    State(state): State<RestState>,
-    Path((schema, table)): Path<(String, String)>,
-    Query(params): Query<HashMap<String, String>>,
+    schema: String,
+    table: String,
+    state: RestState,
+    params: HashMap<String, String>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
     if !is_safe_identifier(&schema) || !is_safe_identifier(&table) {

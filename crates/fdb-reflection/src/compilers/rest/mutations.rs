@@ -4,12 +4,7 @@
 //! Shared state (`RestState`) and response/SQL helpers live in the parent
 //! module and are re-used here via `super::`.
 
-use axum::{
-    extract::{Path, Query, State},
-    http::StatusCode,
-    response::IntoResponse,
-    Extension, Json,
-};
+use axum::{http::StatusCode, response::IntoResponse};
 use forge_domain::is_safe_identifier;
 use forge_identity::RlsContext;
 use forge_policy::{Decision, Request as PolicyRequest};
@@ -74,10 +69,11 @@ pub(super) async fn mutation_guard(
 /// with the inserted row and a `Location: /<schema>/<table>/<pk>` header.
 #[instrument(skip(state, rls, body), fields(schema = %schema, table = %table))]
 pub(super) async fn handle_insert(
-    State(state): State<RestState>,
-    Path((schema, table)): Path<(String, String)>,
-    Extension(rls): Extension<RlsContext>,
-    Json(body): Json<Map<String, Value>>,
+    schema: String,
+    table: String,
+    state: RestState,
+    rls: RlsContext,
+    body: Map<String, Value>,
 ) -> impl IntoResponse {
     if !is_safe_identifier(&schema) || !is_safe_identifier(&table) {
         return bad_request("invalid schema or table identifier");
@@ -128,11 +124,12 @@ pub(super) async fn handle_insert(
 /// rows, or `204 No Content` when nothing matched.
 #[instrument(skip(state, rls, params, body), fields(schema = %schema, table = %table))]
 pub(super) async fn handle_update(
-    State(state): State<RestState>,
-    Path((schema, table)): Path<(String, String)>,
-    Extension(rls): Extension<RlsContext>,
-    Query(params): Query<HashMap<String, String>>,
-    Json(body): Json<Map<String, Value>>,
+    schema: String,
+    table: String,
+    state: RestState,
+    rls: RlsContext,
+    params: HashMap<String, String>,
+    body: Map<String, Value>,
 ) -> impl IntoResponse {
     if !is_safe_identifier(&schema) || !is_safe_identifier(&table) {
         return bad_request("invalid schema or table identifier");
@@ -195,10 +192,11 @@ pub(super) async fn handle_update(
 /// Returns `204 No Content`.
 #[instrument(skip(state, rls, params), fields(schema = %schema, table = %table))]
 pub(super) async fn handle_delete(
-    State(state): State<RestState>,
-    Path((schema, table)): Path<(String, String)>,
-    Extension(rls): Extension<RlsContext>,
-    Query(params): Query<HashMap<String, String>>,
+    schema: String,
+    table: String,
+    state: RestState,
+    rls: RlsContext,
+    params: HashMap<String, String>,
 ) -> impl IntoResponse {
     if !is_safe_identifier(&schema) || !is_safe_identifier(&table) {
         return bad_request("invalid schema or table identifier");
