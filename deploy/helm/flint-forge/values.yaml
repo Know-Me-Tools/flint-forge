@@ -78,6 +78,29 @@ kiln:
     KILN_EPOCH_INTERVAL_MS: "10"
 
 # ------------------------------------------------------------------------------
+# Backups (p16-c008) — wal-g continuous WAL archiving + scheduled base
+# backups for point-in-time recovery. Kubernetes counterpart to the
+# `wal-g`/`backup` compose services in docker-compose.prod.yml — see
+# docs/runbook.md §14 for the full setup and restore procedure.
+# ------------------------------------------------------------------------------
+backup:
+  enabled: false
+  # Cron schedule (in-cluster time) for the periodic wal-g backup-push base backup.
+  schedule: "0 2 * * *"
+  # archive_timeout: max seconds Postgres waits before force-switching to a new
+  # WAL segment, bounding how much data an interruption could lose (PITR still
+  # recovers up to the last archived WAL record, not just the last base backup).
+  archiveTimeoutSeconds: 60
+  # S3-compatible bucket/prefix wal-g archives WAL segments and base backups to.
+  s3Prefix: ""
+  # Secret must provide keys: aws-access-key-id, aws-secret-access-key.
+  # Provision out-of-band (`kubectl create secret generic ... --from-literal=...`)
+  # — never commit real credentials to this chart.
+  existingSecretName: ""
+  # Image providing the `kubectl` CLI for the backup CronJob's exec-trigger container.
+  kubectlImage: "bitnami/kubectl:1.31"
+
+# ------------------------------------------------------------------------------
 # Secrets
 # ------------------------------------------------------------------------------
 # In production, create these secrets out-of-band and set `existingSecretName`.

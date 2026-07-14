@@ -69,11 +69,39 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml \
 
 ---
 
+## `restore_pg_pitr.sh`
+
+Point-in-time restore drill/procedure for the production Postgres data plane
+(p16-c008), using `wal-g` base backups + continuously archived WAL. **Must be
+run by an operator, not automatically** — it stops the running `db` container,
+replaces its data directory with a restored backup, and starts Postgres in
+recovery mode. See `docs/runbook.md` §13.4 for the full architecture and
+§13.4.3 for the drill requirement and results log.
+
+```bash
+# Restore to the latest available backup (prompts for confirmation)
+./scripts/restore_pg_pitr.sh --latest
+
+# Restore to a specific point in time
+./scripts/restore_pg_pitr.sh --target-time '2026-07-14 03:00:00+00'
+
+# Skip the confirmation prompt (CI / scripted drills only — never in a real incident)
+./scripts/restore_pg_pitr.sh --latest --yes
+```
+
+**Prerequisites:** `wal-g` S3 credentials provisioned (`docs/runbook.md`
+§13.4.2), the `db`/`backup` services already running via
+`docker-compose.prod.yml`.
+
+---
+
 ## `rotate_staging_jwt.sh`
 
-Rotates the `STAGING_JWT_SECRET` GitHub Actions secret used by the staging
-environment. It also updates `secrets/jwt_secret.txt` locally so
-`mint_smoke_token.sh` can produce tokens signed with the same key.
+Rotates the `staging` GitHub Environment's `JWT_SECRET` secret (p16-c008:
+renamed from the repo-level `STAGING_JWT_SECRET` so the same secret name works
+per-Environment for both `staging` and `production` — see
+`docs/runbook.md` §9.1/§13). It also updates `secrets/jwt_secret.txt` locally
+so `mint_smoke_token.sh` can produce tokens signed with the same key.
 
 ```bash
 # Rotate the staging JWT secret (requires gh CLI to be authenticated)
@@ -89,7 +117,7 @@ environment. It also updates `secrets/jwt_secret.txt` locally so
 |---|---|
 | 1 | Generates a fresh 32-byte hex random JWT signing key |
 | 2 | Writes it to `secrets/jwt_secret.txt` with `chmod 600` |
-| 3 | Runs `gh secret set STAGING_JWT_SECRET` to update the GitHub secret |
+| 3 | Runs `gh secret set JWT_SECRET --env staging` to update the GitHub secret |
 
 **Prerequisites:** `gh` CLI installed and authenticated with push access to the
 repository.

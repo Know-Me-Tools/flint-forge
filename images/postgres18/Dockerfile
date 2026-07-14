@@ -103,8 +103,23 @@ RUN make PG_CONFIG=$(which pg_config) && make install DESTDIR=/out PG_CONFIG=$(w
 # ─────────────────────────────────── Stage: runtime ─────────────────────────────────────
 FROM postgres:18
 RUN apt-get update \
- && apt-get install -y --no-install-recommends postgresql-18-pgvector libcurl4 \
+ && apt-get install -y --no-install-recommends postgresql-18-pgvector libcurl4 curl \
  && rm -rf /var/lib/apt/lists/*
+
+# p16-c008: wal-g — continuous WAL archiving + base backups to S3-compatible storage
+# for point-in-time recovery (see docs/runbook.md §13.4). Pinned release + checksum,
+# matching the version-pinning convention used for pgvector/pg_graphql above.
+# Built against Ubuntu 22.04 (glibc 2.35) rather than 24.04 (glibc 2.39) because
+# Debian bookworm (this image's base) ships glibc 2.36 — the 22.04 build is the
+# closest ABI match that is guaranteed to run.
+ARG WALG_VERSION=v3.0.8
+ARG WALG_SHA256=b0df1b484035eb5f131db7bbd303d1a460391848fdcce34ba1e0a564cca493e9
+RUN curl -fsSL -o /tmp/wal-g.tar.gz \
+      "https://github.com/wal-g/wal-g/releases/download/${WALG_VERSION}/wal-g-pg-22.04-amd64.tar.gz" \
+ && echo "${WALG_SHA256}  /tmp/wal-g.tar.gz" | sha256sum -c - \
+ && tar -xzf /tmp/wal-g.tar.gz -C /tmp \
+ && install -m 0755 /tmp/wal-g-pg-22.04-amd64 /usr/local/bin/wal-g \
+ && rm -f /tmp/wal-g.tar.gz /tmp/wal-g-pg-22.04-amd64
 
 # Compiled extensions from the builder stages.
 COPY --from=anvil /out/ /
@@ -120,5 +135,21 @@ COPY images/postgres18/init/01-extensions.sql      /docker-entrypoint-initdb.d/0
 COPY images/postgres18/init/02-grants.sql          /docker-entrypoint-initdb.d/02-grants.sql
 COPY images/postgres18/init-baseline/99-assert.sql /docker-entrypoint-initdb.d/99-assert.sql
 
+# p16-c008: translates wal-g S3 Docker secrets into env vars, then execs the
+# official postgres entrypoint unchanged (no-op if the secrets aren't mounted
+# — see docs/runbook.md §13.4).
+COPY images/postgres18/entrypoint-walg.sh /usr/local/bin/entrypoint-walg.sh
+RUN chmod +x /usr/local/bin/entrypoint-walg.sh
+ENTRYPOINT ["entrypoint-walg.sh"]
+
+# p16-c008: periodic wal-g base-backup loop — used only by the `backup`
+# service in docker-compose.prod.yml (that service overrides `entrypoint:` to
+# run this script directly instead of Postgres itself; it shares this same
+# image purely so wal-g is already present, not to run a second Postgres).
+COPY images/postgres18/backup-loop.sh /usr/local/bin/backup-loop.sh
+RUN chmod +x /usr/local/bin/backup-loop.sh
+
 # pg_net, pg_cron and flint_llm register background workers → must be preloaded.
+# Production (docker-compose.prod.yml) overrides `command:` to additionally set
+# archive_mode/archive_command for wal-g continuous WAL archiving.
 CMD ["postgres", "-c", "wal_level=logical", "-c", "shared_preload_libraries=pg_net,pg_cron,flint_llm", "-c", "cron.database_name=flint"]

@@ -26,6 +26,19 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres
+          {{- if .Values.backup.enabled }}
+          # p16-c008: continuous WAL archiving via wal-g. archive_command runs
+          # as postgres's own subprocess, so no extra container/volume needed
+          # here — only the periodic base backup (backup-cronjob.yaml) needs
+          # `kubectl exec` into this pod.
+          args:
+            - "-c"
+            - "archive_mode=on"
+            - "-c"
+            - "archive_command=wal-g wal-push %p"
+            - "-c"
+            - "archive_timeout={{ .Values.backup.archiveTimeoutSeconds }}"
+          {{- end }}
           env:
             - name: POSTGRES_USER
               value: {{ .Values.postgres.user | quote }}
@@ -33,6 +46,20 @@ spec:
               value: {{ .Values.postgres.password | quote }}
             - name: POSTGRES_DB
               value: {{ .Values.postgres.database | quote }}
+            {{- if .Values.backup.enabled }}
+            - name: WALG_S3_PREFIX
+              value: {{ .Values.backup.s3Prefix | quote }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backup.existingSecretName }}
+                  key: aws-access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backup.existingSecretName }}
+                  key: aws-secret-access-key
+            {{- end }}
           resources:
             {{- toYaml .Values.postgres.resources | nindent 12 }}
           volumeMounts:

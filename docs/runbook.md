@@ -755,20 +755,32 @@ docker compose exec db psql -U flint -d flint \
 
 ### 9.1 GitHub Actions secrets required
 
-The `.github/workflows/deploy.yml` workflow reads the following repository/environment secrets.
-Add them under **Settings → Secrets and variables → Actions → Environment secrets** for the
-`staging` environment.
+The `.github/workflows/deploy.yml` workflow reads the following **Environment secrets** —
+add them under **Settings → Environments → staging → Environment secrets** (not repository
+secrets: `deploy.yml`'s job sets `environment: ${{ inputs.environment }}`, so `staging` and
+`production` — see §13 — each define their own copies of the same secret names).
+
+> **p16-c008 migration note:** these secrets were previously named with a `STAGING_` prefix
+> (`STAGING_SSH_HOST`, etc.) as plain repository secrets. `deploy.yml` now reads the generic
+> names below, scoped per-Environment, so a `production` deploy target can reuse the same
+> workflow without ever-growing prefixes. **Before the next staging deploy runs**, rename (or
+> recreate) these secrets under the `staging` Environment using the names below — the old
+> `STAGING_*`-prefixed repository secrets are no longer read by the workflow.
 
 | Secret name | Description | Example value |
 |---|---|---|
-| `STAGING_SSH_HOST` | Hostname or IP of the staging server | `staging.example.com` |
-| `STAGING_SSH_USER` | SSH username on the staging server | `deploy` |
-| `STAGING_SSH_KEY` | Contents of the **private** SSH key (`id_ed25519`) whose public key is in the server's `~/.ssh/authorized_keys` | `-----BEGIN OPENSSH PRIVATE KEY-----…` |
-| `STAGING_JWT_SECRET` | The raw HS256 signing key (content of secrets/jwt_secret.txt on the staging host). Used by mint_smoke_token.sh to generate fresh 1-hour JWTs before each smoke test run. | *(run rotate_secrets.sh on staging, then copy secrets/jwt_secret.txt content)* |
-| `STAGING_BASE_URL` | Public HTTPS base URL of the staging stack — used by the k6 performance regression job | `https://forge.example.com` |
+| `SSH_HOST` | Hostname or IP of the target server | `staging.example.com` |
+| `SSH_USER` | SSH username on the target server | `deploy` |
+| `SSH_KEY` | Contents of the **private** SSH key (`id_ed25519`) whose public key is in the server's `~/.ssh/authorized_keys` | `-----BEGIN OPENSSH PRIVATE KEY-----…` |
+| `JWT_SECRET` | The raw HS256 signing key (content of `secrets/jwt_secret.txt` on the target host). Used by `mint_smoke_token.sh` to generate fresh 1-hour JWTs before each smoke test run. | *(run `rotate_secrets.sh` on the host, then copy `secrets/jwt_secret.txt` content)* |
 
-> **Security note:** `STAGING_SSH_KEY` must be a **dedicated deploy key** — never reuse a
-> personal key. Rotate it quarterly or immediately after any team member departure.
+> **Security note:** `SSH_KEY` must be a **dedicated deploy key** — never reuse a
+> personal key. Rotate it quarterly or immediately after any team member departure. Use a
+> **different** deploy key per environment (staging's key must not also work on production).
+
+Separately, `STAGING_BASE_URL` (a **repository** secret, not Environment-scoped — used by
+`.github/workflows/ci.yml`'s `performance` job, not `deploy.yml`) is unaffected by this
+change and keeps its existing `STAGING_`-prefixed name.
 
 ### 9.2 Triggering a deploy
 
@@ -1064,9 +1076,10 @@ static bearer token that remains valid indefinitely.
 ### 12.1 Overview
 
 `scripts/rotate_staging_jwt.sh` rotates the raw HS256 signing key stored in the
-`STAGING_JWT_SECRET` GitHub Actions secret. It also writes the same key locally
-to `secrets/jwt_secret.txt` so operators can mint smoke tokens on the staging
-host during troubleshooting.
+`staging` GitHub Environment's `JWT_SECRET` secret (p16-c008: renamed from the
+repo-level `STAGING_JWT_SECRET` — see §9.1/§13). It also writes the same key
+locally to `secrets/jwt_secret.txt` so operators can mint smoke tokens on the
+staging host during troubleshooting.
 
 The script is intended to be run manually when:
 
@@ -1098,7 +1111,7 @@ The script performs the following steps:
 
 1. Generates a new 32-byte hex random string with `openssl rand -hex 32`.
 2. Writes it to `secrets/jwt_secret.txt` with `chmod 600`.
-3. Updates `STAGING_JWT_SECRET` via `gh secret set STAGING_JWT_SECRET`.
+3. Updates the `staging` Environment's `JWT_SECRET` via `gh secret set JWT_SECRET --env staging`.
 
 ### 12.4 Applying the new key
 
@@ -1119,15 +1132,170 @@ BASE_URL=https://forge.example.com KILN_URL=http://localhost:8090 \
 
 ### 12.5 Rollback
 
-If the rotation breaks staging, restore the previous value of `STAGING_JWT_SECRET`
-from a secure backup and re-run the stack restart. Because old tokens are signed
-with the previous key, they will validate again once the gateway is using that key.
+If the rotation breaks staging, restore the previous value of the `staging`
+Environment's `JWT_SECRET` from a secure backup and re-run the stack restart.
+Because old tokens are signed with the previous key, they will validate again
+once the gateway is using that key.
 
 ### 12.6 Security notes
 
 - Never commit `secrets/jwt_secret.txt`; the directory is already gitignored.
 - Do not print the secret value in CI logs. The script passes it directly to `gh`
   and redacts it from output.
-- Treat `STAGING_JWT_SECRET` with the same access controls as production signing
-  keys; staging keys can mint tokens that exercise the same code paths.
+- Treat the `staging` Environment's `JWT_SECRET` with the same access controls
+  as production signing keys; staging keys can mint tokens that exercise the
+  same code paths.
+
+---
+
+## §13 — Production Deploy Setup (p16-c008)
+
+### 13.1 Overview
+
+`.github/workflows/deploy.yml` supports both `staging` and `production` as the
+`environment` input. The workflow itself is identical for both — what differs
+is which GitHub Environment's secrets it reads (`SSH_HOST`/`SSH_USER`/
+`SSH_KEY`/`JWT_SECRET`, per §9.1) and which compose overlay it layers on top of
+the base `docker-compose.yml` (`docker-compose.staging.yml` vs
+`docker-compose.prod.yml`).
+
+**This setup requires a human operator with GitHub repo admin access — it
+cannot be completed by an agent.** The steps below are the one-time setup;
+after that, triggering a deploy is the same `Actions → Deploy → Run workflow`
+flow already used for staging (§9.2), just with `production` selected.
+
+### 13.2 One-time setup (operator, GitHub repo admin)
+
+1. **Create the `production` GitHub Environment.** Repo → **Settings →
+   Environments → New environment** → name it exactly `production`.
+2. **Add required reviewers.** On the `production` environment's configuration
+   page, enable **Required reviewers** and add at least one person (not the
+   person triggering the deploy, if your policy requires separation of
+   duties). This is what makes `production` deploys pause for human approval
+   — `staging` should NOT have this restriction, so routine staging deploys
+   stay fast.
+3. **(Optional) Restrict deployment branches** to `main` only, so a
+   production deploy can't accidentally run from a feature branch.
+4. **Add the `production` Environment's secrets** (Settings → Environments →
+   production → Environment secrets) — see §9.1 for the secret names
+   (`SSH_HOST`, `SSH_USER`, `SSH_KEY`, `JWT_SECRET`). These are **separate
+   values from staging's** — provision a dedicated production SSH deploy key
+   and a dedicated production JWT signing secret. Do not reuse staging's.
+5. **If `staging`'s secrets are still under the old `STAGING_`-prefixed
+   repository-secret names**, migrate them to the `staging` Environment under
+   the new generic names now too (§9.1) — both environments should follow the
+   same pattern.
+6. **Provision the production host's Docker secrets** (separate from the
+   GitHub Actions secrets above): run `scripts/rotate_secrets.sh` directly on
+   the production host to generate `secrets/jwt_secret.txt`,
+   `secrets/postgres_password.txt`, and `secrets/caddy_tls_email.txt` — these
+   are what `docker-compose.prod.yml`'s `secrets:` block mounts into the
+   containers (§10.7). The `JWT_SECRET` GitHub Actions secret (step 4) and the
+   `secrets/jwt_secret.txt` file on the host should hold the **same** value,
+   since `mint_smoke_token.sh`'s tokens (signed with the GitHub secret) must
+   validate against `fdb-gateway`'s `FLINT_JWT_SECRET` (loaded from the host
+   file via the entrypoint script, §11).
+7. **Set `FLINT_DOMAIN`/`CADDY_TLS_EMAIL`** on the production host's `.env`
+   (§10.2) — required for `docker-compose.prod.yml`'s Caddy TLS termination.
+
+### 13.3 First production deploy (operator)
+
+Do not trigger the first production deploy the same way as a routine one.
+Recommended sequence:
+
+1. Confirm the host is reachable and has Docker + the pinned compose files
+   present (mirroring §9.3's manual-fallback steps, but for the production
+   host).
+2. Trigger `Actions → Deploy → Run workflow` with `environment: production`.
+3. The job will pause at the "Deploy to production" step awaiting the
+   required reviewer's approval (§13.2 step 2) — approve it from the Actions
+   run page.
+4. Watch the run through to the smoke-test step. If smoke tests fail, the
+   workflow exits non-zero and the stack is left in whatever partial state
+   `docker compose up -d` produced — do not treat a failed first deploy as
+   safe to ignore; investigate via SSH before retrying.
+5. Record the outcome (date, commit SHA, reviewer, pass/fail) somewhere your
+   team tracks operational changes — this repo does not currently have an
+   automated deploy-history log beyond the GitHub Actions run history itself.
+
+### 13.4 Backups — automated `wal-g` PITR (see also §5 — Rollback Procedure)
+
+**Automation is implemented; the restore drill still has not been executed.**
+`docker-compose.prod.yml`'s Postgres container still carries the "prefer a
+managed database" caveat at its top, and that caveat stays until an operator
+completes 13.4.3 below — a backup that has never been restored is not a
+backup, only a hope.
+
+#### 13.4.1 Architecture
+
+Two independent, complementary mechanisms cover PITR:
+
+- **Continuous WAL archiving** — the `db` service's `command:` sets
+  `archive_mode=on` and `archive_command='wal-g wal-push %p'`
+  (`archive_timeout=60` bounds how long a quiet database can go between
+  archived segments). `wal-g` is baked into the production image
+  (`images/postgres18/Dockerfile`) at a pinned version with a checked SHA256.
+  `images/postgres18/entrypoint-walg.sh` (the image's `ENTRYPOINT`) translates
+  the `walg_s3_access_key`/`walg_s3_secret_key` Docker secrets into
+  `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` before starting Postgres, so
+  `archive_command` has credentials available when it fires.
+- **Periodic full base backups** — the `backup` service
+  (`docker-compose.prod.yml`) runs `images/postgres18/backup-loop.sh` in a
+  loop (`WALG_BACKUP_INTERVAL_SECS`, default daily), calling
+  `wal-g backup-push` against a read-only mount of the same `postgres_data`
+  volume while driving `pg_backup_start()`/`pg_backup_stop()` over a network
+  connection to `db`.
+
+Both mechanisms **no-op cleanly** (log a message, do nothing destructive) when
+the `walg_s3_access_key`/`walg_s3_secret_key` secret files aren't present —
+local dev, CI, and staging are unaffected by default.
+
+#### 13.4.2 Operator setup
+
+1. Provision an S3-compatible bucket (AWS S3, or any S3-API-compatible
+   provider) dedicated to this backup target.
+2. Write the access key and secret key to `secrets/walg_s3_access_key.txt` and
+   `secrets/walg_s3_secret_key.txt` on the production host (`chmod 600`,
+   matching the convention in `scripts/rotate_secrets.sh` — these two files
+   are **not** generated by that script since the values come from the
+   storage provider, not a local random generator).
+3. Set `WALG_S3_PREFIX` (e.g. `s3://flint-forge-backups/prod`) and, if your
+   provider requires it, `WALG_AWS_REGION` in the production host's `.env`.
+4. Restart the stack so `db` and `backup` pick up the new secrets/env:
+   `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d db backup`
+5. Confirm archiving is live:
+   `docker compose ... logs backup` should show `backup-loop: starting,
+   interval=...`, and `SELECT * FROM pg_stat_archiver;` on `db` should show
+   `archived_count` increasing and `last_failure` not advancing.
+
+#### 13.4.3 Restore drill (operator — required before the "staging only" caveat can be removed)
+
+Run `./scripts/restore_pg_pitr.sh --latest` (or `--target-time '<UTC timestamp>'`
+for a specific point in time) against a **non-production** copy of the stack
+first, then again against production during a planned maintenance window. The
+script stops `db`, fetches the base backup + replays WAL via `wal-g`, and
+prints verification steps. Record here once executed:
+
+| Date | Target | Verified by | Result |
+|---|---|---|---|
+| _(not yet run)_ | | | |
+
+Until a row exists in that table with a passing result, treat automated
+backups as **unverified** — the mechanism running is not the same claim as
+the mechanism working.
+
+### 13.5 LLM background worker default
+
+`llm.enable_background_worker` (a Postgres `shared_preload_libraries` +
+postmaster-context GUC in `ext-flint-llm`) defaults to **disabled** — LLM
+calls run synchronously. This was a deliberate decision, not an oversight:
+enabling it means every deployment runs an additional persistent background
+worker process, requires `shared_preload_libraries` to be configured
+correctly at postmaster start (a restart to toggle), and adds an operational
+surface (the worker's own health/monitoring) that isn't justified until there
+is an actual need for async LLM job processing. Operators who need async
+processing (e.g., long-running embedding batch jobs that shouldn't block a
+request) should explicitly opt in by setting `llm.enable_background_worker =
+on` in their Postgres configuration and ensuring the extension is listed in
+`shared_preload_libraries`.
 

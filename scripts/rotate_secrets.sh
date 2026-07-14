@@ -6,9 +6,18 @@
 #   ./scripts/rotate_secrets.sh --dry-run    # show what would be written without writing
 #
 # What it creates (in secrets/):
-#   jwt_secret.txt          — 32-byte hex random string for JWT signing
-#   postgres_password.txt   — 16-byte hex random string for PostgreSQL
-#   caddy_tls_email.txt     — reads CADDY_TLS_EMAIL from env (or prompts if unset)
+#   jwt_secret.txt              — 32-byte hex random string for JWT signing
+#   postgres_password.txt       — 16-byte hex random string for PostgreSQL
+#   caddy_tls_email.txt         — reads CADDY_TLS_EMAIL from env (or prompts if unset)
+#   walg_s3_access_key.txt      — reads WALG_S3_ACCESS_KEY from env (optional — see below)
+#   walg_s3_secret_key.txt      — reads WALG_S3_SECRET_KEY from env (optional — see below)
+#
+# The wal-g secrets are OPTIONAL (unlike the three above, which are always
+# written): if WALG_S3_ACCESS_KEY/WALG_S3_SECRET_KEY aren't set in the
+# environment, this script skips them entirely rather than prompting — an
+# operator who hasn't provisioned backup storage yet can still rotate the
+# other secrets. `db`'s entrypoint and the `backup` service both no-op
+# cleanly without these files (docs/runbook.md §13.4).
 #
 # After rotation, restart the affected services:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d db fdb-gateway fke-server caddy
@@ -82,6 +91,17 @@ else
     fi
 fi
 write_secret "${SECRETS_DIR}/caddy_tls_email.txt" "$TLS_EMAIL"
+
+# ── wal-g S3 credentials (optional — p16-c008) ────────────────────────────────
+echo ""
+if [[ -n "${WALG_S3_ACCESS_KEY:-}" && -n "${WALG_S3_SECRET_KEY:-}" ]]; then
+    echo "wal-g S3 credentials (walg_s3_access_key.txt / walg_s3_secret_key.txt):"
+    write_secret "${SECRETS_DIR}/walg_s3_access_key.txt" "$WALG_S3_ACCESS_KEY"
+    write_secret "${SECRETS_DIR}/walg_s3_secret_key.txt" "$WALG_S3_SECRET_KEY"
+else
+    echo "wal-g S3 credentials: WALG_S3_ACCESS_KEY/WALG_S3_SECRET_KEY not set — skipping."
+    echo "  (Backups stay disabled until these are provisioned — see docs/runbook.md §13.4.)"
+fi
 
 # ── .env update ───────────────────────────────────────────────────────────────
 echo ""
