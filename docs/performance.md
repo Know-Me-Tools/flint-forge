@@ -4,20 +4,26 @@
 
 Run: `cargo bench --workspace`
 
+> **Status: local measurement — p16-c006.** Measured via `cargo bench -p
+> fdb-reflection` / `cargo bench -p fdb-app` (100 samples each, criterion
+> default). Median/P95 computed from the raw per-iteration sample data in
+> `target/criterion/*/new/sample.json`. Re-measure on CI/release hardware if
+> these numbers are used for capacity planning.
+
 ### McpCompiler::compile()
 
-| Tables | Median | P95    | Notes                                   |
-|--------|--------|--------|-----------------------------------------|
-| 10     | TBD    | TBD    | Run `cargo bench -p fdb-reflection`     |
-| 25     | TBD    | TBD    | —                                       |
-| 50     | TBD    | TBD    | —                                       |
-| 100    | TBD    | TBD    | —                                       |
+| Tables | Median   | P95      | Notes                                |
+|--------|----------|----------|----------------------------------------|
+| 10     | 930 µs   | 1.17 ms  | `cargo bench -p fdb-reflection`      |
+| 25     | 2.15 ms  | 2.87 ms  | —                                     |
+| 50     | 6.40 ms  | 12.07 ms | —                                     |
+| 100    | 12.83 ms | 17.52 ms | —                                     |
 
 ### parse_design_md()
 
-| Input              | Median | P95 | Notes                              |
-|--------------------|--------|-----|------------------------------------|
-| 9-section DESIGN.md | TBD   | TBD | Run `cargo bench -p fdb-app`       |
+| Input                | Median   | P95      | Notes                        |
+|-----------------------|----------|----------|--------------------------------|
+| 9-section DESIGN.md   | 28.07 µs | 35.87 µs | `cargo bench -p fdb-app`     |
 
 ---
 
