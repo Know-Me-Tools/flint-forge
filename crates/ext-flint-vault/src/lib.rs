@@ -418,6 +418,33 @@ BEGIN
 END;
 $$;
 
+-- Kiln-facing gated reveal path (§4.4 / flint:host/secrets.reveal). The Rust-side
+-- Cedar check (kiln:capability:secrets + a per-secret grant) happens BEFORE this
+-- function is ever called — see fke-runtime's `secrets::HostSecret::reveal`. This
+-- function trusts that decision and only decrypts + audits; it does not re-evaluate
+-- Cedar itself (Postgres has no Cedar evaluator). Distinct from get_secret/
+-- resolve_api_key, which are internal-only and never reachable from a WASM
+-- component even indirectly.
+CREATE FUNCTION vault.reveal_for_kiln(want_name text, publisher_did text, want_scope text DEFAULT NULL)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = vault, public AS $$
+DECLARE r vault.secrets; out text;
+BEGIN
+    SELECT * INTO r FROM vault.secrets
+        WHERE name = want_name AND COALESCE(scope, '') = COALESCE(want_scope, '')
+        LIMIT 1;
+    IF r.id IS NULL THEN
+        INSERT INTO vault.access_log (action, allowed, detail)
+            VALUES ('reveal', false, 'kiln:' || publisher_did || ' no secret named ' || want_name);
+        RAISE EXCEPTION 'flint_vault: no secret named %', want_name;
+    END IF;
+    out := vault._vault_decrypt(r.secret, r.id, r.key_id, r.category::text, r.nonce);
+    INSERT INTO vault.access_log (action, secret_id, detail)
+        VALUES ('reveal', r.id, 'kiln:' || publisher_did);
+    RETURN out;
+END;
+$$;
+
 -- ---- Lockdown: no plaintext, no primitives, no key to PUBLIC. ----
 REVOKE ALL ON ALL TABLES    IN SCHEMA vault FROM PUBLIC;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA vault FROM PUBLIC;
@@ -437,6 +464,24 @@ GRANT USAGE ON SCHEMA vault TO flint_secret_reader;
 GRANT EXECUTE ON FUNCTION vault.get_secret(text, text)      TO flint_secret_reader;
 GRANT EXECUTE ON FUNCTION vault.resolve_api_key(text, text) TO flint_secret_reader;
 GRANT flint_secret_reader TO flint_llm_worker;  -- flint_llm is one consumer among many
+
+-- Kiln worker role: the ONLY role that may call the gated reveal path. Deliberately
+-- NOT granted flint_secret_reader membership — Kiln components never get get_secret/
+-- resolve_api_key, only the audited, Cedar-fronted reveal_for_kiln.
+--
+-- NOTE: fke-server's Kiln invocation connections currently run as whichever role
+-- the invocation's RlsContext carries (the caller's own role for direct HTTP calls,
+-- or "kiln_publisher" for BGW-triggered calls per kiln_bgw.rs — a role that, as of
+-- this migration, no `CREATE ROLE` statement anywhere in this repo actually creates).
+-- `GRANT flint_kiln_worker TO <that role>;` still needs to land wherever that role
+-- is eventually created for `vault.reveal_for_kiln` to be reachable end-to-end.
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'flint_kiln_worker') THEN
+        CREATE ROLE flint_kiln_worker NOLOGIN;
+    END IF;
+END $$;
+GRANT USAGE ON SCHEMA vault TO flint_kiln_worker;
+GRANT EXECUTE ON FUNCTION vault.reveal_for_kiln(text, text, text) TO flint_kiln_worker;
 
 -- Writes go through a trusted host (flint-gate/Tauri/Axum) running as this role;
 -- statement logging MUST be disabled on that path (plaintext is a function argument).

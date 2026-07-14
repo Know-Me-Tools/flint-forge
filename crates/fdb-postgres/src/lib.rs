@@ -105,6 +105,72 @@ impl DatabaseBackend for PgBackend {
 
         Ok(Conn(Box::new(PgConn::new(object))))
     }
+
+    /// Run `sql` under RLS wrapped as `WITH __flint_kiln_query AS (sql)
+    /// SELECT to_jsonb(t) FROM __flint_kiln_query t` — the CTE form accepts
+    /// both a plain `SELECT` and a DML statement with `RETURNING`, and lets
+    /// Postgres's own `to_jsonb` do universal per-column type conversion
+    /// instead of a lossy Rust-side type dispatch (see `PgRest::execute`'s
+    /// text-only column projection, which this deliberately does not reuse —
+    /// arbitrary Kiln SQL isn't limited to text-castable columns).
+    ///
+    /// `params[i]` binds to `$(i+1)` via [`AnyText`]: JSON strings bind their
+    /// unwrapped content, JSON `null` binds SQL `NULL`, and anything else
+    /// (numbers, bools, arrays, objects) binds its original JSON text
+    /// verbatim — valid input-function text for the target type either way.
+    #[instrument(skip(self, rls, params), fields(role = %rls.role), err)]
+    async fn query_json(
+        &self,
+        rls: &RlsContext,
+        sql: &str,
+        params: &[String],
+    ) -> Result<Vec<String>, BackendError> {
+        let conn = self.acquire(rls).await?;
+        let pg_conn = PgConn::from_conn(&conn)
+            .ok_or_else(|| BackendError::Internal("unexpected conn type in PgBackend".into()))?;
+
+        let owned: Vec<Option<AnyText>> = params.iter().map(|p| json_param_to_bind(p)).collect();
+        let binds: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = owned
+            .iter()
+            .map(|b| match b {
+                Some(a) => a as &(dyn tokio_postgres::types::ToSql + Sync),
+                None => &Option::<String>::None,
+            })
+            .collect();
+
+        let wrapped =
+            format!("WITH __flint_kiln_query AS ({sql}) SELECT to_jsonb(t) FROM __flint_kiln_query t");
+        let rows = pg_conn
+            .inner
+            .query(&wrapped, &binds)
+            .await
+            .map_err(|e| BackendError::Query(format!("kiln query_json: {e}")))?;
+
+        rows.iter()
+            .map(|row| {
+                let value: serde_json::Value = row
+                    .try_get(0)
+                    .map_err(|e| BackendError::Internal(format!("kiln query_json row: {e}")))?;
+                Ok(value.to_string())
+            })
+            .collect()
+    }
+}
+
+/// Decode a `flint:host/db` JSON-encoded parameter into an [`AnyText`] bind
+/// value, or `None` for SQL `NULL` (JSON `null`).
+///
+/// Non-string JSON values (numbers, bools, arrays, objects) bind their
+/// original JSON text verbatim — valid Postgres input-function text for both
+/// scalar and `jsonb`-typed target columns. Malformed JSON is treated as a
+/// literal string rather than rejected outright — the WIT contract always
+/// JSON-encodes on the guest side, so this only matters defensively.
+fn json_param_to_bind(raw: &str) -> Option<AnyText> {
+    match serde_json::from_str::<serde_json::Value>(raw) {
+        Ok(serde_json::Value::Null) => None,
+        Ok(serde_json::Value::String(s)) => Some(AnyText(s)),
+        _ => Some(AnyText(raw.to_owned())),
+    }
 }
 
 /// GraphQL executor that delegates to `pg_graphql`'s `graphql.resolve()` function.

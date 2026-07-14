@@ -19,6 +19,22 @@ pub enum Capability {
     HttpOutgoing,
 }
 
+impl Capability {
+    /// Lowercase identifier used to build the Cedar action name
+    /// `kiln:capability:<name>` (see `forge_policy::kiln::capability_action`).
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Capability::Db => "db",
+            Capability::Llm => "llm",
+            Capability::Kv => "kv",
+            Capability::Identity => "identity",
+            Capability::Secrets => "secrets",
+            Capability::HttpOutgoing => "http_outgoing",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum CompilationStrategy {
@@ -44,4 +60,28 @@ pub struct FunctionManifest {
     pub version: String,
     pub not_before: String,
     pub not_after: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn capability_as_str_is_distinct_per_variant() {
+        let names: Vec<&str> = [
+            Capability::Db,
+            Capability::Llm,
+            Capability::Kv,
+            Capability::Identity,
+            Capability::Secrets,
+            Capability::HttpOutgoing,
+        ]
+        .iter()
+        .map(Capability::as_str)
+        .collect();
+        let mut sorted = names.clone();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(sorted.len(), names.len(), "capability names must be unique");
+    }
 }

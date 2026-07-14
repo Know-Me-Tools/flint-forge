@@ -2168,6 +2168,7 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "fdb-ports",
  "fke-domain",
  "fke-ports",
  "forge-identity",
@@ -2175,6 +2176,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "metrics",
+ "serde_json",
  "tokio",
  "tracing",
  "wasmtime",
