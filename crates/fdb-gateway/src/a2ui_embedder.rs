@@ -101,6 +101,13 @@ async fn reconnect(pool: &PgPool) -> Option<sqlx::postgres::PgListener> {
 }
 
 /// Embed all components that do not yet have an `aspect = 'description'` embedding.
+///
+/// # Errors
+///
+/// Returns `sqlx::Error` if the initial query listing unembedded components
+/// fails (e.g. pool exhaustion or a lost connection). Per-component embedding
+/// failures inside the backfill loop are logged and skipped rather than
+/// propagated, so a single bad component cannot abort the whole backfill.
 #[instrument(skip(pool))]
 pub async fn backfill_missing(pool: &PgPool) -> Result<(), sqlx::Error> {
     let rows: Vec<(uuid::Uuid,)> = sqlx::query_as(

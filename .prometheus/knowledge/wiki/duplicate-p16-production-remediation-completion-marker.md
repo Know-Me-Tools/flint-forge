@@ -11,14 +11,14 @@ tags:
 links:
 - executor-completion-marker-p16-production-remediation-unknown-change
 - executor-completion-marker-p16-production-remediation
+- duplicate-p16-production-remediation-completion-marker
 - p16-production-remediation-executor-completion-marker
 - executor-completion-duplicate-p16-production-remediation-unknown-change
-- duplicate-p16-production-remediation-executor-completion-marker
 sources:
 - stdin
-timestamp: 2026-07-14T20:33:01.261821+00:00
-created_at: 2026-07-14T20:33:01.261740+00:00
-updated_at: 2026-07-14T20:33:01.261821+00:00
+timestamp: 2026-07-14T21:51:44.365072+00:00
+created_at: 2026-07-14T21:51:44.364973+00:00
+updated_at: 2026-07-14T21:51:44.365072+00:00
 revision: 1
 ---
 
@@ -30,7 +30,7 @@ revision: 1
 
 ## Record Interpretation
 
-Source contains only a minimal executor completion marker:
+The raw source contains only a minimal completion marker:
 
 ```text
 executor session complete | phase: p16-production-remediation | change: unknown
@@ -38,8 +38,8 @@ executor session complete | phase: p16-production-remediation | change: unknown
 
 No implementation details, diffs, validation output, test results, deployment evidence, or follow-up actions were provided.
 
-Treat this entry as a phase-tracking record only until corroborating artifacts are available. It duplicates or overlaps existing records for the same phase, including [Executor Completion Marker: p16-production-remediation Unknown Change](/executor-completion-marker-p16-production-remediation-unknown-change.md), [Executor Completion Marker: p16 Production Remediation](/executor-completion-marker-p16-production-remediation.md), [p16-production-remediation Executor Completion Marker](/p16-production-remediation-executor-completion-marker.md), [Executor Completion Duplicate: p16 Production Remediation Unknown Change](/executor-completion-duplicate-p16-production-remediation-unknown-change.md), and [Duplicate p16-production-remediation Executor Completion Marker](/duplicate-p16-production-remediation-executor-completion-marker.md).
+Treat this as a phase-tracking record only until corroborating artifacts are available. This entry duplicates or overlaps existing records for the same phase, including [Executor Completion Marker: p16-production-remediation Unknown Change](/executor-completion-marker-p16-production-remediation-unknown-change.md), [Executor Completion Marker: p16 Production Remediation](/executor-completion-marker-p16-production-remediation.md), [Duplicate p16-production-remediation Completion Marker](/duplicate-p16-production-remediation-completion-marker.md), [p16-production-remediation Executor Completion Marker](/p16-production-remediation-executor-completion-marker.md), and [Executor Completion Duplicate: p16 Production Remediation Unknown Change](/executor-completion-duplicate-p16-production-remediation-unknown-change.md).
 
 # Citations
 
-1. stdin
+1. [1] stdin
