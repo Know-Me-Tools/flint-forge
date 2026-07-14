@@ -1,6 +1,8 @@
 # Update Log
 
 ## 2026-07-14
+* **Creation**: [Duplicate p16-production-remediation Completion Marker](/duplicate-p16-production-remediation-completion-marker.md)
+* **Creation**: [Executor Progress Record: p16-production-remediation 8 of 9](/executor-progress-record-p16-production-remediation-8-of-9.md)
 * **Creation**: [Duplicate p16 Production Remediation Completion Marker](/duplicate-p16-production-remediation-completion-marker.md)
 * **Creation**: [Executor Progress Record: p16-production-remediation 7 of 9 (21:51Z)](/executor-progress-record-p16-production-remediation-7-of-9-21-51z.md)
 * **Creation**: [Executor Progress Record: p16-production-remediation 7 of 9 (21:51Z)](/executor-progress-record-p16-production-remediation-7-of-9-21-51z.md)
