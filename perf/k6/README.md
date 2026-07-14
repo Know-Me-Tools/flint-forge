@@ -14,7 +14,8 @@ brew install k6   # macOS
 | `health.js` | `GET /healthz` | none | < 50 ms | Unauthenticated; fast in-memory response |
 | `components.js` | `GET /a2ui/v1/components` | Bearer | < 100 ms | DB-backed component list |
 | `mcp_tools.js` | `GET /mcp/v1/tools` | Bearer | < 100 ms | In-memory compiled MCP doc |
-| `regression.js` | All three above | Bearer | see below | **Regression gate** — fails on threshold breach |
+| `graphql.js` | `POST /graphql` | Bearer | < 100 ms | `componentsCollection` query, pg_graphql passthrough |
+| `regression.js` | All three REST endpoints above | Bearer | see below | **Regression gate** — fails on threshold breach |
 
 ---
 
@@ -27,6 +28,7 @@ BASE_URL=http://localhost:8080 k6 run perf/k6/health.js
 # Authenticated endpoints
 BASE_URL=http://localhost:8080 TOKEN=<jwt> k6 run perf/k6/components.js
 BASE_URL=http://localhost:8080 TOKEN=<jwt> k6 run perf/k6/mcp_tools.js
+BASE_URL=http://localhost:8080 TOKEN=<jwt> k6 run perf/k6/graphql.js
 ```
 
 `TOKEN` is a valid JWT for the running Quarry instance. `BASE_URL` defaults to
