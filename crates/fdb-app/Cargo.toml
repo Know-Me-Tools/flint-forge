@@ -22,7 +22,7 @@ futures = { workspace = true }
 workspace = true
 
 [dev-dependencies]
-sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-native-tls", "json"] }
+sqlx = { version = "0.9", features = ["postgres", "runtime-tokio", "tls-native-tls", "json"] }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }

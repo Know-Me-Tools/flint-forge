@@ -105,7 +105,9 @@ fn typed_model(schema: &str) -> DatabaseModel {
 const EXT_ID: &str = "11111111-1111-1111-1111-111111111111";
 
 async fn setup(pool: &sqlx::PgPool, schema: &str) {
-    sqlx::raw_sql(&format!(
+    // SAFETY: `schema` is always a hardcoded literal passed by each test
+    // function below (e.g. "typed_it_where"), never external input.
+    sqlx::raw_sql(sqlx::AssertSqlSafe(format!(
         "DROP SCHEMA IF EXISTS {schema} CASCADE; \
          CREATE SCHEMA {schema}; \
          CREATE TABLE {schema}.customers (id int4 PRIMARY KEY, name text); \
@@ -117,17 +119,20 @@ async fn setup(pool: &sqlx::PgPool, schema: &str) {
          INSERT INTO {schema}.orders VALUES \
              (10, 1, 50, false, '{EXT_ID}'), \
              (11, 1, 150, true, '{EXT_ID}');"
-    ))
+    )))
     .execute(pool)
     .await
     .expect("ephemeral schema");
 }
 
 async fn teardown(pool: &sqlx::PgPool, schema: &str) {
-    sqlx::raw_sql(&format!("DROP SCHEMA {schema} CASCADE;"))
-        .execute(pool)
-        .await
-        .expect("cleanup");
+    // SAFETY: `schema` is always a hardcoded literal — see `setup` above.
+    sqlx::raw_sql(sqlx::AssertSqlSafe(format!(
+        "DROP SCHEMA {schema} CASCADE;"
+    )))
+    .execute(pool)
+    .await
+    .expect("cleanup");
 }
 
 fn params(pairs: &[(&str, &str)]) -> HashMap<String, String> {
@@ -161,7 +166,10 @@ async fn where_filter_against_int8_and_bool_columns() {
     );
 
     let sql = format!("SELECT id FROM {schema}.orders {}", wc.sql);
-    let mut q = sqlx::query(&sql);
+    // SAFETY: `schema` is a hardcoded literal; `wc.sql` is engine-rendered
+    // WHERE SQL with all values bound as `$n` (asserted above via casts, never
+    // interpolated).
+    let mut q = sqlx::query(sqlx::AssertSqlSafe(sql));
     for b in &wc.binds {
         q = bind_param(q, b);
     }
@@ -194,7 +202,9 @@ async fn where_filter_against_uuid_column() {
     );
 
     let sql = format!("SELECT count(*) AS n FROM {schema}.orders {}", wc.sql);
-    let mut q = sqlx::query(&sql);
+    // SAFETY: `schema` is a hardcoded literal; `wc.sql` is engine-rendered
+    // WHERE SQL with all values bound as `$n`, never interpolated.
+    let mut q = sqlx::query(sqlx::AssertSqlSafe(sql));
     for b in &wc.binds {
         q = bind_param(q, b);
     }
@@ -232,7 +242,9 @@ async fn patch_set_against_bool_and_int4_columns() {
     assert_eq!(wc.sql, "WHERE id = $2::integer");
 
     let sql = format!("UPDATE {schema}.orders SET {set_sql} {}", wc.sql);
-    let mut q = sqlx::query(&sql);
+    // SAFETY: `schema` is a hardcoded literal; `set_sql`/`wc.sql` are
+    // engine-rendered with all values bound as `$n`, never interpolated.
+    let mut q = sqlx::query(sqlx::AssertSqlSafe(sql));
     q = bind_mutation_value(q, &bind);
     for b in &wc.binds {
         q = bind_param(q, b);
@@ -240,10 +252,14 @@ async fn patch_set_against_bool_and_int4_columns() {
     let result = q.execute(&pool).await.expect("typed PATCH SET");
     assert_eq!(result.rows_affected(), 1);
 
-    let row = sqlx::query(&format!("SELECT active FROM {schema}.orders WHERE id = 10"))
-        .fetch_one(&pool)
-        .await
-        .expect("verify");
+    // SAFETY: `schema` is a hardcoded literal; the rest of the query is a
+    // fixed string literal with no interpolated values.
+    let row = sqlx::query(sqlx::AssertSqlSafe(format!(
+        "SELECT active FROM {schema}.orders WHERE id = 10"
+    )))
+    .fetch_one(&pool)
+    .await
+    .expect("verify");
     let active: bool = row.get("active");
     assert!(active, "order 10's active flag was flipped to true");
 
@@ -276,14 +292,17 @@ async fn embed_filter_against_typed_child_column() {
     );
 
     let mut conn = pool.acquire().await.expect("acquire");
-    sqlx::raw_sql(&format!("SET search_path TO {schema}"))
+    // SAFETY: `schema` is a hardcoded literal — see `setup` above.
+    sqlx::raw_sql(sqlx::AssertSqlSafe(format!("SET search_path TO {schema}")))
         .execute(&mut *conn)
         .await
         .expect("set search_path");
 
     let projection = projection.replacen('*', "customers.*", 1);
     let sql = format!("SELECT {projection} FROM customers customers");
-    let mut q = sqlx::query(&sql);
+    // SAFETY: `projection` is the engine's own rendered projection over a
+    // fixed test schema; all filter values are bound as `$n` via `params_out`.
+    let mut q = sqlx::query(sqlx::AssertSqlSafe(sql));
     for p in &params_out {
         q = bind_param(q, p);
     }

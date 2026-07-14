@@ -109,7 +109,9 @@ pub(super) async fn handle_insert(
         ph = placeholders.join(", "),
     );
 
-    let mut q = sqlx::query(&sql);
+    // SAFETY: `schema`, `table`, and every column above passed `is_safe_identifier`;
+    // all values are bound as `$n`, never interpolated.
+    let mut q = sqlx::query(sqlx::AssertSqlSafe(sql));
     for b in &binds {
         q = bind_mutation_value(q, b);
     }
@@ -180,7 +182,9 @@ pub(super) async fn handle_update(
         where_sql = where_clause.sql,
     );
 
-    let mut q = sqlx::query(&sql);
+    // SAFETY: `schema`, `table`, and every SET/filter column passed
+    // `is_safe_identifier`; all values are bound as `$n`, never interpolated.
+    let mut q = sqlx::query(sqlx::AssertSqlSafe(sql));
     for b in &binds {
         q = bind_mutation_value(q, b);
     }
@@ -231,7 +235,9 @@ pub(super) async fn handle_delete(
         where_sql = where_clause.sql,
     );
 
-    let mut q = sqlx::query(&sql);
+    // SAFETY: `schema`, `table`, and every filter column passed
+    // `is_safe_identifier`; all values are bound as `$n`, never interpolated.
+    let mut q = sqlx::query(sqlx::AssertSqlSafe(sql));
     for b in &where_clause.binds {
         q = bind_param(q, b);
     }

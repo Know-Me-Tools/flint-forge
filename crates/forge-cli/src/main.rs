@@ -5,6 +5,7 @@ use base64::Engine as _;
 use chrono::{Duration, Utc};
 use clap::{Args, Parser, Subcommand};
 use fke_domain::{Capability, FunctionManifest};
+use forge_domain::is_safe_identifier;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -300,6 +301,9 @@ fn parse_table(table: &str) -> TableRef<'_> {
 
 async fn hook_add(args: HookAddArgs) -> Result<()> {
     let table = parse_table(&args.table);
+    if !is_safe_identifier(table.schema) || !is_safe_identifier(table.table) {
+        bail!("invalid table reference: {}", args.table);
+    }
     let secret = args.secret.unwrap_or_else(|| Uuid::new_v4().to_string());
 
     let pool = sqlx::PgPool::connect(&args.database_url)
@@ -329,7 +333,10 @@ async fn hook_add(args: HookAddArgs) -> Result<()> {
          FOR EACH ROW EXECUTE FUNCTION flint.dispatch_webhook();",
         table.schema, table.table, table.schema, table.table
     );
-    sqlx::query(&sql)
+    // SAFETY: schema/table were validated by `is_safe_identifier` above, and
+    // `trigger_name` is derived only from those validated segments — no raw
+    // user text reaches this DDL string.
+    sqlx::query(sqlx::AssertSqlSafe(sql))
         .execute(&pool)
         .await
         .with_context(|| "failed to create dispatch trigger")?;
