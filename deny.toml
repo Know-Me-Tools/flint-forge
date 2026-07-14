@@ -1,0 +1,77 @@
+# p16-c009: cargo-deny configuration — license and security-advisory policy,
+# alongside the existing `cargo audit` gate in .github/workflows/ci.yml.
+# Run locally: `cargo install cargo-deny --locked && cargo deny check`.
+
+[graph]
+targets = []
+
+[advisories]
+version = 2
+# `cargo audit` already gates on unfixed advisories (CVSS >= 7.0, with its own
+# allowlist in .cargo/audit.toml) — this section is intentionally permissive
+# on severity and instead catches the categories cargo-audit doesn't:
+# unmaintained crates and explicitly yanked versions.
+yanked = "deny"
+ignore = [
+  # RUSTSEC-2025-0111 — tokio-tar unmaintained (via testcontainers), mirrors
+  # the existing entry in .cargo/audit.toml: dev-only (integration test
+  # harness), requires Docker, skipped without it. No CVE, no safe upgrade
+  # available (crate is archived).
+  "RUSTSEC-2025-0111",
+  # RUSTSEC-2025-0134 — rustls-pemfile unmaintained (via testcontainers'
+  # bollard dep), mirrors the existing entry in .cargo/audit.toml. No CVE,
+  # dev-only, no safe upgrade (would require bollard migrating off it).
+  "RUSTSEC-2025-0134",
+  # RUSTSEC-2026-0195 / RUSTSEC-2026-0194 — quick-xml 0.40.x via object_store
+  # 0.14.0, mirrors the existing entries in .cargo/audit.toml. Attack requires
+  # controlling S3 API XML responses; Flint's S3 backend is
+  # operator-controlled, not an untrusted-input path. Fix blocked on
+  # object_store releasing with quick-xml >=0.41.0.
+  "RUSTSEC-2026-0195",
+  "RUSTSEC-2026-0194",
+  # RUSTSEC-2023-0071 — rsa 0.9.x via sqlx-mysql, mirrors the existing entry
+  # in .cargo/audit.toml. Marvin Attack timing side-channel; this workspace
+  # uses sqlx for PostgreSQL only, sqlx-mysql is a transitive dep that is
+  # never instantiated. No upstream fix.
+  "RUSTSEC-2023-0071",
+]
+
+[licenses]
+version = 2
+# This project is MIT-licensed (see LICENSE). Allow every common permissive
+# license compatible with MIT/Apache-2.0 distribution; anything else fails
+# the gate and must be explicitly reviewed and added here with a reason.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "MPL-2.0",
+    "CC0-1.0",
+    # Mozilla's CA certificate bundle (webpki-roots) — permissive data license,
+    # not a code license, but cargo-deny classifies it the same way.
+    "CDLA-Permissive-2.0",
+]
+confidence-threshold = 0.8
+
+[bans]
+# Not enforcing single-version-per-crate here — that's the workspace's own
+# `cargo tree --duplicates` dedup effort (see root Cargo.toml comments for
+# unresolvable duplicates), not a license/security policy concern.
+multiple-versions = "allow"
+# "allow": every internal crate reference in this monorepo is a versionless
+# `{ path = "../other-crate" }` dependency (there is no crates.io version to
+# pin them to) — cargo-deny classifies that as a "wildcard" too, which would
+# flag essentially every workspace crate. The real wildcard risk this lint
+# guards against (`dep = "*"` resolving to any future crates.io release) does
+# not apply to same-repo path dependencies.
+wildcards = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

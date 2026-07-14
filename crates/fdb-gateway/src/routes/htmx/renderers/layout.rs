@@ -65,6 +65,9 @@ pub(super) fn render_grid(schema: &Value) -> String {
 }
 
 pub(super) fn render_stack(schema: &Value) -> String {
+    // Stack has no configurable properties yet; the parameter is kept (and
+    // discarded here, not an error/result) so this renderer matches the
+    // uniform `fn(&Value) -> String` signature used by the dispatch table.
     let _ = schema;
     r#"<div data-flint-component="stack" class="stack w-32">
   <div class="bg-primary text-primary-content rounded p-6 text-center">Layer 1</div>

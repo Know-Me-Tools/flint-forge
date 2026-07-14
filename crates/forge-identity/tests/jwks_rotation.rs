@@ -25,6 +25,8 @@ async fn jwks_rotation_is_picked_up_without_restart() {
     let key_b = common::generate_es256_key("kid-b");
 
     let server = MockServer::start().await;
+    // SAFETY (test-only): same single-test-binary guarantee as above — this
+    // file compiles to its own test binary running exactly this one test.
     unsafe {
         std::env::set_var("FLINT_GATE_JWKS_URL", format!("{}/jwks", server.uri()));
     }

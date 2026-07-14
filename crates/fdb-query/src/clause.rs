@@ -237,6 +237,7 @@ impl Limits {
     pub fn to_sql(&self) -> String {
         use std::fmt::Write as _;
         let mut out = String::new();
+        // `write!` into a `String` is infallible; discarding the `Result` is safe (both sites below).
         if let Some(l) = self.limit {
             let _ = write!(out, " LIMIT {l}");
         }

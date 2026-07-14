@@ -23,6 +23,7 @@ pub async fn stream_events(
     Path(run_id): Path<String>,
 ) -> impl IntoResponse {
     // Ensure the channel exists (lazy creation — allows subscribing before publish).
+    // The returned Sender is unused here; `subscribe` below fetches its own handle.
     let _ = state.channel_for(&run_id).await;
 
     let Some(event_stream) = state.subscribe(&run_id).await else {

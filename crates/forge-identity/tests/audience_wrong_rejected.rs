@@ -26,6 +26,8 @@ async fn wrong_audience_token_is_rejected_in_production_mode() {
 
     let key = common::generate_es256_key("kid-1");
     let server = MockServer::start().await;
+    // SAFETY (test-only): same single-test-binary guarantee as above — this
+    // file compiles to its own test binary running exactly this one test.
     unsafe {
         std::env::set_var("FLINT_GATE_JWKS_URL", format!("{}/jwks", server.uri()));
     }

@@ -85,18 +85,13 @@ impl PgVectorRpc {
             .await
             .map_err(|e| BackendError::Query(format!("vector similarity query: {e}")))?;
 
-        let mut results: Vec<serde_json::Value> = Vec::with_capacity(rows.len());
-        for row in &rows {
-            let mut obj = serde_json::Map::new();
-            for (i, col) in row.columns().iter().enumerate() {
-                let val: Option<String> = row.try_get(i).ok();
-                obj.insert(
-                    col.name().to_owned(),
-                    val.map_or(serde_json::Value::Null, serde_json::Value::String),
-                );
-            }
-            results.push(serde_json::Value::Object(obj));
-        }
+        // Type-aware projection (shared with `PgRest`): a naive `Option<String>`
+        // decode per column would silently return `null` for every non-text
+        // column — including `distance` itself, the whole point of this RPC.
+        let results = crate::rest::project_rows(&rows)
+            .into_iter()
+            .map(serde_json::Value::Object)
+            .collect();
 
         Ok(serde_json::Value::Array(results))
     }

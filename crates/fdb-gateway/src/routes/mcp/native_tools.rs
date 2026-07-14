@@ -142,7 +142,11 @@ pub(super) async fn resolve_tokens(
             .fetch_optional(&state.a2ui.pool)
             .await
             .map_err(|e| RpcError::new(INTERNAL_ERROR, e.to_string()))?;
-    let _ = app_id;
+    // The existence check must actually gate the response: previously the
+    // fetched row was discarded (`let _ = app_id;`), so an unknown
+    // `application_slug` silently fell through to the base palette instead
+    // of surfacing an error.
+    app_id.ok_or_else(|| RpcError::new(INVALID_PARAMS, format!("unknown application '{app_slug}'")))?;
 
     Ok(json!({
         "application": app_slug,

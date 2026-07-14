@@ -164,7 +164,13 @@ impl PgRest {
 /// Falls back to a text decode, then `NULL`, for any column type not listed
 /// below — a reasonable degradation for a general-purpose executor, matching
 /// the existing fallback convention in [`RestBind::from_param`].
-fn project_rows(rows: &[tokio_postgres::Row]) -> Vec<serde_json::Map<String, serde_json::Value>> {
+///
+/// `pub(crate)`: also reused by [`crate::vector_rpc`] for the same reason —
+/// `pgvector` similarity results include non-text columns (notably the
+/// `distance` float itself), so a single-type decode there would go stale.
+pub(crate) fn project_rows(
+    rows: &[tokio_postgres::Row],
+) -> Vec<serde_json::Map<String, serde_json::Value>> {
     use tokio_postgres::types::Type;
 
     let mut out = Vec::with_capacity(rows.len());

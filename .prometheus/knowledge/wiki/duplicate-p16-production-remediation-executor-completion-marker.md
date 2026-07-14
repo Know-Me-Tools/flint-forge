@@ -1,7 +1,7 @@
 ---
 type: Reference
 id: duplicate-p16-production-remediation-executor-completion-marker
-title: Duplicate p16-production-remediation Executor Completion Marker
+title: Duplicate p16 Production Remediation Executor Completion Marker
 tags:
 - executor-session
 - production-remediation
@@ -16,10 +16,10 @@ links:
 - executor-session-completion-p16-production-remediation-unknown-change
 sources:
 - stdin
-timestamp: 2026-07-14T10:38:00.645285+00:00
-created_at: 2026-07-14T10:38:00.645285+00:00
-updated_at: 2026-07-14T10:38:00.645285+00:00
-revision: 0
+timestamp: 2026-07-14T12:05:50.333664+00:00
+created_at: 2026-07-14T12:05:50.333581+00:00
+updated_at: 2026-07-14T12:05:50.333664+00:00
+revision: 1
 ---
 
 ## Session Status
@@ -30,7 +30,7 @@ revision: 0
 
 ## Record Interpretation
 
-The raw source is a minimal completion marker only:
+The source is a minimal completion marker only:
 
 ```text
 executor session complete | phase: p16-production-remediation | change: unknown

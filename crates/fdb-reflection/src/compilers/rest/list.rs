@@ -130,6 +130,10 @@ pub(super) fn build_inner_query(
             continue;
         }
         // Routed embed params are consumed here; the rest remain top-level filters.
+        // Errors already propagate via `?`; the returned `bool` ("was this param
+        // embed-routed?") is discarded because `parse_filter_tree_excluding_embeds`
+        // below independently re-derives the same routing decision from the key's
+        // dotted prefix, so the caller doesn't need it for correctness.
         let _ = route_embedded_param(&mut embed_select, key, value).map_err(|e| e.to_string())?;
     }
 

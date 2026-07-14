@@ -42,7 +42,12 @@ deadpool-postgres = "0.14"
 tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
 async-graphql = { version = "7", features = ["dynamic-schema"] }
 async-graphql-axum = "7"
-tonic = { version = "0.12", features = ["transport"] }
+# p16-c009: tonic 0.13+ depends on axum ^0.8 / tower ^0.5, matching our own
+# workspace pins (axum 0.8, tower via tower-http/tower_governor) and eliminating
+# axum/axum-core/tower/matchit duplicate-version entries that tonic 0.12's
+# axum ^0.7 / tower ^0.4.7 pins used to cause. fdb-realtime only uses
+# `tonic::transport::Channel` (client-side gRPC), an API unchanged across 0.12-0.13.
+tonic = { version = "0.13", features = ["transport"] }
 pgvector = { version = "0.4", features = ["postgres", "sqlx"] }
 cedar-policy = "4"
 wiremock = "0.6"
@@ -93,6 +98,79 @@ opentelemetry = { version = "0.32", features = ["trace"] }
 opentelemetry_sdk = { version = "0.32", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.32", default-features = false, features = ["trace", "http-json", "reqwest-client"] }
 tracing-opentelemetry = "0.33"
+
+# Known dependency duplicates (p16-c009)
+#
+# `cargo tree --workspace --duplicates` still reports these after the tonic
+# 0.12→0.13 convergence (which removed the axum 0.7/0.8, axum-core, tower
+# 0.4/0.5, matchit, and indexmap 1/2 duplicates). Each remaining group below
+# is pinned by third-party crates we depend on but do not control the
+# transitive version choice of, OR is a same-side major bump whose behavior
+# change (not just compile error) is out of scope for a dependency-dedup
+# pass. No `[patch]` section or vendored fork has been introduced for any of
+# these — re-evaluate individually if/when upstream converges.
+#
+# - jsonwebtoken 9 (our pin) vs 10 (oci-client, ^10.3): 10.0.0 is a breaking
+#   release that replaces jsonwebtoken's previously-hardcoded `ring` backend
+#   with a chosen `aws_lc_rs`/`rust_crypto` feature — a real behavior change
+#   to the JWT sign/verify path feeding forge-identity's RLS context. Needs
+#   its own reviewed change, not a bulk bump here.
+# - reqwest 0.12 (our pin) vs 0.13 (object_store, oci-client,
+#   opentelemetry-otlp all require ^0.13): 0.13.0 renames the `rustls-tls`
+#   feature to `rustls` AND switches the default rustls crypto provider from
+#   `ring` to `aws-lc-rs` — a real TLS-behavior change across every outbound
+#   HTTPS client in the workspace (Keto check, sigstore Fulcio/Rekor calls,
+#   JWKS fetch, IPFS upload). Needs its own reviewed change.
+# - digest 0.10 vs 0.11 (and its dependents: block-buffer, const-oid,
+#   cpufeatures, crypto-common, hmac, md-5, sha2, typenum): ed25519-dalek,
+#   the elliptic-curve family (p256/p384, used for Fulcio cert validation),
+#   and zip's aes/pbkdf2 chain all still pin the digest 0.10 RustCrypto
+#   generation, while postgres-protocol (transitive via tokio-postgres) has
+#   moved to digest 0.11. Converging means major-bumping security-sensitive
+#   signing/crypto crates (ed25519-dalek 2→3, zip 2→9.0.0-pre2 which is not
+#   even a stable release) — out of scope here.
+# - darling 0.20 vs 0.23 (and darling_core/darling_macro): oci-spec (via our
+#   oci-client dep) pins `derive_builder ^0.20` → darling 0.20; async-graphql
+#   internally requires `handlebars` (also on derive_builder 0.20 — removing
+#   it doesn't help since oci-spec's edge remains); async-graphql-derive and
+#   serde_with pin darling 0.23 directly. oci-spec has no newer release off
+#   derive_builder 0.20; no workspace lever forces convergence.
+# - prost 0.13 vs 0.14: tonic (even at 0.13.1) still requires prost ^0.13;
+#   opentelemetry-otlp/opentelemetry-proto require prost ^0.14. tonic 0.14
+#   drops its bundled prost dependency but is a larger, unverified jump not
+#   taken in this pass.
+# - fixedbitset 0.4/0.5, petgraph 0.6/0.7: wasmtime's own wasm-compose
+#   tooling pins petgraph 0.6.5/fixedbitset 0.4.2; lalrpop (a build-dependency
+#   of cedar-policy-core's parser generator) pins petgraph 0.7.1/fixedbitset
+#   0.5.7. Both internal to their respective toolchains, unrelated to us.
+# - foldhash 0.1/0.2, hashbrown 0.14/0.15/0.16/0.17: sqlx-core (via hashlink)
+#   pins hashbrown ~0.15; dashmap (via governor, tower_governor's rate
+#   limiter) pins hashbrown 0.14.5; the wasmtime/indexmap-2.14 ecosystem uses
+#   0.16/0.17. sqlx 0.9.0 exists but a major bump of the core Postgres
+#   adapter is out of scope for this pass.
+# - getrandom 0.2/0.3/0.4, rand 0.8/0.9/0.10 (and rand_core/rand_chacha):
+#   ring (via jsonwebtoken 9/rustls) uses getrandom 0.2/rand 0.8; governor/
+#   metrics-util/opentelemetry_sdk/tungstenite use getrandom 0.3/rand 0.9;
+#   uuid/tempfile/chacha20 use getrandom 0.4/rand 0.10. Three independent
+#   upstream generations; no single lever converges all three.
+# - itertools 0.10/0.14/0.15: criterion (dev-only bench harness) bundles
+#   itertools 0.10; cedar-policy/lalrpop/wasmtime-internal-cranelift use
+#   0.14; object_store uses 0.15. Checked: criterion's latest (0.8.2) uses
+#   itertools ^0.13, which would add a *fourth* version rather than
+#   converging — not worth the bench-API churn for zero net reduction.
+# - nonempty 0.7/0.12, thiserror 1/2 (partial): tower_governor's
+#   forwarded-header-value 0.1.1 (latest release) pins nonempty 0.7 and
+#   thiserror 1; cedar-policy-core pins nonempty 0.12 and our own workspace
+#   thiserror is already "2". forwarded-header-value has had no release
+#   since 0.1.1; no lever.
+# - wasm-encoder 0.251/0.252, wast 35.0.2/252.0.0, object 0.37/0.39,
+#   phf_shared 0.11/0.13, spin 0.9/0.10, unicode-width 0.1/0.2,
+#   untrusted 0.7/0.9, webpki-roots 0.26/1.0, whoami 1.6/2.1,
+#   winnow 0.7/1.0 + toml_datetime 0.7/1.1: each is an internal version split
+#   between two third-party crates we depend on (wasmtime's own bundled
+#   wasm-tools/toml/webpki-roots versions vs. sibling crates like
+#   lalrpop/tokio-postgres/sqlx/aws-lc-rs/rustls-webpki), with no workspace
+#   dependency of ours exposing a version knob for either side.
 
 # Compile Economy — dev-loop build settings. See docs/RUST-DEVELOPMENT-MANAGEMENT.md.
 # Cargo only reads profiles from the workspace-root manifest, so they live here.

@@ -62,6 +62,8 @@ impl AgUiState {
             None => return,
         };
         let tx = self.channel_for(&run_id).await;
+        // `send` only errors when there are zero receivers; per the doc comment
+        // above, that's an expected no-op (event dropped), not a failure to surface.
         let _ = tx.send(event);
     }
 
@@ -75,6 +77,8 @@ impl AgUiState {
     pub async fn broadcast_all(&self, event: AgUiEvent) {
         let runs = self.inner.runs.lock().await;
         for sender in runs.values() {
+            // Same as `publish`: `send` errors only when a given run has no
+            // active subscribers right now, which is fine for a fan-out broadcast.
             let _ = sender.send(event.clone());
         }
     }

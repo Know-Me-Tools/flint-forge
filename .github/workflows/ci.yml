@@ -11,9 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # p16-c009: full history needed so scripts/check_coverage.sh can diff
+          # against the PR base ref to determine which crates changed.
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt, clippy, llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
       - name: fmt
         run: cargo fmt --all --check
@@ -21,6 +25,20 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test
         run: cargo test --workspace
+      # p16-c009: coverage gate — >=90% line coverage on crates this PR
+      # touches (not workspace-wide, to avoid punishing legacy low-coverage
+      # areas in one PR); workspace-wide total is always printed as a metric.
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+      - name: Coverage gate
+        run: bash scripts/check_coverage.sh
+      # p16-c009: license + advisory policy, alongside the existing cargo-audit
+      # advisory-only gate below. See deny.toml for the allowed-license list
+      # and any explicitly-permitted exceptions.
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+      - name: License + advisory policy (cargo-deny)
+        run: cargo deny check licenses advisories
       # p10-c003: Security advisory gate. Fails on any unfixed advisory with
       # CVSS >= 7.0 that is not in .cargo/audit.toml allowlist.
       # Allowlisted: quick-xml (DoS via operator-controlled S3), rsa/sqlx-mysql

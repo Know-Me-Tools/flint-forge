@@ -135,6 +135,10 @@ impl StateManager {
                         Ok(state) => {
                             let version = state.version;
                             self.compiled.store(Arc::new(state));
+                            // `watch::Sender::send` errors only when there are no
+                            // receivers; the authoritative state is already swapped
+                            // into `self.compiled` above, so a missing subscriber
+                            // just means no one needed the change notification.
                             let _ = self.version_tx.send(version);
                             tracing::info!("schema recompiled after PgListener reconnect");
                         }
@@ -177,6 +181,9 @@ impl StateManager {
                     // ArcSwap::store is atomic — in-flight requests keep their old guard.
                     let version = state.version;
                     self.compiled.store(Arc::new(state));
+                    // Same reasoning as the reconnect path above: `send` failing
+                    // just means no subscriber is listening for the version bump;
+                    // the swapped-in state is already authoritative.
                     let _ = self.version_tx.send(version);
                     tracing::info!("schema hot-swap complete");
                 }

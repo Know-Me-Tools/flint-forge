@@ -85,8 +85,15 @@ impl CedarPolicyEngine {
             source,
             policies: arc_swap::ArcSwap::new(Arc::new(PolicySet::new())),
         };
-        // Best-effort initial load; ignore errors (start deny-all).
-        let _ = engine.reload().await;
+        // Best-effort initial load; a failure here is fail-closed-safe (the
+        // engine already starts deny-all), but it's an operational blind spot
+        // if it goes unnoticed — a down/misconfigured policy source would
+        // otherwise leave the gateway silently denying every request with no
+        // trace of why. `PolicyLoadError` never carries policy text or
+        // principal identifiers, so it's safe to log.
+        if let Err(e) = engine.reload().await {
+            tracing::warn!(error = %e, "initial Cedar policy load failed; starting deny-all");
+        }
         engine
     }
     /// Create an engine with a static policy set (for tests).

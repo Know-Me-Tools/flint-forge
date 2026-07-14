@@ -168,6 +168,7 @@ pub(super) fn render_radio(schema: &Value) -> String {
         .unwrap_or_else(|| vec!["Option A", "Option B"]);
     let mut items = String::new();
     for opt in &opts {
+        // `write!` into a `String` is infallible; discarding the `Result` is safe.
         let _ = write!(
             items,
             r#"<label class="label cursor-pointer gap-4 justify-start">

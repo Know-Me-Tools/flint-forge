@@ -26,6 +26,8 @@ async fn refetch_on_unknown_kid_is_rate_limited() {
     let key_c = common::generate_es256_key("kid-c");
 
     let server = MockServer::start().await;
+    // SAFETY (test-only): same single-test-binary guarantee as above — this
+    // file compiles to its own test binary running exactly this one test.
     unsafe {
         std::env::set_var("FLINT_GATE_JWKS_URL", format!("{}/jwks", server.uri()));
     }

@@ -170,6 +170,7 @@ pub async fn admin_registry(
     html.push_str(" components</span>\n    </div>");
 
     for (category, items) in &categories {
+        // `write!` into a `String` is infallible; discarding the `Result` is safe (both sites below).
         let _ = write!(
             html,
             r#"

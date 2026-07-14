@@ -40,6 +40,7 @@ impl SelectPlan {
         let mut sql = format!("SELECT {} FROM {}", self.select.to_sql(), self.relation);
         // A top-level empty AND renders "TRUE"; skip the WHERE in that case.
         if where_sql != "TRUE" {
+            // `write!` into a `String` is infallible; discarding the `Result` is safe.
             let _ = write!(sql, " WHERE {where_sql}");
         }
         if !self.order.is_empty() {

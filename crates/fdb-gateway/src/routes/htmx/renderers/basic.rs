@@ -25,6 +25,7 @@ pub(in crate::routes::htmx) fn render_data_grid(schema: &Value) -> String {
     let mut header = String::new();
     let mut body = String::new();
     for col in &columns {
+        // `write!` into a `String` is infallible; discarding the `Result` is safe.
         let _ = write!(header, "<th class='px-4 py-2 text-left'>{col}</th>");
         body.push_str("<td class='px-4 py-2 border-t border-base-300'>Row value</td>");
     }
@@ -55,6 +56,7 @@ pub(in crate::routes::htmx) fn render_form(schema: &Value) -> String {
             "text"
         };
         let label = field.replace('_', " ");
+        // `write!` into a `String` is infallible; discarding the `Result` is safe.
         let _ = write!(
             fields_html,
             r#"
@@ -144,6 +146,7 @@ pub(in crate::routes::htmx) fn render_tabs(schema: &Value) -> String {
     for (i, tab) in tabs.iter().enumerate() {
         let active = if i == 0 { "tab-active" } else { "" };
         let display = if i == 0 { "" } else { "hidden" };
+        // `write!` into a `String` is infallible; discarding the `Result` is safe (both sites below).
         let _ = write!(buttons, r#"<a class="tab tab-lifted {active}">{tab}</a>"#);
         let _ = write!(
             panels,

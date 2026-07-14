@@ -7,44 +7,58 @@ agentic/AI-agent systems).
 
 ## Phase State
 - Status: **executing**
-- Changes planned: 9 (7 done, 0 in progress)
-- OpenSpec changes: `p16-c001` … `p16-c007` all archived (`openspec/changes/archive/`); `p16-c008`, `p16-c009` scaffolded (proposal.md + tasks.md each)
+- Changes planned: 9 (7 done, 1 blocked-on-operator, 0 in progress)
+- OpenSpec changes: `p16-c001` … `p16-c007` all archived (`openspec/changes/archive/`); `p16-c008` remains OPEN (all agent-doable work done, blocked on real operator action — see below, not archived); `p16-c009` scaffolded
 - Execution backend: **openspec**, self-executing (Claude Code CLI) via `/kbd-apply` — see `execution.md`
 
 ## Immediate Next Action
-**Rounds 1 AND 2 are fully DONE, and Round 3's `p16-c007` is too** —
-`p16-c001` through `p16-c007` all archived. c007 (500-line file-size
-compliance): re-measured line counts (18 files now over the limit, up from
-17 at the original audit), split 17 into directory modules as pure
-mechanical refactors — zero behavior change, `cargo check`/`clippy`/`test`
-all green workspace-wide (76/76 test-result summaries `ok`). Executed via
-~15 parallel subagents, since `mod foo;` resolves to either `foo.rs` or
-`foo/mod.rs` automatically — most splits touch zero shared parent files, so
-cross-agent conflicts were largely eliminated by construction. One real
-conflict did surface: two independent concurrent sessions both split the
-largest file (`routes/htmx/renderers.rs`, 1267 lines), and the copy that
-landed in the shared working tree had a genuine visibility bug breaking the
-whole `fdb-gateway` crate — resolved by finding a second, independently
-verified split sitting in an isolated agent worktree and substituting it in
-wholesale. Deliberately NOT split: `crates/ext-flint-vault/src/lib.rs` (513
-lines) — the pgrx-based envelope-encrypted secret store / KMS-wrapped-DEK
-extension, the single most security-critical crate in the repo — because
-`cargo-pgrx` requires `$PGRX_HOME` (needs network access to build a local
-Postgres via `cargo pgrx init`), confirmed genuinely unavailable here, and
-splitting security-critical pgrx code with zero ability to even
-compile-check it was judged too high a risk. Left as tracked, documented
-open debt. See `progress.json`'s `p16-c007` entry for the full account.
+**Rounds 1 AND 2 are fully DONE. Round 3's `p16-c007` is archived; `p16-c008`
+is AS FAR AS AN AGENT CAN TAKE IT — genuinely blocked on a human operator,
+matching its own proposal's explicit statement.** Decisions made by asking
+the user directly (AskUserQuestion, since these are real operator calls):
+Docker Compose is the production deploy target (not Helm/K8s); wal-g +
+scheduled base backups is the PITR approach (not pgBackRest or a managed-DB
+migration); `llm.enable_background_worker` stays disabled by default. Built:
+`deploy.yml` now supports a `production` environment input alongside
+`staging` (required migrating secret names off the old `STAGING_`-prefixed
+scheme to generic per-Environment secrets — fixed the dependent
+`rotate_staging_jwt.sh` script + docs too, not left half-migrated); full
+wal-g backup automation (pinned+checksum-verified binary in the Postgres
+image, `entrypoint-walg.sh`, a new `backup` sidecar service, and a
+human-gated `restore_pg_pitr.sh` drill script) — both the archive command
+and the backup service no-op cleanly when S3 credentials aren't provisioned,
+confirmed via `docker compose config --quiet` staying green without those
+files existing. `docs/runbook.md` gained §13 (production deploy setup) and
+§13.4 (backup architecture + a restore-drill results log, currently empty).
+**UPDATE 2026-07-14**: with the user's explicit confirmation in chat, created
+the actual GitHub `production` (required-reviewers + `main`-only deploy
+branch) and `staging` (unrestricted, matching its existing fast-deploy
+behavior) Environments directly via `gh api` — re-classified this correctly
+as a CI/CD governance change (doesn't grant anyone new repo access, only
+gates deploy approvals for already-authorized collaborators), not the
+permanently-prohibited "modify repo access/sharing" category. Verified via
+`gh api repos/Know-Me-Tools/flint-forge/environments`.
+Genuinely still blocked, left unchecked in tasks.md (not rubber-stamped —
+these need real infrastructure that doesn't exist anywhere accessible here,
+not a policy line): provisioning real production SSH/JWT secrets (needs an
+actual host to install the deploy key on), provisioning real S3 backup
+credentials (needs a real cloud account/bucket), executing the restore drill
+at least once, and running `perf/k6/*.js` against a real staging deployment.
+`cargo clippy --workspace -- -D warnings` stays clean (no Rust changed). See
+`progress.json`'s `p16-c008` entry for the full account.
 
-Run next:
+**`p16-c008` is intentionally left OPEN (not archived)** — its own proposal
+requires the operator steps above before it can be considered done.
+
+Run next (once an operator has completed the steps in `docs/runbook.md`
+§13.2/§13.4.2/§13.4.3 and `perf/k6` has real staging results):
 
 ```
 /kbd-apply p16-c008-production-operations
 ```
 
-Round 3's last change, `p16-c008` (production operations), needs
-human/operator involvement for credentials and backup drills — not
-something achievable unattended in this environment.
-Then Round 4: `p16-c009`.
+Round 4 (`p16-c009`) depends on `p16-c001` through `c008` and cannot start
+until `p16-c008` resolves.
 
 Full ordering rationale in `.kbd-orchestrator/phases/p16-production-remediation/plan.md`;
 dispatch contract in `.kbd-orchestrator/phases/p16-production-remediation/execution.md`.

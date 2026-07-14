@@ -62,6 +62,9 @@ pub async fn start_run(
     Extension(_who): Extension<RlsContext>,
 ) -> impl IntoResponse {
     let run_id = uuid::Uuid::new_v4().to_string();
+    // Called only for its side effect of creating the run's broadcast channel;
+    // the returned Sender isn't needed here (subscribers/publishers fetch it
+    // themselves via `channel_for` later).
     let _ = state.channel_for(&run_id).await;
 
     Json(json!({
