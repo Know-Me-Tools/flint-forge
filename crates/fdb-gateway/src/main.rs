@@ -38,7 +38,7 @@ use forge_identity::RlsContext;
 use forge_policy::CedarPolicyEngine;
 use futures::stream::StreamExt;
 use sqlx::PgPool;
-use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
+use tower_governor::{governor::GovernorConfigBuilder, GovernorError, GovernorLayer};
 
 /// Shared gateway state — available in all route handlers via `State<GatewayState>`.
 #[derive(Clone)]
@@ -397,22 +397,84 @@ async fn main() {
         .layer(axum::middleware::from_fn(rls_layer::require_rls))
         .with_state(agui_state);
 
+    // p9-c003 / p16-c006: Per-IP token-bucket rate limiting via tower_governor, scoped
+    // independently per route group so a burst of GraphQL traffic can't starve REST
+    // callers (or vice versa). Read up front so both governor layers can be attached
+    // to their own sub-router before those sub-routers are merged — axum bakes a
+    // `.layer()` into each route it currently holds, so a layer applied before merge
+    // only ever wraps the routes it was built for.
+    // FLINT_RATE_LIMIT_REST: requests-per-second sustained rate per IP for REST routes
+    //   (0 = disabled, default 100).
+    // FLINT_RATE_LIMIT_GRAPHQL: requests-per-second sustained rate per IP for /graphql
+    //   (0 = disabled, default 20).
+    // FLINT_RATE_LIMIT_BURST: token-bucket burst capacity shared by both (default 10).
+    let rest_rps: u64 = std::env::var("FLINT_RATE_LIMIT_REST")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(100);
+    let graphql_rps: u64 = std::env::var("FLINT_RATE_LIMIT_GRAPHQL")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(20);
+    let burst: u32 = std::env::var("FLINT_RATE_LIMIT_BURST")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10);
+
+    let graphql_router = Router::new()
+        .route(
+            "/graphql",
+            get(graphql_ws_handler).post(handle_graphql_query),
+        )
+        .with_state(gateway_state.clone());
+    let graphql_router = if graphql_rps > 0 {
+        tracing::info!(
+            rps = graphql_rps,
+            burst,
+            "per-IP GraphQL rate limiting enabled"
+        );
+        let governor_conf = GovernorConfigBuilder::default()
+            .per_second(graphql_rps)
+            .burst_size(burst)
+            .finish()
+            .expect("GovernorConfig: burst and period must be non-zero");
+        graphql_router
+            .layer(GovernorLayer::new(governor_conf).error_handler(rate_limit_error_response))
+    } else {
+        tracing::info!("GraphQL rate limiting disabled (FLINT_RATE_LIMIT_GRAPHQL=0)");
+        graphql_router
+    };
+
     let app = Router::new()
         .route("/healthz", get(healthz))
         .route("/openapi.json", get(openapi_handler))
         .route("/mcp/v1/tools", get(mcp_tools_handler))
         .route("/rpc/vector", axum::routing::post(rpc_vector_handler))
-        .route(
-            "/graphql",
-            get(graphql_ws_handler).post(handle_graphql_query),
-        )
         .merge(a2ui_router)
         .merge(mcp_router)
         .merge(a2a_router)
         .merge(htmx_router)
         .merge(agent_events_router)
         .with_state(gateway_state)
-        .merge(reflection_router)
+        .merge(reflection_router);
+
+    let app = if rest_rps > 0 {
+        tracing::info!(rps = rest_rps, burst, "per-IP REST rate limiting enabled");
+        let governor_conf = GovernorConfigBuilder::default()
+            .per_second(rest_rps)
+            .burst_size(burst)
+            .finish()
+            .expect("GovernorConfig: burst and period must be non-zero");
+        app.layer(GovernorLayer::new(governor_conf).error_handler(rate_limit_error_response))
+    } else {
+        tracing::info!("REST rate limiting disabled (FLINT_RATE_LIMIT_REST=0)");
+        app
+    };
+
+    // Merge the independently rate-limited /graphql router in after both governor
+    // layers are attached above, so neither layer wraps routes it wasn't built for.
+    let app = app
+        .merge(graphql_router)
         // p9-c004: Prometheus metrics endpoint — no auth, no rate limit.
         // Served outside the rate-limiting tower stack by merging after the main app.
         .route(
@@ -425,41 +487,6 @@ async fn main() {
     let addr = "0.0.0.0:8080";
     tracing::info!(%addr, "flint-quarry listening");
     let listener = tokio::net::TcpListener::bind(addr).await.expect("bind");
-
-    // p9-c003: Per-IP token-bucket rate limiting via tower_governor.
-    // FLINT_RATE_LIMIT_REST: requests-per-second sustained rate per IP (0 = disabled, default 100).
-    // FLINT_RATE_LIMIT_BURST: token-bucket burst capacity (default 10).
-    let rest_rps: u64 = std::env::var("FLINT_RATE_LIMIT_REST")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(100);
-    let burst: u32 = std::env::var("FLINT_RATE_LIMIT_BURST")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(10);
-
-    let app = if rest_rps > 0 {
-        tracing::info!(rps = rest_rps, burst, "per-IP rate limiting enabled");
-        let governor_conf = GovernorConfigBuilder::default()
-            .per_second(rest_rps)
-            .burst_size(burst)
-            .finish()
-            .expect("GovernorConfig: burst and period must be non-zero");
-        let layer = GovernorLayer::new(governor_conf).error_handler(|err| {
-            (
-                StatusCode::TOO_MANY_REQUESTS,
-                Json(serde_json::json!({
-                    "error": "rate_limit_exceeded",
-                    "message": err.to_string(),
-                })),
-            )
-                .into_response()
-        });
-        app.layer(layer)
-    } else {
-        tracing::info!("rate limiting disabled (FLINT_RATE_LIMIT_REST=0)");
-        app
-    };
 
     // Use into_make_service_with_connect_info so that PeerIpKeyExtractor can
     // read ConnectInfo<SocketAddr> from the request extensions.  This is a no-op
@@ -780,12 +807,38 @@ fn extract_bearer(headers: &HeaderMap) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
+/// Shared `429 Too Many Requests` response for both the REST and GraphQL rate
+/// limiters. Matches the documented contract (see `docs/api/a2ui.md#rate-limits`):
+/// the standard `{error, message}` error envelope plus a machine-readable
+/// `retry_after_secs` field, and a `Retry-After` header. The header is reused
+/// directly from `GovernorError::TooManyRequests` — tower_governor already
+/// populates it (and `x-ratelimit-after`) with the wait time.
+fn rate_limit_error_response(err: GovernorError) -> Response {
+    let (wait_time, extra_headers) = match err {
+        GovernorError::TooManyRequests { wait_time, headers } => (wait_time, headers),
+        GovernorError::UnableToExtractKey | GovernorError::Other { .. } => (0, None),
+    };
+    let mut response = (
+        StatusCode::TOO_MANY_REQUESTS,
+        Json(json!({
+            "error": "rate limited",
+            "message": format!("rate limit exceeded, retry after {wait_time}s"),
+            "retry_after_secs": wait_time,
+        })),
+    )
+        .into_response();
+    if let Some(extra_headers) = extra_headers {
+        response.headers_mut().extend(extra_headers);
+    }
+    response
+}
+
 // ─── Rate-limiting unit tests ────────────────────────────────────────────────
 
 #[cfg(test)]
 mod rate_limit_tests {
     use axum::{
-        body::Body,
+        body::{to_bytes, Body},
         extract::ConnectInfo,
         http::{Request, StatusCode},
         routing::get,
@@ -882,6 +935,92 @@ mod rate_limit_tests {
             StatusCode::TOO_MANY_REQUESTS,
             "second immediate request should be rate-limited"
         );
+    }
+
+    /// GraphQL and REST routes must be rate-limited independently: exhausting the
+    /// GraphQL bucket must not affect the REST bucket, and vice versa (p16-c006).
+    /// Mirrors how `main()` builds and merges `graphql_router` and `app` — each
+    /// governor layer is applied to its own sub-router before the merge.
+    #[tokio::test]
+    async fn graphql_and_rest_rate_limits_are_independent() {
+        let graphql_config = GovernorConfigBuilder::default()
+            .per_second(1)
+            .burst_size(1)
+            .finish()
+            .expect("GovernorConfig");
+        let rest_config = GovernorConfigBuilder::default()
+            .per_second(100)
+            .burst_size(100)
+            .finish()
+            .expect("GovernorConfig");
+
+        let graphql_router = Router::new()
+            .route("/graphql", get(|| async { "graphql-ok" }))
+            .layer(GovernorLayer::new(graphql_config));
+        let rest_router = Router::new()
+            .route("/rest", get(|| async { "rest-ok" }))
+            .layer(GovernorLayer::new(rest_config));
+        let app = rest_router.merge(graphql_router);
+
+        // Exhaust the GraphQL bucket (burst = 1).
+        let g1 = app.clone().oneshot(make_request("/graphql")).await.unwrap();
+        assert_eq!(g1.status(), StatusCode::OK);
+        let g2 = app.clone().oneshot(make_request("/graphql")).await.unwrap();
+        assert_eq!(
+            g2.status(),
+            StatusCode::TOO_MANY_REQUESTS,
+            "GraphQL bucket should be exhausted"
+        );
+
+        // The REST route, rate-limited independently, must still succeed.
+        let r1 = app.clone().oneshot(make_request("/rest")).await.unwrap();
+        assert_eq!(
+            r1.status(),
+            StatusCode::OK,
+            "REST route must not be affected by the exhausted GraphQL rate limit"
+        );
+    }
+
+    /// The custom error handler must return the documented 429 contract
+    /// (`docs/api/a2ui.md#rate-limits`): a `Retry-After` header plus a JSON body
+    /// carrying `error`, `message`, and a machine-readable `retry_after_secs`.
+    #[tokio::test]
+    async fn returns_429_with_retry_after_header_and_documented_body_shape() {
+        let config = GovernorConfigBuilder::default()
+            .per_second(1)
+            .burst_size(1)
+            .finish()
+            .expect("GovernorConfig");
+        let app = Router::new()
+            .route("/ping", get(|| async { "pong" }))
+            .layer(GovernorLayer::new(config).error_handler(super::rate_limit_error_response));
+
+        // Exhaust the single-token burst.
+        let _ = app.clone().oneshot(make_request("/ping")).await.unwrap();
+        let res = app.clone().oneshot(make_request("/ping")).await.unwrap();
+        assert_eq!(res.status(), StatusCode::TOO_MANY_REQUESTS);
+
+        let retry_after = res
+            .headers()
+            .get("retry-after")
+            .expect("Retry-After header must be present on 429 responses")
+            .to_str()
+            .unwrap()
+            .to_owned();
+        assert!(
+            !retry_after.is_empty(),
+            "Retry-After header must carry a wait time"
+        );
+
+        let body = to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error"], "rate limited");
+        assert!(
+            json["retry_after_secs"].is_u64(),
+            "retry_after_secs must be a numeric field, got {:?}",
+            json["retry_after_secs"]
+        );
+        assert!(json["message"].is_string());
     }
 }
 

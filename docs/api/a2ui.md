@@ -44,14 +44,31 @@ Authorization: Bearer <JWT>
 
 ## Rate Limits
 
+Rate limiting is gateway-wide (`fdb-gateway`), keyed per-IP, and applies independently
+to REST routes (this API, plus `/healthz`, `/openapi.json`, `/mcp/v1/*`, `/rpc/*`,
+`/a2a/v1`, `/htmx/*`, `/agents/v1/*`, and reflected `/public/*` CRUD routes) and to
+`/graphql`. A burst of GraphQL traffic cannot exhaust the REST budget, and vice versa —
+each surface has its own token bucket.
+
 | Surface | Default | Config variable |
 |---|---|---|
-| REST (this API) | 100 req/s per IP | `FLINT_RATE_LIMIT_REST` |
-| Burst allowance | 10 additional req | `FLINT_RATE_LIMIT_BURST` |
-| GraphQL | 20 req/s per IP | `FLINT_RATE_LIMIT_GRAPHQL` |
+| REST (all routes above) | 100 req/s per IP | `FLINT_RATE_LIMIT_REST` |
+| GraphQL (`/graphql`) | 20 req/s per IP | `FLINT_RATE_LIMIT_GRAPHQL` |
+| Burst allowance (both surfaces) | 10 additional req | `FLINT_RATE_LIMIT_BURST` |
 
-Requests that exceed the limit receive `429 Too Many Requests` with a
-`Retry-After` header indicating the number of seconds to wait.
+Setting a variable to `0` disables rate limiting for that surface.
+
+Requests that exceed the limit receive `429 Too Many Requests` with a `Retry-After`
+header (seconds to wait) and a JSON body following the standard [error envelope](#error-envelope)
+plus a `retry_after_secs` field carrying the same wait time for programmatic backoff:
+
+```json
+{
+  "error": "rate limited",
+  "message": "rate limit exceeded, retry after 3s",
+  "retry_after_secs": 3
+}
+```
 
 ---
 
