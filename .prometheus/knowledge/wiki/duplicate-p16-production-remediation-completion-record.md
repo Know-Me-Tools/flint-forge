@@ -15,9 +15,9 @@ links:
 - duplicate-p16-production-remediation-unknown-completion-marker
 sources:
 - stdin
-timestamp: 2026-07-14T13:05:41.173812+00:00
-created_at: 2026-07-14T13:05:41.173728+00:00
-updated_at: 2026-07-14T13:05:41.173812+00:00
+timestamp: 2026-07-14T14:25:12.871373+00:00
+created_at: 2026-07-14T14:25:12.871285+00:00
+updated_at: 2026-07-14T14:25:12.871373+00:00
 revision: 1
 ---
 
@@ -29,7 +29,7 @@ revision: 1
 
 ## Record Interpretation
 
-The source contains only the minimal completion marker:
+The source contains only a minimal completion marker:
 
 ```text
 executor session complete | phase: p16-production-remediation | change: unknown
@@ -37,7 +37,7 @@ executor session complete | phase: p16-production-remediation | change: unknown
 
 No implementation details, diffs, validation output, test results, deployment evidence, or follow-up actions were provided.
 
-Treat this entry as a phase-tracking record only until corroborating artifacts are available. It duplicates or overlaps existing records for the same phase, including [Executor Completion Marker: p16-production-remediation Unknown Change](/executor-completion-marker-p16-production-remediation-unknown-change.md), [Executor Completion Marker: p16 Production Remediation](/executor-completion-marker-p16-production-remediation.md), [Duplicate p16 Production Remediation Completion Marker](/duplicate-p16-production-remediation-completion-marker.md), and [Duplicate p16 Production Remediation Unknown Completion Marker](/duplicate-p16-production-remediation-unknown-completion-marker.md).
+Treat this as a phase-tracking record only until corroborating artifacts are available. It duplicates or overlaps existing records for the same phase, including [Executor Completion Marker: p16-production-remediation Unknown Change](/executor-completion-marker-p16-production-remediation-unknown-change.md), [Executor Completion Marker: p16 Production Remediation](/executor-completion-marker-p16-production-remediation.md), [Duplicate p16 Production Remediation Completion Marker](/duplicate-p16-production-remediation-completion-marker.md), and [Duplicate p16 Production Remediation Unknown Completion Marker](/duplicate-p16-production-remediation-unknown-completion-marker.md).
 
 # Citations
 
