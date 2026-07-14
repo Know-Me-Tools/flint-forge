@@ -215,7 +215,11 @@ async fn invoke_impl(
         if !state.runtime.is_loaded(&content_id) {
             match state.store.get(&content_id).await {
                 Ok(wasm_bytes) => {
-                    if let Err(e) = state.runtime.load_wasm(content_id.clone(), &wasm_bytes) {
+                    if let Err(e) =
+                        state
+                            .runtime
+                            .load_wasm(content_id.clone(), &wasm_bytes, &manifest.capabilities)
+                    {
                         tracing::error!(error = %e, "load_wasm failed");
                         return (
                             StatusCode::INTERNAL_SERVER_ERROR,
@@ -243,7 +247,8 @@ async fn invoke_impl(
         }
     }
 
-    // 3. Invoke with granted capabilities (all declared caps; Cedar gate is future p6-c005)
+    // 3. Invoke with the manifest's declared capabilities; EdgeRuntime Cedar-checks
+    //    each one individually (kiln:capability:<name>) before instantiation (p16-c001).
     let request = KilnRequest {
         method: "POST".into(),
         uri: format!("/functions/v1/{name}"),

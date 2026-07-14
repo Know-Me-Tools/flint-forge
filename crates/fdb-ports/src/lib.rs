@@ -41,6 +41,27 @@ pub struct Conn(pub Box<dyn std::any::Any + Send>);
 pub trait DatabaseBackend: Send + Sync {
     /// Acquire a pooled connection with ROLE + request.jwt.claims + request.headers set.
     async fn acquire(&self, rls: &RlsContext) -> Result<Conn, BackendError>;
+
+    /// Run a single SQL statement under the full RLS context and return each
+    /// result row JSON-encoded (`{"column": value, ...}`).
+    ///
+    /// `params` are JSON-encoded scalar bind values, one per `$N` placeholder
+    /// — the same "send raw text, let Postgres resolve the target type"
+    /// binding strategy `RestExecutor` uses for untyped filter values, not a
+    /// typed bind. `sql` may be a plain `SELECT` or a DML statement with
+    /// `RETURNING`; a DML statement with no `RETURNING` succeeds with zero
+    /// rows.
+    ///
+    /// Consumed by Flint Kiln's `flint:host/db` and `flint:host/llm` host
+    /// implementations to forward a WASM component's governed SQL call
+    /// through the same connection/RLS-context machinery REST and GraphQL
+    /// already use — see `fke-runtime`.
+    async fn query_json(
+        &self,
+        rls: &RlsContext,
+        sql: &str,
+        params: &[String],
+    ) -> Result<Vec<String>, BackendError>;
 }
 
 #[async_trait]

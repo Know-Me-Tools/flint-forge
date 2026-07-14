@@ -18,9 +18,21 @@
 //!
 //! - `Pep::check(caller, kiln:invoke)` fires before instantiation.
 //!   `caller = None` skips Cedar (BGW / system-level invocation).
+//! - Each declared capability (`FunctionManifest::capabilities`) is
+//!   individually Cedar-checked (`kiln:capability:<name>`) to compute the
+//!   `granted` set; a denied declared capability refuses the whole
+//!   invocation rather than silently running with a reduced grant.
+//!   `caller = None` skips this too (BGW / system-level).
 //! - Fuel limit prevents infinite loops.
 //! - `#![forbid(unsafe_code)]` — safe `Component::from_binary` only.
 #![forbid(unsafe_code)]
+
+mod db_host;
+mod host_bindings;
+mod identity_host;
+mod kv_host;
+mod llm_host;
+mod secrets;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -40,7 +52,7 @@ use hyper::Request as HyperRequest;
 fn wt<T>(r: wasmtime::Result<T>) -> core::result::Result<T, anyhow::Error> {
     r.map_err(|e| anyhow::anyhow!("{e}"))
 }
-use wasmtime::component::{Component, Linker, ResourceTable};
+use wasmtime::component::{Component, HasSelf, Linker, ResourceTable};
 use wasmtime::{Config, Engine, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 use wasmtime_wasi_http::p2::bindings::http::types::Scheme;
@@ -61,8 +73,18 @@ struct KilnHostState {
     table: ResourceTable,
     http_ctx: WasiHttpCtx,
     http_hooks: [(); 0], // zero-size default WasiHttpHooks impl
-    #[allow(dead_code)]
     granted: Vec<Capability>,
+    /// Ephemeral per-invocation store backing `flint:host/kv`. Dropped with the `Store`.
+    kv_store: HashMap<String, Vec<u8>>,
+    /// Caller identity backing `flint:host/identity`, cloned from `handle_with_telemetry`'s
+    /// `caller: Option<&RlsContext>` since `Store` data must be owned/`'static`.
+    identity: Option<RlsContext>,
+    /// Governed Postgres access backing `flint:host/db` and `flint:host/llm`.
+    database: Option<Arc<dyn fdb_ports::DatabaseBackend>>,
+    /// Cedar PEP backing the extra per-secret check in `flint:host/secrets`'
+    /// `reveal()`, beyond the interface-level `Secrets` capability already
+    /// checked in `handle_with_telemetry`.
+    pep: Option<Arc<dyn Pep>>,
 }
 
 impl WasiView for KilnHostState {
@@ -98,6 +120,9 @@ pub struct EdgeRuntime {
     cache: Mutex<HashMap<ContentId, Arc<CachedComponent>>>,
     fuel_per_call: u64,
     pep: Option<Arc<dyn Pep>>,
+    /// Governed Postgres access threaded into each invocation's `KilnHostState`
+    /// for `flint:host/db`, `flint:host/llm`, and `flint:host/secrets`.
+    database: Option<Arc<dyn fdb_ports::DatabaseBackend>>,
     /// Background epoch ticker. Held to document that its liveness is required;
     /// the engine is dropped together with the runtime so the ticker exits naturally.
     #[allow(dead_code)]
@@ -137,6 +162,7 @@ impl EdgeRuntime {
             cache: Mutex::new(HashMap::new()),
             fuel_per_call: DEFAULT_FUEL,
             pep: None,
+            database: None,
             epoch_ticker,
         })
     }
@@ -154,11 +180,40 @@ impl EdgeRuntime {
         self
     }
 
+    /// Attach governed Postgres access for `flint:host/db`, `flint:host/llm`,
+    /// and `flint:host/secrets`. Without this, those interfaces return a
+    /// `HostError` rather than being unavailable at the WIT level — see
+    /// `db_host`/`llm_host`/`secrets`.
+    #[must_use]
+    pub fn with_database(mut self, database: Arc<dyn fdb_ports::DatabaseBackend>) -> Self {
+        self.database = Some(database);
+        self
+    }
+
     /// Load a WASM component from raw bytes and cache it under `id`.
-    pub fn load_wasm(&self, id: ContentId, wasm: &[u8]) -> Result<()> {
+    ///
+    /// `declared` is the function's signed-manifest capability set
+    /// (`FunctionManifest::capabilities`) — the `Linker` only gets
+    /// `add_to_linker` calls for `flint:host` interfaces present in it,
+    /// so a component whose manifest doesn't declare (say) `Secrets` can't
+    /// import `flint:host/secrets` at all: `instantiate_pre` fails with a
+    /// missing-import error rather than the interface being silently
+    /// reachable. This uses `declared`, not a per-invocation Cedar-`granted`
+    /// set, because the `Linker`/`ProxyPre` built here is cached and reused
+    /// across every future invocation of this `id` regardless of caller —
+    /// `handle_with_telemetry`'s fail-closed capability gate (any declared
+    /// capability Cedar denies refuses the whole invocation) guarantees
+    /// `granted == declared` on every invocation that reaches this cached
+    /// component, so gating at load time by `declared` is equivalent.
+    ///
+    /// Note: if the same WASM bytes (same `id`) are ever registered under
+    /// two different manifests with different `declared` sets, whichever
+    /// `load_wasm` call happens first wins for both — `is_loaded` callers
+    /// skip re-loading an already-cached `id`. Not handled here.
+    pub fn load_wasm(&self, id: ContentId, wasm: &[u8], declared: &[Capability]) -> Result<()> {
         let component =
             wt(Component::from_binary(&self.engine, wasm)).context("Component::from_binary")?;
-        let linker = build_linker(&self.engine)?;
+        let linker = build_linker(&self.engine, declared)?;
         let instance_pre =
             wt(linker.instantiate_pre(&component)).context("Linker::instantiate_pre")?;
         let pre = wt(ProxyPre::new(instance_pre)).context("ProxyPre::new")?;
@@ -176,29 +231,40 @@ impl EdgeRuntime {
 
     /// Dispatch an HTTP-style request to the loaded component.
     ///
-    /// `caller = None` → Cedar gate skipped (BGW / system-level).
+    /// `caller = None` → Cedar gate skipped (BGW / system-level); `declared`
+    /// capabilities pass through unfiltered in that case.
     /// Records `kiln_fuel_consumed_total` and `kiln_epoch_traps_total`.
     pub async fn handle(
         &self,
         id: &ContentId,
-        granted: &[Capability],
+        declared: &[Capability],
         caller: Option<&RlsContext>,
         request: KilnRequest,
     ) -> Result<KilnResponse> {
-        self.handle_with_telemetry(id, granted, caller, request)
+        self.handle_with_telemetry(id, declared, caller, request)
             .await
             .map(|outcome| outcome.response)
     }
 
     /// Same as `handle`, but returns telemetry captured during the invocation.
+    ///
+    /// `declared` is the function's signed-manifest capability set
+    /// (`FunctionManifest::capabilities`). Each declared capability is
+    /// individually Cedar-checked (`kiln:capability:<name>`) against
+    /// `caller` to compute the actually-`granted` set; `caller = None`
+    /// (BGW / system-level) skips Cedar and grants everything declared,
+    /// matching the `kiln:invoke` gate above. If Cedar denies any declared
+    /// capability the invocation is refused outright — a component whose
+    /// own manifest says it needs `Secrets` does not get to silently run
+    /// without it.
     pub async fn handle_with_telemetry(
         &self,
         id: &ContentId,
-        granted: &[Capability],
+        declared: &[Capability],
         caller: Option<&RlsContext>,
         request: KilnRequest,
     ) -> Result<KilnHandleOutcome> {
-        // ── Cedar gate ────────────────────────────────────────────────────
+        // ── Cedar gate: kiln:invoke ─────────────────────────────────────────
         if let (Some(pep), Some(who)) = (&self.pep, caller) {
             let decision = pep
                 .check(who, &forge_policy::kiln::request(forge_policy::KILN_INVOKE))
@@ -208,8 +274,21 @@ impl EdgeRuntime {
             }
         }
 
-        // ── Capability check ──────────────────────────────────────────────
-        check_capabilities(granted, granted)?;
+        // ── Capability gate: kiln:capability:<name>, one check per declared cap ──
+        let granted: Vec<Capability> = if let (Some(pep), Some(who)) = (&self.pep, caller) {
+            let mut ok = Vec::with_capacity(declared.len());
+            for cap in declared {
+                let action = forge_policy::kiln::capability_action(cap.as_str());
+                let decision = pep.check(who, &forge_policy::kiln::request(&action)).await;
+                if decision == Decision::Allow {
+                    ok.push(cap.clone());
+                }
+            }
+            ok
+        } else {
+            declared.to_vec()
+        };
+        check_capabilities(declared, &granted)?;
 
         // ── Retrieve cached ProxyPre ──────────────────────────────────────
         let cached = self
@@ -227,7 +306,11 @@ impl EdgeRuntime {
             table: ResourceTable::new(),
             http_ctx: WasiHttpCtx::new(),
             http_hooks: [],
-            granted: granted.to_vec(),
+            granted,
+            kv_store: HashMap::new(),
+            identity: caller.cloned(),
+            database: self.database.clone(),
+            pep: self.pep.clone(),
         };
         let mut store = Store::new(&self.engine, host);
         store.set_fuel(self.fuel_per_call)?;
@@ -400,14 +483,60 @@ fn kiln_request_to_hyper(
     builder.body(body).context("build hyper request")
 }
 
-/// Build a linker with WASI + WASI-HTTP host functions.
-fn build_linker(engine: &Engine) -> Result<Linker<KilnHostState>> {
+/// Build a linker with WASI + WASI-HTTP host functions (unconditional — the
+/// response-construction host functions in `wasi:http/types` are needed by
+/// every component that exports `incoming-handler` regardless of capability,
+/// and wasmtime-wasi-http doesn't separate those from `outgoing-handler`),
+/// plus `flint:host`'s five governed interfaces, each added only when
+/// `granted` contains the matching `Capability` — see `load_wasm`'s doc
+/// comment for why `declared`-at-load-time is the right input here.
+fn build_linker(engine: &Engine, granted: &[Capability]) -> Result<Linker<KilnHostState>> {
     let mut linker = Linker::<KilnHostState>::new(engine);
     wt(wasmtime_wasi::p2::add_to_linker_async(&mut linker)).context("add wasi to linker")?;
     wt(wasmtime_wasi_http::p2::add_only_http_to_linker_async(
         &mut linker,
     ))
     .context("add wasi-http to linker")?;
+
+    if granted.contains(&Capability::Db) {
+        wt(host_bindings::flint::host::db::add_to_linker::<_, HasSelf<_>>(
+            &mut linker,
+            |s| s,
+        ))
+        .context("add flint:host/db to linker")?;
+    }
+    if granted.contains(&Capability::Llm) {
+        wt(
+            host_bindings::flint::host::llm::add_to_linker::<_, HasSelf<_>>(&mut linker, |s| s),
+        )
+        .context("add flint:host/llm to linker")?;
+    }
+    if granted.contains(&Capability::Kv) {
+        wt(host_bindings::flint::host::kv::add_to_linker::<_, HasSelf<_>>(
+            &mut linker,
+            |s| s,
+        ))
+        .context("add flint:host/kv to linker")?;
+    }
+    if granted.contains(&Capability::Identity) {
+        wt(
+            host_bindings::flint::host::identity::add_to_linker::<_, HasSelf<_>>(
+                &mut linker,
+                |s| s,
+            ),
+        )
+        .context("add flint:host/identity to linker")?;
+    }
+    if granted.contains(&Capability::Secrets) {
+        wt(
+            host_bindings::flint::host::secrets::add_to_linker::<_, HasSelf<_>>(
+                &mut linker,
+                |s| s,
+            ),
+        )
+        .context("add flint:host/secrets to linker")?;
+    }
+
     Ok(linker)
 }
 
@@ -448,6 +577,21 @@ mod tests {
         }
     }
 
+    /// Allows `kiln:invoke` but denies every `kiln:capability:*` action —
+    /// isolates the capability gate from the invoke gate in tests.
+    struct AllowInvokeDenyCapability;
+
+    #[async_trait]
+    impl Pep for AllowInvokeDenyCapability {
+        async fn check(&self, _who: &RlsContext, req: &Request) -> Decision {
+            if req.action == forge_policy::KILN_INVOKE {
+                Decision::Allow
+            } else {
+                Decision::Deny
+            }
+        }
+    }
+
     fn fake_rls() -> RlsContext {
         RlsContext {
             role: "authenticated".into(),
@@ -467,6 +611,23 @@ mod tests {
         }
     }
 
+    /// `examples/hello-component` calls `flint:host/kv` (see its
+    /// `src/lib.rs`), so its *compiled* component only actually imports
+    /// `Kv` — despite targeting the full `edge-function` WIT world, which
+    /// makes all five interfaces importable. Unused wit-bindgen imports get
+    /// dead-code-eliminated when the guest never calls them (confirmed via
+    /// `gate_hello_component_fails_to_load_without_kv_capability`), so only
+    /// `Kv` is strictly required here — the rest are included anyway as
+    /// harmless extra grants, and to keep this constant ready for when the
+    /// component calls the other four too.
+    const HELLO_COMPONENT_CAPS: [Capability; 5] = [
+        Capability::Db,
+        Capability::Llm,
+        Capability::Kv,
+        Capability::Identity,
+        Capability::Secrets,
+    ];
+
     #[tokio::test]
     async fn edge_runtime_constructs() {
         EdgeRuntime::new().expect("construct");
@@ -482,7 +643,7 @@ mod tests {
     async fn load_wasm_rejects_garbage() {
         let rt = EdgeRuntime::new().expect("construct");
         let id = ContentId("sha256:deadbeef".into());
-        assert!(rt.load_wasm(id, b"not valid wasm").is_err());
+        assert!(rt.load_wasm(id, b"not valid wasm", &[]).is_err());
     }
 
     #[tokio::test]
@@ -549,6 +710,61 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn declared_capability_denied_by_cedar_refuses_invocation() {
+        let rt = EdgeRuntime::new()
+            .expect("construct")
+            .with_pep(Arc::new(AllowInvokeDenyCapability));
+        let id = ContentId("sha256:cap-denied".into());
+        let who = fake_rls();
+        let err = rt
+            .handle(&id, &[Capability::Secrets], Some(&who), dummy_request())
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("Secrets"),
+            "expected capability-denial error mentioning Secrets, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn declared_capability_allowed_by_cedar_falls_through_to_runtime() {
+        let rt = EdgeRuntime::new()
+            .expect("construct")
+            .with_pep(Arc::new(AllowAll));
+        let id = ContentId("sha256:cap-allowed-notloaded".into());
+        let who = fake_rls();
+        let err = rt
+            .handle(
+                &id,
+                &[Capability::Db, Capability::Kv],
+                Some(&who),
+                dummy_request(),
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("not loaded"),
+            "expected 'not loaded' (capability gate passed), got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn declared_capabilities_pass_through_unfiltered_when_caller_is_none() {
+        let rt = EdgeRuntime::new()
+            .expect("construct")
+            .with_pep(Arc::new(DenyAll));
+        let id = ContentId("sha256:cap-no-caller".into());
+        let err = rt
+            .handle(&id, &[Capability::Secrets], None, dummy_request())
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("not loaded"),
+            "expected 'not loaded' (Cedar skipped, BGW-style), got: {err}"
+        );
+    }
+
     #[test]
     fn check_capabilities_passes_when_all_granted() {
         let granted = vec![Capability::Db, Capability::Llm];
@@ -568,6 +784,33 @@ mod tests {
         assert!(check_capabilities(&[], &[]).is_ok());
     }
 
+    /// `build_linker` must succeed regardless of which `flint:host`
+    /// interfaces are conditionally wired in — the real "a component that
+    /// imports an ungranted interface fails at `instantiate_pre`" gate needs
+    /// an actual multi-interface WASM component (`examples/hello-component`,
+    /// built via `cargo component`, unavailable in this environment — see
+    /// Part D), so this only regression-tests the conditional wiring itself.
+    #[tokio::test]
+    async fn build_linker_succeeds_for_every_capability_subset() {
+        let rt = EdgeRuntime::new().expect("construct");
+        let all = [
+            Capability::Db,
+            Capability::Llm,
+            Capability::Kv,
+            Capability::Identity,
+            Capability::Secrets,
+            Capability::HttpOutgoing,
+        ];
+        for cap in &all {
+            assert!(
+                build_linker(&rt.engine, std::slice::from_ref(cap)).is_ok(),
+                "build_linker failed for {cap:?} alone"
+            );
+        }
+        assert!(build_linker(&rt.engine, &all).is_ok(), "all capabilities");
+        assert!(build_linker(&rt.engine, &[]).is_ok(), "no capabilities");
+    }
+
     /// Gate test: load the hello-component WASM and verify it returns HTTP 200.
     /// Requires the component to be pre-built with `cargo component build -p hello-component`.
     #[tokio::test]
@@ -584,7 +827,7 @@ mod tests {
 
         let rt = EdgeRuntime::new().expect("construct");
         let id = ContentId("sha256:hello-component-test".into());
-        rt.load_wasm(id.clone(), &wasm_bytes).expect("load_wasm");
+        rt.load_wasm(id.clone(), &wasm_bytes, &HELLO_COMPONENT_CAPS).expect("load_wasm");
 
         let req = KilnRequest {
             method: "GET".into(),
@@ -600,6 +843,57 @@ mod tests {
             body.contains("Hello") || !body.is_empty(),
             "expected non-empty body, got: {body:?}"
         );
+    }
+
+    /// Part C's actual security property, proven against a real component
+    /// (not just `build_linker` in isolation): `hello-component` calls
+    /// `flint:host/kv`'s `set`/`get`, so the *compiled* component genuinely
+    /// imports that interface (unlike the other four, which the WIT world
+    /// makes importable but which get dead-code-eliminated from the
+    /// component since nothing in the guest calls them — confirmed by the
+    /// fact that an empty/`Db`-only capability set used to falsely appear to
+    /// "work" before this component called anything). Granting anything
+    /// short of `Kv` must fail `instantiate_pre` with a missing-import
+    /// error; granting `Kv` (plus anything else) must succeed.
+    #[tokio::test]
+    async fn gate_hello_component_fails_to_load_without_kv_capability() {
+        let wasm_path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../target/wasm32-wasip1/debug/hello_component.wasm"
+        );
+        let Ok(wasm_bytes) = std::fs::read(wasm_path) else {
+            eprintln!("hello_component.wasm not found — run `cargo component build -p hello-component` to enable this test");
+            return;
+        };
+
+        let rt = EdgeRuntime::new().expect("construct");
+
+        // No Kv capability at all: missing import.
+        let id_none = ContentId("sha256:hello-component-no-kv".into());
+        let err = rt
+            .load_wasm(id_none, &wasm_bytes, &[])
+            .expect_err("expected instantiate_pre to fail with no capabilities granted");
+        assert!(
+            err.to_string().to_lowercase().contains("import")
+                || err.to_string().to_lowercase().contains("instantiate"),
+            "expected a missing-import/instantiate error, got: {err}"
+        );
+
+        // A different capability granted, but still not Kv: still missing import.
+        let id_wrong = ContentId("sha256:hello-component-wrong-cap".into());
+        let err = rt
+            .load_wasm(id_wrong, &wasm_bytes, &[Capability::Db])
+            .expect_err("expected instantiate_pre to fail without the Kv capability specifically");
+        assert!(
+            err.to_string().to_lowercase().contains("import")
+                || err.to_string().to_lowercase().contains("instantiate"),
+            "expected a missing-import/instantiate error, got: {err}"
+        );
+
+        // Kv granted (plus an unrelated extra capability): succeeds.
+        let id_ok = ContentId("sha256:hello-component-with-kv".into());
+        rt.load_wasm(id_ok, &wasm_bytes, &[Capability::Db, Capability::Kv])
+            .expect("expected instantiate_pre to succeed once Kv is granted");
     }
 
     /// `is_loaded` tracks cache membership without needing a live invocation.
@@ -623,7 +917,7 @@ mod tests {
             return;
         };
 
-        rt.load_wasm(present.clone(), &wasm_bytes)
+        rt.load_wasm(present.clone(), &wasm_bytes, &HELLO_COMPONENT_CAPS)
             .expect("load valid wasm");
         assert!(rt.is_loaded(&present), "loaded component must report true");
         assert!(
@@ -656,7 +950,7 @@ mod tests {
         };
         let rt = EdgeRuntime::new().expect("construct");
         let id = ContentId("sha256:hello-component-epoch-test".into());
-        rt.load_wasm(id.clone(), &wasm_bytes).expect("load_wasm");
+        rt.load_wasm(id.clone(), &wasm_bytes, &HELLO_COMPONENT_CAPS).expect("load_wasm");
 
         let req = KilnRequest {
             method: "GET".into(),
