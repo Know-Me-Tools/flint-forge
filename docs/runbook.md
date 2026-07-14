@@ -559,6 +559,16 @@ curl -sf http://localhost:8080/healthz | jq .
 curl -sf http://localhost:8090/healthz | jq .
 ```
 
+> **`v1.0.0` image location note:** the `docker.yml` tag-triggered CI run for `v1.0.0`
+> failed (`repository name must be lowercase`, fixed in a later commit not part of
+> that tag), so no `ghcr.io/know-me-tools/*:v1.0.0` images exist. `v1.0.0` images
+> were instead published manually to `docker.io/tribehealth/flint-gateway:v1.0.0`
+> and `docker.io/tribehealth/flint-kiln:v1.0.0`, built from the exact `v1.0.0` source
+> with the Rust base image locally bumped (`1.85-slim` → `1.96-slim`) to work around
+> an unrelated `cargo-chef` toolchain incompatibility. See the
+> [`v1.0.0` release notes](https://github.com/Know-Me-Tools/flint-forge/releases/tag/v1.0.0)
+> for details. `v1.0.1`+ images are published to `ghcr.io/know-me-tools/*` by CI as normal.
+
 ### 5.2 Database Snapshot Restore
 
 Use this path when a migration must be undone or data corruption is detected.
