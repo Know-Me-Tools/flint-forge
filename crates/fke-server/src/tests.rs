@@ -17,9 +17,19 @@
 //! covered here — only the signature gate they both call before touching
 //! storage.
 
-use super::*;
+use std::sync::Arc;
+
+use axum::extract::State;
+use axum::http::{header, HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Json};
 use ed25519_dalek::{Signer as _, SigningKey};
 use fke_domain::FunctionManifest;
+use fke_registry::PgComponentStore;
+use fke_runtime::EdgeRuntime;
+
+use crate::handlers::admin::{list_functions, register_function, require_admin, RegisterBody};
+use crate::handlers::invoke::invoke_impl;
+use crate::state::{verify_manifest_signature, KilnState};
 
 fn test_state() -> KilnState {
     // `connect_lazy` never dials — `verify_manifest_signature` only touches

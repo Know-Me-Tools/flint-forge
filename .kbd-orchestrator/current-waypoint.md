@@ -7,42 +7,43 @@ agentic/AI-agent systems).
 
 ## Phase State
 - Status: **executing**
-- Changes planned: 9 (5 done, 0 in progress)
-- OpenSpec changes: `p16-c001`, `p16-c002`, `p16-c003`, `p16-c004`, `p16-c005` archived (`openspec/changes/archive/`); `p16-c006` … `p16-c009` scaffolded (proposal.md + tasks.md each)
+- Changes planned: 9 (7 done, 0 in progress)
+- OpenSpec changes: `p16-c001` … `p16-c007` all archived (`openspec/changes/archive/`); `p16-c008`, `p16-c009` scaffolded (proposal.md + tasks.md each)
 - Execution backend: **openspec**, self-executing (Claude Code CLI) via `/kbd-apply` — see `execution.md`
 
 ## Immediate Next Action
-**Round 1 AND `p16-c003` (Round 2) are all DONE and archived** —
-`p16-c001`, `p16-c002`, `p16-c003`, `p16-c004`, `p16-c005`. c003 (Kiln
-sandbox + authz): fixed the literal `check_capabilities(granted, granted)`
-no-op — `granted` is now computed independently per capability via a new
-per-capability Cedar action (`kiln:capability:<name>`, distinct from
-`kiln:invoke`); added mandatory bearer auth to `/functions/v1/<name>`
-(missing/invalid → 401 before ever reaching the runtime, making
-`caller = None` genuinely unreachable from that HTTP path) and a new
-`require_admin()` gate to `/admin/functions` (401 unauthenticated, 403
-non-`service_role`) — previously gated only by a compile-time feature flag.
-Deliberately deferred wiring the `flint:host@0.1.0` WIT host functions
-(Db/Llm/Kv/Identity/Secrets) into the linker — investigated first: no
-component anywhere in this repo imports them yet, `db`/`llm`/`secrets` need
-live backing clients this crate has no access to, and none of the five can
-be verified end-to-end without the still-unavailable `cargo-component`
-toolchain — spawned as its own follow-up (`task_22a1dcc7`) rather than
-shipped unverified, matching c002's SCT/OIDC-allowlist precedent. See
-`progress.json`'s `p16-c003` entry for the full account, including a note
-on independent convergence with a concurrently-running background session
-that reached the same conclusions.
+**Rounds 1 AND 2 are fully DONE, and Round 3's `p16-c007` is too** —
+`p16-c001` through `p16-c007` all archived. c007 (500-line file-size
+compliance): re-measured line counts (18 files now over the limit, up from
+17 at the original audit), split 17 into directory modules as pure
+mechanical refactors — zero behavior change, `cargo check`/`clippy`/`test`
+all green workspace-wide (76/76 test-result summaries `ok`). Executed via
+~15 parallel subagents, since `mod foo;` resolves to either `foo.rs` or
+`foo/mod.rs` automatically — most splits touch zero shared parent files, so
+cross-agent conflicts were largely eliminated by construction. One real
+conflict did surface: two independent concurrent sessions both split the
+largest file (`routes/htmx/renderers.rs`, 1267 lines), and the copy that
+landed in the shared working tree had a genuine visibility bug breaking the
+whole `fdb-gateway` crate — resolved by finding a second, independently
+verified split sitting in an isolated agent worktree and substituting it in
+wholesale. Deliberately NOT split: `crates/ext-flint-vault/src/lib.rs` (513
+lines) — the pgrx-based envelope-encrypted secret store / KMS-wrapped-DEK
+extension, the single most security-critical crate in the repo — because
+`cargo-pgrx` requires `$PGRX_HOME` (needs network access to build a local
+Postgres via `cargo pgrx init`), confirmed genuinely unavailable here, and
+splitting security-critical pgrx code with zero ability to even
+compile-check it was judged too high a risk. Left as tracked, documented
+open debt. See `progress.json`'s `p16-c007` entry for the full account.
 
 Run next:
 
 ```
-/kbd-apply p16-c006-config-truth-tracker-reconcile
+/kbd-apply p16-c008-production-operations
 ```
 
-Round 2 is now fully complete (`p16-c003` done here; `p16-c006` depends on
-c001, done — safe to start next).
-Then Round 3: `p16-c007`, `p16-c008` (the latter needs human/operator
-involvement for credentials and backup drills).
+Round 3's last change, `p16-c008` (production operations), needs
+human/operator involvement for credentials and backup drills — not
+something achievable unattended in this environment.
 Then Round 4: `p16-c009`.
 
 Full ordering rationale in `.kbd-orchestrator/phases/p16-production-remediation/plan.md`;

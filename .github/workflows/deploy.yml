@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - staging
+          - production
       tag:
         description: 'Image tag to deploy (default: latest)'
         required: false
@@ -24,61 +25,81 @@ jobs:
   deploy:
     name: Deploy to ${{ inputs.environment }}
     runs-on: ubuntu-latest
+    # p16-c008: GitHub Environment protection rules (required reviewers) for
+    # `production` are configured on the repo's Environment settings, not in
+    # this file — see docs/runbook.md §13 for the one-time setup an admin
+    # must do. `staging`/`production` each define their OWN copies of
+    # SSH_HOST/SSH_USER/SSH_KEY/JWT_SECRET as Environment secrets (same
+    # names, different values per environment) so this job stays generic.
     environment: ${{ inputs.environment }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # p16-c008: staging and production use different compose overlay files
+      # (docker-compose.staging.yml / docker-compose.prod.yml — "prod", not
+      # "production", to match the existing file name) and production's
+      # overlay additionally requires the Docker secrets already provisioned
+      # on the host (see docs/runbook.md §10.7/§13 — an operator, not this
+      # pipeline, runs `scripts/rotate_secrets.sh` once per host).
+      - name: Resolve compose overlay
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            echo "COMPOSE_OVERLAY=docker-compose.prod.yml" >> "$GITHUB_ENV"
+          else
+            echo "COMPOSE_OVERLAY=docker-compose.staging.yml" >> "$GITHUB_ENV"
+          fi
+
       # ── Write the SSH private key to an agent-loaded file ──────────────────
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.STAGING_SSH_KEY }}" > ~/.ssh/deploy_key
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.STAGING_SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
         env:
-          STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
 
-      # ── Copy compose files to the staging host ─────────────────────────────
+      # ── Copy compose files to the target host ──────────────────────────────
       - name: Upload compose files
         run: |
           scp -i ~/.ssh/deploy_key \
               docker-compose.yml \
-              docker-compose.staging.yml \
+              "${COMPOSE_OVERLAY}" \
               .env.example \
-              "${{ secrets.STAGING_SSH_USER }}@${{ secrets.STAGING_SSH_HOST }}:~/flint-forge/"
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/flint-forge/"
         env:
-          STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
-          STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
 
       # ── Pull images and bring the stack up ─────────────────────────────────
       - name: Deploy stack
         run: |
           ssh -i ~/.ssh/deploy_key \
-              "${{ secrets.STAGING_SSH_USER }}@${{ secrets.STAGING_SSH_HOST }}" \
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
               "cd ~/flint-forge && \
                TAG=${{ inputs.tag }} \
                REGISTRY=ghcr.io/${{ github.repository_owner }}/flint-forge \
                docker compose \
                  -f docker-compose.yml \
-                 -f docker-compose.staging.yml \
+                 -f ${COMPOSE_OVERLAY} \
                  pull --quiet && \
                TAG=${{ inputs.tag }} \
                REGISTRY=ghcr.io/${{ github.repository_owner }}/flint-forge \
                docker compose \
                  -f docker-compose.yml \
-                 -f docker-compose.staging.yml \
+                 -f ${COMPOSE_OVERLAY} \
                  up -d --remove-orphans"
         env:
-          STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
-          STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
 
       # ── Wait for services to become healthy ────────────────────────────────
       - name: Wait for stack healthy
         run: |
           ssh -i ~/.ssh/deploy_key \
-              "${{ secrets.STAGING_SSH_USER }}@${{ secrets.STAGING_SSH_HOST }}" \
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
               "for i in \$(seq 1 30); do \
                  curl -sf http://localhost:8080/healthz > /dev/null && \
                  curl -sf http://localhost:8090/healthz > /dev/null && \
@@ -86,30 +107,30 @@ jobs:
                  echo \"Waiting (\$i/30)...\"; sleep 2; \
                done; echo 'Timed out waiting for stack'; exit 1"
         env:
-          STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
-          STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
 
       # ── Copy and run smoke tests on the host ──────────────────────────────
       - name: Copy smoke test
         run: |
           scp -i ~/.ssh/deploy_key \
               scripts/smoke_test.sh \
-              "${{ secrets.STAGING_SSH_USER }}@${{ secrets.STAGING_SSH_HOST }}:~/flint-forge/smoke_test.sh"
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/flint-forge/smoke_test.sh"
         env:
-          STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
-          STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
 
       - name: Mint smoke token
         run: |
           chmod +x scripts/mint_smoke_token.sh
-          SMOKE_TOKEN=$(JWT_SECRET="${{ secrets.STAGING_JWT_SECRET }}" \
+          SMOKE_TOKEN=$(JWT_SECRET="${{ secrets.JWT_SECRET }}" \
             ./scripts/mint_smoke_token.sh)
           echo "SMOKE_TOKEN=${SMOKE_TOKEN}" >> "$GITHUB_ENV"
 
       - name: Run smoke tests
         run: |
           ssh -i ~/.ssh/deploy_key \
-              "${{ secrets.STAGING_SSH_USER }}@${{ secrets.STAGING_SSH_HOST }}" \
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
               "cd ~/flint-forge && \
                chmod +x smoke_test.sh && \
                BASE_URL=http://localhost:8080 \
@@ -117,8 +138,8 @@ jobs:
                SMOKE_TOKEN='${SMOKE_TOKEN}' \
                ./smoke_test.sh"
         env:
-          STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
-          STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
 
       # ── Clean up key from runner ────────────────────────────────────────────
       - name: Clean up SSH key

@@ -4,7 +4,7 @@
 
 **Human/ops involvement required — flag each item below that needs operator action.**
 
-- [ ] Clarify with operator: compose or Helm/K8s is the canonical production deploy target
+- [x] Clarify with operator: compose or Helm/K8s is the canonical production deploy target
 - [ ] Extend `.github/workflows/deploy.yml` with a `production` environment option
 - [ ] Add GitHub Environment protection rules (required reviewers) for production deploys
 - [ ] **(operator)** Provision production deploy credentials/secrets

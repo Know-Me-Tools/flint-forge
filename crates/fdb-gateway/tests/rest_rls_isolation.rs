@@ -163,18 +163,30 @@ async fn seed_schema(setup: &deadpool_postgres::Object) {
 /// independently of this change) means filtering an `int4` column like `id`
 /// fails at the driver level regardless of RLS; scoping this test to text
 /// columns keeps it a clean proof of tenant isolation specifically.
-async fn assert_list_isolation(router: &axum::Router, tenant_a: &RlsContext, tenant_b: &RlsContext) {
+async fn assert_list_isolation(
+    router: &axum::Router,
+    tenant_a: &RlsContext,
+    tenant_b: &RlsContext,
+) {
     let (status, body) = send(router, "GET", "/p16c001_it/orders", tenant_a.clone(), None).await;
     assert_eq!(status, StatusCode::OK);
     let rows = body.as_array().expect("array");
-    assert_eq!(rows.len(), 1, "tenant A sees exactly its own row, not tenant B's");
+    assert_eq!(
+        rows.len(),
+        1,
+        "tenant A sees exactly its own row, not tenant B's"
+    );
     assert_eq!(rows[0]["tenant_id"], "tenant-a");
     assert_eq!(rows[0]["note"], "a-secret");
 
     let (status, body) = send(router, "GET", "/p16c001_it/orders", tenant_b.clone(), None).await;
     assert_eq!(status, StatusCode::OK);
     let rows = body.as_array().expect("array");
-    assert_eq!(rows.len(), 1, "tenant B sees exactly its own row, not tenant A's");
+    assert_eq!(
+        rows.len(),
+        1,
+        "tenant B sees exactly its own row, not tenant A's"
+    );
     assert_eq!(rows[0]["tenant_id"], "tenant-b");
 
     let (_, body) = send(
@@ -253,7 +265,11 @@ async fn assert_same_tenant_and_check_constraint(router: &axum::Router, tenant_a
         Some(json!({"id": "3", "tenant_id": "tenant-a", "note": "new"})),
     )
     .await;
-    assert_eq!(status, StatusCode::CREATED, "tenant A can insert its own row");
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "tenant A can insert its own row"
+    );
 
     let (_, body) = send(
         router,

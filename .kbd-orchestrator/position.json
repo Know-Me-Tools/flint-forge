@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "updatedAt": "2026-07-13T23:21:52Z",
+  "updatedAt": "2026-07-14T11:10:22Z",
   "cursor": [
     "p16-production-remediation"
   ],
@@ -9,7 +9,7 @@
     "id": "p16-production-remediation",
     "status": "executing",
     "progress": {
-      "done": 5,
+      "done": 7,
       "total": 9
     },
     "children": [],
