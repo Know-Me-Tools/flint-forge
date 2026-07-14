@@ -20,6 +20,7 @@
 //! - The per-event RLS re-query is NEVER removed or skipped.
 //! - `FabricChangeSource` MUST NOT be constructed with a service-role `RlsContext`.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 pub mod listen;
 pub use listen::{ListenChangeSource, ListenConfig, ListenError};
@@ -77,7 +78,15 @@ pub struct FabricChangeSource {
 impl FabricChangeSource {
     /// Build a `FabricChangeSource`, establishing the tonic channel.
     ///
-    /// Returns an error if the FRF gRPC endpoint is unreachable at construction time.
+    /// The channel connects lazily (`connect_lazy`), so this does not block on
+    /// or verify network reachability — only the endpoint's URI shape is
+    /// validated here. An unreachable-but-well-formed endpoint fails later,
+    /// on first RPC attempt (currently unreachable in practice: `watch` never
+    /// issues the real call — see [`FabricChangeSource::watch`]'s OQ-FRF-1 note).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`FabricError::Connect`] when `frf.endpoint` is not a valid URI.
     pub fn new(frf: FrfConfig, keto: KetoConfig) -> Result<Self, FabricError> {
         let channel = tonic::transport::Channel::from_shared(frf.endpoint)
             .map_err(|e| FabricError::Connect(e.to_string()))?
@@ -94,6 +103,10 @@ impl FabricChangeSource {
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum FabricError {
+    /// The tonic `Channel` could not be built from the configured FRF gRPC
+    /// endpoint (e.g. an invalid URI). Note this is a lazy channel
+    /// (`connect_lazy`) — a merely *unreachable* endpoint does not surface
+    /// here; it only fails once a call is actually attempted.
     #[error("gRPC connect: {0}")]
     Connect(String),
 }

@@ -79,9 +79,13 @@ kiln:
 
 # ------------------------------------------------------------------------------
 # Backups (p16-c008) — wal-g continuous WAL archiving + scheduled base
-# backups for point-in-time recovery. Kubernetes counterpart to the
-# `wal-g`/`backup` compose services in docker-compose.prod.yml — see
-# docs/runbook.md §14 for the full setup and restore procedure.
+# backups for point-in-time recovery, targeting Azure Blob Storage via
+# Azure AD Workload Identity — no static storage keys anywhere. The postgres
+# pod authenticates as `backup.workloadIdentityClientId` (a federated
+# user-assigned managed identity, see docs/runbook.md §13.2) purely through
+# its ServiceAccount annotation; wal-g's Azure backend picks up the ambient
+# AZURE_CLIENT_ID/AZURE_TENANT_ID/AZURE_FEDERATED_TOKEN_FILE env vars the AKS
+# workload-identity webhook injects automatically. See docs/runbook.md §13.
 # ------------------------------------------------------------------------------
 backup:
   enabled: false
@@ -91,14 +95,27 @@ backup:
   # WAL segment, bounding how much data an interruption could lose (PITR still
   # recovers up to the last archived WAL record, not just the last base backup).
   archiveTimeoutSeconds: 60
-  # S3-compatible bucket/prefix wal-g archives WAL segments and base backups to.
-  s3Prefix: ""
-  # Secret must provide keys: aws-access-key-id, aws-secret-access-key.
-  # Provision out-of-band (`kubectl create secret generic ... --from-literal=...`)
-  # — never commit real credentials to this chart.
-  existingSecretName: ""
+  # Azure Storage account (not a secret — the account name alone grants no
+  # access; authentication is entirely via Workload Identity below).
+  storageAccount: ""
+  # Blob container + prefix wal-g archives WAL segments and base backups to,
+  # e.g. "azure://pg-backups/<tenant>".
+  azPrefix: ""
+  # Client ID of the user-assigned managed identity federated to this
+  # release's postgres ServiceAccount (system:serviceaccount:<namespace>:
+  # <fullname>-postgres). Provision with `az identity federated-credential
+  # create` — see docs/runbook.md §13.2. Not a secret; safe to commit.
+  workloadIdentityClientId: ""
   # Image providing the `kubectl` CLI for the backup CronJob's exec-trigger container.
   kubectlImage: "bitnami/kubectl:1.31"
+  # Automated restore-drill (docs/runbook.md §13.4.3): recurring, unattended
+  # proof that backups actually restore, into a throwaway scratch volume —
+  # never the live postgres PVC, so this never risks or interrupts
+  # production. Replaces the old manual/one-time operator drill.
+  restoreDrill:
+    enabled: false
+    schedule: "0 4 * * 1"   # weekly, Mondays 04:00 in-cluster time
+    scratchVolumeSize: 10Gi
 
 # ------------------------------------------------------------------------------
 # Secrets

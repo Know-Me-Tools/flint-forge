@@ -33,6 +33,12 @@ pub struct PgVectorRpc {
 }
 
 impl PgVectorRpc {
+    /// Wrap an existing deadpool `Pool` in a `PgVectorRpc` executor.
+    ///
+    /// The pool is shared, not owned exclusively — the same `Pool` is
+    /// typically also handed to `PgRest`/`PgGraphQl` so all executors draw
+    /// from one connection budget.
+    #[must_use]
     pub fn new(pool: Pool) -> Self {
         Self {
             backend: PgBackend { pool },
@@ -42,6 +48,14 @@ impl PgVectorRpc {
     /// Execute a vector similarity search under the caller's RLS context.
     ///
     /// Returns a JSON array of rows with an additional `distance` field.
+    ///
+    /// # Errors
+    ///
+    /// Returns `BackendError` when: `req.table` or `req.column` fails the
+    /// `is_safe_identifier` check (rejecting SQL injection via identifier
+    /// interpolation — these two fields cannot be parameter-bound); acquiring
+    /// the RLS-scoped connection fails; the checked-out connection is not a
+    /// `PgConn`; or the rendered similarity query itself errors in Postgres.
     #[instrument(skip(self, rls), fields(table = %req.table, column = %req.column), err)]
     pub async fn execute_similarity(
         &self,

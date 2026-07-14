@@ -21,6 +21,7 @@
 //! - Fuel limit prevents infinite loops.
 //! - `#![forbid(unsafe_code)]` — safe `Component::from_binary` only.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 mod capability;
 #[cfg(feature = "compiler")]

@@ -3,6 +3,7 @@
 //! Stores WASM component bytes at `{root}/{sha256_prefix}/{sha256_hex}`.
 //! The two-character prefix sharding keeps directory listing fast for large catalogs.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 use std::path::PathBuf;
 
@@ -20,6 +21,12 @@ pub struct StoreFs {
 impl StoreFs {
     /// Create a new `StoreFs` rooted at `root`.
     /// The directory is created if it does not exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Io`] if `root` cannot be created — for example
+    /// because a path component exists as a non-directory file, or the
+    /// process lacks permission to create the directory.
     pub async fn new(root: impl Into<PathBuf>) -> Result<Self, StoreError> {
         let root = root.into();
         fs::create_dir_all(&root)

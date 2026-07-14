@@ -1,6 +1,13 @@
 #!/bin/bash
 # images/postgres18/backup-loop.sh — periodic wal-g base backups (p16-c008).
 #
+# Used by the `backup` service in docker-compose.prod.yml ONLY — not our
+# supported production target. The Kubernetes path (deploy/helm/flint-forge)
+# triggers backups via backup-cronjob.yaml `kubectl exec`ing `wal-g
+# backup-push` directly in the postgres pod (which authenticates to Azure
+# Blob Storage via Workload Identity, no credential files), so this loop
+# script does not run there at all.
+#
 # Runs in the `backup` service (docker-compose.prod.yml), sharing the same
 # pinned image as `db` (wal-g is already installed there). Loops forever:
 # sleep WALG_BACKUP_INTERVAL_SECS, then `wal-g backup-push` against a

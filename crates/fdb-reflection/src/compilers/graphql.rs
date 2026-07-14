@@ -49,6 +49,9 @@ pub type SubStreamFactory = Arc<
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum GraphQlCompileError {
+    /// `async_graphql::dynamic::Schema::finish()` rejected the assembled
+    /// schema (e.g. a type/name collision between reflected tables, such as
+    /// two tables producing the same PascalCase `<Name>Changes` type).
     #[error("schema build error: {0}")]
     Build(String),
 }
@@ -68,6 +71,12 @@ impl GraphQlCompiler {
     /// before the composition root has wired the `Quarry`), fields yield an empty
     /// stream so the schema still validates. This never fails open: absence of a
     /// factory means no events, not unfiltered events.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GraphQlCompileError::Build`] if `async_graphql` rejects the
+    /// assembled schema, e.g. two tables whose PascalCase `<Name>Changes`
+    /// type names collide.
     pub fn compile(
         model: &DatabaseModel,
         factory: Option<SubStreamFactory>,

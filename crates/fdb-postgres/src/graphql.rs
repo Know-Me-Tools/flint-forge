@@ -20,6 +20,12 @@ pub struct PgGraphQl {
 }
 
 impl PgGraphQl {
+    /// Wrap an existing deadpool `Pool` in a `PgGraphQl` executor.
+    ///
+    /// The pool is shared with (not owned exclusively by) this adapter — the
+    /// same `Pool` is typically also handed to `PgRest`/`PgVectorRpc` so all
+    /// executors draw from one connection budget.
+    #[must_use]
     pub fn new(pool: Pool) -> Self {
         Self {
             backend: PgBackend { pool },
@@ -35,6 +41,16 @@ impl GraphQlExecutor for PgGraphQl {
     /// ```sql
     /// SELECT graphql.resolve(query text, variables jsonb, "operationName" text DEFAULT NULL)
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns `BackendError` when: acquiring the RLS-scoped connection fails
+    /// (pool checkout, the `BEGIN`, or any of the six `SET LOCAL`/`set_config`
+    /// statements); the checked-out connection is not a `PgConn` (should not
+    /// happen — indicates a mismatched `DatabaseBackend` implementation);
+    /// `graphql.resolve(...)` itself errors in Postgres (invalid query,
+    /// permission denied under RLS, etc.); or the JSONB text `graphql.resolve`
+    /// returns fails to parse as JSON.
     #[instrument(skip(self, rls), fields(role = %rls.role), err)]
     async fn execute(&self, req: GraphQlRequest, rls: &RlsContext) -> Result<Json, BackendError> {
         use fdb_ports::DatabaseBackend;

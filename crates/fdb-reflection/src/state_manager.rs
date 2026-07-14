@@ -20,7 +20,12 @@ use crate::{
 /// hot-swapped routers keep enforcing Keto + Cedar on mutations.
 #[derive(Clone, Default)]
 pub struct MutationGates {
+    /// Keto relationship-check client. `None` disables the coarse
+    /// relationship gate on mutations (used only where Keto is not deployed,
+    /// e.g. local dev).
     pub keto: Option<Arc<dyn KetoCheck>>,
+    /// Cedar policy enforcement point. `None` disables the action/capability
+    /// gate on mutations.
     pub pep: Option<Arc<dyn Pep>>,
 }
 
@@ -52,6 +57,11 @@ pub struct StateManager {
 impl StateManager {
     /// Build a `StateManager`, performing the initial compile before returning.
     /// The process must not accept requests until this returns successfully.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ReflectionError`] when the initial compile fails — see
+    /// [`Self::new_with_gates`].
     pub async fn new(
         engine: ReflectionEngine,
         executor: Arc<dyn SqlExecutor>,
@@ -65,6 +75,14 @@ impl StateManager {
     ///
     /// `sub_stream_factory` is the GraphQL subscription live-stream seam
     /// (`None` disables live subscription events — fields yield empty streams).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ReflectionError`] when the initial `ReflectionEngine::reflect`
+    /// query fails, or when the reflected model fails the validation pass
+    /// (`ReflectionError::Query`/`ReflectionError::Validation`). REST/GraphQL/
+    /// MCP/A2UI compilation failures are logged and degrade gracefully
+    /// (empty catalog, no subscription schema) rather than failing this call.
     pub async fn new_with_gates(
         engine: ReflectionEngine,
         executor: Arc<dyn SqlExecutor>,

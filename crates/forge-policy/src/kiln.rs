@@ -31,7 +31,11 @@ pub fn request(action: &str) -> Request {
 /// Convenience trait for checking Kiln capabilities against any [`Pep`].
 #[async_trait]
 pub trait KilnPep {
+    /// Check whether `who` may invoke a Kiln edge function (data-plane
+    /// execution).
     async fn can_invoke(&self, who: &RlsContext) -> Decision;
+    /// Check whether `who` may register a new function or update an
+    /// existing one (control-plane write).
     async fn can_register(&self, who: &RlsContext) -> Decision;
 }
 

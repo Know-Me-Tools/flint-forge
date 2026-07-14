@@ -34,8 +34,12 @@ pub fn request(action: &str) -> Request {
 /// Convenience trait for checking A2UI capabilities against any [`Pep`].
 #[async_trait]
 pub trait A2UIPep {
+    /// Check whether `who` may view (read/list) the A2UI component catalog.
     async fn can_view(&self, who: &RlsContext) -> Decision;
+    /// Check whether `who` may register a new component or override in the
+    /// A2UI component catalog.
     async fn can_register(&self, who: &RlsContext) -> Decision;
+    /// Check whether `who` may emit an assembled A2UI payload.
     async fn can_emit(&self, who: &RlsContext) -> Decision;
 }
 

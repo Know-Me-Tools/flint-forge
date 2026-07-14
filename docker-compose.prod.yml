@@ -91,13 +91,14 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
-    # p16-c008: continuous WAL archiving + scheduled base backups (via the
-    # `backup` service below) are now automated once wal-g S3 credentials are
-    # provisioned (§13.4.2). This caveat stays until an operator has run and
-    # RECORDED a restore drill (§13.4.3 — no row in that table yet) proving
-    # backups actually restore, not just that files land in object storage.
-    # Until then, still prefer a managed database with built-in PITR for
-    # production.
+    # p16-c008: this docker-compose single-host path is NOT the supported
+    # production target — see docs/runbook.md §13.1. Production is the
+    # Kubernetes deployment (deploy/helm/flint-forge), where wal-g backs up
+    # to Azure Blob Storage via Workload Identity and is verified by an
+    # automated, recurring restore drill (§13.5). This compose S3-based wal-g
+    # config still works for anyone running a standalone single-host
+    # instance outside that cluster, but has no restore-drill coverage of
+    # its own — treat it as unverified if you rely on it.
 
   # p16-c008: scheduled wal-g base backups. Runs the same pinned image as `db`
   # (wal-g is already installed there) against a read-only mount of the same

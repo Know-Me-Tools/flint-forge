@@ -1,0 +1,111 @@
+{{- if and .Values.backup.enabled .Values.backup.restoreDrill.enabled }}
+# p16-c008: automated restore-drill. The proposal's requirement is "a restore
+# drill that proves data comes back, not just that a backup file was
+# written" — this CronJob proves it on a recurring schedule, unattended, by
+# fetching the latest wal-g backup into a throwaway emptyDir (NEVER the live
+# postgres PVC — this never touches production data or takes production
+# down, unlike a true failover drill) and running a verification query
+# against it. See docs/runbook.md §13.4.3.
+#
+# Auth: a second Workload Identity federated credential
+# (system:serviceaccount:<namespace>:<fullname>-restore-drill) on the same
+# managed identity used for backups — read access only is required, and
+# Storage Blob Data Contributor already covers that.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "flint-forge.fullname" . }}-restore-drill
+  labels:
+    app.kubernetes.io/component: restore-drill
+    {{- include "flint-forge.labels" . | nindent 4 }}
+  annotations:
+    azure.workload.identity/client-id: {{ .Values.backup.workloadIdentityClientId | quote }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "flint-forge.fullname" . }}-restore-drill
+  labels:
+    app.kubernetes.io/component: restore-drill
+    {{- include "flint-forge.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.restoreDrill.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 10
+  failedJobsHistoryLimit: 10
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: restore-drill
+            {{- include "flint-forge.selectorLabels" . | nindent 12 }}
+            azure.workload.identity/use: "true"
+        spec:
+          serviceAccountName: {{ include "flint-forge.fullname" . }}-restore-drill
+          restartPolicy: Never
+          containers:
+            - name: restore-drill
+              image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+              env:
+                - name: WALG_AZ_PREFIX
+                  value: {{ .Values.backup.azPrefix | quote }}
+                - name: AZURE_STORAGE_ACCOUNT
+                  value: {{ .Values.backup.storageAccount | quote }}
+                - name: PGDATA
+                  value: /scratch/pgdata
+              command:
+                - /bin/bash
+                - -euc
+                - |
+                  echo "=== restore drill: $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+                  echo "Fetching latest backup from ${WALG_AZ_PREFIX} into scratch volume (no production data touched)..."
+                  if ! wal-g backup-list > /tmp/backups.txt 2>&1; then
+                    echo "FAIL: no backups reachable yet (expected on a brand-new deployment before the first backup-cronjob run) — see docs/runbook.md §13.4.3." >&2
+                    cat /tmp/backups.txt >&2
+                    exit 1
+                  fi
+                  if [ ! -s /tmp/backups.txt ] || ! grep -q . /tmp/backups.txt; then
+                    echo "FAIL: backup list is empty — nothing to restore yet." >&2
+                    exit 1
+                  fi
+                  mkdir -p "$PGDATA" && chmod 700 "$PGDATA"
+                  wal-g backup-fetch "$PGDATA" LATEST
+                  chown -R postgres:postgres "$PGDATA" 2>/dev/null || true
+                  echo "restore_command = 'wal-g wal-fetch %f %p'" >> "$PGDATA/postgresql.auto.conf"
+                  echo "recovery_target_action = 'promote'" >> "$PGDATA/postgresql.auto.conf"
+                  touch "$PGDATA/recovery.signal"
+                  su postgres -c "pg_ctl start -D $PGDATA -w -t 120" || {
+                    echo "FAIL: restored data directory would not start." >&2
+                    exit 1
+                  }
+                  for i in $(seq 1 30); do
+                    su postgres -c "pg_isready -h /var/run/postgresql" > /dev/null 2>&1 && break
+                    sleep 2
+                  done
+                  RECOVERING=$(su postgres -c "psql -tAc 'SELECT pg_is_in_recovery();'")
+                  ROWCOUNT=$(su postgres -c "psql -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public';\"" || echo "query-failed")
+                  su postgres -c "pg_ctl stop -D $PGDATA -m fast -w" || true
+                  echo "pg_is_in_recovery=${RECOVERING} public_table_count=${ROWCOUNT}"
+                  if [ "$RECOVERING" = "f" ] && [ "$ROWCOUNT" != "query-failed" ]; then
+                    echo "PASS: restored data directory started, left recovery, and answered a query."
+                  else
+                    echo "FAIL: restore did not verify cleanly (recovering=${RECOVERING}, rowcount=${ROWCOUNT})." >&2
+                    exit 1
+                  fi
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              resources:
+                limits:
+                  memory: 1Gi
+                requests:
+                  memory: 512Mi
+                  cpu: 250m
+          volumes:
+            - name: scratch
+              emptyDir:
+                sizeLimit: {{ .Values.backup.restoreDrill.scratchVolumeSize }}
+{{- end }}

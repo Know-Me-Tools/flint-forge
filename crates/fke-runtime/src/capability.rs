@@ -30,6 +30,20 @@ fn capability_action_name(cap: &Capability) -> &'static str {
     }
 }
 
+/// Verify that every capability in `required` is present in `granted`.
+///
+/// This is the final fail-closed gate applied after Cedar has computed which
+/// of a component's manifest-declared capabilities the caller is actually
+/// authorized to use (see `EdgeRuntime::granted_capabilities`): even if Cedar
+/// is misconfigured or skipped (no `Pep` attached), a component can never run
+/// with more capabilities than it declared as `required`, and can never
+/// silently proceed if any declared capability was not granted.
+///
+/// # Errors
+///
+/// Returns an error naming the specific missing [`Capability`] as soon as one
+/// required capability is not found in `granted`. `required` capabilities are
+/// checked in order, so the error identifies the first missing one.
 pub fn check_capabilities(required: &[Capability], granted: &[Capability]) -> Result<()> {
     for cap in required {
         if !granted.contains(cap) {

@@ -1,0 +1,72 @@
+# deploy/argocd/flint-forge-applicationset.yaml — p16-c008.
+#
+# flint-forge has no single "production" deployment: it is deployed once per
+# client/project onto the shared AKS cluster `main` (resource group
+# prometheus-rg), the same in-cluster ArgoCD instance every other project on
+# this cluster already uses (see the `argocd` namespace — this is NOT a
+# separate GKE-hosted control plane; ArgoCD runs locally on `main`). Each
+# list-generator element below produces one ArgoCD Application, so adding a
+# new client is "append an element + provision its Workload Identity
+# federated credential" (see docs/runbook.md §13.2), not a new pipeline.
+#
+# Apply once: kubectl apply -f deploy/argocd/flint-forge-applicationset.yaml
+# ArgoCD reconciles Application adds/removes/edits from this file itself.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: flint-forge
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          # The first/default instance — namespace `flint-forge`, release
+          # name `flint-forge` (so `flint-forge.fullname` resolves to
+          # `flint-forge`, matching the Workload Identity federated
+          # credential subject `system:serviceaccount:flint-forge:
+          # flint-forge-postgres` provisioned in docs/runbook.md §13.2).
+          - tenant: flint-forge
+            namespace: flint-forge
+            valuesFile: values-flint-forge.yaml
+          # To onboard another client: provision its own federated
+          # credential + storage container (docs/runbook.md §13.2), add a
+          # deploy/helm/flint-forge/values-<tenant>.yaml, and add an element
+          # here — everything else (namespace creation, sync, drift
+          # correction) is automatic.
+  template:
+    metadata:
+      name: "{{.tenant}}"
+      labels:
+        app.kubernetes.io/part-of: flint-forge
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/Know-Me-Tools/flint-forge.git
+        targetRevision: main
+        path: deploy/helm/flint-forge
+        helm:
+          valueFiles:
+            - "{{.valuesFile}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{.namespace}}"
+      syncPolicy:
+        automated:
+          selfHeal: true
+          # prune deliberately OFF: this manages a StatefulSet + PVC: an
+          # accidental Application/values removal must never cascade into
+          # deleting a client's Postgres volume. Removing a deployment is a
+          # manual `kubectl delete` by a human who has confirmed the data
+          # disposition, not an ApplicationSet side effect.
+          prune: false
+        syncOptions:
+          - CreateNamespace=true
+          - PrunePropagationPolicy=foreground
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

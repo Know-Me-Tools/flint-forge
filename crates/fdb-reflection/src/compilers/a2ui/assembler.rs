@@ -34,6 +34,16 @@ impl A2uiAssembler {
     }
 
     /// Assemble a surface for the given context.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AssemblerError::Database`] if any `flint_a2ui.*` query
+    /// fails; [`AssemblerError::InvalidConfig`] if a matched assembly rule's
+    /// config is malformed or names a non-existent component, or if
+    /// serializing the surface for the optional publisher fails;
+    /// [`AssemblerError::NoBinding`] if no rule matches and no default table
+    /// binding exists; or an error from `publisher.publish` if a publisher
+    /// is attached and publishing fails.
     pub async fn assemble(&self, ctx: &AssemblyContext) -> Result<A2uiSurface, AssemblerError> {
         let surface_id = ctx.surface_id.unwrap_or_else(Uuid::new_v4);
         let catalog_id = catalog_id_for(ctx);

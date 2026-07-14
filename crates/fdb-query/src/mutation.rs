@@ -36,7 +36,9 @@ pub enum Resolution {
 /// Options controlling INSERT rendering, parsed from headers/query.
 #[derive(Debug, Clone, Default)]
 pub struct InsertOptions {
+    /// Whether the rendered statement returns the inserted rows (`RETURNING *`).
     pub returning: ReturnKind,
+    /// How to handle a unique-constraint conflict (error, merge, or ignore).
     pub resolution: Resolution,
     /// Conflict-target columns for upsert (`on_conflict=col1,col2`). Validated.
     pub on_conflict: Vec<String>,
@@ -47,10 +49,13 @@ pub struct InsertOptions {
 /// A bulk INSERT plan. All rows must share the same column set (PostgREST rule).
 #[derive(Debug, Clone)]
 pub struct InsertPlan {
+    /// The validated target table/relation name.
     pub relation: String,
+    /// The validated column names shared by every row in `rows`.
     pub columns: Vec<String>,
     /// Row-major values; each inner vec has `columns.len()` entries.
     pub rows: Vec<Vec<QueryParam>>,
+    /// `RETURNING`/upsert directives parsed from the `Prefer` header and query params.
     pub options: InsertOptions,
 }
 
@@ -154,9 +159,13 @@ fn on_conflict_target(cols: &[String]) -> String {
 /// An UPDATE (PATCH) plan: `SET col=$n,...` for rows matching `filter`.
 #[derive(Debug, Clone)]
 pub struct UpdatePlan {
+    /// The target table/relation name (validated defensively in `render`, see below).
     pub relation: String,
+    /// `(column, value)` pairs for the `SET` clause, in rendering order.
     pub assignments: Vec<(String, QueryParam)>,
+    /// The `WHERE` predicate selecting which rows to update.
     pub filter: FilterTree,
+    /// Whether the rendered statement returns the updated rows (`RETURNING *`).
     pub returning: ReturnKind,
 }
 
@@ -200,8 +209,11 @@ impl UpdatePlan {
 /// A DELETE plan for rows matching `filter`.
 #[derive(Debug, Clone)]
 pub struct DeletePlan {
+    /// The target table/relation name (validated defensively in `render`, see below).
     pub relation: String,
+    /// The `WHERE` predicate selecting which rows to delete.
     pub filter: FilterTree,
+    /// Whether the rendered statement returns the deleted rows (`RETURNING *`).
     pub returning: ReturnKind,
 }
 

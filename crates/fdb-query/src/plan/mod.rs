@@ -22,10 +22,15 @@ pub const RESERVED_PARAMS: &[&str] = &["select", "order", "limit", "offset"];
 pub struct SelectPlan {
     /// Qualified relation, validated: `schema.table` or `table`.
     pub relation: String,
+    /// The `select=` projection (defaults to `*`).
     pub select: Select,
+    /// The combined `WHERE` predicate built from column filters and `and`/`or` groups.
     pub filter: FilterTree,
+    /// The `order=` clause (empty renders no `ORDER BY`).
     pub order: Order,
+    /// Resolved `LIMIT`/`OFFSET`, from either the `Range` header or `limit`/`offset` params.
     pub limits: Limits,
+    /// The `Prefer: count=` strategy requested for the response's total-count estimate.
     pub count: CountStrategy,
 }
 
@@ -127,22 +132,34 @@ pub fn parse_select_request(
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum ParseError {
+    /// The relation name failed identifier validation (see [`validate_identifier`]).
     #[error("unsafe relation: {0}")]
     UnsafeRelation(String),
+    /// A column reference failed identifier validation.
     #[error(transparent)]
     Ident(#[from] IdentError),
+    /// A filter tree failed to construct or render (bad operator/value/quantifier).
     #[error(transparent)]
     Filter(#[from] FilterError),
+    /// The `order=` clause used an unrecognized direction/nulls modifier.
     #[error(transparent)]
     Order(#[from] crate::clause::OrderError),
+    /// A column filter value was not the expected `<op>.<value>` form, or (when
+    /// reused by [`crate::mutation::InsertPlan::new`]) the insert row set was
+    /// empty or had mismatched row arity.
     #[error("malformed filter for `{0}`: expected `<op>.<value>`")]
     MalformedFilter(String),
+    /// An `and=`/`or=`/`not.and=`/`not.or=` group was not the expected
+    /// `(a.op.v,b.op.v,...)` form.
     #[error("malformed logical group: {0}")]
     MalformedGroup(String),
+    /// A filter's operator token was not recognized.
     #[error("unknown operator: {0}")]
     UnknownOp(String),
+    /// A `limit`/`offset` query parameter was not a valid unsigned integer.
     #[error("invalid number: {0}")]
     BadNumber(String),
+    /// The `Range` header was not a valid `start-end` (or `start-`) form.
     #[error("invalid Range header: {0}")]
     BadRange(String),
 }

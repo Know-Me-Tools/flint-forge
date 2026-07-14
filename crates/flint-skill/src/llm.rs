@@ -27,6 +27,12 @@ pub trait Llm {
     ///
     /// `opts` is serialized to JSON via [`LlmOptions::to_json`] before being
     /// forwarded to the host, matching the WIT `opts: string` parameter.
+    ///
+    /// # Errors
+    /// Implementations should map a WIT `host-error` from
+    /// `flint:host/llm.complete` to [`crate::SkillError::Llm`] via
+    /// [`crate::SkillError::from_host_error`] (e.g. `"PROVIDER_429"` or
+    /// `"MODEL_UNKNOWN"`).
     fn complete<'a>(
         &'a self,
         prompt: &'a str,
@@ -37,6 +43,11 @@ pub trait Llm {
     ///
     /// If `model` is `None`, the host uses the publisher's Cedar-allowed
     /// default embedding model.
+    ///
+    /// # Errors
+    /// Implementations should map a WIT `host-error` from
+    /// `flint:host/llm.embed` to [`crate::SkillError::Llm`] via
+    /// [`crate::SkillError::from_host_error`].
     fn embed<'a>(
         &'a self,
         input: &'a str,

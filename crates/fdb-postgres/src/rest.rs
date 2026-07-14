@@ -21,6 +21,12 @@ pub struct PgRest {
 }
 
 impl PgRest {
+    /// Wrap an existing deadpool `Pool` in a `PgRest` executor.
+    ///
+    /// The pool is shared, not owned exclusively — the same `Pool` is
+    /// typically also handed to `PgGraphQl`/`PgVectorRpc` so all executors
+    /// draw from one connection budget.
+    #[must_use]
     pub fn new(pool: Pool) -> Self {
         Self {
             backend: PgBackend { pool },
@@ -80,6 +86,14 @@ impl RestExecutor for PgRest {
     ///
     /// The plan is rendered by `fdb_query` (validated identifiers, bound params);
     /// this method binds the parameters and projects rows to a JSON array.
+    ///
+    /// # Errors
+    ///
+    /// Returns `BackendError` when: `q.filters` references an unknown filter
+    /// operator token; `q.select`/`q.order` fail to parse; the target
+    /// `schema.table` relation fails identifier validation (rejecting
+    /// injection attempts); or the underlying `run_bound` call fails
+    /// (RLS-context acquisition or the bound query itself).
     #[instrument(skip(self, rls), fields(role = %rls.role, table = %q.table), err)]
     async fn execute(&self, q: RestQuery, rls: &RlsContext) -> Result<RestResult, BackendError> {
         let plan = plan_from_rest_query(&q)?;
@@ -104,6 +118,12 @@ impl SqlExecutor for PgRest {
     /// via the same `fdb_query` planner `RestExecutor::execute` uses above — inside
     /// an RLS-scoped transaction. This is the seam `fdb-reflection`'s REST CRUD and
     /// `/rpc` handlers use so they never touch a raw, unscoped connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns `BackendError` when acquiring the RLS-scoped connection fails,
+    /// the checked-out connection is not a `PgConn`, or `sql` fails to
+    /// execute (syntax error, constraint violation, RLS denial, etc.).
     #[instrument(skip(self, rls, params), fields(role = %rls.role), err)]
     async fn execute_raw(
         &self,

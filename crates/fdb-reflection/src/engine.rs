@@ -18,12 +18,23 @@ pub struct ReflectionEngine {
 }
 
 impl ReflectionEngine {
+    /// Wrap a `PgPool` in a `ReflectionEngine`. The pool MUST be authenticated
+    /// as `service_role` (or an equivalent privileged role) so `flint_meta.*`
+    /// catalog queries are not blocked by RLS.
+    #[must_use]
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 
     /// Reflect the live database into a `DatabaseModel`.
     /// Applies normalization, validation, and permission-analysis passes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ReflectionError::Query`] if any `flint_meta.*` catalog query
+    /// fails, or [`ReflectionError::Validation`] if the assembled model fails
+    /// [`crate::passes::validation`] (e.g. an empty table or a dangling
+    /// foreign key).
     #[instrument(skip(self), err)]
     pub async fn reflect(&self) -> Result<DatabaseModel, ReflectionError> {
         let version = self.fetch_version().await?;
@@ -175,6 +186,14 @@ impl ReflectionEngine {
     /// Returns an empty catalog with graceful degradation when the schema is not
     /// yet deployed (the flint_a2ui migration has not run). Uses dynamic `query_as`
     /// rather than the `query_as!` macro because the schema is created at runtime.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ReflectionError::Query`] if the `flint_a2ui.components` select
+    /// fails after the schema is confirmed to exist. The prior
+    /// `information_schema.tables` existence check never errors this call —
+    /// a connectivity failure there degrades to "schema not found" (empty
+    /// catalog) via `unwrap_or(false)`.
     pub async fn load_a2ui_catalog(&self) -> Result<A2uiCatalog, ReflectionError> {
         let exists: bool = sqlx::query_scalar(
             "SELECT EXISTS (

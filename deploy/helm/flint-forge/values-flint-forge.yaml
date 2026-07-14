@@ -1,0 +1,33 @@
+# deploy/helm/flint-forge/values-flint-forge.yaml — p16-c008.
+#
+# Tenant-specific values for the default flint-forge instance on the shared
+# AKS cluster `main`, referenced by deploy/argocd/flint-forge-applicationset.yaml.
+# Nothing here is a secret — image tags, the storage account name, and the
+# Workload Identity client ID are all non-sensitive by design (see
+# docs/runbook.md §13). `image.tag` is updated in place by
+# .github/workflows/deploy-aks.yml on every merge to main — that commit is
+# what triggers ArgoCD to roll out a new build (GitOps: git is the source of
+# truth for what's deployed, not a manual `kubectl set image`).
+
+postgres:
+  image:
+    repository: prometheusagsacr.azurecr.io/flint-forge/postgres18
+    tag: "latest"
+
+gateway:
+  image:
+    repository: prometheusagsacr.azurecr.io/flint-forge/gateway
+    tag: "latest"
+
+kiln:
+  image:
+    repository: prometheusagsacr.azurecr.io/flint-forge/kiln
+    tag: "latest"
+
+backup:
+  enabled: true
+  storageAccount: stflintforgebakc69689
+  azPrefix: azure://pg-backups/flint-forge
+  workloadIdentityClientId: 596f1fe2-68ad-4d84-8205-dfda397aab2e
+  restoreDrill:
+    enabled: true

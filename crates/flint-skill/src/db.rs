@@ -52,6 +52,13 @@ pub trait Database {
     ///
     /// `params` is a list of JSON-encoded parameter values, one per `$N`
     /// placeholder in the SQL. The host decodes them at the boundary.
+    ///
+    /// # Errors
+    /// Implementations should map a WIT `host-error` from
+    /// `flint:host/db.query` to [`crate::SkillError::Db`] via
+    /// [`crate::SkillError::from_host_error`] (e.g. a SQL parse failure or a
+    /// Cedar policy denial), and [`crate::SkillError::Json`] if a returned
+    /// row fails to decode via [`DbRow::from_json_str`].
     fn query<'a>(
         &'a self,
         sql: &'a str,

@@ -75,6 +75,21 @@ pub struct EdgeRuntime {
 }
 
 impl EdgeRuntime {
+    /// Build a new, empty `EdgeRuntime` with no components loaded and no
+    /// [`Pep`] attached (Cedar checks are skipped until [`Self::with_pep`] is
+    /// called).
+    ///
+    /// Configures the Wasmtime `Engine` for the Component Model with fuel
+    /// metering and epoch interruption enabled (see module docs), and — unless
+    /// `KILN_EPOCH_INTERVAL_MS` is set to `0` — spawns a background task that
+    /// increments the engine's epoch every `KILN_EPOCH_INTERVAL_MS`
+    /// milliseconds (default 10 ms) so in-flight invocations can be trapped
+    /// once they exceed their epoch deadline.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `wasmtime::Engine::new` fails to initialize the
+    /// engine (e.g. an unsupported target or invalid `Config`).
     pub fn new() -> Result<Self> {
         let mut cfg = Config::new();
         // async_support is always enabled in wasmtime 46+ (was made default; call removed).
@@ -111,6 +126,10 @@ impl EdgeRuntime {
         })
     }
 
+    /// Override the fuel budget granted to each invocation (default
+    /// `DEFAULT_FUEL`, ~10 million instructions). A component that exhausts
+    /// its fuel before returning is trapped by Wasmtime, bounding the cost of
+    /// a runaway or malicious component.
     #[must_use]
     pub fn with_fuel(mut self, fuel: u64) -> Self {
         self.fuel_per_call = fuel;
@@ -125,6 +144,19 @@ impl EdgeRuntime {
     }
 
     /// Load a WASM component from raw bytes and cache it under `id`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `wasm` is not a valid WASM component binary
+    /// (`Component::from_binary`), if the WASI/WASI-HTTP linker cannot be
+    /// built (`build_linker`), or if instantiation pre-computation fails
+    /// (`Linker::instantiate_pre` or `ProxyPre::new` — typically because the
+    /// component does not target the expected `wasi:http` proxy world).
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal component cache mutex is poisoned (a prior
+    /// holder of the lock panicked while holding it).
     pub fn load_wasm(&self, id: ContentId, wasm: &[u8]) -> Result<()> {
         let component =
             wt(Component::from_binary(&self.engine, wasm)).context("Component::from_binary")?;
@@ -140,6 +172,11 @@ impl EdgeRuntime {
     }
 
     /// Return true if a component with `id` is already loaded in the runtime cache.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal component cache mutex is poisoned (a prior
+    /// holder of the lock panicked while holding it).
     pub fn is_loaded(&self, id: &ContentId) -> bool {
         self.cache.lock().expect("cache lock").contains_key(id)
     }
@@ -148,6 +185,11 @@ impl EdgeRuntime {
     ///
     /// `caller = None` → Cedar gate skipped (BGW / system-level).
     /// Records `kiln_fuel_consumed_total` and `kiln_epoch_traps_total`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error under the same conditions as
+    /// [`Self::handle_with_telemetry`]; see that method for the full list.
     pub async fn handle(
         &self,
         id: &ContentId,
@@ -168,6 +210,26 @@ impl EdgeRuntime {
     /// matching the existing `caller = None` Cedar-skip convention for
     /// system-level/BGW invocations, and the no-`Pep`-attached case used by
     /// most unit tests — trusted wholesale).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - a [`Pep`] is attached and `caller` is `Some`, and Cedar denies
+    ///   `kiln:invoke` for the caller;
+    /// - any capability in `requested` is not present in the Cedar-authorized
+    ///   `granted` set (see [`check_capabilities`](crate::check_capabilities));
+    /// - no component is cached under `id` (it was never loaded, or was
+    ///   evicted);
+    /// - the per-request `Store` cannot be granted `fuel_per_call` fuel
+    ///   (`Store::set_fuel`);
+    /// - the request cannot be converted into a `hyper::Request`
+    ///   (`kiln_request_to_hyper` — invalid header name/value);
+    /// - the WASI-HTTP incoming request or response outparam cannot be
+    ///   constructed;
+    /// - the component fails to instantiate (`ProxyPre::instantiate_async`);
+    /// - the invocation task panics, the handler itself errors, the component
+    ///   never sets a response outparam, or it returns an HTTP error;
+    /// - the response body cannot be collected into bytes.
     pub async fn handle_with_telemetry(
         &self,
         id: &ContentId,
@@ -314,6 +376,14 @@ impl EdgeRuntime {
 }
 
 impl Default for EdgeRuntime {
+    /// Build a runtime with default settings.
+    ///
+    /// # Panics
+    ///
+    /// Panics if [`EdgeRuntime::new`] fails (i.e. if `wasmtime::Engine`
+    /// initialization fails). Prefer [`EdgeRuntime::new`] directly in
+    /// contexts where engine construction failure must be handled instead of
+    /// panicking.
     fn default() -> Self {
         Self::new().expect("EdgeRuntime::default")
     }

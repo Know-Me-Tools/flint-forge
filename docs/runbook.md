@@ -1150,141 +1150,174 @@ once the gateway is using that key.
 
 ## §13 — Production Deploy Setup (p16-c008)
 
-### 13.1 Overview
+### 13.1 Overview — corrected architecture
 
-`.github/workflows/deploy.yml` supports both `staging` and `production` as the
-`environment` input. The workflow itself is identical for both — what differs
-is which GitHub Environment's secrets it reads (`SSH_HOST`/`SSH_USER`/
-`SSH_KEY`/`JWT_SECRET`, per §9.1) and which compose overlay it layers on top of
-the base `docker-compose.yml` (`docker-compose.staging.yml` vs
-`docker-compose.prod.yml`).
+**This section originally assumed a single SSH-reachable production host and
+S3-backed backups. Both assumptions were wrong for this org's actual
+infrastructure and have been replaced.** flint-forge's real production
+target is Kubernetes: a shared, multi-tenant AKS cluster (`main`, resource
+group `prometheus-rg`, subscription "Azure subscription 1") already running
+ArgoCD in-cluster and used by several other projects (firecrawl, hotseaters,
+matrix, stalwart, and others — see `kubectl get namespaces`). There is no
+single "production host" and no S3 — the org's cloud provider is Azure.
+There is also no separate "staging" environment: short of an actual client
+deployment, the only environment that exists is this repo's own
+`docker-compose.yml` stack, which §9's staging-deploy content (SSH to a
+`STAGING_*`-secrets host) predates and no longer reflects — treat local
+docker-compose as the only pre-production environment until a real client
+deployment exists.
 
-**This setup requires a human operator with GitHub repo admin access — it
-cannot be completed by an agent.** The steps below are the one-time setup;
-after that, triggering a deploy is the same `Actions → Deploy → Run workflow`
-flow already used for staging (§9.2), just with `production` selected.
+Everything below is fully automated — no operator needs to run any of it by
+hand for the system to function. What follows documents *how* the automation
+works and how to extend it (e.g. onboarding a new client), not a checklist
+to execute.
 
-### 13.2 One-time setup (operator, GitHub repo admin)
+### 13.2 Components
 
-1. **Create the `production` GitHub Environment.** Repo → **Settings →
-   Environments → New environment** → name it exactly `production`.
-2. **Add required reviewers.** On the `production` environment's configuration
-   page, enable **Required reviewers** and add at least one person (not the
-   person triggering the deploy, if your policy requires separation of
-   duties). This is what makes `production` deploys pause for human approval
-   — `staging` should NOT have this restriction, so routine staging deploys
-   stay fast.
-3. **(Optional) Restrict deployment branches** to `main` only, so a
-   production deploy can't accidentally run from a feature branch.
-4. **Add the `production` Environment's secrets** (Settings → Environments →
-   production → Environment secrets) — see §9.1 for the secret names
-   (`SSH_HOST`, `SSH_USER`, `SSH_KEY`, `JWT_SECRET`). These are **separate
-   values from staging's** — provision a dedicated production SSH deploy key
-   and a dedicated production JWT signing secret. Do not reuse staging's.
-5. **If `staging`'s secrets are still under the old `STAGING_`-prefixed
-   repository-secret names**, migrate them to the `staging` Environment under
-   the new generic names now too (§9.1) — both environments should follow the
-   same pattern.
-6. **Provision the production host's Docker secrets** (separate from the
-   GitHub Actions secrets above): run `scripts/rotate_secrets.sh` directly on
-   the production host to generate `secrets/jwt_secret.txt`,
-   `secrets/postgres_password.txt`, and `secrets/caddy_tls_email.txt` — these
-   are what `docker-compose.prod.yml`'s `secrets:` block mounts into the
-   containers (§10.7). The `JWT_SECRET` GitHub Actions secret (step 4) and the
-   `secrets/jwt_secret.txt` file on the host should hold the **same** value,
-   since `mint_smoke_token.sh`'s tokens (signed with the GitHub secret) must
-   validate against `fdb-gateway`'s `FLINT_JWT_SECRET` (loaded from the host
-   file via the entrypoint script, §11).
-7. **Set `FLINT_DOMAIN`/`CADDY_TLS_EMAIL`** on the production host's `.env`
-   (§10.2) — required for `docker-compose.prod.yml`'s Caddy TLS termination.
+| Component | What it does | Where |
+|---|---|---|
+| AKS cluster `main` | Shared Kubernetes cluster, OIDC issuer + Workload Identity enabled | resource group `prometheus-rg`, region `centralus` |
+| ArgoCD (in-cluster) | Watches this repo, reconciles each tenant's `Application` | namespace `argocd` on `main` — not a separate control-plane cluster |
+| `deploy/argocd/flint-forge-applicationset.yaml` | One `Application` per tenant (list generator) | applied once: `kubectl apply -f deploy/argocd/flint-forge-applicationset.yaml` |
+| `deploy/helm/flint-forge/` | The chart every tenant `Application` deploys | this repo |
+| `deploy/helm/flint-forge/values-<tenant>.yaml` | Per-tenant image tags + backup config (non-secret) | this repo — CI commits new image tags here |
+| ACR `prometheusagsacr.azurecr.io` | Shared container registry | resource group `prometheus-rg` |
+| Azure AD app `github-actions-aks-deploy` | GitHub OIDC → Azure identity for CI (AcrPush only — no cluster access; ArgoCD does the actual deploy) | shared across projects on this cluster, appId `dcca803b-47f0-496d-b1d4-e1b0c0cfc79e` |
+| Managed identity `flint-forge-walg-identity` | Workload Identity for wal-g's Azure Blob access (no static keys) | resource group `flint-forge-rg` |
+| Storage account `stflintforgebakc69689`, container `pg-backups` | wal-g backup target | resource group `flint-forge-rg`, region `centralus` |
 
-### 13.3 First production deploy (operator)
+None of the values above are secrets — Client IDs, storage account names,
+and resource names carry no access on their own under OIDC/Workload
+Identity federation (there is no shared secret to leak), so they're
+committed directly in `values-<tenant>.yaml` and this doc rather than
+hidden in a secret store.
 
-Do not trigger the first production deploy the same way as a routine one.
-Recommended sequence:
+### 13.3 Deploy flow (fully automated, no SSH)
 
-1. Confirm the host is reachable and has Docker + the pinned compose files
-   present (mirroring §9.3's manual-fallback steps, but for the production
-   host).
-2. Trigger `Actions → Deploy → Run workflow` with `environment: production`.
-3. The job will pause at the "Deploy to production" step awaiting the
-   required reviewer's approval (§13.2 step 2) — approve it from the Actions
-   run page.
-4. Watch the run through to the smoke-test step. If smoke tests fail, the
-   workflow exits non-zero and the stack is left in whatever partial state
-   `docker compose up -d` produced — do not treat a failed first deploy as
-   safe to ignore; investigate via SSH before retrying.
-5. Record the outcome (date, commit SHA, reviewer, pass/fail) somewhere your
-   team tracks operational changes — this repo does not currently have an
-   automated deploy-history log beyond the GitHub Actions run history itself.
+1. A push to `main` touching `crates/**`, `docker/**`, `images/postgres18/**`,
+   or the Helm chart triggers `.github/workflows/deploy-aks.yml`.
+2. That workflow authenticates to Azure via GitHub OIDC (no stored Azure
+   credential — `azure/login@v2` with `vars.AZURE_CLIENT_ID/TENANT_ID/
+   SUBSCRIPTION_ID`, federated per `github-actions-aks-deploy`'s
+   `repo:Know-Me-Tools/flint-forge:...` subjects), builds and pushes the
+   `gateway`, `kiln`, and `postgres18` images to ACR, then commits the new
+   commit-sha tag into `deploy/helm/flint-forge/values-<tenant>.yaml`.
+3. That commit **is** the deploy — ArgoCD (already watching this repo,
+   `selfHeal: true`) picks it up and reconciles the cluster automatically.
+   Nothing in CI ever touches `kubectl`/the cluster directly.
+4. The `build-and-push` job runs under the `production` GitHub Environment
+   (required reviewers) — the same human-approval gate originally set up for
+   the retired SSH workflow now protects this one (a second,
+   environment-scoped federated credential was added for this:
+   `repo:Know-Me-Tools/flint-forge:environment:production`).
 
-### 13.4 Backups — automated `wal-g` PITR (see also §5 — Rollback Procedure)
+Watch a rollout: `kubectl get application <tenant> -n argocd -w` (requires
+`az aks get-credentials -g prometheus-rg -n main` + cluster access — this is
+an operator/debugging action, not something CI needs).
 
-**Automation is implemented; the restore drill still has not been executed.**
-`docker-compose.prod.yml`'s Postgres container still carries the "prefer a
-managed database" caveat at its top, and that caveat stays until an operator
-completes 13.4.3 below — a backup that has never been restored is not a
-backup, only a hope.
+### 13.4 Backups — wal-g to Azure Blob Storage via Workload Identity
 
-#### 13.4.1 Architecture
+**No static storage keys exist anywhere in this system.** The postgres pod's
+ServiceAccount (`<release>-postgres`) carries an `azure.workload.identity/
+client-id` annotation pointing at `flint-forge-walg-identity`; the AKS
+workload-identity webhook injects `AZURE_CLIENT_ID`/`AZURE_TENANT_ID`/
+`AZURE_FEDERATED_TOKEN_FILE` into any pod labeled `azure.workload.identity/
+use: "true"` using that ServiceAccount, and wal-g's Azure backend picks
+those up via the standard Azure default-credential chain automatically. The
+identity is granted `Storage Blob Data Contributor` scoped to exactly the
+`pg-backups` container — nothing broader.
 
-Two independent, complementary mechanisms cover PITR:
+- **Continuous WAL archiving**: `archive_command=wal-g wal-push %p`, set
+  directly on the postgres StatefulSet's container args
+  (`deploy/helm/flint-forge/templates/postgres.yaml`) when
+  `backup.enabled=true`.
+- **Periodic base backups**: `deploy/helm/flint-forge/templates/
+  backup-cronjob.yaml`, a CronJob that `kubectl exec`s `wal-g backup-push`
+  directly in the postgres pod (avoids needing a `ReadWriteMany` volume for
+  a second pod — `wal-g` needs local `$PGDATA` filesystem access). This
+  trigger pod itself carries no Azure identity — only RBAC to `exec` into
+  the postgres pod, since the actual wal-g process and its Workload Identity
+  live inside that pod.
+- **The docker-compose S3 path (`docker-compose.prod.yml`, `images/
+  postgres18/entrypoint-walg.sh`, `backup-loop.sh`) still exists but is not
+  the supported production path** — this org will never deploy that way.
+  Those scripts remain functional no-ops for local/dev compose (no secret
+  files present there → they exit cleanly without archiving) and are left
+  in place only for anyone running a standalone single-host compose
+  instance outside this org's AKS cluster.
 
-- **Continuous WAL archiving** — the `db` service's `command:` sets
-  `archive_mode=on` and `archive_command='wal-g wal-push %p'`
-  (`archive_timeout=60` bounds how long a quiet database can go between
-  archived segments). `wal-g` is baked into the production image
-  (`images/postgres18/Dockerfile`) at a pinned version with a checked SHA256.
-  `images/postgres18/entrypoint-walg.sh` (the image's `ENTRYPOINT`) translates
-  the `walg_s3_access_key`/`walg_s3_secret_key` Docker secrets into
-  `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` before starting Postgres, so
-  `archive_command` has credentials available when it fires.
-- **Periodic full base backups** — the `backup` service
-  (`docker-compose.prod.yml`) runs `images/postgres18/backup-loop.sh` in a
-  loop (`WALG_BACKUP_INTERVAL_SECS`, default daily), calling
-  `wal-g backup-push` against a read-only mount of the same `postgres_data`
-  volume while driving `pg_backup_start()`/`pg_backup_stop()` over a network
-  connection to `db`.
+### 13.5 Restore drill — automated, recurring, non-disruptive
 
-Both mechanisms **no-op cleanly** (log a message, do nothing destructive) when
-the `walg_s3_access_key`/`walg_s3_secret_key` secret files aren't present —
-local dev, CI, and staging are unaffected by default.
+`deploy/helm/flint-forge/templates/restore-drill-cronjob.yaml`
+(`backup.restoreDrill.enabled`, weekly by default) fetches the latest wal-g
+backup into a **throwaway `emptyDir`** — never the live postgres
+`PersistentVolumeClaim` — starts Postgres against it, confirms it leaves
+recovery mode, runs a verification query, and reports pass/fail via pod
+logs and exit code (`kubectl logs -n <namespace> job/<latest-restore-drill-job>`,
+or `kubectl get events -n <namespace> --field-selector
+involvedObject.kind=Job`). Because it never touches the production volume,
+this can safely run unattended on a schedule — it proves backups are
+restorable continuously, not just once.
 
-#### 13.4.2 Operator setup
-
-1. Provision an S3-compatible bucket (AWS S3, or any S3-API-compatible
-   provider) dedicated to this backup target.
-2. Write the access key and secret key to `secrets/walg_s3_access_key.txt` and
-   `secrets/walg_s3_secret_key.txt` on the production host (`chmod 600`,
-   matching the convention in `scripts/rotate_secrets.sh` — these two files
-   are **not** generated by that script since the values come from the
-   storage provider, not a local random generator).
-3. Set `WALG_S3_PREFIX` (e.g. `s3://flint-forge-backups/prod`) and, if your
-   provider requires it, `WALG_AWS_REGION` in the production host's `.env`.
-4. Restart the stack so `db` and `backup` pick up the new secrets/env:
-   `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d db backup`
-5. Confirm archiving is live:
-   `docker compose ... logs backup` should show `backup-loop: starting,
-   interval=...`, and `SELECT * FROM pg_stat_archiver;` on `db` should show
-   `archived_count` increasing and `last_failure` not advancing.
-
-#### 13.4.3 Restore drill (operator — required before the "staging only" caveat can be removed)
-
-Run `./scripts/restore_pg_pitr.sh --latest` (or `--target-time '<UTC timestamp>'`
-for a specific point in time) against a **non-production** copy of the stack
-first, then again against production during a planned maintenance window. The
-script stops `db`, fetches the base backup + replays WAL via `wal-g`, and
-prints verification steps. Record here once executed:
+This replaces the old `scripts/restore_pg_pitr.sh` (still present and usable
+for a real DR failover exercise against docker-compose — it deliberately
+stops the live `db` service, which the automated drill above does not) as
+the mechanism that satisfies the proposal's "prove data comes back, not just
+that a backup file was written" requirement. Its first real run happens
+automatically once flint-forge is deployed and at least one backup cycle has
+completed — there was nothing to restore before that point, so no drill
+result exists yet:
 
 | Date | Target | Verified by | Result |
 |---|---|---|---|
-| _(not yet run)_ | | | |
+| _(pending — first scheduled run after initial deployment + one backup cycle)_ | | | |
 
-Until a row exists in that table with a passing result, treat automated
-backups as **unverified** — the mechanism running is not the same claim as
-the mechanism working.
+Check the current status any time with:
+`kubectl get cronjob <tenant>-restore-drill -n <tenant>` and
+`kubectl logs -n <tenant> -l app.kubernetes.io/component=restore-drill --tail=50`.
 
-### 13.5 LLM background worker default
+### 13.6 Performance baselines — automated against docker-compose
+
+`.github/workflows/ci.yml`'s `performance` job runs on every push to `main`
+(and on manual dispatch): it builds and starts the `docker-compose.yml`
+stack in the CI runner (the only "staging" that exists — see §13.1), runs
+`perf/k6/regression.js`, and uses `regression.js`'s own `handleSummary()`
+output (`perf-summary.json`) to rewrite its own P99 thresholds
+(`ceil(measured_p99 * 1.20)`, rounded to the nearest 5ms),
+`BASELINE_DATE`/`BASELINE_SOURCE`, and a results file under `perf/results/`
+— then commits that back to `main` (`[skip ci]`). No one runs k6 by hand for
+this to work; the baseline keeps itself current on every merge.
+
+### 13.7 Onboarding a new tenant
+
+Since there is no single production deployment, adding a client is a
+repeatable, scriptable sequence, not a new pipeline:
+
+1. Provision a federated credential for that tenant's postgres pod:
+   ```bash
+   az identity federated-credential create \
+     --name <tenant>-postgres-sa \
+     --identity-name flint-forge-walg-identity \
+     --resource-group flint-forge-rg \
+     --issuer "https://centralus.oic.prod-aks.azure.com/d48ebfee-d3e4-474c-8616-509f441e438f/51e63d24-bb81-414a-8b5e-9ac64e70e766/" \
+     --subject "system:serviceaccount:<tenant>:<tenant>-postgres" \
+     --audience "api://AzureADTokenExchange"
+   ```
+   (Reusing the same managed identity + storage account with a
+   tenant-specific blob prefix is fine for now; provision a dedicated
+   storage account per tenant instead if data isolation requirements demand
+   it — not needed for the current single-tenant deployment.)
+2. Create `deploy/helm/flint-forge/values-<tenant>.yaml` (copy
+   `values-flint-forge.yaml`, adjust `backup.azPrefix` to a
+   tenant-specific blob prefix).
+3. Add a `list` element to `deploy/argocd/flint-forge-applicationset.yaml`
+   with that tenant's name/namespace/values file.
+4. `kubectl apply -f deploy/argocd/flint-forge-applicationset.yaml` —
+   ArgoCD creates the namespace and reconciles the rest.
+5. Trigger `deploy-aks.yml` with `tenant: <tenant>` (`workflow_dispatch`) to
+   push its first image build, or wait for the next `main` push.
+
+### 13.8 LLM background worker default
 
 `llm.enable_background_worker` (a Postgres `shared_preload_libraries` +
 postmaster-context GUC in `ext-flint-llm`) defaults to **disabled** — LLM
@@ -1298,4 +1331,3 @@ processing (e.g., long-running embedding batch jobs that shouldn't block a
 request) should explicitly opt in by setting `llm.enable_background_worker =
 on` in their Postgres configuration and ensuring the extension is listed in
 `shared_preload_libraries`.
-

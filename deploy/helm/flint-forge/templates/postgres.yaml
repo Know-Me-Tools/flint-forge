@@ -1,4 +1,16 @@
 {{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "flint-forge.fullname" . }}-postgres
+  labels:
+    app.kubernetes.io/component: postgres
+    {{- include "flint-forge.labels" . | nindent 4 }}
+  {{- if and .Values.backup.enabled .Values.backup.workloadIdentityClientId }}
+  annotations:
+    azure.workload.identity/client-id: {{ .Values.backup.workloadIdentityClientId | quote }}
+  {{- end }}
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -18,7 +30,11 @@ spec:
       labels:
         app.kubernetes.io/component: postgres
         {{- include "flint-forge.selectorLabels" . | nindent 8 }}
+        {{- if and .Values.backup.enabled .Values.backup.workloadIdentityClientId }}
+        azure.workload.identity/use: "true"
+        {{- end }}
     spec:
+      serviceAccountName: {{ include "flint-forge.fullname" . }}-postgres
       containers:
         - name: postgres
           image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
@@ -47,18 +63,14 @@ spec:
             - name: POSTGRES_DB
               value: {{ .Values.postgres.database | quote }}
             {{- if .Values.backup.enabled }}
-            - name: WALG_S3_PREFIX
-              value: {{ .Values.backup.s3Prefix | quote }}
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.backup.existingSecretName }}
-                  key: aws-access-key-id
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.backup.existingSecretName }}
-                  key: aws-secret-access-key
+            # No AZURE_CLIENT_ID/AZURE_TENANT_ID/AZURE_FEDERATED_TOKEN_FILE here —
+            # the AKS workload-identity mutating webhook injects those automatically
+            # onto any pod carrying the azure.workload.identity/use label whose
+            # ServiceAccount has the client-id annotation (both set above).
+            - name: WALG_AZ_PREFIX
+              value: {{ .Values.backup.azPrefix | quote }}
+            - name: AZURE_STORAGE_ACCOUNT
+              value: {{ .Values.backup.storageAccount | quote }}
             {{- end }}
           resources:
             {{- toYaml .Values.postgres.resources | nindent 12 }}

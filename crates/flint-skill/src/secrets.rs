@@ -34,6 +34,12 @@ pub trait SecretHandle {
     /// [`crate::Kv`]. The recommended pattern is to forward it directly into
     /// an outbound call via the host's outgoing-handler so it never lives
     /// longer than necessary in WASM linear memory.
+    ///
+    /// # Errors
+    /// Implementations should map a WIT `host-error` from
+    /// `secrets::secret.reveal` to [`crate::SkillError::Secrets`] via
+    /// [`crate::SkillError::from_host_error`] — most commonly
+    /// `{ code: "CEDAR_DENY" }` when the publisher lacks a reveal grant.
     fn reveal(&self) -> impl Future<Output = SkillResult<String>> + Send;
 }
 
@@ -48,6 +54,7 @@ pub trait Secrets {
 
     /// Resolve `name` to an opaque secret handle.
     ///
+    /// # Errors
     /// Fails with [`crate::SkillError::Secrets`] `{ code: "CEDAR_DENY" }`
     /// when the publisher holds no grant, or `{ code: "NOT_FOUND" }` when the
     /// secret does not exist in Flint Vault.

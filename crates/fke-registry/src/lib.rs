@@ -4,6 +4,7 @@
 //! bytes from `flint_kiln.functions`. Falls back to `StoreError::NotFound`
 //! when no matching row exists.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 use async_trait::async_trait;
 use fke_domain::{ContentId, FunctionManifest};
@@ -17,6 +18,11 @@ pub struct PgRegistry {
 }
 
 impl PgRegistry {
+    /// Wrap an existing `PgPool` as a `PgRegistry`.
+    ///
+    /// Does not verify connectivity or that the `flint_kiln` schema exists —
+    /// callers are expected to have already run the Kiln migrations
+    /// (`migrations/0010_flint_kiln.sql`) against `pool`.
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
@@ -55,6 +61,11 @@ pub struct PgComponentStore {
 }
 
 impl PgComponentStore {
+    /// Wrap an existing `PgPool` as a `PgComponentStore`.
+    ///
+    /// Does not verify connectivity or that the `flint_kiln` schema exists —
+    /// callers are expected to have already run the Kiln migrations
+    /// (`migrations/0010_flint_kiln.sql`) against `pool`.
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }

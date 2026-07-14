@@ -1,5 +1,6 @@
 //! Postgres adapters: DatabaseBackend, SchemaProvider, RestExecutor, GraphQlExecutor (pg_graphql), pgvector.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 pub mod conn;
 pub mod error;

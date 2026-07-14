@@ -44,6 +44,7 @@
 //! * `FLINT_COSIGN_IDENTITY_ALLOWLIST` — optional, `full` mode only. See
 //!   [`identity`] for format.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 mod chain;
 mod identity;

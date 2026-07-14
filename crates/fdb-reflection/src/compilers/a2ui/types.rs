@@ -23,8 +23,15 @@ pub struct AssemblyContext {
 /// A fully assembled A2UI surface, represented as a sequence of messages.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct A2uiSurface {
+    /// Unique id of this surface — either the caller-supplied
+    /// `AssemblyContext::surface_id` or a freshly generated UUID.
     pub surface_id: Uuid,
+    /// Catalog the surface's components are drawn from, e.g.
+    /// `"https://forge.example.com/a2ui/v1/catalog/flint-base/1.0.0"`.
     pub catalog_id: String,
+    /// The ordered message sequence a client applies to render the surface
+    /// (`createSurface`, `updateComponents`, `updateDataModel`, and
+    /// optionally `updateActions`).
     pub messages: Vec<A2uiMessage>,
 }
 
@@ -42,7 +49,12 @@ impl A2uiSurface {
 /// A single A2UI message.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct A2uiMessage {
+    /// The A2UI protocol operation, e.g. `"createSurface"`,
+    /// `"updateComponents"`, `"updateDataModel"`, or `"updateActions"`.
     pub op: String,
+    /// Operation-specific payload, flattened into the same JSON object as
+    /// `op` on serialization (so the wire shape is `{"op": ..., ...payload}`
+    /// rather than a nested `payload` key).
     #[serde(flatten)]
     pub payload: Value,
 }

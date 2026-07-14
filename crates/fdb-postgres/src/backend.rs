@@ -19,6 +19,12 @@ impl PgBackend {
     ///
     /// Expects a standard Postgres connection URL:
     /// `postgres://user:password@host:port/dbname`
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PgError::Config`] when the `DATABASE_URL` environment
+    /// variable is unset, or when `deadpool_postgres` rejects the connection
+    /// string / fails to build the pool.
     pub fn from_env() -> Result<Self, PgError> {
         let database_url = std::env::var("DATABASE_URL")
             .map_err(|_| PgError::Config("DATABASE_URL must be set".into()))?;
@@ -52,6 +58,14 @@ impl DatabaseBackend for PgBackend {
     /// The returned `Conn` keeps the connection alive for the duration of the
     /// caller's use. Callers MUST NOT log the `RlsContext` — it contains the
     /// raw bearer token and subject identifiers.
+    ///
+    /// # Errors
+    ///
+    /// Returns `BackendError` when: the pool has no connections available
+    /// (checkout failure); `rls.role` fails the safe-identifier check (fail
+    /// closed rather than interpolate an unvalidated role into `SET LOCAL
+    /// ROLE`); or any of the `BEGIN`/`SET LOCAL ROLE`/`set_config` statements
+    /// is rejected by Postgres.
     #[instrument(skip(self, rls), fields(role = %rls.role), err)]
     async fn acquire(&self, rls: &RlsContext) -> Result<Conn, BackendError> {
         let object = self

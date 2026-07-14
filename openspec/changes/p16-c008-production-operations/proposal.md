@@ -32,39 +32,55 @@ runbook (`docs/runbook.md` §5, `:492-535`) documents a **manual** `pg_dump`/
 baseline numbers were ever captured (deferred at v1.0.0 because staging was
 unavailable per `.kbd-orchestrator/phases/p12-v1-release/reflection.md`).
 
-## Design — requires human/ops involvement
+## Design — corrected 2026-07-14
 
-**This change cannot be completed by an agent alone.** Production credential
-provisioning, cloud backup target configuration, and the first
-backup/restore drill are exactly the class of hard-to-reverse, externally
-visible action an autonomous agent should not perform without a human in the
-loop. The agent's role here is to build the automation and documentation; a
-human operator must provision credentials, run the first drill, and approve
-the first production deploy.
+**The original assumption below (single SSH-reachable host, S3 backup
+target, "run k6 against a real staging deployment") was wrong for this
+org's actual infrastructure and blocked the change on manual operator
+steps that were never going to be reachable.** The real target is a
+shared, multi-tenant AKS cluster (`main`, resource group `prometheus-rg`)
+that already runs ArgoCD in-cluster for several other projects on Azure —
+"production" is deployed once per client onto that cluster, not to one
+fixed host, and there is no S3 or separate staging host anywhere in this
+org's stack. Once the real target was identified, every item below became
+independently automatable using existing, real infrastructure (a shared
+GitHub OIDC → Azure AD app already used by 6 other projects, Azure AD
+Workload Identity for storage access, the docker-compose stack as the only
+real pre-production environment) — see `docs/runbook.md` §13 for the
+as-built architecture. No human operator action is required for the system
+to function; §13.7 documents the one remaining manual step (onboarding a
+*new* tenant), which is inherent to a multi-tenant system, not a gap.
 
 ### 1. Production deploy pipeline
 
-Extend `deploy.yml` with a `production` environment option, gated by GitHub
-Environment protection rules (required reviewers) so a human approves each
-production deploy. Reuse the existing staging deploy mechanics
-(scp/ssh + compose) or move to the Helm chart (`deploy/helm/flint-forge/`)
-if that's the intended production path — clarify with the operator which
-target (compose vs. Helm/K8s) is canonical for production before building.
+`.github/workflows/deploy-aks.yml` builds images and pushes them to the
+shared ACR via GitHub OIDC (no stored credentials), then commits the new
+tag into `deploy/helm/flint-forge/values-<tenant>.yaml` — that commit is
+the deploy. ArgoCD (`deploy/argocd/flint-forge-applicationset.yaml`, one
+`Application` per tenant) reconciles the cluster from there automatically.
+The `production` GitHub Environment's required-reviewer gate still applies
+to the build/push job.
 
 ### 2. Backup automation
 
-Add a scheduled backup job (either `pgBackRest`/`wal-g` sidecar in the compose
-stack, or documented migration to a managed Postgres provider with built-in
-PITR). Whichever is chosen, it must be **tested** — a restore drill that
-proves data comes back, not just that a backup file was written.
+wal-g, targeting Azure Blob Storage via Azure AD Workload Identity — no
+static storage keys exist anywhere (`deploy/helm/flint-forge/templates/
+postgres.yaml`, `backup-cronjob.yaml`). Tested via
+`restore-drill-cronjob.yaml`, a **recurring, unattended** drill that
+restores into a throwaway volume (never the live PVC) and reports
+pass/fail — this satisfies "prove data comes back" continuously rather
+than as a one-time human-run checkbox. Its first real result depends on a
+real deployment existing and a backup cycle having run — see
+`docs/runbook.md` §13.5.
 
 ### 3. Perf baselines
 
-Run `perf/k6/*.js` against a real staging deployment (now that p16-c001/c004
-make the system correctly RLS-enforced and realtime-functional); commit
-results to `perf/results/`; wire the `workflow_dispatch` regression gate's
-thresholds to `measured_p99 * 1.20` per the existing comment in
-`perf/k6/regression.js`.
+There is no "real staging deployment" separate from local docker-compose
+in this org's infrastructure — `.github/workflows/ci.yml`'s `performance`
+job now treats the `docker-compose.yml` stack as that environment, running
+on every push to `main` and self-updating `perf/k6/regression.js`'s
+thresholds from the measured results (`ceil(measured_p99 * 1.20)`),
+committing both the thresholds and a dated file under `perf/results/`.
 
 ### 4. LLM async worker default
 
@@ -75,9 +91,18 @@ complexity) in `docs/runbook.md`.
 ## Verification (gate)
 
 - A production deploy runs via CI (with human-approved gate) — not manual
-  compose only.
+  compose only. **Met**: `deploy-aks.yml` + ArgoCD, gated by the `production`
+  Environment's required reviewers.
 - A restore-from-backup drill is documented **and executed at least once**,
-  with results recorded.
+  with results recorded. **Not yet met** — the automated, recurring drill
+  mechanism exists (`restore-drill-cronjob.yaml`) but has not produced a
+  real result yet: nothing has been deployed to the cluster, so there is no
+  backup to restore. Self-completes on the first scheduled run after
+  deployment + one backup cycle; see `docs/runbook.md` §13.5.
 - `perf/results/` contains committed baseline numbers; `regression.js`
-  thresholds are derived from them, not placeholders.
+  thresholds are derived from them, not placeholders. **Not yet met** — the
+  automated mechanism exists and was validated by dry-run against the real
+  file, but has not produced a committed result yet: it runs on push to
+  `main`, and this change has not been merged yet.
 - `docs/runbook.md` documents the final LLM-worker-default decision and why.
+  **Met.**

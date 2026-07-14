@@ -1,5 +1,6 @@
 //! Identity: JWT verification, RLS context assembly, and Option-3 outbound auth.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 pub mod error;
 pub mod jwks;
@@ -16,11 +17,18 @@ use crate::jwks::{get_jwks, refetch_on_unknown_kid};
 /// Decoded JWT claims minted by flint-gate.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
+    /// The JWT `sub` claim: the authenticated subject identifier, also used
+    /// as the Ory Keto subject for coarse relationship checks.
     pub sub: String,
     /// `role` is NOT auto-included by flint-gate; absent → coerced to "anon".
     #[serde(default)]
     pub role: Option<String>,
+    /// The JWT `tenant_id` claim, when present. Used to scope RLS and
+    /// multi-tenant isolation; absent for tokens that are not tenant-bound.
     pub tenant_id: Option<String>,
+    /// Every other claim present on the token, captured verbatim so the full
+    /// claim set can be forwarded as `request.jwt.claims` without lossy
+    /// re-encoding (e.g. `vault_key_id`, custom claims added upstream).
     #[serde(flatten)]
     pub extra: serde_json::Map<String, Json>,
 }
@@ -28,8 +36,16 @@ pub struct Claims {
 /// Transaction-scoped row-level-security context applied to a pooled connection.
 #[derive(Debug, Clone)]
 pub struct RlsContext {
+    /// The effective Postgres role to `SET LOCAL ROLE` for this transaction
+    /// (the JWT `role` claim, or `"anon"` when the claim was absent).
     pub role: String,
+    /// The full decoded claim set, serialized back to JSON for
+    /// `SET LOCAL "request.jwt.claims"`.
     pub claims_json: String,
+    /// The original, still-encoded bearer token, forwarded verbatim as
+    /// `SET LOCAL "request.headers"` so `auth.bearer()` can hand it to
+    /// downstream services (`flint_hooks`, `flint_llm`).
+    /// MUST NOT appear in tracing spans or logs.
     pub raw_bearer: String,
     /// Ory Keto subject ID derived from the JWT `sub` claim.
     /// Used for subscribe-time Keto coarse checks.
@@ -42,11 +58,21 @@ pub struct RlsContext {
 }
 
 impl RlsContext {
+    /// Re-parse [`Self::claims_json`] and return the authenticated subject
+    /// (`sub` claim) as a [`SubjectId`], or `None` if the stored claims JSON
+    /// no longer deserializes as [`Claims`] (it is always produced by
+    /// [`verify_and_build`], so this should not happen in practice).
+    #[must_use]
     pub fn subject(&self) -> Option<SubjectId> {
         serde_json::from_str::<Claims>(&self.claims_json)
             .ok()
             .map(|c| SubjectId(c.sub))
     }
+
+    /// Re-parse [`Self::claims_json`] and return the `tenant_id` claim as a
+    /// [`TenantId`], or `None` when the claims fail to deserialize or the
+    /// token carried no `tenant_id` claim.
+    #[must_use]
     pub fn tenant(&self) -> Option<TenantId> {
         serde_json::from_str::<Claims>(&self.claims_json)
             .ok()
@@ -89,6 +115,19 @@ fn decoding_key_for(jwks: &jsonwebtoken::jwk::JwkSet, kid: &str) -> Result<Decod
 /// - JWT signature is ALWAYS verified; Postgres never sees unverified tokens
 /// - Raw bearer is stored in `RlsContext` for outbound forwarding by `flint_hooks`/`flint_llm`
 ///   — do NOT log it
+///
+/// # Errors
+/// - [`IdentityError::MissingEnv`] — `FLINT_GATE_JWKS_URL` or `FLINT_GATE_ISSUER` is unset, or
+///   `FLINT_GATE_AUDIENCE` is unset while in production mode (see `FLINT_GATE_MODE` above)
+/// - [`IdentityError::InvalidToken`] — `bearer` is not a well-formed JWT
+/// - [`IdentityError::MissingKid`] — the JWT header has no `kid`
+/// - [`IdentityError::JwksFetch`] / [`IdentityError::JwksParse`] — the JWKS endpoint could not be
+///   reached, returned a non-success status, or returned an unparseable body
+/// - [`IdentityError::UnknownKid`] — the `kid` is still absent from the JWKS set after a
+///   rate-limited refetch (see [`crate::jwks::refetch_on_unknown_kid`])
+/// - [`IdentityError::Verification`] — the token uses an unsupported algorithm, or signature,
+///   issuer, audience, or expiry validation failed
+/// - [`IdentityError::ClaimsSerialize`] — the decoded claims could not be re-serialized to JSON
 #[instrument(skip(bearer), err)]
 pub async fn verify_and_build(bearer: &str) -> Result<RlsContext, IdentityError> {
     let jwks_url = std::env::var("FLINT_GATE_JWKS_URL")
@@ -173,7 +212,13 @@ pub async fn verify_and_build(bearer: &str) -> Result<RlsContext, IdentityError>
     })
 }
 
-/// Option-3 hybrid outbound headers: service bearer + origin JWT + HMAC signature.
+/// Build the Option-3 hybrid outbound header set used when Quarry/Kiln call
+/// back into other Forge services on the user's behalf: a service-to-service
+/// bearer token (so the callee authenticates the *caller service*), the
+/// original end-user JWT forwarded unverified for audit/attribution
+/// (`x-forge-origin-jwt`), and an HMAC signature over that JWT so the callee
+/// can detect tampering with the forwarded origin token
+/// (`x-forge-signature`).
 pub fn outbound_headers(
     service_token: &str,
     origin_jwt: &str,

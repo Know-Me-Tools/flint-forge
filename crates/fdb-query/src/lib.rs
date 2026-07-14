@@ -13,6 +13,7 @@
 //! (`PgRest`). Depends only on `serde`/`thiserror`/`forge-domain`. Never sees
 //! `RlsContext`; RLS is enforced by the executor's `SET LOCAL` GUCs.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 pub mod clause;
 pub mod embed;

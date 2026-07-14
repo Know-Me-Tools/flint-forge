@@ -72,7 +72,9 @@ pub struct ComponentOverride {
     pub css_vars: serde_json::Value,
     /// Optional renderer overrides.
     pub react_component: Option<String>,
+    /// Overridden Flutter widget class name (`None` = use SDK default).
     pub flutter_widget: Option<String>,
+    /// Overridden Askama/HTMX template path (`None` = use SDK default).
     pub htmx_template: Option<String>,
 }
 
@@ -80,16 +82,30 @@ pub struct ComponentOverride {
 #[non_exhaustive]
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
+    /// The document has no H1 (`# Title`) heading, so [`DesignMd::name`]
+    /// cannot be derived.
     #[error("missing H1 title")]
     MissingTitle,
+    /// A section (color, typography, or spacing) contained a fenced JSON code
+    /// block that failed to parse as JSON.
     #[error("invalid JSON in section {section}: {source}")]
     InvalidJson {
+        /// The 1-based section number (1 = Color, 2 = Typography, 3 = Spacing)
+        /// whose JSON block failed to parse.
         section: u8,
+        /// The underlying `serde_json` parse error.
         source: serde_json::Error,
     },
 }
 
 /// Parse a DESIGN.md string into a `DesignMd` document.
+///
+/// # Errors
+///
+/// Returns [`ParseError::MissingTitle`] when the document has no H1 heading,
+/// and [`ParseError::InvalidJson`] when the fenced JSON code block in the
+/// Color (§1), Typography (§2), or Spacing (§3) section fails to parse as
+/// JSON.
 pub fn parse(input: &str) -> Result<DesignMd, ParseError> {
     let name = extract_title(input).ok_or(ParseError::MissingTitle)?;
     let sections = split_sections(input);
