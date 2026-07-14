@@ -65,7 +65,8 @@ pub(super) async fn handle_rpc(
     );
 
     // Bind arguments in declaration order, dispatching on pg_type.
-    let mut q = sqlx::query(&call_sql);
+    // SAFETY: `fn_meta.schema`/`fn_meta.name` passed `is_safe_identifier` above.
+    let mut q = sqlx::query(sqlx::AssertSqlSafe(call_sql));
     for arg in &fn_meta.args {
         let val = body.get(&arg.name).cloned().unwrap_or(Value::Null);
         if is_vector_type(&arg.pg_type) {

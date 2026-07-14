@@ -84,9 +84,11 @@ async fn test_ddl_notify_received_within_5s() {
         .as_secs();
     let table = format!("meta_listener_test_{epoch}");
 
-    if let Err(e) = sqlx::query(&format!(
+    // SAFETY: `table` is `meta_listener_test_<epoch>` — a numeric-suffixed
+    // literal built from the process clock, not external input.
+    if let Err(e) = sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE IF NOT EXISTS public.{table} (id bigserial PRIMARY KEY)"
-    ))
+    )))
     .execute(&pool)
     .await
     {
@@ -115,10 +117,14 @@ async fn test_ddl_notify_received_within_5s() {
         "missing 'ddl_tag' in payload: {payload}"
     );
 
+    // SAFETY: `table` is `meta_listener_test_<epoch>` — a numeric-suffixed
+    // literal built from the process clock, not external input.
     drop(
-        sqlx::query(&format!("DROP TABLE IF EXISTS public.{table}"))
-            .execute(&pool)
-            .await,
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "DROP TABLE IF EXISTS public.{table}"
+        )))
+        .execute(&pool)
+        .await,
     );
     pool.close().await;
 }
@@ -191,15 +197,19 @@ async fn test_listener_reconnect_after_drop() {
         .unwrap_or_default()
         .as_secs();
     let table = format!("meta_reconnect_test_{epoch}");
+    // SAFETY: `table` is `meta_reconnect_test_<epoch>` — a numeric-suffixed
+    // literal built from the process clock, not external input.
     drop(
-        sqlx::query(&format!("DROP TABLE IF EXISTS public.{table}"))
-            .execute(&pool)
-            .await,
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "DROP TABLE IF EXISTS public.{table}"
+        )))
+        .execute(&pool)
+        .await,
     );
     drop(
-        sqlx::query(&format!(
+        sqlx::query(sqlx::AssertSqlSafe(format!(
             "CREATE TABLE public.{table} (id bigserial PRIMARY KEY)"
-        ))
+        )))
         .execute(&pool)
         .await,
     );
@@ -212,10 +222,14 @@ async fn test_listener_reconnect_after_drop() {
 
     assert_eq!(n.channel(), "meta_runtime");
 
+    // SAFETY: `table` is `meta_reconnect_test_<epoch>` — a numeric-suffixed
+    // literal built from the process clock, not external input.
     drop(
-        sqlx::query(&format!("DROP TABLE IF EXISTS public.{table}"))
-            .execute(&pool)
-            .await,
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "DROP TABLE IF EXISTS public.{table}"
+        )))
+        .execute(&pool)
+        .await,
     );
     pool.close().await;
 }

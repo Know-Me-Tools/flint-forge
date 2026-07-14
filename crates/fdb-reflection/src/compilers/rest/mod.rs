@@ -216,7 +216,9 @@ async fn handle_list(
         inner_sql = inner.sql,
     );
 
-    let mut q = sqlx::query(&sql);
+    // SAFETY: `schema`, `table`, and every filter column passed
+    // `is_safe_identifier`; all values are bound as `$n`, never interpolated.
+    let mut q = sqlx::query(sqlx::AssertSqlSafe(sql));
     for bind in &inner.binds {
         q = bind_param(q, bind);
     }

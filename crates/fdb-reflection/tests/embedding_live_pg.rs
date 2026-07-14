@@ -89,7 +89,9 @@ async fn embedding_projection_sql_yields_nested_json() {
     let projection = projection.replacen('*', "customers.*", 1);
     let sql = format!("SELECT {projection} FROM customers customers");
 
-    let rows = sqlx::query(&sql)
+    // SAFETY: `sql` is built from the engine's own rendered projection over a
+    // fixed test schema — no external input reaches this string.
+    let rows = sqlx::query(sqlx::AssertSqlSafe(sql))
         .fetch_all(&mut *conn)
         .await
         .expect("run embed sql");
