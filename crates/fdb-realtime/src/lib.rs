@@ -30,7 +30,7 @@ use async_trait::async_trait;
 use fdb_domain::{ChangeEvent, ChangeOp, SubscriptionSpec};
 use fdb_ports::{ChangeStreamSource, StreamError};
 use forge_identity::RlsContext;
-use futures::stream::{BoxStream, StreamExt};
+use futures::stream::BoxStream;
 use tracing::instrument;
 
 /// Configuration for the Keto HTTP check endpoint.
@@ -56,7 +56,8 @@ pub struct FrfConfig {
 ///
 /// FRF currently exposes `WatchEntity(entity_id, tenant_id)` — a single entity watcher.
 /// Table-level subscriptions require `WatchEntityType(entity_type, tenant_id)`, which has
-/// been proposed to the FRF team. Until that RPC lands, the `watch()` stub will `todo!()`.
+/// been proposed to the FRF team. Until that RPC lands, `watch()` **fails closed** with
+/// `StreamError::Unavailable` — it never returns an empty stream that pretends to work.
 /// All surrounding infrastructure (Keto check, RLS re-query) is fully implemented.
 #[derive(Clone)]
 pub struct FabricChangeSource {
@@ -113,43 +114,8 @@ impl ChangeStreamSource for FabricChangeSource {
         self.keto_check(&spec.entity_type, &spec.tenant, &who.keto_subject)
             .await?;
 
-        // Step 2: OQ-FRF-1 — FRF WatchEntityType RPC not yet available.
-        // Until FRF exposes WatchEntityType, this returns an empty stream with a log.
-        // When WatchEntityType lands, replace this with the tonic streaming call.
-        tracing::warn!(
-            entity_type = %spec.entity_type,
-            "OQ-FRF-1: WatchEntityType not yet available in FRF; returning empty stream"
-        );
-
-        let empty: BoxStream<'static, Result<ChangeEvent, StreamError>> =
-            futures::stream::empty().boxed();
-        Ok(empty)
-
-        // --- Future implementation (post OQ-FRF-1 resolution) ---
-        //
-        // let mut client = entity_service_client::EntityServiceClient::new(self.channel.as_ref().clone());
-        // let request = tonic::Request::new(WatchEntityTypeRequest {
-        //     entity_type: spec.entity_type.clone(),
-        //     tenant_id: spec.tenant.clone(),
-        // });
-        // let frf_stream = client.watch_entity_type(request).await
-        //     .map_err(|_| StreamError::Unavailable)?
-        //     .into_inner();
-        //
-        // let rls_clone = who.clone();   // RlsContext must be Clone for stream capture
-        // let db_clone = self.db.clone();
-        //
-        // let event_stream = frf_stream.filter_map(move |msg| {
-        //     let rls = rls_clone.clone();
-        //     let db = db_clone.clone();
-        //     async move {
-        //         let entity_change = msg.ok()?;
-        //         // Step 3: Per-event RLS re-query — NON-NEGOTIABLE.
-        //         // Re-query the changed row as the subscriber; deliver only if it survives RLS.
-        //         rls_requery(&db, &entity_change, &rls).await
-        //     }
-        // });
-        // Ok(event_stream.boxed())
+        // Step 2: open the FRF stream (fails closed while OQ-FRF-1 is unresolved).
+        self.open_frf_stream(&spec)
     }
 }
 
@@ -196,6 +162,57 @@ async fn keto_check_via_http(
 }
 
 impl FabricChangeSource {
+    /// Open the FRF `WatchEntityType` stream.
+    ///
+    /// # OQ-FRF-1 (open question)
+    ///
+    /// FRF does not yet expose `WatchEntityType`, so this **fails closed**:
+    /// it returns `Err(StreamError::Unavailable)` rather than an empty stream.
+    /// A subscriber must be able to distinguish "the change source is
+    /// unavailable" from "no events yet" — the previous `Ok(empty_stream)`
+    /// behavior reported success while delivering nothing, which for a
+    /// self-hosted deployment is an invisible failure.
+    ///
+    /// Use `ListenChangeSource` (the default) for working subscriptions until
+    /// OQ-FRF-1 resolves.
+    #[allow(clippy::unnecessary_wraps, clippy::unused_self)] // signature fixed by the future tonic impl
+    fn open_frf_stream(
+        &self,
+        spec: &SubscriptionSpec,
+    ) -> Result<BoxStream<'static, Result<ChangeEvent, StreamError>>, StreamError> {
+        tracing::warn!(
+            entity_type = %spec.entity_type,
+            "OQ-FRF-1: WatchEntityType not yet available in FRF; failing closed (StreamError::Unavailable)"
+        );
+        Err(StreamError::Unavailable)
+
+        // --- Future implementation (post OQ-FRF-1 resolution) ---
+        //
+        // let mut client = entity_service_client::EntityServiceClient::new(self.channel.as_ref().clone());
+        // let request = tonic::Request::new(WatchEntityTypeRequest {
+        //     entity_type: spec.entity_type.clone(),
+        //     tenant_id: spec.tenant.clone(),
+        // });
+        // let frf_stream = client.watch_entity_type(request).await
+        //     .map_err(|_| StreamError::Unavailable)?
+        //     .into_inner();
+        //
+        // let rls_clone = who.clone();   // RlsContext must be Clone for stream capture
+        // let db_clone = self.db.clone();
+        //
+        // let event_stream = frf_stream.filter_map(move |msg| {
+        //     let rls = rls_clone.clone();
+        //     let db = db_clone.clone();
+        //     async move {
+        //         let entity_change = msg.ok()?;
+        //         // Step 3: Per-event RLS re-query — NON-NEGOTIABLE.
+        //         // Re-query the changed row as the subscriber; deliver only if it survives RLS.
+        //         rls_requery(&db, &entity_change, &rls).await
+        //     }
+        // });
+        // Ok(event_stream.boxed())
+    }
+
     /// Keto coarse check — confirm view permission before opening a stream.
     ///
     /// SECURITY: `subject` is PII; MUST NOT be logged.
@@ -232,6 +249,38 @@ fn frf_op_to_domain(frf_op: i32) -> Option<ChangeOp> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn test_source() -> FabricChangeSource {
+        // connect_lazy never dials, so no FRF endpoint is needed here.
+        FabricChangeSource::new(
+            FrfConfig {
+                endpoint: "http://frf.invalid:50051".into(),
+            },
+            KetoConfig {
+                base_url: "http://keto.invalid:4466".into(),
+            },
+        )
+        .expect("lazy channel construction must not fail")
+    }
+
+    /// p16-c002 gate: while OQ-FRF-1 is unresolved the fabric adapter must
+    /// fail closed — `Err(StreamError::Unavailable)` — never `Ok(empty_stream)`.
+    /// (`tokio::test` because `connect_lazy` registers with the Tokio reactor.)
+    #[tokio::test]
+    async fn fabric_watch_returns_unavailable() {
+        let source = test_source();
+        let spec = SubscriptionSpec {
+            entity_type: "orders".into(),
+            tenant: "tenant-a".into(),
+            filter: None,
+        };
+
+        let result = source.open_frf_stream(&spec);
+        assert!(
+            matches!(result, Err(StreamError::Unavailable)),
+            "fabric adapter must fail closed, not return an empty stream"
+        );
+    }
 
     #[test]
     fn frf_op_mapping() {

@@ -595,9 +595,10 @@ async fn rpc_vector_handler(
 /// Build the GraphQL subscription live-stream factory.
 ///
 /// Composes a [`Quarry`] from `PgRest` (RLS re-query), `PgGraphQl` (required by the
-/// constructor; unused on this path), and `FabricChangeSource` (the live change
-/// stream — currently empty pending OQ-FRF-1). Keto is threaded so the subscribe-time
-/// coarse check runs inside `FabricChangeSource`.
+/// constructor; unused on this path), and the change-stream backend —
+/// `ListenChangeSource` (Postgres LISTEN/NOTIFY, the default) or `FabricChangeSource`
+/// (FRF gRPC, opt-in via `FLINT_CHANGE_SOURCE=fabric`; fails closed pending OQ-FRF-1).
+/// Keto is threaded so the subscribe-time coarse check runs inside the adapter.
 ///
 /// The returned factory, given a table's spec/meta and the subscriber's `RlsContext`,
 /// yields the RLS-filtered, GraphQL-projected event stream. `spec.tenant` is filled
@@ -622,11 +623,18 @@ async fn build_subscription_factory(
         base_url: std::env::var("KETO_BASE_URL").unwrap_or_else(|_| "http://keto:4466".into()),
     };
 
-    // Select the change-stream backend. Default `fabric` (FRF gRPC — currently an
-    // empty stream pending OQ-FRF-1). `FLINT_CHANGE_SOURCE=listen` uses the
-    // in-process Postgres LISTEN/NOTIFY adapter, which emits real events without FRF.
-    let use_listen = std::env::var("FLINT_CHANGE_SOURCE").as_deref() == Ok("listen");
-    let change_source: Arc<dyn fdb_ports::ChangeStreamSource> = if use_listen {
+    // Select the change-stream backend. Default `listen` — the in-process Postgres
+    // LISTEN/NOTIFY adapter, which is complete and emits real events without FRF.
+    // `FLINT_CHANGE_SOURCE=fabric` opts into the FRF gRPC adapter, which FAILS
+    // CLOSED (StreamError::Unavailable on subscribe) until FRF exposes
+    // WatchEntityType (OQ-FRF-1). p16-c002.
+    let use_fabric = std::env::var("FLINT_CHANGE_SOURCE").as_deref() == Ok("fabric");
+    let change_source: Arc<dyn fdb_ports::ChangeStreamSource> = if use_fabric {
+        let frf_cfg = FrfConfig {
+            endpoint: std::env::var("FRF_ENDPOINT").unwrap_or_else(|_| "http://frf:50051".into()),
+        };
+        Arc::new(FabricChangeSource::new(frf_cfg, realtime_keto_cfg).expect("fabric change source"))
+    } else {
         let cfg = ListenConfig {
             database_url: database_url.to_owned(),
             broadcast_capacity: std::env::var("FLINT_LISTEN_CAPACITY")
@@ -639,11 +647,6 @@ async fn build_subscription_factory(
                 .await
                 .expect("listen change source"),
         )
-    } else {
-        let frf_cfg = FrfConfig {
-            endpoint: std::env::var("FRF_ENDPOINT").unwrap_or_else(|_| "http://frf:50051".into()),
-        };
-        Arc::new(FabricChangeSource::new(frf_cfg, realtime_keto_cfg).expect("fabric change source"))
     };
     let quarry =
         Arc::new(Quarry::new(sub_rest, sub_graphql, change_source).with_keto(keto_adapter));
