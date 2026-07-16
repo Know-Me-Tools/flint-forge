@@ -554,10 +554,31 @@ mod tests {
 
         // Confirm that resolving an unknown provider raises an exception (the
         // function inserts a denied access_log row and calls RAISE EXCEPTION).
-        let miss = Spi::get_one::<String>(
-            "SELECT vault.resolve_api_key('nonexistent-provider')",
+        // RAISE EXCEPTION is a Postgres ERROR, not a Rust Result — letting it
+        // propagate out of Spi::get_one would abort the whole pg_test transaction
+        // instead of surfacing as Err. Catch it in a PL/pgSQL EXCEPTION block so
+        // the test's outer transaction survives, recording the outcome in a temp
+        // table that a separate statement then reads back.
+        Spi::run("CREATE TEMP TABLE _resolve_api_key_test_caught (caught boolean) ON COMMIT DROP")
+            .unwrap();
+        Spi::run(
+            "DO $catch$
+             BEGIN
+                 PERFORM vault.resolve_api_key('nonexistent-provider');
+                 INSERT INTO _resolve_api_key_test_caught VALUES (false);
+             EXCEPTION WHEN OTHERS THEN
+                 INSERT INTO _resolve_api_key_test_caught VALUES (true);
+             END;
+             $catch$",
+        )
+        .unwrap();
+        let caught: Option<bool> =
+            Spi::get_one("SELECT caught FROM _resolve_api_key_test_caught LIMIT 1").unwrap();
+        assert_eq!(
+            caught,
+            Some(true),
+            "expected vault.resolve_api_key to raise for an unknown provider"
         );
-        assert!(miss.is_err(), "expected an error for unknown provider, got: {miss:?}");
     }
 }
 
