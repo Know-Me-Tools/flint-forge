@@ -35,10 +35,10 @@ pub struct StateManager {
     db_url: String,
     gates: MutationGates,
     /// Live-stream seam for GraphQL subscriptions, injected by the composition
-    /// root. `None` until the gateway wires the `Quarry`; every recompile
-    /// (initial + hot-swap) threads this into `GraphQlCompiler::compile` so the
-    /// subscription schema keeps its live stream body across DDL changes.
-    sub_stream_factory: Option<SubStreamFactory>,
+    /// root. Every recompile (initial + hot-swap) threads this into
+    /// `GraphQlCompiler::compile` so the subscription schema keeps its live
+    /// stream body across DDL changes.
+    sub_stream_factory: SubStreamFactory,
     /// Watch sender — notifies listeners whenever a new `CompiledState` is
     /// installed. Receivers see the new schema version. Used by the AG-UI
     /// state propagation task (p7-c007) to emit `StateSnapshot` events.
@@ -46,30 +46,22 @@ pub struct StateManager {
 }
 
 impl StateManager {
-    /// Build a `StateManager`, performing the initial compile before returning.
-    /// The process must not accept requests until this returns successfully.
-    pub async fn new(
-        engine: ReflectionEngine,
-        pool: sqlx::PgPool,
-        db_url: String,
-    ) -> Result<Self, ReflectionError> {
-        Self::new_with_gates(engine, pool, db_url, MutationGates::default(), None).await
-    }
-
     /// Build a `StateManager` with authorization gates that are applied to
-    /// every REST recompile (initial and hot-swap).
+    /// every REST recompile (initial and hot-swap), performing the initial
+    /// compile before returning. The process must not accept requests until
+    /// this returns successfully.
     ///
-    /// `sub_stream_factory` is the GraphQL subscription live-stream seam
-    /// (`None` disables live subscription events — fields yield empty streams).
+    /// `sub_stream_factory` is the GraphQL subscription live-stream seam. It is
+    /// mandatory and never mutated afterwards, so every served subscription has
+    /// its live stream; see `GraphQlCompiler::compile`.
     pub async fn new_with_gates(
         engine: ReflectionEngine,
         pool: sqlx::PgPool,
         db_url: String,
         gates: MutationGates,
-        sub_stream_factory: Option<SubStreamFactory>,
+        sub_stream_factory: SubStreamFactory,
     ) -> Result<Self, ReflectionError> {
-        let initial =
-            Self::do_compile(&engine, pool.clone(), &gates, sub_stream_factory.as_ref()).await?;
+        let initial = Self::do_compile(&engine, pool.clone(), &gates, &sub_stream_factory).await?;
         let (version_tx, _) = watch::channel(initial.version);
         Ok(Self {
             compiled: Arc::new(ArcSwap::from_pointee(initial)),
@@ -119,7 +111,7 @@ impl StateManager {
                         &self.engine,
                         self.pool.clone(),
                         &self.gates,
-                        self.sub_stream_factory.as_ref(),
+                        &self.sub_stream_factory,
                     )
                     .await
                     {
@@ -160,7 +152,7 @@ impl StateManager {
                 &self.engine,
                 self.pool.clone(),
                 &self.gates,
-                self.sub_stream_factory.as_ref(),
+                &self.sub_stream_factory,
             )
             .await
             {
@@ -182,7 +174,7 @@ impl StateManager {
         engine: &ReflectionEngine,
         pool: sqlx::PgPool,
         gates: &MutationGates,
-        sub_stream_factory: Option<&SubStreamFactory>,
+        sub_stream_factory: &SubStreamFactory,
     ) -> Result<CompiledState, ReflectionError> {
         let model = engine.reflect().await?;
         let router =
@@ -195,10 +187,8 @@ impl StateManager {
             .map(Vec::len)
             .unwrap_or(0);
         tracing::info!(mcp_tools = mcp_count, "MCP tools compiled");
-        let subscription_schema = match GraphQlCompiler::compile(
-            &model,
-            sub_stream_factory.cloned(),
-        ) {
+        let subscription_schema = match GraphQlCompiler::compile(&model, sub_stream_factory.clone())
+        {
             Ok(schema) => Some(schema),
             Err(e) => {
                 tracing::warn!(error = %e, "GraphQlCompiler failed; subscription schema unavailable");

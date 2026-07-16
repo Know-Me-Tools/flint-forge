@@ -186,7 +186,7 @@ async fn main() {
             pool.clone(),
             database_url.clone(),
             gates,
-            Some(sub_stream_factory),
+            sub_stream_factory,
         )
         .await
         .expect("initial schema compile"),

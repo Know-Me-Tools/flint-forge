@@ -1,6 +1,6 @@
 //! Live-Postgres regression test: `fdb-gateway`'s exact startup reflection path
-//! (`main.rs` — `ReflectionEngine::new` -> `StateManager::new`) must succeed
-//! against a real, migrated Postgres instance.
+//! (`main.rs` — `ReflectionEngine::new` -> `StateManager::new_with_gates`) must
+//! succeed against a real, migrated Postgres instance.
 //!
 //! DATABASE_URL-gated: runs when `DATABASE_URL` is set, skips otherwise, so the
 //! default `cargo test` / CI unit stage never requires a database.
@@ -10,9 +10,9 @@
 //! `cargo test --workspace` alone does not catch every reflection regression:
 //! individual `fdb-reflection` tests call `ReflectionEngine::reflect()` (the
 //! model builder), but none of them replicate `main.rs`'s actual boot sequence
-//! — `StateManager::new(engine, pool, db_url).await.expect("initial schema
-//! compile")` — which is the exact call that panicked on a stale `ext-flint-meta`
-//! image (`flint_meta.views()` missing: PgDatabaseError 42703). A stale/partial
+//! — `StateManager::new_with_gates(..).await.expect("initial schema compile")`
+//! — which is the exact call that panicked on a stale `ext-flint-meta` image
+//! (`flint_meta.views()` missing: PgDatabaseError 42703). A stale/partial
 //! extension build can still let narrower tests pass while the real gateway
 //! binary panics on line 1 of `main()`.
 //!
@@ -23,7 +23,8 @@
 //! operator's environment.
 #![allow(clippy::expect_used)]
 
-use fdb_reflection::{ReflectionEngine, StateManager};
+use fdb_reflection::{MutationGates, ReflectionEngine, StateManager};
+use futures::stream::{self, StreamExt};
 use sqlx::PgPool;
 
 fn database_url() -> Option<String> {
@@ -38,17 +39,22 @@ async fn gateway_initial_schema_compile_succeeds_against_live_pg() {
     };
 
     // Mirrors crates/fdb-gateway/src/main.rs: connect, then build the
-    // ReflectionEngine + StateManager exactly as the real binary does. No
-    // gates/subscription factory are needed to prove the initial compile path
-    // — MutationGates::default() and no sub_stream_factory take the same
-    // engine.reflect() route through fetch_tables/fetch_functions/fetch_views.
+    // ReflectionEngine + StateManager exactly as the real binary does. The
+    // subscription live-stream factory is mandatory (see state_manager.rs) —
+    // an empty factory proves the initial compile path without needing a real
+    // Quarry/ChangeStreamSource wired up.
     let pool = PgPool::connect(&url)
         .await
         .expect("gateway_startup_live_pg: connect");
 
     let engine = ReflectionEngine::new(pool.clone());
+    let empty_factory = std::sync::Arc::new(|_spec, _meta, _who| {
+        stream::empty::<async_graphql::Result<async_graphql::Value>>().boxed()
+    });
 
-    let state_manager = StateManager::new(engine, pool, url).await;
+    let state_manager =
+        StateManager::new_with_gates(engine, pool, url, MutationGates::default(), empty_factory)
+            .await;
 
     assert!(
         state_manager.is_ok(),
