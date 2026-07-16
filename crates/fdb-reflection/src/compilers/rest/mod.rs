@@ -60,8 +60,9 @@ pub(super) struct RestState {
 /// - `DELETE /<schema>/<table>/:id` — delete row
 /// - `POST /rpc/<schema>/<fn>`      — call stored function (vector args supported)
 ///
-/// CRUD handlers remain `todo!()` stubs pending the query-builder landing.
-/// `handle_rpc` is fully implemented: it detects `vector(N)` arg types and binds
+/// CRUD handlers (`mutations.rs`) execute parameterized SQL against the
+/// reflected schema, gated by `is_safe_identifier` on every table/column name.
+/// `handle_rpc` additionally detects `vector(N)` arg types and binds
 /// `pgvector::Vector` typed parameters automatically.
 pub struct RestCompiler;
 

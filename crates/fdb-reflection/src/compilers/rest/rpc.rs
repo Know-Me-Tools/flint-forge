@@ -8,7 +8,22 @@ use serde_json::{json, Map, Value};
 use tracing::instrument;
 
 use super::RestState;
-use crate::model::is_vector_type;
+use crate::model::{is_vector_type, FnMeta};
+
+/// Pick the overload whose argument names are an exact set-match for the
+/// request body's keys; fall back to the first candidate when no exact match
+/// exists, so a caller not supplying every arg name still resolves
+/// deterministically rather than 404ing. Postgres allows function
+/// overloading (same schema+name, different argument lists — e.g.
+/// `cron.schedule(text, text)` vs `cron.schedule(text, text, text)`), so
+/// `candidates` may contain more than one entry for the same (schema, name).
+fn select_overload<'a>(candidates: &[&'a FnMeta], body: &Map<String, Value>) -> Option<&'a FnMeta> {
+    candidates
+        .iter()
+        .find(|f| f.args.len() == body.len() && f.args.iter().all(|a| body.contains_key(&a.name)))
+        .or_else(|| candidates.first())
+        .copied()
+}
 
 /// POST /rpc/<schema>/<fn_name> — call a Postgres function with optional vector args.
 ///
@@ -26,13 +41,15 @@ pub(super) async fn handle_rpc(
     state: RestState,
     body: Map<String, Value>,
 ) -> impl IntoResponse {
-    // Locate the function metadata in the compiled model.
-    let fn_meta = match state
+    // Locate the function metadata in the compiled model — see
+    // `select_overload` for why more than one candidate can share (schema, name).
+    let candidates: Vec<_> = state
         .model
         .functions
         .iter()
-        .find(|f| f.schema == schema && f.name == fn_name)
-    {
+        .filter(|f| f.schema == schema && f.name == fn_name)
+        .collect();
+    let fn_meta = match select_overload(&candidates, &body) {
         Some(f) => f,
         None => {
             return (
@@ -153,8 +170,88 @@ impl JsonTypeName for Value {
 
 #[cfg(test)]
 mod tests {
-    use super::json_to_vector;
+    use super::{json_to_vector, select_overload};
+    use crate::model::ArgMeta;
     use serde_json::json;
+
+    fn fn_meta(name: &str, arg_names: &[&str]) -> super::FnMeta {
+        super::FnMeta {
+            schema: "cron".into(),
+            name: name.into(),
+            args: arg_names
+                .iter()
+                .map(|n| ArgMeta {
+                    name: (*n).into(),
+                    pg_type: "text".into(),
+                })
+                .collect(),
+            return_type: "bigint".into(),
+            security_definer: false,
+        }
+    }
+
+    /// p16-c-followup gate: given two overloads, the one whose argument names
+    /// exactly match the request body's keys must be selected — not
+    /// whichever happens to be first in the model.
+    #[test]
+    fn select_overload_picks_exact_arg_match() {
+        let two_arg = fn_meta("schedule", &["schedule", "command"]);
+        let three_arg = fn_meta("schedule", &["job_name", "schedule", "command"]);
+        let candidates = vec![&two_arg, &three_arg];
+
+        let body: serde_json::Map<String, serde_json::Value> = [
+            ("job_name".to_string(), json!("nightly")),
+            ("schedule".to_string(), json!("0 3 * * *")),
+            ("command".to_string(), json!("SELECT 1;")),
+        ]
+        .into_iter()
+        .collect();
+
+        let selected = select_overload(&candidates, &body).expect("a candidate matches");
+        assert_eq!(selected.args.len(), 3, "must select the 3-arg overload");
+    }
+
+    #[test]
+    fn select_overload_picks_the_other_exact_match() {
+        let two_arg = fn_meta("schedule", &["schedule", "command"]);
+        let three_arg = fn_meta("schedule", &["job_name", "schedule", "command"]);
+        let candidates = vec![&two_arg, &three_arg];
+
+        let body: serde_json::Map<String, serde_json::Value> = [
+            ("schedule".to_string(), json!("0 3 * * *")),
+            ("command".to_string(), json!("SELECT 1;")),
+        ]
+        .into_iter()
+        .collect();
+
+        let selected = select_overload(&candidates, &body).expect("a candidate matches");
+        assert_eq!(selected.args.len(), 2, "must select the 2-arg overload");
+    }
+
+    #[test]
+    fn select_overload_falls_back_to_first_when_no_exact_match() {
+        let two_arg = fn_meta("schedule", &["schedule", "command"]);
+        let candidates = vec![&two_arg];
+
+        // Body doesn't match any overload's arg set exactly (extra key).
+        let body: serde_json::Map<String, serde_json::Value> = [
+            ("schedule".to_string(), json!("0 3 * * *")),
+            ("command".to_string(), json!("SELECT 1;")),
+            ("unexpected".to_string(), json!("value")),
+        ]
+        .into_iter()
+        .collect();
+
+        let selected = select_overload(&candidates, &body).expect("falls back to first");
+        assert_eq!(selected.args.len(), 2);
+    }
+
+    #[test]
+    fn select_overload_returns_none_for_empty_candidates() {
+        let candidates: Vec<&super::FnMeta> = vec![];
+        let body = serde_json::Map::new();
+        assert!(select_overload(&candidates, &body).is_none());
+    }
 
     #[test]
     fn json_to_vector_accepts_float_array() {

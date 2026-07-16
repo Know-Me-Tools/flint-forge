@@ -1,8 +1,10 @@
 {
   "name": "Flint Forge",
   "description": "Sovereign data and edge-compute plane of the Flint platform: Quarry (REST/GraphQL DB gateway), Anvil (pgrx extensions), and Kiln (WASM edge-function gateway).",
-  "active_phase": "p14-v1.1.0",
-  "last_completed_phase": "p13-continuous-operations",
+  "active_phase": "p16-v1.0-release-closure",
+  "last_completed_phase": "p15-v1.0-production-readiness",
+  "change_backend": "native-kbd",
+  "change_backend_note": "Pinned 2026-07-09 (p16 decision-log D-002). openspec/ exists at root and the CLI (v1.4.1) works, so bare detection resolves to 'openspec' — but p16's six changes are specced natively under .kbd-orchestrator/changes/. Pinning prevents the plan/execute divergence that broke p15, where the phase was planned as OpenSpec, executed as native-tool, and /kbd-apply found no task surface. Verified: `kbd-apply list <change>` reads the native tasks.json correctly.",
   "completed_phases": [
     "p0-workspace-foundation",
     "p1-anvil-meta-foundation",
@@ -20,7 +22,9 @@
     "p10-production-launch",
     "p11-api-stability",
     "p12-v1-release",
-    "p13-continuous-operations"
+    "p13-continuous-operations",
+    "p14-v1.1.0",
+    "p15-v1.0-production-readiness"
   ],
   "focus_project_path": "/Users/gqadonis/Projects/prometheus/flint-forge",
   "spec_paths": [

@@ -376,7 +376,10 @@ mod tests {
                 "{method} must not declare a path parameter — there is no {{id}} route segment"
             );
             let names: Vec<&str> = params.iter().filter_map(|p| p["name"].as_str()).collect();
-            assert!(names.contains(&"id.eq"), "{method} missing id.eq filter param");
+            assert!(
+                names.contains(&"id.eq"),
+                "{method} missing id.eq filter param"
+            );
         }
     }
 

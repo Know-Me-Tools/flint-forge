@@ -1,41 +1,18 @@
 {
   "schemaVersion": "1",
-  "updatedAt": "2026-07-04T00:00:00Z",
+  "updatedAt": "2026-07-16T21:46:05Z",
   "cursor": [
-    "p5-kiln-edge-runtime"
+    "p16-v1.0-release-closure"
   ],
   "root": {
     "type": "phase",
-    "id": "p4-flint-ember",
-    "status": "completed",
+    "id": "p16-v1.0-release-closure",
+    "status": "executing",
     "progress": {
-      "done": 4,
-      "total": 4
+      "done": 0,
+      "total": 0
     },
-    "children": [
-      {
-        "type": "change",
-        "id": "p4-c001-liter-llm-binding",
-        "status": "completed"
-      },
-      {
-        "type": "change",
-        "id": "p4-c002-async-embeddings",
-        "status": "completed"
-      },
-      {
-        "type": "change",
-        "id": "p4-c003-sync-surface",
-        "status": "completed"
-      },
-      {
-        "type": "change",
-        "id": "p4-c004-summaries",
-        "status": "completed"
-      }
-    ],
-    "annotations": [
-      "p4-flint-ember verified and archived"
-    ]
+    "children": [],
+    "annotations": []
   }
 }

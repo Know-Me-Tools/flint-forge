@@ -1,12 +1,21 @@
 {
-  "phase": "p15-v1.0-production-readiness",
-  "previousPhase": "p14-v1.1.0",
-  "status": "completed",
-  "updatedAt": "2026-07-08",
-  "next_action": "Phase complete. Run final CI pipeline and helm lint, then run /kbd-reflect to close p15.",
-  "seeded_from": "user directive to close out v1.0",
-  "changes_completed": 5,
-  "changes_total": 5,
+  "phase": "p16-v1.0-release-closure",
+  "previousPhase": "p15-v1.0-production-readiness",
+  "status": "executing",
+  "updatedAt": "2026-07-16T03:15:00Z",
+  "next_action": "Release decision RESOLVED (tag stays v1.0.0, no users yet). gateway-startup follow-up FIXED this session. Remaining: vault.secrets pg_dump exclusion fix (task_bc952bb3, in progress in a separate session) \u2014 otherwise clear to run /kbd-new-phase.",
+  "seeded_from": "p15 reflection.md 'Recommended Next Phase' (P0: v1.0 release closure) + handoffs/reflect.json next_phase_hint",
+  "changes_completed": 6,
+  "changes_total": 6,
   "active_changes": [],
-  "note": "All five changes implemented and verified: c001/c002/c003 already green; c004 adds Postgres integration CI job and k6 baselines; c005 refreshes docs/README/ROADMAP, adds Helm chart, and fixes Kiln cache miss. Workspace unit tests and clippy pass; helm lint passes."
+  "change_backend": "native-kbd",
+  "delivery_model": "self-hosted-oss",
+  "wait_budget": {
+    "allocated": 3,
+    "spent": 0,
+    "risk_change": null
+  },
+  "blocked_changes": [],
+  "status": "reflected",
+  "note": "PHASE COMPLETE + REFLECTED 2026-07-16. 6/6 changes archived; 5/6 goals fully MET, c006 MET-with-disclosed-partial-gate (see reflection.md). RELEASE DECISION RESOLVED same day: tag stays v1.0.0 (user call \u2014 no users yet, so no compatibility cost). GATEWAY-STARTUP FOLLOW-UP FIXED same day (task_2ea21856): root cause was NOT the originally-suspected flint_meta.views() defect \u2014 that function existed in source all along; the bug report was based on a stale local Docker image predating commit da7a24c by ~4.5 hours. After rebuilding correctly, views() worked, but a genuinely separate bug surfaced: RestCompiler's RPC route generator didn't account for Postgres function overloading (cron.schedule has 2-arg and 3-arg overloads), causing a router panic on duplicate route registration at startup. Fixed in crates/fdb-reflection/src/passes/endpoint_generation.rs (dedupe RPC routes by path) and crates/fdb-reflection/src/compilers/rest/rpc.rs (select_overload resolves the correct overload by arg-name match at call time). Verified end-to-end against a correctly-built image: gateway starts, /healthz returns 200. 6 new regression tests added (76/76 fdb-reflection tests pass), clippy+fmt clean, full workspace cargo check clean. Remaining open item: vault.secrets pg_dump exclusion (task_bc952bb3) \u2014 user started this in a separate session, not yet confirmed complete. Inherited debt from p15: 2/5 resolved this phase (native-change archiving, waypoint position currency), 1/5 improved-not-tooled (wait budget: 0/3 spent), 2/5 still open (artifact-refiner QA logs, staging k6) \u2014 worth an explicit decision before /kbd-new-phase."
 }

@@ -1,14 +1,14 @@
 //! p3-c010 gate test: reflection router merges into the gateway Router without
 //! producing 404 on reflection-compiled routes.
 //!
-//! Full CRUD body testing (request actually reaching a handler body, not the
-//! axum route table) lands in p3-c015 once `handle_list` etc. are implemented
-//! (currently `todo!()`).
-//!
 //! This test constructs a minimal `DatabaseModel` with one table, compiles it
 //! via `RestCompiler`, merges the resulting `Router<()>` into a gateway-shaped
 //! router (with `/healthz`), and asserts that a request to the compiled table
-//! route does NOT return 404 — proving the reflection router is mounted.
+//! route does NOT return 404 — proving the reflection router is mounted. The
+//! pool is `connect_lazy`'d against an unreachable address, so the CRUD
+//! handler (fully implemented — see `compilers/rest/mutations.rs`) fails at
+//! the query step rather than executing a real query; this test only cares
+//! that the route matched, not the query outcome.
 
 #![forbid(unsafe_code)]
 
@@ -55,9 +55,9 @@ async fn healthz() -> &'static str {
 async fn reflection_router_mounted_not_404() {
     let model = fixture_model();
 
-    // connect_lazy builds the pool object without opening a connection.
-    // The handler bodies are `todo!()` so no query is actually executed; we
-    // only assert the route exists (not a 404 from a missing mount).
+    // connect_lazy builds the pool object without opening a connection, so the
+    // (fully implemented) handler's query fails at execution time; we only
+    // assert the route exists (not a 404 from a missing mount).
     let pool =
         PgPool::connect_lazy("postgres://localhost/flint").expect("connect_lazy should not dial");
 
@@ -86,10 +86,11 @@ async fn reflection_router_mounted_not_404() {
         "/healthz must remain reachable after merge"
     );
 
-    // The reflection route /public/widget exists (GET). Since handle_list is
-    // still todo!(), the handler panics — but the route itself resolves (not
-    // 404). We spawn the request in a separate task so the panic is isolated:
-    // a matched route panics (expected), an unmatched route returns 404.
+    // The reflection route /public/widget exists (GET) and its handler is
+    // implemented, but the lazy pool has no real connection, so the query
+    // fails. We spawn the request in a separate task so any panic is
+    // isolated: a matched route either returns an error response or panics
+    // on the query failure — an unmatched route returns 404.
     let widget_request = Request::builder()
         .uri("/public/widget")
         .body(Body::empty())
@@ -99,15 +100,14 @@ async fn reflection_router_mounted_not_404() {
     let join = tokio::spawn(async move { app_for_widget.oneshot(widget_request).await });
 
     if let Ok(Ok(resp)) = join.await {
-        // Handler returned a response (shouldn't happen yet with todo!(),
-        // but if it does, it must NOT be 404).
+        // Handler returned a response; it must NOT be 404 (mount broken).
         assert_ne!(
             resp.status(),
             StatusCode::NOT_FOUND,
             "/public/widget must be mounted (got 404 = mount broken)"
         );
     } else {
-        // Handler panicked (todo!()) or errored — proves the route was
-        // matched. A 404 would have returned a response, not panicked.
+        // Handler panicked on the unreachable-DB query — still proves the
+        // route was matched. A 404 would have returned a response, not panicked.
     }
 }
