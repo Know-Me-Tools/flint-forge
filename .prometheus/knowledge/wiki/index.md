@@ -38,6 +38,7 @@
 * [Executor Session Completion: p3-auth-rls-keto Unknown Change](/executor-session-completion-p3-auth-rls-keto-unknown-change.md)
 * [Executor Session Completion: p3.5-ci-postgres-hardening](/executor-session-completion-p3-5-ci-postgres-hardening.md)
 * [Executor Session Record: p3-auth-rls-keto Complete](/executor-session-record-p3-auth-rls-keto-complete.md)
+* [Flint Forge p16 v1.0 Release Closure Completion](/flint-forge-p16-v1-0-release-closure-completion.md)
 * [flint-gate Agent Authorization Control Plane Phase Status](/flint-gate-agent-authorization-control-plane-phase-status.md)
 * [flint-gate Embedded Cedar Policy Engine Security Review Status](/flint-gate-embedded-cedar-policy-engine-security-review-status.md)
 * [flint-gate MCP OAuth Resource Server Security Fix Status](/flint-gate-mcp-oauth-resource-server-security-fix-status.md)
