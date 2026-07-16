@@ -1,0 +1,14 @@
+# Flint Forge — committed Cargo config (safe defaults, no local tooling required).
+#
+# Machine-specific settings (fast-linker rustflags) are NOT here — see
+# .cargo/config.toml.example, which developers copy in manually only if they
+# have the matching linker installed. Anything added to this file must work
+# unmodified on every contributor's machine and in CI.
+
+[env]
+# pgrx-tests derives its Unix-domain socket path from
+# <this>/<pg-major>-<pid>/.s.PGSQL.<port>. The default (<target-dir>/test-pgdata)
+# breaks under git-worktree checkouts (e.g. .claude/worktrees/<branch-hash>/...)
+# because the absolute path exceeds the 103-byte sun_path limit on macOS/Linux.
+# See docs/RUST-DEVELOPMENT-MANAGEMENT.md.
+CARGO_PGRX_TEST_PGDATA = { value = "/tmp/flint-forge-pgrx-test-pgdata", relative = false }

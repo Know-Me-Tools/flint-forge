@@ -13,8 +13,6 @@
 /target/
 **/target/
 **/*.rs.bk
-# Machine-specific fast-linker config; committed template is .cargo/config.toml.example
-/.cargo/config.toml
 *.cwasm
 
 # pgrx build artifacts (Flint Anvil extensions)
