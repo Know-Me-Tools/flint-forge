@@ -301,6 +301,13 @@ COMMENT ON TABLE vault.secrets IS
     'keys, connection strings, tokens, certificates, and secret parameters. The secret '
     'column is ciphertext; backups/WAL/replicas carry ciphertext only.';
 
+-- Extension-owned tables are excluded from pg_dump by default (pg_depend
+-- deptype='e'). Without this call, `pg_dump | pg_restore` silently drops
+-- every row in vault.secrets on restore — not just becomes-unreadable
+-- without the DEK, the rows themselves vanish. See PostgreSQL docs on
+-- pg_extension_config_dump() / extension configuration tables.
+SELECT pg_catalog.pg_extension_config_dump('vault.secrets', '');
+
 -- Append-only audit of every privileged read/write.
 CREATE TABLE vault.access_log (
     id        bigserial   PRIMARY KEY,
@@ -311,6 +318,11 @@ CREATE TABLE vault.access_log (
     allowed   boolean     NOT NULL DEFAULT true,
     detail    text        NOT NULL DEFAULT ''
 );
+
+-- Same extension-config-table treatment for the audit log, plus its
+-- backing sequence (bigserial), so dump/restore preserves audit history.
+SELECT pg_catalog.pg_extension_config_dump('vault.access_log', '');
+SELECT pg_catalog.pg_extension_config_dump('vault.access_log_id_seq', '');
 
 -- Decrypt-on-read. Guard as tightly as the secrets themselves (revoked below).
 CREATE VIEW vault.decrypted_secrets AS
