@@ -1,0 +1,27 @@
+{
+  "stage": "assess",
+  "phase": "p16-v1.0-release-closure",
+  "written_at": "2026-07-09",
+  "written_by": "claude-code",
+  "summary": "Assessment invalidates p16's premise. v1.0.0 was already tagged and GitHub-released on 2026-07-07, 41 commits ago — c002 is not pending work. The 'Postgres integration tests' CI job has never passed on main (0 successes across 8 recent runs), so c001 is blocked and p15-c004's goal was never actually met. Root cause is a single defect: pg_cron fails to link on linux/amd64 with 'cannot find -lintl' at images/postgres18/Dockerfile:97, because the pgcron builder stage never installs gettext/libintl. arm64 builds succeed, which is why local macOS/Colima verification never caught it — and why the published flint-forge-pg:18 image is arm64-only (multi-arch manifest job is skipped when the amd64 leg fails). Plan must insert the Dockerfile fix as a new P0 change ahead of c001/c002/c003.",
+  "artifacts": [
+    "assessment.md"
+  ],
+  "key_gaps": [
+    "pg_cron amd64 link failure (images/postgres18/Dockerfile:97) — blocks integration CI, multi-arch image, and any x86_64 deployment",
+    "Postgres integration tests job has zero recorded successes on main",
+    "Published v1.0.0 release ships an arm64-only Postgres image",
+    "k6 is gated behind workflow_dispatch (ci.yml:98) and has never run as a push gate — it is not a validation deliverable",
+    "No artifact-refiner QA logs (.refiner/ absent) and no native change archive (.kbd-orchestrator/changes/archive/ absent), across all phases"
+  ],
+  "open_questions": [
+    "Re-tag v1.0.0 (rewrites a public release) or ship v1.0.1 (concedes v1.0.0 was broken on amd64)?",
+    "Do the 41 post-v1.0.0 commits belong in the next tag, or should the amd64 fix be cherry-picked?",
+    "Should p15 be reopened, given c004's goal is objectively not met?",
+    "Is amd64 support actually required, or is arm64-only acceptable for all deployment targets?"
+  ],
+  "corrections_made": [
+    "p15/progress.json c004 notes: removed the false claim that the integration job was 'green in CI'. It has never passed."
+  ],
+  "next_action": "/kbd-analyze p16-v1.0-release-closure — but the re-tag vs patch-release question needs a human decision first."
+}

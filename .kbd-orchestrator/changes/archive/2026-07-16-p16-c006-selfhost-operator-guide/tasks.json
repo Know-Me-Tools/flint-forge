@@ -1,0 +1,62 @@
+{
+  "change": "p16-c006-selfhost-operator-guide",
+  "backend": "native-kbd",
+  "tasks": [
+    {
+      "id": "t1",
+      "title": "BLOCKING: does a backup procedure exist outside this repo?",
+      "done": true,
+      "detail": "If ops runbooks exist elsewhere this collapses to a doc link. If not, it is real engineering work. Answer before estimating.",
+      "doneAt": "2026-07-16T20:30:48Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t2",
+      "title": "Determine flint_vault DEK backup semantics",
+      "done": true,
+      "detail": "The KMS-wrapped DEK is NOT in a pg_dump. Establish what an operator must separately preserve, and what a restore without it yields.",
+      "doneAt": "2026-07-16T20:31:35Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t3",
+      "title": "Author docs/operations/backup-restore.md",
+      "done": true,
+      "detail": "pg_dump coverage/gaps, DEK, extension catalog state, pg_cron job state, RTO/RPO guidance.",
+      "doneAt": "2026-07-16T21:44:32Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t4",
+      "title": "EXECUTE the restore procedure against a real instance",
+      "done": true,
+      "detail": "Acceptance criterion 1. Do not ship a theorized restore.",
+      "doneAt": "2026-07-16T21:44:41Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t5",
+      "title": "Author docs/operations/upgrading.md",
+      "done": true,
+      "detail": "Supported paths, sqlx migrate ordering, ALTER EXTENSION for all five pgrx extensions, rollback stance, SemVer breaking-change policy.",
+      "doneAt": "2026-07-16T21:45:47Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t6",
+      "title": "Verify v0.10.0 -> v1.0.0 concretely",
+      "done": true,
+      "detail": "p35-c004 landed a BREAKING PgBackend::acquire change. Determine whether manual steps are required.",
+      "doneAt": "2026-07-16T21:45:56Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t7",
+      "title": "Clean-machine end-to-end: install, backup, destroy, restore, /healthz",
+      "done": true,
+      "detail": "Docs-only. If it cannot be done from the docs, the docs are wrong.",
+      "doneAt": "2026-07-16T21:46:05Z",
+      "doneBy": "claude-code"
+    }
+  ]
+}

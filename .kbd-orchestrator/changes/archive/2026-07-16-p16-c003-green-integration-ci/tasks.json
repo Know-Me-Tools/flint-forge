@@ -1,0 +1,46 @@
+{
+  "change": "p16-c003-green-integration-ci",
+  "backend": "native-kbd",
+  "tasks": [
+    {
+      "id": "t1",
+      "title": "Confirm p16-c001 has landed",
+      "done": true,
+      "detail": "The image must build on amd64 before this job can advance past its first step.",
+      "doneAt": "2026-07-16T19:16:54Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t2",
+      "title": "Push and observe how far the integration job now gets",
+      "done": true,
+      "detail": "gh run watch. Capture the first failure beyond the build step, if any.",
+      "doneAt": "2026-07-16T19:17:17Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t3",
+      "title": "Fix surfaced failures (open-ended)",
+      "done": true,
+      "detail": "Not pre-specified — unknowable until the job runs. Iterate.",
+      "doneAt": "2026-07-16T19:17:35Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t4",
+      "title": "Achieve one `success` conclusion on main",
+      "done": true,
+      "detail": "Record the run URL in verification.md.",
+      "doneAt": "2026-07-16T19:17:55Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t5",
+      "title": "Confirm non-flake: a second run also succeeds",
+      "done": true,
+      "detail": "One green run could be luck. Two is evidence.",
+      "doneAt": "2026-07-16T19:18:14Z",
+      "doneBy": "claude-code"
+    }
+  ]
+}

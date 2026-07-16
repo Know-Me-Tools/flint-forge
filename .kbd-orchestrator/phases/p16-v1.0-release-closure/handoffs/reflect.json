@@ -1,0 +1,23 @@
+{
+  "stage": "reflect",
+  "phase": "p16-v1.0-release-closure",
+  "completed_at": "2026-07-16",
+  "phase_outcome": "COMPLETE — 6/6 changes archived; 5/6 goals fully MET, 1/6 (c006) MET on deliverables with an honestly disclosed partial gate (final /healthz criterion blocked by an unrelated, filed bug)",
+  "summary": "Phase re-specced its own premise correctly when assessment found v1.0.0 was already tagged (arm64-only, broken) and CI had never passed. All 6 re-specced defect-driven changes shipped: pg_cron amd64 fix, realtime fail-closed, CI verification (0 waits — already green), vulnerability disclosure channel, doc reconciliation, and a genuinely-executed backup/restore + upgrade guide. Two P0 bugs were discovered (not assumed) while executing the restore: vault.secrets excluded from pg_dump, and flint_meta.views() missing breaks gateway startup for every operator. Both filed as follow-ups, not fixed in-phase (correctly out of scope) and not silently ignored.",
+  "artifacts": ["reflection.md"],
+  "wait_budget": { "allocated": 3, "spent": 0 },
+  "inherited_debt_status": {
+    "1_artifact_refiner_qa": "still open",
+    "2_wait_budget_overrun": "resolved this phase, not tooled",
+    "3_k6_staging": "still open, deferred deliberately",
+    "4_native_change_archiving": "resolved — all 6 changes archived",
+    "5_position_drift": "resolved for current-waypoint.json; position.json/position-reminder.txt not independently re-checked"
+  },
+  "open_release_blocker": "v1.0.0 re-tag vs v1.0.1 — unresolved across 5 consecutive stages (assess, analyze, spec, plan, reflect). Current v1.0.0 tag predates the amd64 fix; GitHub Release has zero published assets, so nothing external is pinned to the broken state. This is a human decision, not a KBD one.",
+  "follow_ups_filed": [
+    { "task_id": "task_bc952bb3", "title": "Fix vault.secrets silently excluded from pg_dump", "status": "user started in a separate session" },
+    { "task_id": "task_2ea21856", "title": "Fix missing flint_meta.views() breaking gateway startup", "status": "not yet started — P0, blocks every self-hosted operator" }
+  ],
+  "next_command": "surface the v1.0.0 re-tag vs v1.0.1 decision to the user before any new phase; recommend prioritizing task_2ea21856 immediately after",
+  "recommended_next_phase": "v1.0-release-decision-and-gateway-startup-fix"
+}

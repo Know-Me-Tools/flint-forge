@@ -1,0 +1,45 @@
+{
+  "stage": "plan",
+  "phase": "p16-v1.0-release-closure",
+  "written_at": "2026-07-09",
+  "written_by": "claude-code",
+  "summary": "Six changes ordered by dependency. Two independent roots: c001 (pg_cron amd64 link) and c002 (realtime fail-closed) share no files and can run in parallel. c001 is the taproot — it unblocks c003 and c006 and costs zero waits, so it goes first. c003 (green integration CI) is the wait-budget risk: 0 successes in 8 runs and nobody has seen the job past its build step, so its failures are unknowable and were deliberately not pre-specced. c004 and c006 are BLOCKED on human decisions and are ordered late so they do not stall Tier-0 work. Wait budget allocated at 3 (the documented per-epoch limit); p15 overran at 6. No release change is specced because the re-tag-vs-v1.0.1 question remains unanswered and speccing one would presuppose the answer.",
+  "artifacts": [
+    "plan.md"
+  ],
+  "changes_ordered": 6,
+  "change_backend": "native-kbd",
+  "backend_note": "Pinned in project.json this stage. The skill's own detection rule (openspec/ exists -> emit /opsx:new) conflicted with decision-log D-002, which chose native. Emitting /opsx:new would have created a SECOND competing task surface for the same six changes — precisely the divergence that broke p15. Verified `kbd-apply list <change>` reads the native tasks.json correctly, so the native surface is walkable.",
+  "library_candidates_applied": 0,
+  "library_candidates_note": "library-candidates.json has zero candidates by design; all six changes are build changes with no `library:` annotation. OpenSSF CVD guide adopted as a template for c004, not as a dependency.",
+  "evolver_bridge": false,
+  "order": [
+    { "n": 1, "change": "p16-c001-pgcron-amd64-link", "tier": 0, "waits": 0, "deps": [], "unblocks": ["p16-c003", "p16-c006"] },
+    { "n": 2, "change": "p16-c002-realtime-fail-closed", "tier": 0, "waits": 1, "deps": [], "unblocks": ["p16-c005"], "note": "parallel with c001; BREAKING per Base Rule #16" },
+    { "n": 3, "change": "p16-c003-green-integration-ci", "tier": 0, "waits": "1-3", "deps": ["p16-c001"], "note": "WAIT-BUDGET RISK — open-ended by design" },
+    { "n": 4, "change": "p16-c005-docs-reality-reconciliation", "tier": 1, "waits": 0, "deps": ["p16-c002"] },
+    { "n": 5, "change": "p16-c004-security-disclosure", "tier": 1, "waits": 0, "deps": [], "blocked": true },
+    { "n": 6, "change": "p16-c006-selfhost-operator-guide", "tier": 1, "waits": 1, "deps": ["p16-c001"], "blocked": true }
+  ],
+  "wait_budget": {
+    "allocated": 3,
+    "spent": 0,
+    "rationale": "Documented per-epoch budget (Integration-First policy). p15 overran at 6, recorded as debt in p15/handoffs/reflect.json.",
+    "strategy": "Spend at genuine integration checkpoints, not on validating individual functions. Do not wait on c002's integration test in isolation — land c001, land c002, then take one wait on c003 that validates image + migrations + subscription path together.",
+    "escalation": "If the budget reaches 3 with c003 still red: HALT and surface it. Do not silently overrun as p15 did."
+  },
+  "blocked_changes": [
+    { "change": "p16-c004-security-disclosure", "blocked_on": "Human must name the vulnerability-report recipient. Can start the instant this clears, in parallel with any other change." },
+    { "change": "p16-c006-selfhost-operator-guide", "blocked_on": "Human must confirm whether a backup/restore runbook exists outside this repository. If yes: doc link plus verification. If no: days of engineering." }
+  ],
+  "open_questions_carried": [
+    "BLOCKING RELEASE: Re-tag v1.0.0 or ship v1.0.1? Now unresolved across four stages (assess, analyze, spec, plan). v1.0.0 is public with an arm64-only image and 41 commits have landed since.",
+    "Does the beta include realtime subscriptions? c002 assumes yes.",
+    "Is v0.10.0 -> v1.0.0 a supported upgrade? p35-c004 landed a BREAKING PgBackend::acquire change."
+  ],
+  "stale_state_found": [
+    "current-waypoint.md still described p15 as in_progress with 0/5 changes done — rewritten this stage.",
+    "position-reminder.txt caches changes_total from current-waypoint.json and read 0/4 after spec produced six changes; corrected by refreshing the waypoint."
+  ],
+  "next_action": "/kbd-apply p16-c001-pgcron-amd64-link — 5 tasks, no deps, no wait cost, unblocks half the phase."
+}

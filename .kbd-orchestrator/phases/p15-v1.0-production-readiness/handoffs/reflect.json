@@ -1,0 +1,21 @@
+{
+  "stage": "reflect",
+  "phase": "p15-v1.0-production-readiness",
+  "written_at": "2026-07-09",
+  "written_by": "claude-code",
+  "summary": "Schema-named reflect handoff, written during p15 closure. The 2026-07-08 reflect pass wrote its handoff as reflect-to-next.json, which the stage-gate does not resolve; this file restores the expected name. Content is reconciled with reflection.md and the 2026-07-09 verification run: all 5/5 changes complete, all five local gates green (ci-check.sh, cargo test --workspace with DATABASE_URL unset, helm lint, check_api_versions.sh, verify-migrations.sh). Recommended next phase: v1.0-release-closure.",
+  "artifacts": [
+    "reflection.md",
+    "progress.json"
+  ],
+  "next_phase_hint": "v1.0-release-closure",
+  "open_debt": [
+    "No artifact-refiner logs present for p15 changes (.refiner/ absent)",
+    "p15 total_waits is 6, above the documented 3-wait budget",
+    "k6 baselines are local Colima baselines and should be re-run against production-like staging",
+    "Native KBD changes were tracked in progress.json but not archived as per-change directories",
+    "Postgres integration job and k6 runs were confirmed present and CI-green but were NOT executed locally during closure",
+    "position.json and position-reminder.txt drifted 11-12 phases stale during p15"
+  ],
+  "supersedes": "reflect-to-next.json"
+}

@@ -1,0 +1,46 @@
+{
+  "phase": "p16-v1.0-release-closure",
+  "generated_at": "2026-07-09",
+  "generated_by": "claude-code",
+  "mode": "stack-specified",
+  "stack": "rust-workspace (axum 0.8, sqlx, pgrx, wasmtime) — established, not under evaluation",
+  "candidates": [],
+  "candidates_empty_reason": "No build-vs-adopt decisions arose. Every gap identified by assess+analyze is a defect (pg_cron amd64 link failure), a configuration default (FLINT_CHANGE_SOURCE fails open to an empty stream), a missing governance document (SECURITY.md, SUPPORT.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md), or absent infrastructure (staging for load validation). None are library-shaped. Fabricating candidates to populate this schema would be dishonest.",
+  "research_budget": {
+    "tier_1_gh_search": 0,
+    "tier_2_context7_docfork": 0,
+    "tier_3_registries": 0,
+    "tier_4_firecrawl": 4,
+    "max_queries_per_tier": 8,
+    "budget_exhausted": false,
+    "stopped_early_reason": "Tier-4 web research returned no actionable, product-specific intelligence (SMB disaster-recovery listicles, RLS explainers, competitor-comparison SEO). Continuing to spend budget would not have changed any verdict. Repository evidence was specific and checkable; web evidence was not."
+  },
+  "external_references_adopted": [
+    {
+      "name": "OpenSSF Coordinated Vulnerability Disclosure guide",
+      "url": "https://openssf.org/resources/guides/",
+      "applies_to": "SECURITY.md authoring",
+      "verdict": "adopt-as-template",
+      "confidence": "medium"
+    },
+    {
+      "name": "Semantic Versioning 2.0.0",
+      "url": "https://semver.org/",
+      "applies_to": "upgrade/deprecation policy",
+      "verdict": "already-claimed-in-CHANGELOG-not-yet-enforced",
+      "confidence": "high"
+    }
+  ],
+  "web_research_confidence": "low",
+  "blocking_open_question": "What is being sold, and to whom? Self-hosted OSS vs managed SaaS vs licensed on-prem have disjoint readiness bars. Spec stage cannot proceed without this answer.",
+  "verdicts": [
+    { "gap": "pg_cron amd64 link failure", "verdict": "build", "cost": "1 line", "blocks": ["integration-ci", "multi-arch-image", "operator-docs"] },
+    { "gap": "realtime default returns empty stream with Ok", "verdict": "build", "cost": "~10 lines", "blocks": ["any-subscription-claim"] },
+    { "gap": "zero green Postgres integration runs", "verdict": "build", "cost": "follows amd64 fix", "blocks": ["all-integration-claims"] },
+    { "gap": "SECURITY.md absent", "verdict": "adopt-template", "cost": "hours", "blocks": ["customer-beta"] },
+    { "gap": "backup/restore/PITR runbook absent", "verdict": "build", "cost": "days", "blocks": ["customer-beta"] },
+    { "gap": "upgrade/migration guide absent", "verdict": "build", "cost": "days", "blocks": ["customer-beta"] },
+    { "gap": "stale doc-comments (REST CRUD, README subscriptions)", "verdict": "build", "cost": "hours", "blocks": [] },
+    { "gap": "k6 never runs as a gate", "verdict": "defer", "cost": "blocked", "blocks": [], "note": "needs staging infrastructure that does not exist" }
+  ]
+}
