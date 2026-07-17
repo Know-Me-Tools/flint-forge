@@ -161,7 +161,7 @@ pub(crate) async fn run() {
             rest_executor,
             database_url.clone(),
             gates,
-            Some(sub_stream_factory),
+            sub_stream_factory,
         )
         .await
         .expect("initial schema compile"),

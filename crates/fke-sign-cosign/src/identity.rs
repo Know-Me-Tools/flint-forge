@@ -144,7 +144,9 @@ fn extract_raw_string_extension(leaf: &Certificate, oid: ObjectIdentifier) -> Op
 /// `1.3.6.1.4.1.57264.1.8`+-style: `extnValue` is a DER-encoded UTF8String.
 fn extract_der_utf8_extension(leaf: &Certificate, oid: ObjectIdentifier) -> Option<String> {
     let bytes = find_extension_bytes(leaf, oid)?;
-    Utf8StringRef::from_der(bytes).ok().map(|s| s.as_str().to_owned())
+    Utf8StringRef::from_der(bytes)
+        .ok()
+        .map(|s| s.as_str().to_owned())
 }
 
 #[cfg(test)]

@@ -1,10 +1,12 @@
 # Compile Economy — fast-linker configuration (per-developer, opt-in).
 # See docs/RUST-DEVELOPMENT-MANAGEMENT.md.
 #
-# Linking dominates incremental rebuild time. Copy this file to
-# `.cargo/config.toml` (git-ignored) ONLY if the linker below is installed on
-# your machine — otherwise every build will fail. Comment out any block whose
-# tool you don't have.
+# NOTE: .cargo/config.toml is now committed (it carries the CARGO_PGRX_TEST_PGDATA
+# default every contributor needs). The blocks below are NOT part of that
+# committed file — they require a locally-installed linker, so they stay opt-in.
+# Merge whichever block matches your machine into .cargo/config.toml yourself
+# (Cargo reads only one config.toml per directory; it does not layer this
+# .example file in automatically). Comment out any block whose tool you don't have.
 #
 #   macOS (LLVM lld):  brew install llvm       # provides ld64.lld
 #   Linux (mold):      apt-get install mold     # or build from source

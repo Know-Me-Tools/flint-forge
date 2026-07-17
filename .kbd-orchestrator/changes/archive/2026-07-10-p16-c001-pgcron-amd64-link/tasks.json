@@ -1,0 +1,46 @@
+{
+  "change": "p16-c001-pgcron-amd64-link",
+  "backend": "native-kbd",
+  "tasks": [
+    {
+      "id": "t1",
+      "title": "Identify the bookworm package providing libintl.so",
+      "done": true,
+      "detail": "Run `apt-file search libintl.so` (or `docker run --rm rust:1.96-bookworm sh -c 'apt-get update && apt-cache search gettext'`) to confirm the exact package. Candidates: libgettextpo-dev, gettext. Do not guess the name.",
+      "doneAt": "2026-07-10T17:36:02Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t2",
+      "title": "Add the package to the pgcron builder stage only",
+      "done": true,
+      "detail": "images/postgres18/Dockerfile, the apt-get install at line ~92 inside `FROM rust:1.96-bookworm AS pgcron`. Do NOT touch the anvil or pgnet stages.",
+      "doneAt": "2026-07-10T17:36:45Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t3",
+      "title": "Verify amd64 build succeeds locally",
+      "done": true,
+      "detail": "docker build --platform=linux/amd64 -f images/postgres18/Dockerfile . — must exit 0 and produce pg_cron.so. This is the acceptance gate.",
+      "doneAt": "2026-07-10T20:34:56Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t4",
+      "title": "Verify arm64 build still succeeds (no regression)",
+      "done": true,
+      "detail": "docker build --platform=linux/arm64 -f images/postgres18/Dockerfile . — must exit 0.",
+      "doneAt": "2026-07-10T20:40:54Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t5",
+      "title": "Confirm CI amd64 leg goes green and multi-arch manifest runs",
+      "done": true,
+      "detail": "Push, then `gh run list --workflow=postgres-image.yml`. The `Build and push linux/amd64` job must reach success and `Create multi-arch manifest` must run rather than skip.",
+      "doneAt": "2026-07-10T20:54:46Z",
+      "doneBy": "claude-code"
+    }
+  ]
+}

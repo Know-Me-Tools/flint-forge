@@ -27,7 +27,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # --- pgvector (the `vector` extension) ---
-ARG PGVECTOR_REF=v0.8.0
+# v0.8.0 does not compile on PG18: pgvector calls vacuum_delay_point() with no
+# arguments, but PG18 changed its signature to take a `bool is_analyze` (fixed
+# upstream in 0.8.1+). Pinned to the latest 0.8.x.
+ARG PGVECTOR_REF=v0.8.5
 RUN git clone --branch "${PGVECTOR_REF}" --depth 1 https://github.com/pgvector/pgvector.git /tmp/pgvector \
     && cd /tmp/pgvector \
     && make \
@@ -37,7 +40,9 @@ RUN git clone --branch "${PGVECTOR_REF}" --depth 1 https://github.com/pgvector/p
 # --- pg_graphql (Rust/pgrx extension) ---
 # pg_graphql ships prebuilt .deb assets per PG major; prefer those over a full pgrx
 # build to keep the image small and the build fast. Pin the release.
-ARG PG_GRAPHQL_REF=v1.5.11
+# v1.5.11 has no pg18 asset (supabase published pg18 .deb starting at v1.5.12) —
+# pinned to the latest release with pg18 amd64/arm64 assets.
+ARG PG_GRAPHQL_REF=v1.6.1
 RUN curl -fsSL -o /tmp/pg_graphql.deb \
       "https://github.com/supabase/pg_graphql/releases/download/${PG_GRAPHQL_REF}/pg_graphql-${PG_GRAPHQL_REF}-pg18-$(dpkg --print-architecture)-linux-gnu.deb" \
     && dpkg -i /tmp/pg_graphql.deb \

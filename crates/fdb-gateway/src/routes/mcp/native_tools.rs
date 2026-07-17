@@ -146,7 +146,9 @@ pub(super) async fn resolve_tokens(
     // fetched row was discarded (`let _ = app_id;`), so an unknown
     // `application_slug` silently fell through to the base palette instead
     // of surfacing an error.
-    app_id.ok_or_else(|| RpcError::new(INVALID_PARAMS, format!("unknown application '{app_slug}'")))?;
+    app_id.ok_or_else(|| {
+        RpcError::new(INVALID_PARAMS, format!("unknown application '{app_slug}'"))
+    })?;
 
     Ok(json!({
         "application": app_slug,

@@ -2,9 +2,9 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
+mod backend;
 pub mod conn;
 pub mod error;
-mod backend;
 mod graphql;
 mod rest;
 mod vector_rpc;

@@ -1,0 +1,62 @@
+{
+  "change": "p16-c002-realtime-fail-closed",
+  "backend": "native-kbd",
+  "tasks": [
+    {
+      "id": "t1",
+      "title": "FabricChangeSource::watch() returns Err(StreamError::Unavailable)",
+      "done": true,
+      "detail": "crates/fdb-realtime/src/lib.rs:116 — replace Ok(futures::stream::empty().boxed()) with Err(StreamError::Unavailable). Keep the tracing::warn! and the commented future impl. StreamError::Unavailable already exists at crates/fdb-ports/src/lib.rs:31.",
+      "doneAt": "2026-07-16T19:00:52Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t2",
+      "title": "Unit test: fabric adapter fails closed",
+      "done": true,
+      "detail": "cargo test -p fdb-realtime — assert watch() yields Err(Unavailable), never Ok(empty).",
+      "doneAt": "2026-07-16T19:04:07Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t3",
+      "title": "Invert the default change source",
+      "done": true,
+      "detail": "crates/fdb-gateway/src/main.rs:601 — select ListenChangeSource unless FLINT_CHANGE_SOURCE=fabric. Helm values.yaml:55 already pins 'listen' and must keep working.",
+      "doneAt": "2026-07-16T19:04:52Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t4",
+      "title": "Fix .env.example wording and default",
+      "done": true,
+      "detail": ".env.example:58 falsely says LISTEN/NOTIFY replaces 'polling'. There is no polling — the alternative is an empty stream. Rewrite; reflect the new default.",
+      "doneAt": "2026-07-16T19:05:26Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t5",
+      "title": "Set FLINT_CHANGE_SOURCE in docker-compose",
+      "done": true,
+      "detail": "Ensure the compose quickstart path yields working subscriptions.",
+      "doneAt": "2026-07-16T19:05:54Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t6",
+      "title": "CHANGELOG BREAKING entry",
+      "done": true,
+      "detail": "Base Rule #16: operators explicitly using fabric now get an error instead of silence. Document it.",
+      "doneAt": "2026-07-16T19:09:36Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t7",
+      "title": "Integration: default path delivers a real event",
+      "done": true,
+      "detail": "Depends on p16-c003 (green integration env). Insert a row, assert the subscriber receives it. Verify manually against local Postgres if CI is not yet green.",
+      "doneAt": "2026-07-16T19:30:55Z",
+      "doneBy": "claude-code"
+    }
+  ]
+}

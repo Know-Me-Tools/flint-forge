@@ -17,10 +17,10 @@ ignore = [
   "RUSTSEC-2026-0195",
   "RUSTSEC-2026-0194",
 
-  # RUSTSEC-2023-0071 — rsa 0.9.x via sqlx-mysql
-  # Marvin Attack timing side-channel. Flint uses sqlx for PostgreSQL only;
-  # sqlx-mysql is a transitive dep that is never instantiated. No upstream fix.
-  "RUSTSEC-2023-0071",
+  # RUSTSEC-2023-0071 (rsa via sqlx-mysql) — REMOVED 2026-07-14 (p14-c001).
+  # The sqlx 0.8 -> 0.9 upgrade dropped `rsa` from sqlx-mysql's dependency tree
+  # entirely (mysql_native_password auth no longer pulls it in); `cargo audit`
+  # confirms the advisory no longer applies even without this entry.
 
   # RUSTSEC-2025-0111 — tokio-tar unmaintained (via testcontainers)
   # No CVE; maintenance-only advisory. Used only in integration test harness

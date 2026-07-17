@@ -91,6 +91,7 @@ fn resolve_one(
         child_alias,
         columns,
         children,
+        cast_hints: child_desc.cast_hints.clone(),
     })
 }
 
@@ -268,7 +269,8 @@ fn render_child_filter(
     if is_empty_filter(&qualified) {
         return Ok((String::new(), vec![], start_index));
     }
-    let (sql, params, next) = qualified.render(start_index)?;
+    let hints = re.cast_hints.qualified(&re.child_alias);
+    let (sql, params, next) = qualified.render_with_hints(start_index, &hints)?;
     Ok((sql, params, next))
 }
 

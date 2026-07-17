@@ -94,8 +94,9 @@ fn composite_row_value_in_list_keeps_tuples() {
 fn in_list_nested_paren_single_tuple() {
     // Guards the "strip one outer pair" path: `in.((1,2))` is a single-element list
     // whose only element is the tuple `(1,2)` — the inner comma is at depth 1.
-    let (sql, params, next) = render_condition("id", Operator::In, "((1,2))", false, None, None, 1)
-        .expect("render_condition");
+    let (sql, params, next) =
+        render_condition("id", Operator::In, "((1,2))", false, None, None, None, 1)
+            .expect("render_condition");
     assert_eq!(sql, "id = ANY($1)");
     assert_eq!(params, vec![text_array(&["(1,2)"])]);
     assert_eq!(next, 2);
@@ -228,6 +229,7 @@ fn quantifier_on_in_and_is_rejected() {
         false,
         Some(Quantifier::Any),
         None,
+        None,
         1,
     )
     .unwrap_err();
@@ -242,6 +244,7 @@ fn quantifier_on_in_and_is_rejected() {
         "null",
         false,
         Some(Quantifier::Any),
+        None,
         None,
         1,
     )

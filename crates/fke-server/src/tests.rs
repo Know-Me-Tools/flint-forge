@@ -48,7 +48,11 @@ fn test_state() -> KilnState {
 /// Build a `did:prometheus:` manifest signed correctly over `artifact`,
 /// matching `fke-sign-did::VerifierDid`'s exact message construction
 /// (`sha256(artifact) || content_digest.as_bytes()`).
-fn signed_manifest(signing_key: &SigningKey, artifact: &[u8], content_digest: &str) -> FunctionManifest {
+fn signed_manifest(
+    signing_key: &SigningKey,
+    artifact: &[u8],
+    content_digest: &str,
+) -> FunctionManifest {
     use base64::Engine as _;
     use sha2::{Digest, Sha256};
 

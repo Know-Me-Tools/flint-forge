@@ -31,10 +31,10 @@ use crate::GatewayState;
 /// Composes a [`Quarry`] from `PgRest` (RLS re-query), `PgGraphQl` (required by the
 /// constructor; unused on this path), and a `ChangeStreamSource` — by default
 /// `ListenChangeSource` (Postgres LISTEN/NOTIFY, real events). `FabricChangeSource`
-/// (FRF gRPC) remains available via `FLINT_CHANGE_SOURCE=fabric` but currently
-/// returns an empty stream pending OQ-FRF-1 (FRF's `WatchEntityType` RPC hasn't
-/// landed) — see `p16-c004`. Keto is threaded so the subscribe-time coarse
-/// check runs inside whichever source is selected.
+/// (FRF gRPC) remains available via `FLINT_CHANGE_SOURCE=fabric` but fails closed
+/// (`StreamError::Unavailable`) pending OQ-FRF-1 (FRF's `WatchEntityType` RPC
+/// hasn't landed) — see `p16-c004`. Keto is threaded so the subscribe-time
+/// coarse check runs inside whichever source is selected.
 ///
 /// The returned factory, given a table's spec/meta and the subscriber's `RlsContext`,
 /// yields the RLS-filtered, GraphQL-projected event stream. `spec.tenant` is filled
@@ -61,10 +61,10 @@ pub(crate) async fn build_subscription_factory(
 
     // Select the change-stream backend. Default `listen` (in-process Postgres
     // LISTEN/NOTIFY — real events, no external dependency). `FLINT_CHANGE_SOURCE=fabric`
-    // opts into the FRF gRPC adapter, which as of p16-c004 still returns an
-    // empty stream pending OQ-FRF-1 (FRF's WatchEntityType RPC hasn't landed) —
-    // opt in only once that RPC is confirmed available upstream. The
-    // default-vs-opt-in decision itself is unit-tested in `realtime_source`.
+    // opts into the FRF gRPC adapter, which fails closed (StreamError::Unavailable)
+    // pending OQ-FRF-1 (FRF's WatchEntityType RPC hasn't landed) — opt in only
+    // once that RPC is confirmed available upstream. The default-vs-opt-in
+    // decision itself is unit-tested in `realtime_source`.
     let change_source_env = std::env::var("FLINT_CHANGE_SOURCE").ok();
     let change_source: Arc<dyn fdb_ports::ChangeStreamSource> =
         match resolve_change_source(change_source_env.as_deref()) {

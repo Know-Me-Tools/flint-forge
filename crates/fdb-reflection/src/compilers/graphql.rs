@@ -66,20 +66,20 @@ impl GraphQlCompiler {
     /// Tables without RLS are excluded: the subscription RLS re-query (p3-c002)
     /// requires RLS to be on before events are safe to yield.
     ///
-    /// When `factory` is `Some`, each subscription field yields the live
-    /// RLS-filtered stream produced by the factory. When `None` (e.g. early boot
-    /// before the composition root has wired the `Quarry`), fields yield an empty
-    /// stream so the schema still validates. This never fails open: absence of a
-    /// factory means no events, not unfiltered events.
+    /// Each subscription field yields the live RLS-filtered stream produced by
+    /// `factory`, called at subscribe time with the subscriber's `RlsContext`.
     ///
-    /// # Errors
+    /// The factory is mandatory: a schema whose fields cannot produce events is not
+    /// a state this system has. The gateway builds the factory before constructing
+    /// the `StateManager`, which completes before the listener binds, so every
+    /// served subscription has its live stream. Tests that only assert on schema
+    /// shape (SDL) pass an explicit empty factory rather than omitting one.
     ///
-    /// Returns [`GraphQlCompileError::Build`] if `async_graphql` rejects the
-    /// assembled schema, e.g. two tables whose PascalCase `<Name>Changes`
-    /// type names collide.
+    /// This never fails open: a subscriber with no `RlsContext` gets an error
+    /// stream, never an unfiltered one.
     pub fn compile(
         model: &DatabaseModel,
-        factory: Option<SubStreamFactory>,
+        factory: SubStreamFactory,
     ) -> Result<Schema, GraphQlCompileError> {
         // Minimal Query root required by async-graphql even when unused here
         // (Query/Mutation are handled by pg_graphql passthrough in p3-c001).
@@ -135,15 +135,12 @@ impl GraphQlCompiler {
                     // closed with an error stream rather than an unfiltered one.
                     let who = ctx.data::<RlsContext>().ok().cloned();
                     SubscriptionFieldFuture::new(async move {
-                        match (field_factory, who) {
-                            (Some(factory), Some(who)) => Ok(factory(spec, table_meta, who)),
-                            // Fail closed: no factory wired (early boot) or no RLS context
-                            // on the connection → yield no events. Never yield unfiltered.
-                            (None, _) => Ok(stream::empty::<
-                                async_graphql::Result<async_graphql::Value>,
-                            >()
-                            .boxed()),
-                            (Some(_), None) => {
+                        match who {
+                            Some(who) => Ok(field_factory(spec, table_meta, who)),
+                            // Fail closed: no RLS context on the connection → surface an
+                            // error. Never call the factory, which would yield unfiltered
+                            // events.
+                            None => {
                                 let err = async_graphql::Error::new(
                                     "subscription requires an authenticated connection",
                                 );
@@ -322,7 +319,7 @@ mod tests {
             make_table("orders", true),
             make_table("products", true),
         ]);
-        let result = GraphQlCompiler::compile(&model, None);
+        let result = GraphQlCompiler::compile(&model, empty_factory());
         assert!(result.is_ok(), "compile should succeed: {result:?}");
     }
 
@@ -332,7 +329,7 @@ mod tests {
             make_table("orders", true),
             make_table("internal_log", false),
         ]);
-        let schema = GraphQlCompiler::compile(&model, None).expect("compile");
+        let schema = GraphQlCompiler::compile(&model, empty_factory()).expect("compile");
         let sdl = schema.sdl();
         assert!(
             sdl.contains("ordersChanges"),
@@ -347,7 +344,7 @@ mod tests {
     #[test]
     fn compiled_schema_sdl_has_subscription_type() {
         let model = make_model(vec![make_table("messages", true)]);
-        let schema = GraphQlCompiler::compile(&model, None).expect("compile");
+        let schema = GraphQlCompiler::compile(&model, empty_factory()).expect("compile");
         let sdl = schema.sdl();
         assert!(
             sdl.contains("type Subscription"),
@@ -356,6 +353,93 @@ mod tests {
         assert!(
             sdl.contains("MessagesChanges"),
             "SDL should contain MessagesChanges type"
+        );
+    }
+
+    /// A factory that yields no events. Used by tests that assert on schema shape
+    /// only — the compiler now requires a factory, so "no live stream" is expressed
+    /// explicitly rather than by omitting one.
+    fn empty_factory() -> SubStreamFactory {
+        Arc::new(|_spec, _meta, _who| stream::empty().boxed())
+    }
+
+    /// Dummy subscriber context. Values are inert placeholders — these tests never
+    /// reach a real RLS re-query.
+    fn make_rls_context() -> RlsContext {
+        RlsContext {
+            role: "authenticated".into(),
+            claims_json: r#"{"sub":"test-subject","tenant_id":"test-tenant"}"#.into(),
+            raw_bearer: "test-token".into(),
+            keto_subject: "test-subject".into(),
+            vault_key_id: None,
+        }
+    }
+
+    /// A factory that would yield a data event if it were ever called. Any such
+    /// event reaching a subscriber in the tests below means the fail-closed
+    /// property is broken.
+    fn leaky_factory() -> SubStreamFactory {
+        Arc::new(|_spec, _meta, _who| {
+            stream::once(async { Ok(async_graphql::Value::Null) }).boxed()
+        })
+    }
+
+    fn subscribe_all(
+        schema: &Schema,
+        query: &str,
+        data: Option<RlsContext>,
+    ) -> Vec<async_graphql::Response> {
+        let mut request = async_graphql::Request::new(query);
+        if let Some(who) = data {
+            request.data.insert(who);
+        }
+        futures::executor::block_on(schema.execute_stream(request).collect::<Vec<_>>())
+    }
+
+    /// An authenticated subscriber reaches the factory, and only events the factory
+    /// produces are delivered — a factory yielding nothing delivers nothing.
+    #[test]
+    fn authenticated_subscriber_receives_only_factory_events() {
+        let model = make_model(vec![make_table("orders", true)]);
+        let schema = GraphQlCompiler::compile(&model, empty_factory()).expect("compile");
+
+        let responses = subscribe_all(
+            &schema,
+            "subscription { ordersChanges { _op } }",
+            Some(make_rls_context()),
+        );
+
+        assert!(
+            responses.is_empty(),
+            "empty factory must yield zero events, got {responses:?}"
+        );
+    }
+
+    /// A factory IS wired but the connection carries no `RlsContext` (unauthenticated
+    /// WS client). This arm is genuinely reachable, so it must surface an error to the
+    /// client — and must never invoke the factory, which would bypass RLS.
+    #[test]
+    fn factory_without_rls_context_errors_and_never_calls_factory() {
+        let model = make_model(vec![make_table("orders", true)]);
+        let schema = GraphQlCompiler::compile(&model, leaky_factory()).expect("compile");
+
+        let responses = subscribe_all(&schema, "subscription { ordersChanges { _op } }", None);
+
+        assert_eq!(
+            responses.len(),
+            1,
+            "expected exactly one error response, got {responses:?}"
+        );
+        assert!(
+            !responses[0].errors.is_empty(),
+            "missing RlsContext must surface a GraphQL error, got {responses:?}"
+        );
+        assert!(
+            responses[0].errors[0]
+                .message
+                .contains("authenticated connection"),
+            "error should explain the auth requirement, got {:?}",
+            responses[0].errors[0].message
         );
     }
 }

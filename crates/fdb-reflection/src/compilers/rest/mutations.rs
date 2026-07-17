@@ -219,7 +219,11 @@ pub(super) async fn handle_delete(
         where_sql = where_clause.sql,
     );
 
-    match state.executor.execute_raw(&sql, where_clause.binds, &rls).await {
+    match state
+        .executor
+        .execute_raw(&sql, where_clause.binds, &rls)
+        .await
+    {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => {
             tracing::error!(error = %e, "handle_delete query error");

@@ -2,7 +2,7 @@
 
 **Phase:** 15 — v1.0 Production Readiness Gap Closure
 **Authored:** 2026-07-07
-**Change backend:** OpenSpec
+**Change backend:** native-tool (corrected 2026-07-09; planned as OpenSpec, but no `openspec/changes/p15-*` directories were ever created — see `execution.md`)
 **Changes:** 5 ordered
 **Seeded from:** Assessment directive + user decisions
 

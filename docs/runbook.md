@@ -1,7 +1,7 @@
 # Flint Forge — Operations Runbook
 
 > **Audience:** On-call engineers, SREs, and DevOps operators.
-> **Last updated:** 2026-07-06
+> **Last updated:** 2026-07-13
 > **Change control:** Update via PR; tag with `[ops]` in the commit message.
 
 ---
@@ -86,7 +86,18 @@ fke-server:8090
 ```bash
 # Minimum set — set in .env or export before `docker compose up`
 DATABASE_URL=postgres://flint:changeme@db:5432/flint
-JWT_SECRET=<your-hs256-secret-min-32-chars>
+
+# REQUIRED — bearer-token verification (forge-identity::verify_and_build,
+# called by fdb-auth::rls_from_bearer on every authenticated request). The
+# gateway fetches flint-gate's JWKS once per process lifetime and verifies
+# inbound JWTs against it. Only RS256/RS384/RS512/ES256/ES384 are accepted.
+# Both vars are hard-required: if either is unset, EVERY authenticated
+# request fails with 401 (there is no fallback verification path).
+FLINT_GATE_JWKS_URL=https://gate.example.com/.well-known/jwks.json
+FLINT_GATE_ISSUER=https://gate.example.com
+
+# Optional — `aud` claim validation is skipped if unset
+FLINT_GATE_AUDIENCE=
 
 # Optional — defaults shown
 RUST_LOG=info
@@ -114,6 +125,15 @@ configured an audience yet.
 entry is older than this TTL, and separately refetches immediately (rate-limited
 to once per 5 seconds) whenever a token's `kid` isn't found in the cached set —
 so an upstream signing-key rotation is picked up without a gateway restart.
+
+> **`FLINT_JWT_SECRET` / `JWT_SECRET` is a separate, unrelated variable —
+> `fdb-gateway` never reads it.** It is consumed only by `forge-cli token mint`
+> (a local HS256 token-minting helper) and by the Docker Compose / entrypoint
+> secret plumbing described in §10.7.3, which sets the env var in the gateway
+> container even though nothing there consumes it. Tokens produced by
+> `forge token mint` or `scripts/mint_smoke_token.sh` are signed HS256 and
+> **will not authenticate** against this gateway — see Error 3 and §11/§12
+> below for the full implication.
 
 ### 2.3 Step-by-Step Startup
 
@@ -267,29 +287,49 @@ Even requests with a valid-looking token are rejected.
 **Diagnosis**
 
 ```bash
-# Check that JWT_SECRET is set in the gateway container
-docker compose exec fdb-gateway env | grep -i jwt
+# Check that the JWKS env vars are set in the gateway container — both are
+# hard-required by forge-identity::verify_and_build. If either is missing,
+# EVERY request fails closed with the generic "invalid or expired token" 401,
+# regardless of the token presented.
+docker compose exec fdb-gateway env | grep -i flint_gate
 
-# Decode the token (without verification) to inspect claims
-# Install jwt-cli or use: echo "<base64.payload.sig>" | cut -d. -f2 | base64 -d | jq .
+# Decode the token (without verification) to inspect claims — confirm `alg`
+# in the header and `iss`/`aud` in the payload.
+echo "<base64.payload.sig>" | cut -d. -f2 | base64 -d | jq .
 
-# Check gateway logs for bearer verification failures
+# Check gateway logs for the underlying verification error (logged at WARN,
+# never returned to the client — the response body is always the generic
+# message above regardless of cause)
 docker compose logs fdb-gateway 2>&1 | grep "bearer verification failed"
 ```
 
 **Remediation**
 
-1. **Missing secret:** Set `JWT_SECRET` in `.env`, then restart gateway:
+1. **`FLINT_GATE_JWKS_URL` or `FLINT_GATE_ISSUER` unset:** logs show
+   `required environment variable not set: FLINT_GATE_JWKS_URL` (or `..._ISSUER`).
+   Set both in `.env`, then restart the gateway:
    ```bash
    docker compose down fdb-gateway
    docker compose up -d fdb-gateway
    ```
-2. **Expired token:** Generate a fresh token using the same secret and algorithm.
-   The gateway uses HS256 by default via `fdb_auth::rls_from_bearer`.
-3. **Wrong algorithm or audience:** Inspect the token's header claim and confirm the
-   issuer/audience matches what `fdb_auth` expects. Check `fdb_auth` crate config.
-4. **Clock skew:** Ensure the server clock is synchronized (NTP). Token `exp` validation
-   fails if the gateway clock is ahead of the token's `iat`.
+2. **Unsupported algorithm:** logs show `verification failed: unsupported algorithm: ...`.
+   `forge-identity::verify_and_build` only accepts RS256/RS384/RS512/ES256/ES384 —
+   **HS256 tokens are always rejected**, including anything minted by
+   `forge-cli token mint` or `scripts/mint_smoke_token.sh` (see §2.2). The
+   token must be re-issued by flint-gate (or a JWKS-compatible test issuer)
+   using an asymmetric algorithm.
+3. **Unknown `kid` / JWKS fetch or parse failure:** logs show `unknown \`kid\`: ...`,
+   `failed to fetch JWKS: ...`, or `failed to parse JWKS: ...`. Confirm
+   `FLINT_GATE_JWKS_URL` is reachable from inside the container and serves a
+   valid JWK Set containing the key that signed the token. Note: the JWKS is
+   cached for the lifetime of the process (`forge-identity::jwks`) — a gateway
+   restart is required to pick up a rotated flint-gate signing key.
+4. **Wrong issuer or audience:** confirm the token's `iss` claim matches
+   `FLINT_GATE_ISSUER` exactly, and (if `FLINT_GATE_AUDIENCE` is set) that
+   `aud` matches too.
+5. **Expired token or clock skew:** ensure the server clock is synchronized
+   (NTP). Token `exp` validation fails if the gateway clock is ahead of the
+   token's `iat`/`exp`.
 
 ---
 
@@ -559,6 +599,16 @@ curl -sf http://localhost:8080/healthz | jq .
 curl -sf http://localhost:8090/healthz | jq .
 ```
 
+> **`v1.0.0` image location note:** the `docker.yml` tag-triggered CI run for `v1.0.0`
+> failed (`repository name must be lowercase`, fixed in a later commit not part of
+> that tag), so no `ghcr.io/know-me-tools/*:v1.0.0` images exist. `v1.0.0` images
+> were instead published manually to `docker.io/tribehealth/flint-gateway:v1.0.0`
+> and `docker.io/tribehealth/flint-kiln:v1.0.0`, built from the exact `v1.0.0` source
+> with the Rust base image locally bumped (`1.85-slim` → `1.96-slim`) to work around
+> an unrelated `cargo-chef` toolchain incompatibility. See the
+> [`v1.0.0` release notes](https://github.com/Know-Me-Tools/flint-forge/releases/tag/v1.0.0)
+> for details. `v1.0.1`+ images are published to `ghcr.io/know-me-tools/*` by CI as normal.
+
 ### 5.2 Database Snapshot Restore
 
 Use this path when a migration must be undone or data corruption is detected.
@@ -655,7 +705,12 @@ curl -sf http://localhost:8080/healthz | jq .
 4. **Preserve forensic state:** Do not restart or rebuild containers until the security
    lead authorizes it. Take a volume snapshot for forensics.
 5. **Rotate all secrets** before restoring service:
-   - `JWT_SECRET` — rotate immediately; all existing tokens are invalidated.
+   - **flint-gate signing key** — rotate immediately at the source (flint-gate,
+     out of this repo) and confirm its JWKS document drops the old `kid`; this
+     is what actually invalidates existing tokens, since `fdb-gateway` verifies
+     exclusively against that JWKS (see §2.2). Rotating `FLINT_JWT_SECRET` /
+     `secrets/jwt_secret.txt` does **not** invalidate any token the gateway
+     accepts — that variable is not part of the verification path.
    - `DATABASE_URL` password — coordinate with DBA.
    - Keto + FRF service credentials.
 6. **Post-incident report** due within 24 hours to security lead. Include: timeline,
@@ -772,7 +827,8 @@ secrets: `deploy.yml`'s job sets `environment: ${{ inputs.environment }}`, so `s
 | `SSH_HOST` | Hostname or IP of the target server | `staging.example.com` |
 | `SSH_USER` | SSH username on the target server | `deploy` |
 | `SSH_KEY` | Contents of the **private** SSH key (`id_ed25519`) whose public key is in the server's `~/.ssh/authorized_keys` | `-----BEGIN OPENSSH PRIVATE KEY-----…` |
-| `JWT_SECRET` | The raw HS256 signing key (content of `secrets/jwt_secret.txt` on the target host). Used by `mint_smoke_token.sh` to generate fresh 1-hour JWTs before each smoke test run. | *(run `rotate_secrets.sh` on the host, then copy `secrets/jwt_secret.txt` content)* |
+| `JWT_SECRET` | The raw HS256 signing key (content of `secrets/jwt_secret.txt` on the target host). Used by `mint_smoke_token.sh` to generate fresh 1-hour JWTs before each smoke test run. **⚠ See warning below — the resulting token is currently rejected by the gateway.** | *(run `rotate_secrets.sh` on the host, then copy `secrets/jwt_secret.txt` content)* |
+| `STAGING_BASE_URL` | Public HTTPS base URL of the staging stack — used by the k6 performance regression job | `https://forge.example.com` |
 
 > **Security note:** `SSH_KEY` must be a **dedicated deploy key** — never reuse a
 > personal key. Rotate it quarterly or immediately after any team member departure. Use a
@@ -781,6 +837,20 @@ secrets: `deploy.yml`'s job sets `environment: ${{ inputs.environment }}`, so `s
 Separately, `STAGING_BASE_URL` (a **repository** secret, not Environment-scoped — used by
 `.github/workflows/ci.yml`'s `performance` job, not `deploy.yml`) is unaffected by this
 change and keeps its existing `STAGING_`-prefixed name.
+
+> **⚠ Known issue — smoke-test auth is currently broken.** `fdb-gateway`'s
+> bearer verification (`forge-identity::verify_and_build`, §2.2) only accepts
+> JWKS-verified RS256/RS384/RS512/ES256/ES384 tokens and requires
+> `FLINT_GATE_JWKS_URL`/`FLINT_GATE_ISSUER` to be set wherever the gateway
+> runs. Neither the staging compose overlay nor this workflow sets those, and
+> `mint_smoke_token.sh` mints an HS256 token, which the gateway rejects
+> outright. As configured, the "Mint smoke token" + "Run smoke tests" steps
+> above will not successfully authenticate against a gateway that has JWKS
+> verification enabled. Fixing this requires either a JWKS-compatible token
+> issuer reachable from staging, or an explicit, intentionally-scoped test
+> auth path — that is tracked as follow-up work, not something this runbook
+> update resolves. Until then, treat smoke-test 401s as expected rather than
+> a regression signal.
 
 ### 9.2 Triggering a deploy
 
@@ -988,13 +1058,26 @@ BASE_URL=https://forge.example.com SMOKE_TOKEN=<new-jwt> ./scripts/smoke_test.sh
 
 | Secret name | Mount path | Consumer |
 |---|---|---|
-| `jwt_secret` | `/run/secrets/jwt_secret` | `fdb-gateway` (`FLINT_JWT_SECRET_FILE`) |
+| `jwt_secret` | `/run/secrets/jwt_secret` | `docker/fdb-gateway/entrypoint.sh` reads this file and exports it as `FLINT_JWT_SECRET` — but no code in `fdb-gateway` reads that env var. It is only useful if you separately run `forge-cli token mint` inside the same container. |
 | `postgres_password` | `/run/secrets/postgres_password` | `db` (`POSTGRES_PASSWORD_FILE`) |
 | `caddy_tls_email` | `/run/secrets/caddy_tls_email` | `caddy` |
+
+> Real inbound-auth verification is driven entirely by `FLINT_GATE_JWKS_URL` /
+> `FLINT_GATE_ISSUER` / `FLINT_GATE_AUDIENCE` (plain env vars, not Docker
+> secrets today — see §2.2), not by the `jwt_secret` Docker secret above.
 
 ---
 
 ## §11 — Staging Token Rotation (p11-c006)
+
+> **⚠ Status: the token minted by this mechanism does not authenticate against
+> the current gateway.** This section was written when `fdb-auth` verified
+> self-signed HS256 tokens against a shared secret. `fdb-gateway` now verifies
+> exclusively via JWKS (`forge-identity::verify_and_build`, asymmetric
+> algorithms only — see §2.2 and Error 3). Everything below accurately
+> describes what `mint_smoke_token.sh` and `deploy.yml` currently *do*; it no
+> longer describes a working end-to-end auth flow. Treat this as a record of
+> the legacy design pending a follow-up fix, not a working procedure.
 
 ### 11.1 Overview
 
@@ -1073,6 +1156,11 @@ static bearer token that remains valid indefinitely.
 
 ## §12 — Staging JWT Secret Rotation (p14-c004)
 
+> **⚠ Status: same caveat as §11** — this rotates the HS256 signing key used
+> by `mint_smoke_token.sh`, which is unrelated to the JWKS-based verification
+> `fdb-gateway` actually performs. Rotating `STAGING_JWT_SECRET` does not
+> invalidate or affect any token the gateway accepts.
+
 ### 12.1 Overview
 
 `scripts/rotate_staging_jwt.sh` rotates the raw HS256 signing key stored in the
@@ -1132,10 +1220,12 @@ BASE_URL=https://forge.example.com KILN_URL=http://localhost:8090 \
 
 ### 12.5 Rollback
 
-If the rotation breaks staging, restore the previous value of the `staging`
-Environment's `JWT_SECRET` from a secure backup and re-run the stack restart.
-Because old tokens are signed with the previous key, they will validate again
-once the gateway is using that key.
+If the rotation breaks something that depends on `mint_smoke_token.sh` output,
+restore the previous value of the `staging` Environment's `JWT_SECRET` from a
+secure backup and re-run the stack restart. This key only affects tokens
+minted by `mint_smoke_token.sh` / `forge token mint` — it has no effect on the
+gateway's JWKS-based verification (§2.2), which is unaffected by this rotation
+either way.
 
 ### 12.6 Security notes
 

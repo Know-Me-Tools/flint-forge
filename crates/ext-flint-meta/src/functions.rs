@@ -169,7 +169,22 @@ GRANT EXECUTE ON FUNCTION flint_meta.functions(text) TO authenticated, anon, ser
 
 -- ── function_args(p_schema text, p_function text) ────────────────────────────
 -- Returns argument metadata for a single function by querying pg_proc directly.
--- Vector args come through as "vector(N)" e.g. "vector(1536)".
+--
+-- This function runs with a locked-down `search_path = flint_meta, pg_catalog`
+-- (defense against search-path hijacking). pgvector's `vector` type is
+-- typically installed into `public`, which is deliberately NOT on that
+-- search_path -- so `format_type()` correctly, but unhelpfully, reports it
+-- schema-qualified (e.g. "public.vector") instead of bare "vector".
+--
+-- Rather than special-casing the "public" schema name (fragile: pgvector can
+-- be installed into any schema) or loosening the search_path (defeats its
+-- purpose), we identify genuine pgvector types by extension provenance --
+-- via `pg_depend`/`pg_extension` -- and canonicalize only those to a bare,
+-- unqualified name. A same-named "vector" type that a caller defines in some
+-- other, untrusted schema will NOT have an extension-membership dependency on
+-- the real `vector` extension, so it falls through to the normal
+-- (potentially schema-qualified) `format_type()` output and is never
+-- mistaken for pgvector by callers matching on the bare type name.
 CREATE OR REPLACE FUNCTION flint_meta.function_args(p_schema text, p_function text)
 RETURNS TABLE (
     arg_name text,
@@ -181,11 +196,18 @@ SECURITY INVOKER
 SET search_path = flint_meta, pg_catalog
 AS $$
     SELECT COALESCE(p.proargnames[a.ord], 'arg' || a.ord) AS arg_name,
-           pg_catalog.format_type(a.atttypid, NULL) AS arg_type
-    FROM   pg_proc     p
+           CASE WHEN pgvector_ext.extname IS NOT NULL THEN vector_type.typname
+                ELSE pg_catalog.format_type(a.atttypid, NULL)
+           END AS arg_type
+    FROM   pg_proc      p
     JOIN   pg_namespace n ON n.oid = p.pronamespace
     CROSS JOIN LATERAL unnest(p.proargtypes)
                         WITH ORDINALITY AS a(atttypid, ord)
+    JOIN   pg_type      vector_type ON vector_type.oid = a.atttypid
+    LEFT JOIN pg_depend    vector_dep ON vector_dep.objid = vector_type.oid
+                                     AND vector_dep.deptype = 'e'
+    LEFT JOIN pg_extension pgvector_ext ON pgvector_ext.oid = vector_dep.refobjid
+                                        AND pgvector_ext.extname = 'vector'
     WHERE  n.nspname = p_schema
       AND  p.proname = p_function
     ORDER  BY a.ord;

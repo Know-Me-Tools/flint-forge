@@ -73,10 +73,7 @@ pub(super) fn insert_response(
 
 /// `200 OK` response wrapping a JSON array of returned rows.
 pub(super) fn rows_response(rows: &[serde_json::Map<String, Value>]) -> axum::response::Response {
-    let out: Vec<Value> = rows
-        .iter()
-        .filter_map(|r| r.get("row").cloned())
-        .collect();
+    let out: Vec<Value> = rows.iter().filter_map(|r| r.get("row").cloned()).collect();
     (StatusCode::OK, Json(Value::Array(out))).into_response()
 }
 

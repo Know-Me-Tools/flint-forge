@@ -263,7 +263,12 @@ fn list_response(
     let content_range = format!("rows {start}-{end}/{total}");
     let _ = limit; // limit shaped the query; the window is described by count.
 
-    (StatusCode::OK, [(header::CONTENT_RANGE, content_range)], Json(rows)).into_response()
+    (
+        StatusCode::OK,
+        [(header::CONTENT_RANGE, content_range)],
+        Json(rows),
+    )
+        .into_response()
 }
 
 #[cfg(test)]

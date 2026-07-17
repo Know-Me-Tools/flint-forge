@@ -1,0 +1,93 @@
+{
+  "phase": "p16-v1.0-release-closure",
+  "status": "specced",
+  "delivery_model": "self-hosted-oss",
+  "delivery_model_decided_at": "2026-07-09",
+  "delivery_model_provenance": "user (AskUserQuestion, kbd-spec stage)",
+  "changes": {
+    "p16-c001-pgcron-amd64-link": {
+      "status": "completed",
+      "tier": 0,
+      "priority": "P0",
+      "startedAt": "2026-07-10",
+      "completedAt": "2026-07-10T20:54:46Z",
+      "wait_count": 2,
+      "blocks": [
+        "p16-c003",
+        "p16-c006"
+      ],
+      "notes": "COMPLETE. Root cause corrected: pg_cron hardcodes spurious -lintl in Makefile:22; glibc provides intl internally and Debian bookworm has no libintl.so link target. Dockerfile strips the flag in the pgcron stage. Full local linux/amd64 and linux/arm64 images built successfully on 2026-07-10. Commit f18eb33 pushed to main. Postgres image workflow run 29122248786 succeeded: amd64, arm64, and Create multi-arch manifest all green. See verification.md."
+    },
+    "p16-c002-realtime-fail-closed": {
+      "status": "completed",
+      "tier": 0,
+      "priority": "P0",
+      "startedAt": "2026-07-16",
+      "completedAt": "2026-07-16",
+      "wait_count": 0,
+      "blocks": [
+        "p16-c005"
+      ],
+      "notes": "COMPLETE 7/7 tasks 2026-07-16. FabricChangeSource::watch() returns Err(StreamError::Unavailable) (unit-tested); default change source inverted to 'listen'; .env.example/docker-compose/CHANGELOG updated with BREAKING entry. clippy+fmt+25/25 unit tests green. t7 verified live: listen_change_source_watch_delivers_event run manually against local Postgres 16 scratch DB (spec's allowed fallback) — 2/2 passed, confirms default path delivers a real ChangeEvent on INSERT. Archived to .kbd-orchestrator/changes/archive/2026-07-16-p16-c002-realtime-fail-closed/."
+    },
+    "p16-c003-green-integration-ci": {
+      "status": "completed",
+      "tier": 0,
+      "priority": "P0",
+      "startedAt": "2026-07-16",
+      "completedAt": "2026-07-16",
+      "wait_count": 0,
+      "depends_on": [
+        "p16-c001"
+      ],
+      "notes": "COMPLETE. Job was already green by the time this change was picked up (8 consecutive 'success' conclusions, 2026-07-13 through 2026-07-14, across distinct commits, unrelated to the failing 'Rust checks' job). p16-c001 (b4264e9) resolved the build-step blocker. No new CI run needed; 0 waits consumed. Evidence: verification.md, archived to .kbd-orchestrator/changes/archive/2026-07-16-p16-c003-green-integration-ci/. First success: run 29332910796 (1cae090). Non-flake: 7 additional consecutive successes back to ae5fb56."
+    },
+    "p16-c004-security-disclosure": {
+      "status": "completed",
+      "tier": 1,
+      "priority": "P1",
+      "startedAt": "2026-07-16",
+      "completedAt": "2026-07-16",
+      "wait_count": 0,
+      "notes": "COMPLETE 5/5 tasks. Human decision (AskUserQuestion): GitHub Security Advisories / private vulnerability reporting as the disclosure channel. Repo setting enabled via gh api (confirmed with user before applying, since it's a shared repo-settings change) — confirmed {\"enabled\":true}. SECURITY.md authored per OpenSSF CVD guide with honest, achievable response commitments (5 business days ack, biweekly status updates, no fixed resolution SLA, 90-day default coordinated-disclosure window). SUPPORT.md and CONTRIBUTING.md also authored. Supported-versions table: 1.0.x supported / pre-1.0 not. Archived to .kbd-orchestrator/changes/archive/2026-07-16-p16-c004-security-disclosure/."
+    },
+    "p16-c005-docs-reality-reconciliation": {
+      "status": "completed",
+      "tier": 1,
+      "priority": "P1",
+      "startedAt": "2026-07-16",
+      "completedAt": "2026-07-16",
+      "wait_count": 0,
+      "depends_on": [
+        "p16-c002"
+      ],
+      "notes": "COMPLETE 5/5 tasks. rest/mod.rs:62 doc-comment corrected (handlers execute parameterized SQL, not todo!()). README GraphQL Subscription bullet + Subscription RLS enforcement section updated to describe the post-c002 default (listen, working) vs fabric (opt-in, fails closed). .env.example polling reference was already fixed by c002. Sweep (t5) found and fixed a stale-comment contradiction in fdb-gateway/tests/mounts_reflection_router.rs (claimed handlers were todo!()/panic; comment-only fix, test re-verified 1/1 pass). All spec verification commands pass; clippy clean. Archived to .kbd-orchestrator/changes/archive/2026-07-16-p16-c005-docs-reality-reconciliation/."
+    },
+    "p16-c006-selfhost-operator-guide": {
+      "status": "completed_partial",
+      "tier": 1,
+      "priority": "P1",
+      "startedAt": "2026-07-16",
+      "completedAt": "2026-07-16",
+      "wait_count": 0,
+      "depends_on": [
+        "p16-c001"
+      ],
+      "notes": "7/7 tasks done, but the phase gate is HONESTLY NOT FULLY MET — disclosed, not hidden. Human decision (AskUserQuestion): no external runbook exists; authored from scratch. Executed a REAL backup/restore cycle against flint-forge-pg:18 via plain Docker (Docker Desktop k8s API was unavailable; confirmed with user before switching from Helm). Backup/restore fully verified: vault secret round-tripped correctly with DEK, failed closed without it (as documented), demo data + all cron jobs survived. docs/operations/backup-restore.md and upgrading.md both authored with real evidence, not theory. Final /healthz criterion NOT reached — blocked by a separate, pre-existing bug (flint_meta.views() missing) that reproduces identically on a never-restored instance, proving it's unrelated to this change. Filed as task_2ea21856. ALSO DISCOVERED (not assumed): vault.secrets/access_log rows are excluded from pg_dump entirely (extension-owned table, missing pg_extension_config_dump()) — worse than the anticipated 'unreadable without DEK,' it's 'rows never dumped at all.' Documented with a tested \\copy workaround; filed as task_bc952bb3 (P0). Archived to .kbd-orchestrator/changes/archive/2026-07-16-p16-c006-selfhost-operator-guide/."
+    }
+  },
+  "total_waits": 2,
+  "updatedAt": "2026-07-16",
+  "assessment_complete": true,
+  "analysis_complete": true,
+  "spec_complete": true,
+  "spec_note": "Six changes specced, replacing the four speculative changes from the p15 seed. Seed assumed v1.0.0 was untagged and CI was green; both were false (see assessment.md). Backend: native-kbd specs written to .kbd-orchestrator/changes/. OpenSpec CLI v1.4.1 is available and p14 used it correctly, but native was chosen because these six changes are defect-driven and already fully specified — no proposal/design iteration needed. Scope reflects the self-hosted-OSS delivery model: status page, on-call, DPA, SLA, and incident comms are explicitly OUT of scope.",
+  "out_of_scope": [
+    "status page",
+    "on-call rotation",
+    "DPA / ToS / privacy posture",
+    "SLA + support response targets",
+    "incident comms",
+    "k6 load validation (blocked on staging infra that does not exist)"
+  ]
+}

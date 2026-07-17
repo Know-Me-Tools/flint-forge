@@ -237,6 +237,24 @@ fn embedded_filter_scopes_to_subselect_and_binds_param() {
 }
 
 #[test]
+fn embedded_filter_on_typed_column_casts_qualified_placeholder() {
+    // `orders.total` is int4 in the schema's cast hints; the embed-scoped filter
+    // `orders.total=gt.50` must cast $1 against the CHILD-ALIAS-qualified column
+    // (orders_1.total), not the bare `total` key.
+    let mut schema = schema_basic();
+    let orders = schema.table("orders").unwrap().clone();
+    let orders = orders.with_cast_hints(crate::CastHints::from_pairs([("total", "int4")]));
+    schema = schema.with_table("orders", orders);
+
+    let mut sel = parse_embed_select("*,orders(id)").unwrap();
+    route_embedded_param(&mut sel, "orders.total", "gt.50").unwrap();
+    let resolved = resolve_embeds(&sel, "customers", "p", &schema).unwrap();
+    let base = Select::default();
+    let (sql, _, _) = render_projection(&base, &resolved, 1).unwrap();
+    assert!(sql.contains("orders_1.total > $1::int4"), "got: {sql}");
+}
+
+#[test]
 fn embedded_filter_also_appears_in_inner_exists() {
     let schema = schema_basic();
     let mut sel = parse_embed_select("*,orders!inner(id)").unwrap();
@@ -345,6 +363,7 @@ fn schema_nested() -> EmbedSchema {
             });
             f
         },
+        cast_hints: orders.cast_hints,
     };
     s = s.with_table("items", items).with_table("orders", orders);
     s

@@ -1,0 +1,46 @@
+{
+  "change": "p16-c005-docs-reality-reconciliation",
+  "backend": "native-kbd",
+  "tasks": [
+    {
+      "id": "t1",
+      "title": "Confirm p16-c002 has landed",
+      "done": true,
+      "detail": "Sequencing: document the fixed behavior, not the broken behavior.",
+      "doneAt": "2026-07-16T19:40:09Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t2",
+      "title": "Fix rest/mod.rs:62 stale doc-comment",
+      "done": true,
+      "detail": "CRUD handlers are implemented in mutations.rs. Comment says they are todo!() stubs. Remove the false claim.",
+      "doneAt": "2026-07-16T19:41:10Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t3",
+      "title": "Fix README.md subscription claims (lines ~40, ~104)",
+      "done": true,
+      "detail": "Describe the shipped default after c002.",
+      "doneAt": "2026-07-16T19:42:16Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t4",
+      "title": "Fix .env.example 'polling' language",
+      "done": true,
+      "detail": "Line 58. There is no polling path.",
+      "doneAt": "2026-07-16T19:42:46Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t5",
+      "title": "Sweep for further doc/code contradictions",
+      "done": true,
+      "detail": "Anything a reviewer trips over while fixing the above.",
+      "doneAt": "2026-07-16T19:51:21Z",
+      "doneBy": "claude-code"
+    }
+  ]
+}

@@ -5,6 +5,21 @@ All notable changes to Flint Forge are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### BREAKING
+- **realtime**: `FabricChangeSource` (the FRF gRPC change source) now **fails
+  closed**: opening a subscription with `FLINT_CHANGE_SOURCE=fabric` returns a
+  transport-level error (`StreamError::Unavailable`) instead of silently
+  delivering an empty stream. The FRF `WatchEntityType` RPC does not exist yet
+  (OQ-FRF-1); the prior behavior reported success while delivering no events,
+  which was never correct. (p16-c002)
+- **realtime**: The default change source is now `listen` (PostgreSQL
+  LISTEN/NOTIFY, complete and working). The FRF adapter must be opted into
+  explicitly with `FLINT_CHANGE_SOURCE=fabric`. Operators who relied on the old
+  default received no events, so no working deployment changes behavior; Helm
+  already pinned `listen` and is unaffected. (p16-c002)
+
 ## [1.0.0] — 2026-07-07
 
 ### Bug Fixes

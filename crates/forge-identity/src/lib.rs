@@ -91,7 +91,10 @@ fn gate_mode_is_production() -> bool {
 }
 
 /// Look up `kid` in `jwks` and build a `DecodingKey` from the matching JWK.
-fn decoding_key_for(jwks: &jsonwebtoken::jwk::JwkSet, kid: &str) -> Result<DecodingKey, IdentityError> {
+fn decoding_key_for(
+    jwks: &jsonwebtoken::jwk::JwkSet,
+    kid: &str,
+) -> Result<DecodingKey, IdentityError> {
     let jwk = jwks
         .find(kid)
         .ok_or_else(|| IdentityError::UnknownKid(kid.to_string()))?;

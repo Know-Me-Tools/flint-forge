@@ -13,7 +13,7 @@
 pub enum ChangeSourceKind {
     /// Postgres LISTEN/NOTIFY — real events, no external dependency. The default.
     Listen,
-    /// FRF gRPC — as of p16-c004 still returns an empty stream pending OQ-FRF-1
+    /// FRF gRPC — fails closed (`StreamError::Unavailable`) pending OQ-FRF-1
     /// (FRF's `WatchEntityType` RPC hasn't landed). Opt-in only.
     Fabric,
 }

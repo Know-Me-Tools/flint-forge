@@ -301,6 +301,13 @@ COMMENT ON TABLE vault.secrets IS
     'keys, connection strings, tokens, certificates, and secret parameters. The secret '
     'column is ciphertext; backups/WAL/replicas carry ciphertext only.';
 
+-- Extension-owned tables are excluded from pg_dump by default (pg_depend
+-- deptype='e'). Without this call, `pg_dump | pg_restore` silently drops
+-- every row in vault.secrets on restore — not just becomes-unreadable
+-- without the DEK, the rows themselves vanish. See PostgreSQL docs on
+-- pg_extension_config_dump() / extension configuration tables.
+SELECT pg_catalog.pg_extension_config_dump('vault.secrets', '');
+
 -- Append-only audit of every privileged read/write.
 CREATE TABLE vault.access_log (
     id        bigserial   PRIMARY KEY,
@@ -311,6 +318,11 @@ CREATE TABLE vault.access_log (
     allowed   boolean     NOT NULL DEFAULT true,
     detail    text        NOT NULL DEFAULT ''
 );
+
+-- Same extension-config-table treatment for the audit log, plus its
+-- backing sequence (bigserial), so dump/restore preserves audit history.
+SELECT pg_catalog.pg_extension_config_dump('vault.access_log', '');
+SELECT pg_catalog.pg_extension_config_dump('vault.access_log_id_seq', '');
 
 -- Decrypt-on-read. Guard as tightly as the secrets themselves (revoked below).
 CREATE VIEW vault.decrypted_secrets AS
@@ -418,6 +430,33 @@ BEGIN
 END;
 $$;
 
+-- Kiln-facing gated reveal path (§4.4 / flint:host/secrets.reveal). The Rust-side
+-- Cedar check (kiln:capability:secrets + a per-secret grant) happens BEFORE this
+-- function is ever called — see fke-runtime's `secrets::HostSecret::reveal`. This
+-- function trusts that decision and only decrypts + audits; it does not re-evaluate
+-- Cedar itself (Postgres has no Cedar evaluator). Distinct from get_secret/
+-- resolve_api_key, which are internal-only and never reachable from a WASM
+-- component even indirectly.
+CREATE FUNCTION vault.reveal_for_kiln(want_name text, publisher_did text, want_scope text DEFAULT NULL)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = vault, public AS $$
+DECLARE r vault.secrets; out text;
+BEGIN
+    SELECT * INTO r FROM vault.secrets
+        WHERE name = want_name AND COALESCE(scope, '') = COALESCE(want_scope, '')
+        LIMIT 1;
+    IF r.id IS NULL THEN
+        INSERT INTO vault.access_log (action, allowed, detail)
+            VALUES ('reveal', false, 'kiln:' || publisher_did || ' no secret named ' || want_name);
+        RAISE EXCEPTION 'flint_vault: no secret named %', want_name;
+    END IF;
+    out := vault._vault_decrypt(r.secret, r.id, r.key_id, r.category::text, r.nonce);
+    INSERT INTO vault.access_log (action, secret_id, detail)
+        VALUES ('reveal', r.id, 'kiln:' || publisher_did);
+    RETURN out;
+END;
+$$;
+
 -- ---- Lockdown: no plaintext, no primitives, no key to PUBLIC. ----
 REVOKE ALL ON ALL TABLES    IN SCHEMA vault FROM PUBLIC;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA vault FROM PUBLIC;
@@ -437,6 +476,24 @@ GRANT USAGE ON SCHEMA vault TO flint_secret_reader;
 GRANT EXECUTE ON FUNCTION vault.get_secret(text, text)      TO flint_secret_reader;
 GRANT EXECUTE ON FUNCTION vault.resolve_api_key(text, text) TO flint_secret_reader;
 GRANT flint_secret_reader TO flint_llm_worker;  -- flint_llm is one consumer among many
+
+-- Kiln worker role: the ONLY role that may call the gated reveal path. Deliberately
+-- NOT granted flint_secret_reader membership — Kiln components never get get_secret/
+-- resolve_api_key, only the audited, Cedar-fronted reveal_for_kiln.
+--
+-- NOTE: fke-server's Kiln invocation connections currently run as whichever role
+-- the invocation's RlsContext carries (the caller's own role for direct HTTP calls,
+-- or "kiln_publisher" for BGW-triggered calls per kiln_bgw.rs — a role that, as of
+-- this migration, no `CREATE ROLE` statement anywhere in this repo actually creates).
+-- `GRANT flint_kiln_worker TO <that role>;` still needs to land wherever that role
+-- is eventually created for `vault.reveal_for_kiln` to be reachable end-to-end.
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'flint_kiln_worker') THEN
+        CREATE ROLE flint_kiln_worker NOLOGIN;
+    END IF;
+END $$;
+GRANT USAGE ON SCHEMA vault TO flint_kiln_worker;
+GRANT EXECUTE ON FUNCTION vault.reveal_for_kiln(text, text, text) TO flint_kiln_worker;
 
 -- Writes go through a trusted host (flint-gate/Tauri/Axum) running as this role;
 -- statement logging MUST be disabled on that path (plaintext is a function argument).
@@ -497,10 +554,31 @@ mod tests {
 
         // Confirm that resolving an unknown provider raises an exception (the
         // function inserts a denied access_log row and calls RAISE EXCEPTION).
-        let miss = Spi::get_one::<String>(
-            "SELECT vault.resolve_api_key('nonexistent-provider')",
+        // RAISE EXCEPTION is a Postgres ERROR, not a Rust Result — letting it
+        // propagate out of Spi::get_one would abort the whole pg_test transaction
+        // instead of surfacing as Err. Catch it in a PL/pgSQL EXCEPTION block so
+        // the test's outer transaction survives, recording the outcome in a temp
+        // table that a separate statement then reads back.
+        Spi::run("CREATE TEMP TABLE _resolve_api_key_test_caught (caught boolean) ON COMMIT DROP")
+            .unwrap();
+        Spi::run(
+            "DO $catch$
+             BEGIN
+                 PERFORM vault.resolve_api_key('nonexistent-provider');
+                 INSERT INTO _resolve_api_key_test_caught VALUES (false);
+             EXCEPTION WHEN OTHERS THEN
+                 INSERT INTO _resolve_api_key_test_caught VALUES (true);
+             END;
+             $catch$",
+        )
+        .unwrap();
+        let caught: Option<bool> =
+            Spi::get_one("SELECT caught FROM _resolve_api_key_test_caught LIMIT 1").unwrap();
+        assert_eq!(
+            caught,
+            Some(true),
+            "expected vault.resolve_api_key to raise for an unknown provider"
         );
-        assert!(miss.is_err(), "expected an error for unknown provider, got: {miss:?}");
     }
 }
 

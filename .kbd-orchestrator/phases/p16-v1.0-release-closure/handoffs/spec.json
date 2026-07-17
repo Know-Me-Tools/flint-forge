@@ -1,0 +1,44 @@
+{
+  "stage": "spec",
+  "phase": "p16-v1.0-release-closure",
+  "written_at": "2026-07-09",
+  "written_by": "claude-code",
+  "summary": "Six changes specced to .kbd-orchestrator/changes/ (native-kbd backend). The blocking delivery-model question was resolved by the user as self-hosted OSS, which scopes out the entire managed-SaaS operational surface (status page, on-call, DPA, SLA, incident comms) and reduces the backup story from an operated service to documentation. Three Tier-0 ship-blockers are model-independent and were specced regardless: pg_cron amd64 link fix, realtime fail-closed, one green integration run. Three Tier-1 beta-blockers follow the self-hosted bar. Two changes (c004, c006) are BLOCKED on human decisions and say so rather than guessing.",
+  "artifacts": [
+    ".kbd-orchestrator/changes/p16-c001-pgcron-amd64-link/spec.md",
+    ".kbd-orchestrator/changes/p16-c002-realtime-fail-closed/spec.md",
+    ".kbd-orchestrator/changes/p16-c003-green-integration-ci/spec.md",
+    ".kbd-orchestrator/changes/p16-c004-security-disclosure/spec.md",
+    ".kbd-orchestrator/changes/p16-c005-docs-reality-reconciliation/spec.md",
+    ".kbd-orchestrator/changes/p16-c006-selfhost-operator-guide/spec.md"
+  ],
+  "changes_created": 6,
+  "backend": "native-kbd",
+  "backend_rationale": "OpenSpec CLI v1.4.1 is present and p14 used it correctly (5 change dirs), so the backend is real — p15's OpenSpec/native drift was process failure, not tooling. Native chosen here because all six changes are defect-driven with known root causes and fully-specified acceptance criteria; there is no proposal/design iteration for OpenSpec to add. If /kbd-apply requires an OpenSpec task surface, run `openspec new <change-id>` per change to mirror these specs.",
+  "zeespec_verdict": "n/a — .zeespec/ absent, gate inactive (opt-in)",
+  "delivery_model": {
+    "decision": "self-hosted-oss",
+    "provenance": "user",
+    "mechanism": "AskUserQuestion",
+    "decided_at": "2026-07-09",
+    "consequence": "Out of scope: status page, on-call rotation, DPA/ToS, SLA, incident comms. Backup becomes documentation, not an operated service. Upgrade guide becomes MORE important, not less — operators self-serve."
+  },
+  "dependency_order": [
+    "p16-c001 (no deps) → unblocks c003, c006",
+    "p16-c002 (no deps) → unblocks c005",
+    "p16-c003 (needs c001)",
+    "p16-c005 (needs c002)",
+    "p16-c004 (BLOCKED: who receives vuln reports?)",
+    "p16-c006 (needs c001; BLOCKED: does an ops runbook exist elsewhere?)"
+  ],
+  "blocked_changes": [
+    { "change": "p16-c004-security-disclosure", "blocked_on": "Human must name the vulnerability-report recipient. A SECURITY.md pointing at an unmonitored inbox is worse than none." },
+    { "change": "p16-c006-selfhost-operator-guide", "blocked_on": "Human must confirm whether a backup/restore runbook exists outside this repository. If yes, the change collapses to a doc link plus verification; if no, it is days of genuine engineering." }
+  ],
+  "open_questions_carried": [
+    "Re-tag v1.0.0 or ship v1.0.1? Still unanswered across assess, analyze, and spec. Blocks any release action.",
+    "Does the beta include realtime subscriptions? c002 assumes yes (README advertises them; ListenChangeSource makes them deliverable). If no, the honest move is removal, not repair.",
+    "Is v0.10.0 → v1.0.0 actually a supported upgrade? p35-c004 landed a BREAKING PgBackend::acquire change."
+  ],
+  "next_action": "/kbd-plan p16-v1.0-release-closure — order the six changes and assign the wait budget. Note that c001/c002 are independent and could run in parallel; c003 is the wait-budget risk (0/8 green today, failures beyond the build step unknowable)."
+}

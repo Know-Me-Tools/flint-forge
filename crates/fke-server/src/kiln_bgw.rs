@@ -168,7 +168,7 @@ async fn invoke_function(
                 .await
                 .map_err(|e| anyhow::anyhow!("store: {e}"))?;
             runtime
-                .load_wasm(content_id.clone(), &wasm_bytes)
+                .load_wasm(content_id.clone(), &wasm_bytes, &manifest.capabilities)
                 .map_err(|e| anyhow::anyhow!("load_wasm: {e}"))?;
 
             // Retry the invocation now that the component is cached.

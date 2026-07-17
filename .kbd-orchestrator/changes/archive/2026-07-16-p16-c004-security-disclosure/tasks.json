@@ -1,0 +1,46 @@
+{
+  "change": "p16-c004-security-disclosure",
+  "backend": "native-kbd",
+  "tasks": [
+    {
+      "id": "t1",
+      "title": "BLOCKING: decide who receives vulnerability reports",
+      "done": true,
+      "detail": "Human decision. A SECURITY.md naming an unmonitored inbox is worse than none.",
+      "doneAt": "2026-07-16T19:55:10Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t2",
+      "title": "Enable GitHub private vulnerability reporting",
+      "done": true,
+      "detail": "Repo settings → Security → Private vulnerability reporting.",
+      "doneAt": "2026-07-16T19:56:18Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t3",
+      "title": "Author SECURITY.md per OpenSSF CVD guide",
+      "done": true,
+      "detail": "Reporting channel, expectations (honest ones), supported-versions table, disclosure timeline.",
+      "doneAt": "2026-07-16T19:56:58Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t4",
+      "title": "Supported-versions table consistent with SemVer claim",
+      "done": true,
+      "detail": "CHANGELOG.md claims SemVer 2.0.0. Make it concrete.",
+      "doneAt": "2026-07-16T19:57:07Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t5",
+      "title": "Author SUPPORT.md and CONTRIBUTING.md",
+      "done": true,
+      "detail": "Non-security questions; contribution workflow.",
+      "doneAt": "2026-07-16T19:57:54Z",
+      "doneBy": "claude-code"
+    }
+  ]
+}

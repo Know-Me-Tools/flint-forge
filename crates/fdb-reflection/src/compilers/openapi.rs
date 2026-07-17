@@ -26,10 +26,8 @@ impl OpenApiCompiler {
             schemas.insert(schema_name.clone(), table_to_schema(table));
 
             let collection_path = format!("/{}/{}", table.schema, table.name);
-            let item_path = format!("/{}/{}/{{id}}", table.schema, table.name);
 
             paths.insert(collection_path, table_collection_paths(table, &schema_name));
-            paths.insert(item_path, table_item_paths(table, &schema_name));
         }
 
         for func in &model.functions {
@@ -177,7 +175,12 @@ fn filter_params(columns: &[Column]) -> Vec<Value> {
     params
 }
 
-/// Build GET + POST paths for the collection endpoint `/<schema>/<table>`.
+/// Build GET/POST/PATCH/DELETE paths for the collection endpoint `/<schema>/<table>`.
+///
+/// All four methods share one path: there is no path-parameterized `{id}`
+/// route. PATCH and DELETE select rows via the same PostgREST-style filter
+/// query params as GET (e.g. `?id=eq.5`), which may match zero, one, or many
+/// rows — this mirrors what `handle_update`/`handle_delete` actually execute.
 fn table_collection_paths(table: &Table, schema_ref: &str) -> Value {
     let ref_path = format!("#/components/schemas/{schema_ref}");
     let params = filter_params(&table.columns);
@@ -207,25 +210,11 @@ fn table_collection_paths(table: &Table, schema_ref: &str) -> Value {
                     "content": {"application/json": {"schema": {"$ref": ref_path}}}
                 }
             }
-        }
-    })
-}
-
-/// Build PATCH + DELETE paths for the item endpoint `/<schema>/<table>/{id}`.
-fn table_item_paths(table: &Table, schema_ref: &str) -> Value {
-    let ref_path = format!("#/components/schemas/{schema_ref}");
-    let id_param = json!({
-        "name": "id",
-        "in": "path",
-        "required": true,
-        "schema": {"type": "string"},
-        "description": "Row primary key"
-    });
-
-    json!({
+        },
         "patch": {
-            "summary": format!("Update {}.{}", table.schema, table.name),
-            "parameters": [id_param.clone()],
+            "summary": format!("Update rows in {}.{} matching a filter", table.schema, table.name),
+            "description": "Row selection is filter-based, not path-parameterized — pass e.g. `?id=eq.5` to target one row.",
+            "parameters": params.clone(),
             "security": [{"bearerAuth": []}],
             "requestBody": {
                 "required": true,
@@ -233,19 +222,22 @@ fn table_item_paths(table: &Table, schema_ref: &str) -> Value {
             },
             "responses": {
                 "200": {
-                    "description": "Updated row",
-                    "content": {"application/json": {"schema": {"$ref": ref_path}}}
+                    "description": "Updated rows",
+                    "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": ref_path}}}}
+                },
+                "204": {
+                    "description": "No rows matched the filter"
                 }
             }
         },
         "delete": {
-            "summary": format!("Delete {}.{}", table.schema, table.name),
-            "parameters": [id_param],
+            "summary": format!("Delete rows from {}.{} matching a filter", table.schema, table.name),
+            "description": "Row selection is filter-based, not path-parameterized — pass e.g. `?id=eq.5` to target one row.",
+            "parameters": params,
             "security": [{"bearerAuth": []}],
             "responses": {
-                "200": {
-                    "description": "Deleted row",
-                    "content": {"application/json": {"schema": {"$ref": ref_path}}}
+                "204": {
+                    "description": "Rows deleted (or none matched)"
                 }
             }
         }
@@ -351,7 +343,7 @@ mod tests {
     }
 
     #[test]
-    fn test_every_table_has_collection_and_item_paths() {
+    fn test_every_table_has_a_single_collection_path_no_item_path() {
         let doc = OpenApiCompiler::compile(&minimal_model());
         let paths = doc["paths"].as_object().unwrap();
         assert!(
@@ -359,8 +351,8 @@ mod tests {
             "collection path missing"
         );
         assert!(
-            paths.contains_key("/public/items/{id}"),
-            "item path missing"
+            !paths.contains_key("/public/items/{id}"),
+            "no {{id}} path is registered by the real router — the doc must not claim one exists"
         );
     }
 
@@ -373,11 +365,29 @@ mod tests {
     }
 
     #[test]
-    fn test_item_path_has_patch_and_delete() {
+    fn test_collection_path_has_patch_and_delete() {
         let doc = OpenApiCompiler::compile(&minimal_model());
-        let entry = &doc["paths"]["/public/items/{id}"];
+        let entry = &doc["paths"]["/public/items"];
         assert!(entry["patch"].is_object(), "PATCH missing");
         assert!(entry["delete"].is_object(), "DELETE missing");
+    }
+
+    #[test]
+    fn test_patch_and_delete_document_filter_params_not_path_id() {
+        let doc = OpenApiCompiler::compile(&minimal_model());
+        let entry = &doc["paths"]["/public/items"];
+        for method in ["patch", "delete"] {
+            let params = entry[method]["parameters"].as_array().unwrap();
+            assert!(
+                params.iter().all(|p| p["in"] != "path"),
+                "{method} must not declare a path parameter — there is no {{id}} route segment"
+            );
+            let names: Vec<&str> = params.iter().filter_map(|p| p["name"].as_str()).collect();
+            assert!(
+                names.contains(&"id.eq"),
+                "{method} missing id.eq filter param"
+            );
+        }
     }
 
     #[test]

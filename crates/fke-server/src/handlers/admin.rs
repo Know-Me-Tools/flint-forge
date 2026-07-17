@@ -22,7 +22,9 @@ const ADMIN_ROLE: &str = "service_role";
 /// `/admin/functions` — previously this route had no auth middleware at all,
 /// gated only by the compile-time `control-plane` feature flag (which
 /// controls whether the route is mounted, not who may call it).
-pub(crate) async fn require_admin(headers: &HeaderMap) -> Result<RlsContext, axum::response::Response> {
+pub(crate) async fn require_admin(
+    headers: &HeaderMap,
+) -> Result<RlsContext, axum::response::Response> {
     let Some(bearer) = extract_bearer(headers) else {
         return Err((
             StatusCode::UNAUTHORIZED,

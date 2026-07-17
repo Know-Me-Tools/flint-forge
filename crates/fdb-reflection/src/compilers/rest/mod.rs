@@ -107,16 +107,18 @@ impl RestCompiler {
                     let name = table.name.clone();
                     router.route(
                         &path,
-                        get(move |State(state): State<RestState>,
+                        get(
+                            move |State(state): State<RestState>,
                                   Extension(rls): Extension<RlsContext>,
                                   Query(params): Query<HashMap<String, String>>,
                                   headers: HeaderMap| {
-                            let schema = schema.clone();
-                            let name = name.clone();
-                            async move {
-                                handle_list(state, rls, schema, name, params, headers).await
-                            }
-                        }),
+                                let schema = schema.clone();
+                                let name = name.clone();
+                                async move {
+                                    handle_list(state, rls, schema, name, params, headers).await
+                                }
+                            },
+                        ),
                     )
                 }
                 (EndpointKind::TableList { table }, "POST") => {

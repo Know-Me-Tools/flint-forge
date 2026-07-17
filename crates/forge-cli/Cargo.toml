@@ -27,6 +27,7 @@ ed25519-dalek = { workspace = true }
 jsonwebtoken = { workspace = true }
 sqlx = { workspace = true }
 fke-domain = { path = "../fke-domain" }
+forge-domain = { path = "../forge-domain" }
 
 [lints]
 workspace = true

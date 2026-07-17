@@ -38,7 +38,10 @@ A PostgREST-compatible REST surface plus a hybrid GraphQL surface over Postgres 
 - **GraphQL Query/Mutation** — delegated directly to `graphql.resolve()` inside Postgres
   under RLS (`pg_graphql` passthrough)
 - **GraphQL Subscription** — `async-graphql` over `graphql-transport-ws`, resolvers pull
-  from a `ChangeStreamSource` fed by the realtime fabric
+  from a `ChangeStreamSource`. Default source is PostgreSQL LISTEN/NOTIFY
+  (`FLINT_CHANGE_SOURCE=listen`, complete and working). The Flint Realtime Fabric gRPC
+  source (`FLINT_CHANGE_SOURCE=fabric`) is an opt-in alternative that currently fails
+  closed — FRF does not yet expose the `WatchEntityType` RPC it depends on
 - **Router hot-swap** — REST/GraphQL routers rebuilt on schema change and swapped via
   `ArcSwap<Router<()>>`
 
@@ -110,9 +113,10 @@ transaction before any user statement.
 
 ### Subscription RLS enforcement
 
-WAL bypasses RLS. For each change from the fabric, Quarry **re-queries the changed row as
-the subscriber** with full RLS context before delivering — non-negotiable protection
-against WAL-bypass data leaks.
+WAL bypasses RLS. For each change delivered by the `ChangeStreamSource` (LISTEN/NOTIFY by
+default, or the fabric adapter when opted in), Quarry **re-queries the changed row as the
+subscriber** with full RLS context before delivering — non-negotiable protection against
+WAL-bypass data leaks.
 
 ### External systems
 

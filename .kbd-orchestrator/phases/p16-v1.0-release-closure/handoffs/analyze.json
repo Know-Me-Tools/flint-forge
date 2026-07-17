@@ -1,0 +1,33 @@
+{
+  "stage": "analyze",
+  "phase": "p16-v1.0-release-closure",
+  "written_at": "2026-07-09",
+  "written_by": "claude-code",
+  "summary": "Zero library candidates — every customer-readiness gap is a defect, a config default, a missing markdown file, or absent infrastructure, none library-shaped. Tier-4 web research (4 queries) returned no actionable product-specific intelligence and is recorded at LOW confidence; the load-bearing evidence is all from the repository. Two new CRITICAL findings beyond the assessment: (1) the default change source FabricChangeSource::watch() returns Ok(empty_stream), so GraphQL subscriptions silently deliver zero events for every deployment path except Helm — it fails open into silence; (2) governance files SECURITY.md/SUPPORT.md/CONTRIBUTING.md/CODE_OF_CONDUCT.md are all absent, so there is no vulnerability intake channel. Spec is BLOCKED on one question: what is being sold, and to whom?",
+  "artifacts": [
+    "analysis.md",
+    "library-candidates.json"
+  ],
+  "candidate_count": 0,
+  "key_verdicts": [
+    "pg_cron amd64 link fix — BUILD, 1 line, blocks integration CI + multi-arch image + operator docs",
+    "realtime fail-open default — BUILD, ~10 lines, invert default to 'listen' or return Err instead of Ok(empty)",
+    "SECURITY.md — ADOPT OpenSSF CVD template, hours",
+    "backup/restore/PITR runbook — BUILD, days, no procedure exists anywhere in-tree",
+    "k6 load validation — DEFER, blocked on staging infrastructure that does not exist"
+  ],
+  "corrections_made": [
+    "Initially mis-flagged 7 todo!() + 1 unimplemented!() as live stubs; all are inside comments/doc-strings. Zero todo!() on any live path — the codebase is cleaner than the grep suggested.",
+    "Initially reported subscriptions as universally broken; ListenChangeSource is a complete working LISTEN/NOTIFY implementation and Helm values.yaml:55 sets FLINT_CHANGE_SOURCE=listen. The defect is narrower: the DEFAULT (and .env.example, and docker-compose) fails open to an empty stream.",
+    "doc-comment at fdb-reflection/src/compilers/rest/mod.rs:62 claims CRUD handlers are todo!() stubs; they are implemented in mutations.rs. The comment understates the product."
+  ],
+  "open_questions": [
+    "BLOCKING: What is being sold, and to whom? Self-hosted OSS vs managed SaaS vs licensed on-prem have disjoint readiness bars; Tier-1/Tier-2 composition depends on the answer.",
+    "Does the beta include realtime subscriptions? If yes, OQ-FRF-1 (open since p3) needs a resolution date. If no, remove them from README.",
+    "Is amd64 required, or is arm64-only acceptable? (carried from assess)",
+    "Who receives a vulnerability report today? No address exists in the repo.",
+    "Does a backup/restore procedure exist outside this repository?",
+    "Re-tag v1.0.0 or ship v1.0.1? (carried from assess, still unanswered)"
+  ],
+  "next_action": "DO NOT run /kbd-spec yet — blocked on the delivery-model question. Independent of that answer, fix pg_cron amd64, fix the realtime fail-open default, and get one green integration run."
+}

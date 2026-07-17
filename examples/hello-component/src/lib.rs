@@ -18,14 +18,28 @@ impl Guest for HelloComponent {
         _request: bindings::wasi::http::types::IncomingRequest,
         response_out: ResponseOutparam,
     ) {
+        // Touch flint:host/kv so this component actually imports a
+        // flint:host interface at the compiled-WASM level (unused
+        // wit-bindgen imports get dead-code-eliminated, so merely targeting
+        // the edge-function world isn't enough) — proves the Kiln capability
+        // gate in fke-runtime's build_linker is real: this instantiates only
+        // when the Kv capability is granted, not merely because the WIT
+        // world declares the interface importable.
+        bindings::flint::host::kv::set("hello", b"world");
+        let kv_roundtrip = bindings::flint::host::kv::get("hello");
+
         let headers = Headers::new();
         let response = OutgoingResponse::new(headers);
         response.set_status_code(200).unwrap();
 
         let body = response.body().unwrap();
         let out = body.write().unwrap();
-        out.blocking_write_and_flush(b"Hello from Flint edge function!\n")
-            .unwrap();
+        let message: &[u8] = if kv_roundtrip.as_deref() == Some(b"world".as_slice()) {
+            b"Hello from Flint edge function! (kv roundtrip ok)\n"
+        } else {
+            b"Hello from Flint edge function! (kv roundtrip FAILED)\n"
+        };
+        out.blocking_write_and_flush(message).unwrap();
         drop(out);
         OutgoingBody::finish(body, None).unwrap();
 

@@ -65,3 +65,10 @@ forge token mint \
 
 Production signing authority belongs in `flint-gate`; `forge-cli` is the local
 initialization and operator wrapper.
+
+> **Note:** `forge token mint` signs with HS256 using `FLINT_JWT_SECRET`.
+> `fdb-gateway`'s bearer verification (`forge-identity::verify_and_build`)
+> only accepts JWKS-verified RS256/RS384/RS512/ES256/ES384 tokens and never
+> reads `FLINT_JWT_SECRET`. A token minted this way will not authenticate
+> against `fdb-gateway` in any environment as the code stands today. See
+> [`docs/runbook.md §2.2`](runbook.md) for the real inbound-auth requirements.

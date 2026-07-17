@@ -239,6 +239,14 @@ Exit code `0` = all checks passed. Exit code `1` = one or more failures.
 Mints a self-signed HS256 JWT for use in smoke tests. Outputs a single JWT
 string to stdout. The token expires 1 hour after minting.
 
+> **⚠ This token does not authenticate against the current `fdb-gateway`.**
+> `forge-identity::verify_and_build` only accepts JWKS-verified
+> RS256/RS384/RS512/ES256/ES384 tokens — HS256 is always rejected, and
+> `FLINT_JWT_SECRET`/`JWT_SECRET` is never read by the gateway. See
+> [`docs/runbook.md §2.2` and Error 3](../docs/runbook.md) for the real
+> inbound-auth requirements and the current known-broken state of the
+> staging smoke-test pipeline that depends on this script.
+
 ```bash
 # Explicit key
 JWT_SECRET=mysecret ./scripts/mint_smoke_token.sh

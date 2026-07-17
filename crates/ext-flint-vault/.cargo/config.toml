@@ -1,0 +1,10 @@
+# Postgres extension .dylib/.so must leave Postgres's own symbols (palloc, ereport,
+# SPI_*, etc.) unresolved at link time — they're resolved by dyld when the running
+# postgres process loads the extension, not by the linker at build time. Without
+# this, `cargo pgrx test`/`cargo pgrx run` fail to link on macOS with "symbol(s)
+# not found" for every pgrx_pg_sys::include::* function.
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-args=-Wl,-undefined,dynamic_lookup"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-args=-Wl,-undefined,dynamic_lookup"]

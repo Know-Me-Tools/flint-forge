@@ -85,7 +85,9 @@ pub(crate) async fn invoke_impl(
 
     // 2. Load WASM bytes from store (load once into runtime cache per content_digest)
     let content_id = ContentId(format!("sha256:{}", manifest.content_digest));
-    if let Err(resp) = ensure_loaded_and_verified(state, &manifest, &content_id, name, version).await {
+    if let Err(resp) =
+        ensure_loaded_and_verified(state, &manifest, &content_id, name, version).await
+    {
         return resp;
     }
 
@@ -175,7 +177,10 @@ async fn ensure_loaded_and_verified(
             .into_response());
     }
 
-    if let Err(e) = state.runtime.load_wasm(content_id.clone(), &wasm_bytes) {
+    if let Err(e) = state
+        .runtime
+        .load_wasm(content_id.clone(), &wasm_bytes, &manifest.capabilities)
+    {
         tracing::error!(error = %e, "load_wasm failed");
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
