@@ -103,7 +103,7 @@ RUN make PG_CONFIG=$(which pg_config) && make install DESTDIR=/out PG_CONFIG=$(w
 # ─────────────────────────────────── Stage: runtime ─────────────────────────────────────
 FROM postgres:18
 RUN apt-get update \
- && apt-get install -y --no-install-recommends postgresql-18-pgvector libcurl4 curl \
+ && apt-get install -y --no-install-recommends postgresql-18-pgvector libcurl4 curl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 # p16-c008: wal-g — continuous WAL archiving + base backups to S3-compatible storage

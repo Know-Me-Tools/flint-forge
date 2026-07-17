@@ -23,9 +23,11 @@
 //! operator's environment.
 #![allow(clippy::expect_used)]
 
+use fdb_postgres::PgRest;
 use fdb_reflection::{MutationGates, ReflectionEngine, StateManager};
 use futures::stream::{self, StreamExt};
 use sqlx::PgPool;
+use std::sync::Arc;
 
 fn database_url() -> Option<String> {
     std::env::var("DATABASE_URL").ok().filter(|s| !s.is_empty())
@@ -38,23 +40,41 @@ async fn gateway_initial_schema_compile_succeeds_against_live_pg() {
         return;
     };
 
-    // Mirrors crates/fdb-gateway/src/main.rs: connect, then build the
-    // ReflectionEngine + StateManager exactly as the real binary does. The
-    // subscription live-stream factory is mandatory (see state_manager.rs) —
-    // an empty factory proves the initial compile path without needing a real
-    // Quarry/ChangeStreamSource wired up.
+    // Mirrors crates/fdb-gateway/src/bootstrap.rs: connect the privileged
+    // reflection pool, build the RLS-scoped SqlExecutor (PgRest over a
+    // separate deadpool_postgres pool — never the raw sqlx pool, see
+    // bootstrap.rs's p16-c001 comment) + StateManager exactly as the real
+    // binary does. The subscription live-stream factory is mandatory (see
+    // state_manager.rs) — an empty factory proves the initial compile path
+    // without needing a real Quarry/ChangeStreamSource wired up.
     let pool = PgPool::connect(&url)
         .await
         .expect("gateway_startup_live_pg: connect");
 
-    let engine = ReflectionEngine::new(pool.clone());
-    let empty_factory = std::sync::Arc::new(|_spec, _meta, _who| {
+    let rest_pool = {
+        let mut cfg = deadpool_postgres::Config::new();
+        cfg.url = Some(url.clone());
+        cfg.create_pool(
+            Some(deadpool_postgres::Runtime::Tokio1),
+            tokio_postgres::NoTls,
+        )
+        .expect("gateway_startup_live_pg: rest-executor pool create")
+    };
+    let executor: Arc<dyn fdb_ports::SqlExecutor> = Arc::new(PgRest::new(rest_pool));
+
+    let engine = ReflectionEngine::new(pool);
+    let empty_factory = Arc::new(|_spec, _meta, _who| {
         stream::empty::<async_graphql::Result<async_graphql::Value>>().boxed()
     });
 
-    let state_manager =
-        StateManager::new_with_gates(engine, pool, url, MutationGates::default(), empty_factory)
-            .await;
+    let state_manager = StateManager::new_with_gates(
+        engine,
+        executor,
+        url,
+        MutationGates::default(),
+        empty_factory,
+    )
+    .await;
 
     assert!(
         state_manager.is_ok(),

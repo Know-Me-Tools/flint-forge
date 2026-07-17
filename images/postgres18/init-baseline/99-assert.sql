@@ -92,12 +92,15 @@ BEGIN
   LIMIT 0;
 
   -- flint_meta.columns(p_schema text, p_table text) — probe with a table that
-  -- is always present (flint_meta.cache_tables itself) so a real row shape is
-  -- exercised, not just an empty-result no-op.
+  -- is always present (flint.webhooks, created by ext-flint-hooks) so a real
+  -- row shape is exercised, not just an empty-result no-op. NOTE:
+  -- flint_meta.cache_tables/cache_columns deliberately do NOT track the
+  -- flint_meta schema's own tables (the reflection cache doesn't catalog
+  -- itself), so that table is never a valid probe target here.
   SELECT count(*) INTO v_count
-  FROM flint_meta.columns('flint_meta', 'cache_tables');
+  FROM flint_meta.columns('flint', 'webhooks');
   IF v_count = 0 THEN
-    RAISE EXCEPTION 'flint boot assertion: flint_meta.columns() returned no rows for flint_meta.cache_tables — reflection cache not populated or function broken';
+    RAISE EXCEPTION 'flint boot assertion: flint_meta.columns() returned no rows for flint.webhooks — reflection cache not populated or function broken';
   END IF;
 
   -- flint_meta.relationships(p_schema text, p_table text)

@@ -17,12 +17,14 @@ use axum::{
     http::{header, Request, StatusCode},
     Router,
 };
+use fdb_postgres::PgRest;
 use fdb_reflection::{
     compilers::rest::RestCompiler,
     model::{Column, DatabaseModel, FnMeta, Table},
 };
 use forge_identity::RlsContext;
 use sqlx::PgPool;
+use std::sync::Arc;
 use tower::ServiceExt;
 
 fn database_url() -> Option<String> {
@@ -206,8 +208,19 @@ async fn rest_router_extracts_schema_and_table_without_path_captures() {
     .await
     .expect("ephemeral setup");
 
+    let deadpool = {
+        let mut cfg = deadpool_postgres::Config::new();
+        cfg.url = Some(url.clone());
+        cfg.create_pool(
+            Some(deadpool_postgres::Runtime::Tokio1),
+            tokio_postgres::NoTls,
+        )
+        .expect("rest-executor pool create")
+    };
+    let executor: Arc<dyn fdb_ports::SqlExecutor> = Arc::new(PgRest::new(deadpool));
+
     let model = fixture_model();
-    let app = RestCompiler::compile(&model, pool.clone());
+    let app = RestCompiler::compile(&model, executor);
     let rls = test_rls();
 
     assert_list_ok(&app).await;

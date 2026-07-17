@@ -22,6 +22,8 @@ research/
 images/
 !images/postgres18/init/
 !images/postgres18/init-baseline/
+!images/postgres18/entrypoint-walg.sh
+!images/postgres18/backup-loop.sh
 docs/
 openspec/
 skills/
