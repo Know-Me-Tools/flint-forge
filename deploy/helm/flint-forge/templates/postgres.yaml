@@ -76,7 +76,14 @@ spec:
             {{- toYaml .Values.postgres.resources | nindent 12 }}
           volumeMounts:
             - name: data
-              mountPath: /var/lib/postgresql/data
+              # Postgres 18+ images store data under a major-version-specific
+              # subdirectory of /var/lib/postgresql itself (not a `data`
+              # child mount) — pg_ctlcluster-compatible layout. Mounting at
+              # /var/lib/postgresql/data (the pre-18 convention) makes the
+              # entrypoint see stray unversioned data there and refuse to
+              # start: "PostgreSQL data in: /var/lib/postgresql/data (unused
+              # mount/volume)". See docker-library/postgres#1259.
+              mountPath: /var/lib/postgresql
           livenessProbe:
             exec:
               command:
