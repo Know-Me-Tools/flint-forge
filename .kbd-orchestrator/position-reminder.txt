@@ -1,8 +1,8 @@
 POSITION REMINDER — read this as your FIRST tool call every turn
 Phase: p16-production-remediation
 Step: 9 of 9
-Stage: changes_complete
-Next command: /kbd-reflect p16-production-remediation
+Stage: phase_complete
+Next command: /kbd-new-phase <name> (or /kbd-next-phase to auto-seed from reflection.md)
 
 Required signal format (emit BEFORE any tool call):
   Starting <kbd-skill> — p16-production-remediation (step 9 of 9)
