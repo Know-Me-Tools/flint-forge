@@ -1,0 +1,42 @@
+# deploy/helm/flint-forge/values-ssr.yaml — p16-c008.
+#
+# Tenant-specific values for the flint-forge instance on the `ssr` AKS
+# cluster (resource group sansaba-rg) — a separate, standalone cluster from
+# `main`/prometheus-rg with its own ACR (sansabaacr.azurecr.io) and no
+# ArgoCD/GitOps controller. Deployed by directly running `helm upgrade
+# --install` from GitHub Actions (see .github/workflows/deploy-ssr.yml)
+# rather than through the ApplicationSet used on `main`. `image.tag` is
+# updated by that workflow on every push to main.
+#
+# The shared Envoy Gateway on `ssr` (acme-http01-gateway, in
+# envoy-gateway-system) already has a `https-forge-ssr` listener + a READY
+# cert-manager Certificate for forge-ssr.prometheusags.ai, provisioned
+# out-of-band (see docs/runbook.md §13.9) — this chart only attaches
+# HTTPRoutes to it (gateway-route.yaml), it does not create the listener.
+#
+# No Workload Identity / wal-g backup infrastructure exists on `ssr` yet, so
+# `backup` is left at its chart default (`enabled: false`).
+
+postgres:
+  image:
+    repository: sansabaacr.azurecr.io/flint-forge/postgres18
+    tag: "latest"
+
+gateway:
+  image:
+    repository: sansabaacr.azurecr.io/flint-forge/gateway
+    tag: "latest"
+
+kiln:
+  image:
+    repository: sansabaacr.azurecr.io/flint-forge/kiln
+    tag: "latest"
+
+ingress:
+  enabled: true
+  host: forge-ssr.prometheusags.ai
+  sharedGateway:
+    name: acme-http01-gateway
+    namespace: envoy-gateway-system
+    httpsSectionName: https-forge-ssr
+    httpSectionName: http

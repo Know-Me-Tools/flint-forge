@@ -1,71 +1,21 @@
 {{- if .Values.ingress.enabled }}
 {{- $fullname := include "flint-forge.fullname" . }}
-{{- $tlsSecretName := printf "%s-external-tls" $fullname }}
-{{- $extGateway := printf "%s-extgw" $fullname }}
-# p16-c008: external access via the Kubernetes Gateway API (Envoy Gateway),
-# matching every other app on this shared cluster. Named `-extgw` (not
-# `-gateway`) to avoid confusion with the `{{ $fullname }}-gateway` Service,
-# which is Quarry (fdb-gateway) itself, not this Gateway-API object.
-#
-# TLS is a single-host certificate issued via HTTP-01 (not the shared
-# *.prometheusags.ai wildcard other apps on this cluster use — this domain
-# isn't covered by it), so no DNS-01/Azure DNS access is required. See
-# docs/runbook.md §13.6 for the DNS record an operator must create pointing
-# `.Values.ingress.host` at this cluster's shared Envoy Gateway LoadBalancer
-# IP (the same IP every other app's Gateway resolves to).
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: {{ $tlsSecretName }}
-  labels:
-    app.kubernetes.io/component: ingress
-    {{- include "flint-forge.labels" . | nindent 4 }}
-spec:
-  dnsNames:
-    - {{ .Values.ingress.host | quote }}
-  issuerRef:
-    group: cert-manager.io
-    kind: ClusterIssuer
-    name: {{ .Values.ingress.clusterIssuer }}
-  secretName: {{ $tlsSecretName }}
-  usages:
-    - digital signature
-    - key encipherment
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: {{ $extGateway }}
-  labels:
-    app.kubernetes.io/component: ingress
-    {{- include "flint-forge.labels" . | nindent 4 }}
-spec:
-  gatewayClassName: {{ .Values.ingress.gatewayClassName }}
-  listeners:
-    - name: http
-      port: 80
-      protocol: HTTP
-      allowedRoutes:
-        namespaces:
-          from: Same
-    - name: https
-      port: 443
-      protocol: HTTPS
-      hostname: {{ .Values.ingress.host | quote }}
-      allowedRoutes:
-        namespaces:
-          from: Same
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - group: ""
-            kind: Secret
-            name: {{ $tlsSecretName }}
----
+# p16-c008: external access via HTTPRoutes attached to the cluster's
+# pre-existing shared Gateway (Envoy Gateway) in envoy-gateway-system. The
+# Gateway object itself — its per-host HTTPS listener and the
+# cert-manager Certificate backing it — is provisioned once, out-of-band, by
+# cluster ops (one shared Gateway serves every *.prometheusags.ai app on the
+# cluster); this chart only ever creates HTTPRoutes, never a Gateway or
+# Certificate, to avoid colliding with that shared object. See
+# docs/runbook.md §13.9 for the DNS record an operator must create pointing
+# `.Values.ingress.host` at the shared Gateway's LoadBalancer IP, and for the
+# out-of-band steps to add this host's listener + Certificate before enabling
+# this template.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: {{ $fullname }}-http-redirect
+  namespace: {{ .Values.ingress.sharedGateway.namespace }}
   labels:
     app.kubernetes.io/component: ingress
     {{- include "flint-forge.labels" . | nindent 4 }}
@@ -75,8 +25,9 @@ spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
-      name: {{ $extGateway }}
-      sectionName: http
+      name: {{ .Values.ingress.sharedGateway.name }}
+      namespace: {{ .Values.ingress.sharedGateway.namespace }}
+      sectionName: {{ .Values.ingress.sharedGateway.httpSectionName }}
   rules:
     - matches:
         - path:
@@ -92,6 +43,7 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: {{ $fullname }}-https
+  namespace: {{ .Values.ingress.sharedGateway.namespace }}
   labels:
     app.kubernetes.io/component: ingress
     {{- include "flint-forge.labels" . | nindent 4 }}
@@ -101,8 +53,9 @@ spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
-      name: {{ $extGateway }}
-      sectionName: https
+      name: {{ .Values.ingress.sharedGateway.name }}
+      namespace: {{ .Values.ingress.sharedGateway.namespace }}
+      sectionName: {{ .Values.ingress.sharedGateway.httpsSectionName }}
   rules:
     - matches:
         - path:
@@ -112,6 +65,7 @@ spec:
         - group: ""
           kind: Service
           name: {{ $fullname }}-gateway
+          namespace: {{ .Release.Namespace }}
           port: {{ .Values.gateway.service.port }}
           weight: 1
 {{- end }}

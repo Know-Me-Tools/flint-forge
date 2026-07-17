@@ -1421,3 +1421,95 @@ processing (e.g., long-running embedding batch jobs that shouldn't block a
 request) should explicitly opt in by setting `llm.enable_background_worker =
 on` in their Postgres configuration and ensuring the extension is listed in
 `shared_preload_libraries`.
+
+### 13.9 Deploy to `ssr` (standalone cluster, direct Helm)
+
+**`ssr` is a second, fully separate AKS cluster** — resource group
+`sansaba-rg`, subscription `ddefe320-3f3e-45a6-8c68-9c49114af614`, Azure AD
+tenant `a4afd01b-3821-4d20-b75c-fad81d76f84d` (`sansabaroyalty`) — not the
+`main`/`prometheus-rg` cluster described in §13.1–13.7. Different tenant,
+different subscription, different ACR (`sansabaacr.azurecr.io`), and **no
+ArgoCD or other in-cluster GitOps controller**. Do not reuse `main`'s Azure
+AD app (`github-actions-aks-deploy`) for `ssr` — Azure AD app registrations
+are tenant-scoped and cannot be granted access across tenants.
+
+**Deploy mechanism:** `.github/workflows/deploy-ssr.yml` builds images,
+pushes to `sansabaacr.azurecr.io`, then runs `helm upgrade --install`
+directly against the `ssr` cluster from the runner (`az aks get-credentials`
++ `helm upgrade`). There is no separate "commit triggers reconcile" step —
+the workflow run **is** the deploy.
+
+**Shared Gateway (Envoy Gateway, Gateway API).** `ssr` has one pre-existing,
+shared `Gateway` object, `acme-http01-gateway` in namespace
+`envoy-gateway-system` (labels `app.kubernetes.io/part-of: shared-edge`,
+`gateway.sansabaroyalty.com/shared: "true"`), at stable LoadBalancer IP
+`64.236.103.210`. Every `*.prometheusags.ai` app on `ssr` attaches
+`HTTPRoute`s to this one Gateway rather than creating its own — see
+`deploy/helm/flint-forge/templates/gateway-route.yaml`. Onboarding a new
+host on `ssr` (out-of-band, not done by this chart):
+
+1. Add a new `https-<name>` listener to `acme-http01-gateway` for the new
+   hostname, with `tls.certificateRefs` pointing at a Secret **in the same
+   namespace as the Gateway** (`envoy-gateway-system`) — cross-namespace
+   secret refs require a `ReferenceGrant` in the Secret's namespace, and the
+   pre-existing `https-forge` listener (for the unrelated
+   `forge.sansabaroyalty.com`) is broken today specifically because it
+   references a Secret in `flint-forge` without one. Do not repeat that
+   mistake; keep the cert Secret in `envoy-gateway-system`.
+2. Create a `cert-manager.io/v1 Certificate` in `envoy-gateway-system` for
+   the new hostname, `issuerRef` the `letsencrypt-http01` `ClusterIssuer`
+   (HTTP-01 via `gatewayHTTPRoute`, parented to `acme-http01-gateway`'s
+   `http` listener — this is separate from the `letsencrypt-prod`
+   ClusterIssuer used by the ingress-nginx path elsewhere on this cluster).
+3. Point DNS for the new hostname at `64.236.103.210`.
+4. Set `ingress.sharedGateway.httpsSectionName` in the tenant's values file
+   to the new listener's name.
+
+`forge-ssr.prometheusags.ai` (this deployment) and `gate-ssr.prometheusags.ai`
+(reserved for `flint-gate`) both follow this pattern today, with listeners
+`https-forge-ssr` and `https-gate-ssr`.
+
+**`values-ssr.yaml`** (`deploy/helm/flint-forge/values-ssr.yaml`) is the
+tenant values file for this cluster: `sansabaacr.azurecr.io` image repos,
+`ingress.host: forge-ssr.prometheusags.ai`. `backup` is left at the chart
+default (`enabled: false`) — `ssr` has no Workload Identity / wal-g
+infrastructure provisioned yet (unlike `main`, see §13.4); set it up the same
+way as §13.4 if backups are needed here later.
+
+**Auth — Service Principal with a client secret, not OIDC.** The operator
+account in the `sansabaroyalty` Azure AD tenant is a guest with insufficient
+privileges to create an App Registration or a federated credential (the
+object OIDC login needs — see `az ad app create` /
+`az ad app federated-credential create`, both denied with "Insufficient
+privileges"). `az ad sp create-for-rbac`, which creates a bare Service
+Principal with a client secret rather than a full App Registration, is a
+lower-privilege operation and succeeded:
+
+```bash
+az ad sp create-for-rbac --name "flint-forge-ssr-deploy" --skip-assignment
+# → { appId, password, tenant } — password is shown once, save it immediately
+
+az role assignment create --assignee <appId> --role AcrPush \
+  --scope /subscriptions/ddefe320-3f3e-45a6-8c68-9c49114af614/resourceGroups/sansaba-rg/providers/Microsoft.ContainerRegistry/registries/sansabaacr
+
+# ssr has no AAD integration (`az aks show` → aadProfile: null,
+# disableLocalAccounts: false) — kubeconfig access is authorized by this ARM
+# role, not Kubernetes-level AAD RBAC. "RBAC Writer" (the AAD-integrated
+# cluster's role) is a no-op here; use Cluster Admin Role instead.
+az role assignment create --assignee <appId> --role "Azure Kubernetes Service Cluster Admin Role" \
+  --scope /subscriptions/ddefe320-3f3e-45a6-8c68-9c49114af614/resourceGroups/sansaba-rg/providers/Microsoft.ContainerService/managedClusters/ssr
+```
+
+`deploy-ssr.yml`'s `azure/login@v2` step uses the `creds:` JSON form (client
+ID + client secret + tenant + subscription) rather than the `client-id`/
+`tenant-id`/`subscription-id` trio deploy-aks.yml uses for OIDC — the two are
+not interchangeable inputs to the same action. Correspondingly,
+`az aks get-credentials` passes `--admin` (fetches the cluster's local admin
+kubeconfig, authorized by the Cluster Admin Role above) rather than relying
+on AAD-issued kubectl tokens.
+
+Repo config, already set: `vars.AZURE_SSR_CLIENT_ID` / `AZURE_SSR_TENANT_ID`
+/ `AZURE_SSR_SUBSCRIPTION_ID`; `secrets.AZURE_SSR_CLIENT_SECRET` /
+`SSR_JWT_SECRET` / `SSR_POSTGRES_PASSWORD`; the `production-ssr` GitHub
+Environment (no required reviewers yet — add them the same way `production`
+gates `main` if that approval step is wanted here too).

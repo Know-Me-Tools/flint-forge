@@ -1,0 +1,25 @@
+{{- if .Values.ingress.enabled }}
+{{- $fullname := include "flint-forge.fullname" . }}
+# p16-c008: the shared Gateway's HTTPRoutes (gateway-route.yaml) live in
+# envoy-gateway-system and backendRef this Service's namespace — Gateway API
+# requires an explicit ReferenceGrant for any cross-namespace backendRef, or
+# the route is rejected with RefNotPermitted (see gateway-route.yaml's
+# comment on the pre-existing https-forge listener that shipped without one).
+# This grant lives in the app's own namespace, as required by the spec: it
+# authorizes references FROM envoy-gateway-system TO Services HERE.
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: {{ $fullname }}-httproute-backend
+  labels:
+    app.kubernetes.io/component: ingress
+    {{- include "flint-forge.labels" . | nindent 4 }}
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: {{ .Values.ingress.sharedGateway.namespace }}
+  to:
+    - group: ""
+      kind: Service
+{{- end }}

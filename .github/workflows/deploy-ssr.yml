@@ -1,0 +1,182 @@
+name: Deploy (AKS ssr / direct Helm)
+
+# p16-c008: flint-forge's second deploy target is the standalone `ssr` AKS
+# cluster (resource group sansaba-rg) — a fully separate Azure tenant and
+# subscription from `main`/prometheus-rg, with its own ACR
+# (sansabaacr.azurecr.io) and no ArgoCD or other in-cluster GitOps
+# controller. Unlike deploy-aks.yml (which commits an image tag and lets
+# ArgoCD reconcile it), this workflow deploys directly: build, push to
+# sansabaacr, then `helm upgrade --install` against the `ssr` cluster from
+# the runner. Auth to Azure is via a Service Principal with a client secret
+# (NOT OIDC) — `ssr` lives in the sansabaroyalty Azure AD tenant
+# (a4afd01b-3821-4d20-b75c-fad81d76f84d), where this org's operator account
+# is a guest with insufficient privileges to create an App Registration or
+# federated credential (the object OIDC needs). A plain Service Principal
+# (`az ad sp create-for-rbac`) was a lower-privilege operation that
+# succeeded instead — a SEPARATE identity from AZURE_CLIENT_ID used by
+# deploy-aks.yml, since Azure AD principals are tenant-scoped. That SP holds
+# AcrPush on sansabaacr and the "Azure Kubernetes Service Cluster Admin
+# Role" on `ssr` — this cluster has no AAD integration
+# (`aadProfile: null`, local accounts enabled), so kubeconfig access is
+# authorized via that ARM role, not Kubernetes-level AAD RBAC. See
+# docs/runbook.md §13.9.
+#
+# The shared Envoy Gateway + cert-manager Certificate for
+# forge-ssr.prometheusags.ai already exist on `ssr` (provisioned
+# out-of-band) — this workflow only deploys the app; it does not touch
+# Gateway/Certificate objects.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "crates/**"
+      - "docker/**"
+      - "images/postgres18/**"
+      - "deploy/helm/flint-forge/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/deploy-ssr.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-ssr
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  ACR: sansabaacr.azurecr.io
+  AKS_CLUSTER: ssr
+  AKS_RESOURCE_GROUP: sansaba-rg
+  RELEASE_NAME: flint-forge
+  RELEASE_NAMESPACE: flint-forge
+
+jobs:
+  build-and-push:
+    name: Build & push images
+    runs-on: ubuntu-latest
+    environment: production-ssr
+    outputs:
+      sha: ${{ steps.sha.outputs.short }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Azure login (Service Principal, client secret)
+        uses: azure/login@v2
+        with:
+          # Client ID/tenant ID are not secrets on their own, but the
+          # `creds` JSON form (vs. the OIDC client-id/tenant-id/
+          # subscription-id trio) is required here since this SP
+          # authenticates with a client secret, not federated OIDC — see
+          # the file-level comment above for why.
+          creds: |
+            {
+              "clientId": "${{ vars.AZURE_SSR_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_SSR_CLIENT_SECRET }}",
+              "subscriptionId": "${{ vars.AZURE_SSR_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ vars.AZURE_SSR_TENANT_ID }}"
+            }
+
+      - name: ACR login
+        run: az acr login --name "${{ env.ACR }}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push fdb-gateway
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/fdb-gateway/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ACR }}/flint-forge/gateway:${{ steps.sha.outputs.short }}
+            ${{ env.ACR }}/flint-forge/gateway:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push fke-server
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/fke-server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ACR }}/flint-forge/kiln:${{ steps.sha.outputs.short }}
+            ${{ env.ACR }}/flint-forge/kiln:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push postgres18 (wal-g image)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: images/postgres18/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ACR }}/flint-forge/postgres18:${{ steps.sha.outputs.short }}
+            ${{ env.ACR }}/flint-forge/postgres18:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: helm upgrade --install (ssr)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production-ssr
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (Service Principal, client secret)
+        uses: azure/login@v2
+        with:
+          creds: |
+            {
+              "clientId": "${{ vars.AZURE_SSR_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_SSR_CLIENT_SECRET }}",
+              "subscriptionId": "${{ vars.AZURE_SSR_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ vars.AZURE_SSR_TENANT_ID }}"
+            }
+
+      - name: Get AKS credentials
+        run: |
+          # --admin: `ssr` has no AAD integration (aadProfile: null, local
+          # accounts enabled) — the SP's "Cluster Admin Role" authorizes
+          # fetching the local admin kubeconfig, not an AAD-RBAC one.
+          az aks get-credentials \
+            --resource-group "${{ env.AKS_RESOURCE_GROUP }}" \
+            --name "${{ env.AKS_CLUSTER }}" \
+            --admin \
+            --overwrite-existing
+
+      - name: helm upgrade --install
+        env:
+          SHA: ${{ needs.build-and-push.outputs.sha }}
+        run: |
+          helm upgrade --install "${{ env.RELEASE_NAME }}" deploy/helm/flint-forge \
+            --namespace "${{ env.RELEASE_NAMESPACE }}" \
+            --create-namespace \
+            -f deploy/helm/flint-forge/values-ssr.yaml \
+            --set postgres.image.tag="${SHA}" \
+            --set postgres.password="${{ secrets.SSR_POSTGRES_PASSWORD }}" \
+            --set gateway.image.tag="${SHA}" \
+            --set kiln.image.tag="${SHA}" \
+            --set secrets.jwtSecret="${{ secrets.SSR_JWT_SECRET }}" \
+            --wait --timeout 10m
+
+      - name: Summary
+        run: |
+          echo "### Deployed to ssr" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Cluster | ${{ env.AKS_CLUSTER }} (${{ env.AKS_RESOURCE_GROUP }}) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image tag | ${{ needs.build-and-push.outputs.sha }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Host | https://forge-ssr.prometheusags.ai |" >> "$GITHUB_STEP_SUMMARY"

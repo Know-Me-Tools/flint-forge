@@ -118,24 +118,30 @@ backup:
     scratchVolumeSize: 10Gi
 
 # ------------------------------------------------------------------------------
-# External access (p16-c008) — Kubernetes Gateway API (Envoy Gateway), matching
-# the pattern every other app on the shared `main` AKS cluster already uses
-# (see e.g. the `firecrawl` namespace's Gateway/HTTPRoute pair): a dedicated
-# Gateway per app, HTTP (port 80) redirecting to HTTPS (port 443), TLS
-# terminated from a cert-manager-issued Secret. Unlike the *.prometheusags.ai
-# apps (which share one pre-issued wildcard cert), this issues its own
-# single-host certificate via HTTP-01 — no wildcard, so no DNS-01/Azure DNS
-# access is needed, only DNS pointing `host` at the cluster's shared Envoy
-# Gateway LoadBalancer IP.
+# External access (p16-c008) — Kubernetes Gateway API (Envoy Gateway). Every
+# app on a shared cluster (`main` or `ssr`) attaches HTTPRoutes to that
+# cluster's one pre-existing shared `acme-http01-gateway` object in
+# envoy-gateway-system, rather than creating a dedicated Gateway per app — the
+# Gateway itself (and its per-host HTTPS listener + cert-manager Certificate)
+# is provisioned once, out-of-band, by cluster ops, not by this chart. TLS is
+# a single-host certificate issued via HTTP-01 through that Gateway's `http`
+# listener — no wildcard, so no DNS-01/Azure DNS access is needed, only DNS
+# pointing `host` at the cluster's shared Envoy Gateway LoadBalancer IP.
 # ------------------------------------------------------------------------------
 ingress:
   enabled: false
   host: ""
-  gatewayClassName: eg
-  # cert-manager ClusterIssuer using the gatewayHTTPRoute HTTP-01 solver
-  # (routes ACME challenges through the cluster-wide acme-http01-gateway in
-  # envoy-gateway-system) — already provisioned on `main`, not created here.
-  clusterIssuer: letsencrypt-http01
+  # Name + namespace of the cluster's pre-existing shared Gateway object.
+  sharedGateway:
+    name: acme-http01-gateway
+    namespace: envoy-gateway-system
+    # sectionName of the HTTPS listener bound to `host` on the shared
+    # Gateway (e.g. https-forge-ssr) — created out-of-band per cluster/host,
+    # not by this chart.
+    httpsSectionName: ""
+    # sectionName of the shared HTTP (port 80) listener used for the
+    # redirect route.
+    httpSectionName: http
 
 # ------------------------------------------------------------------------------
 # Secrets
