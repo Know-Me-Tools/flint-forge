@@ -1,10 +1,10 @@
 POSITION REMINDER — read this as your FIRST tool call every turn
 Phase: p16-production-remediation
-Step: 8 of 9
-Stage: executing
-Next command: /kbd-apply p16-c008-production-operations (after the operator deploys to a real cluster and the restore-drill CronJob produces a result)
+Step: 9 of 9
+Stage: changes_complete
+Next command: /kbd-reflect p16-production-remediation
 
 Required signal format (emit BEFORE any tool call):
-  Starting <kbd-skill> — p16-production-remediation (step 8 of 9)
+  Starting <kbd-skill> — p16-production-remediation (step 9 of 9)
   [do work]
-  Completed <kbd-skill> — p16-production-remediation (step 8 of 9)
+  Completed <kbd-skill> — p16-production-remediation (step 9 of 9)
