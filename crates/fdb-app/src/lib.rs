@@ -1,5 +1,6 @@
 //! Flint Quarry application layer — use-cases composed against ports.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 pub mod a2ui;
 pub mod graphql;
@@ -24,10 +25,15 @@ use std::sync::Arc;
 /// `pep` is `Option<Arc<dyn Pep>>` — the Cedar policy enforcement point.
 /// When `Some`, mutation use-cases call `Pep::check()` after the Keto gate.
 pub struct Quarry {
+    /// REST query/mutation executor adapter (Postgres-backed in production).
     pub rest: Arc<dyn RestExecutor>,
+    /// GraphQL Query/Mutation executor adapter, delegating to `graphql.resolve()`.
     pub graphql: Arc<dyn GraphQlExecutor>,
+    /// Change-stream source for subscriptions (gRPC client of the realtime fabric).
     pub changes: Arc<dyn ChangeStreamSource>,
+    /// Optional Keto relation-check gate for mutations; `None` disables the gate.
     pub keto: Option<Arc<dyn KetoCheck>>,
+    /// Optional Cedar policy enforcement point; `None` disables the gate.
     pub pep: Option<Arc<dyn Pep>>,
 }
 
@@ -67,6 +73,9 @@ pub enum SubscriptionError {
 }
 
 impl Quarry {
+    /// Construct a `Quarry` from the three mandatory adapters, with no Keto
+    /// gate and no Cedar PEP attached. Use [`Quarry::with_keto`] and
+    /// [`Quarry::with_pep`] to attach those gates at composition time.
     pub fn new(
         rest: Arc<dyn RestExecutor>,
         graphql: Arc<dyn GraphQlExecutor>,

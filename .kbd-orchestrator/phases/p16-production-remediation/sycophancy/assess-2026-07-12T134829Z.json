@@ -1,0 +1,12 @@
+{
+  "skill_id": "sycophancy.correction",
+  "strictness": "standard",
+  "target": "completion",
+  "evaluation_domain": "project_assessment",
+  "sycophancy_score": 0.0,
+  "correction_mandatory": false,
+  "classifications": [],
+  "delta_summary": "No changes needed: score below clean threshold and no sycophancy patterns were detected.",
+  "executed_at": "2026-07-12T13:48:29.746415Z",
+  "note": "Assessment content is critical/negative-focused per VGV + audit methodology; no S-01..S-08 patterns present. Also confirms an earlier detect on the initial audit summary scored 0.0."
+}

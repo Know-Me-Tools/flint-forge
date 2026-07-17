@@ -359,6 +359,7 @@ fn render_embed_item(
                 use std::fmt::Write as _;
                 // LIMIT/OFFSET must live in a derived table; json_agg aggregates it.
                 let mut derived = format!("SELECT * FROM {child} {alias} WHERE {where_sql}");
+                // `write!` into a `String` is infallible; discarding the `Result` is safe (all three sites below).
                 if !order_terms.is_empty() {
                     let _ = write!(derived, " ORDER BY {order_terms}");
                 }

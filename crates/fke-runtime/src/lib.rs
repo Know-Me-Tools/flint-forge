@@ -499,41 +499,32 @@ fn build_linker(engine: &Engine, granted: &[Capability]) -> Result<Linker<KilnHo
     .context("add wasi-http to linker")?;
 
     if granted.contains(&Capability::Db) {
-        wt(host_bindings::flint::host::db::add_to_linker::<_, HasSelf<_>>(
-            &mut linker,
-            |s| s,
-        ))
-        .context("add flint:host/db to linker")?;
+        wt(host_bindings::flint::host::db::add_to_linker::<_, HasSelf<_>>(&mut linker, |s| s))
+            .context("add flint:host/db to linker")?;
     }
     if granted.contains(&Capability::Llm) {
-        wt(
-            host_bindings::flint::host::llm::add_to_linker::<_, HasSelf<_>>(&mut linker, |s| s),
-        )
+        wt(host_bindings::flint::host::llm::add_to_linker::<
+            _,
+            HasSelf<_>,
+        >(&mut linker, |s| s))
         .context("add flint:host/llm to linker")?;
     }
     if granted.contains(&Capability::Kv) {
-        wt(host_bindings::flint::host::kv::add_to_linker::<_, HasSelf<_>>(
-            &mut linker,
-            |s| s,
-        ))
-        .context("add flint:host/kv to linker")?;
+        wt(host_bindings::flint::host::kv::add_to_linker::<_, HasSelf<_>>(&mut linker, |s| s))
+            .context("add flint:host/kv to linker")?;
     }
     if granted.contains(&Capability::Identity) {
-        wt(
-            host_bindings::flint::host::identity::add_to_linker::<_, HasSelf<_>>(
-                &mut linker,
-                |s| s,
-            ),
-        )
+        wt(host_bindings::flint::host::identity::add_to_linker::<
+            _,
+            HasSelf<_>,
+        >(&mut linker, |s| s))
         .context("add flint:host/identity to linker")?;
     }
     if granted.contains(&Capability::Secrets) {
-        wt(
-            host_bindings::flint::host::secrets::add_to_linker::<_, HasSelf<_>>(
-                &mut linker,
-                |s| s,
-            ),
-        )
+        wt(host_bindings::flint::host::secrets::add_to_linker::<
+            _,
+            HasSelf<_>,
+        >(&mut linker, |s| s))
         .context("add flint:host/secrets to linker")?;
     }
 
@@ -827,7 +818,8 @@ mod tests {
 
         let rt = EdgeRuntime::new().expect("construct");
         let id = ContentId("sha256:hello-component-test".into());
-        rt.load_wasm(id.clone(), &wasm_bytes, &HELLO_COMPONENT_CAPS).expect("load_wasm");
+        rt.load_wasm(id.clone(), &wasm_bytes, &HELLO_COMPONENT_CAPS)
+            .expect("load_wasm");
 
         let req = KilnRequest {
             method: "GET".into(),
@@ -950,7 +942,8 @@ mod tests {
         };
         let rt = EdgeRuntime::new().expect("construct");
         let id = ContentId("sha256:hello-component-epoch-test".into());
-        rt.load_wasm(id.clone(), &wasm_bytes, &HELLO_COMPONENT_CAPS).expect("load_wasm");
+        rt.load_wasm(id.clone(), &wasm_bytes, &HELLO_COMPONENT_CAPS)
+            .expect("load_wasm");
 
         let req = KilnRequest {
             method: "GET".into(),

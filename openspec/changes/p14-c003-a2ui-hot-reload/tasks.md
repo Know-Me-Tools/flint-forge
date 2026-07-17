@@ -2,7 +2,7 @@
 
 ## Tasks
 
-- [x] Create `migrations/0010_a2ui_change_notify.sql` — `notify_meta_runtime()` function + triggers on `flint_a2ui.components` and `flint_a2ui.applications`
+- [x] Create `migrations/0012_a2ui_change_notify.sql` — `notify_meta_runtime()` function + triggers on `flint_a2ui.components` and `flint_a2ui.applications` (p16-c006 reconcile: corrected filename — the original checkbox said `0010`, which was already taken by `0010_flint_kiln.sql`; content/functionality otherwise matches exactly)
 - [x] Add `broadcast_all(event)` method to `AgUiState` in `routes/agui.rs` — iterates all run channels and sends
 - [x] Wire `state_manager.subscribe_version()` → `broadcast_all(StateSnapshot)` in `main.rs`
 - [x] ~~Add `StateSnapshot { version: u64 }` variant to `AgUiEvent` in `fdb-domain/src/lib.rs`~~ — REUSED existing `StateSnapshot { run_id, state }` variant instead (additive change, no breaking shape edit). Schema version is carried as `state: { "schema_version": version }` with `run_id: "schema"`, matching the existing p7-c007 propagation convention.

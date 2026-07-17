@@ -1,0 +1,174 @@
+name: Deploy (AKS / ArgoCD)
+
+# p16-c008: flint-forge's real production target is the shared, multi-tenant
+# AKS cluster `main` (resource group prometheus-rg) — the same cluster and
+# ArgoCD instance already used by firecrawl, hotseaters, and other projects
+# in this org. There is no single SSH-reachable "production host": ArgoCD
+# (running in-cluster, see the `argocd` namespace) continuously syncs each
+# tenant's Application from deploy/helm/flint-forge + its
+# deploy/helm/flint-forge/values-<tenant>.yaml (see
+# deploy/argocd/flint-forge-applicationset.yaml).
+#
+# This workflow's only job is: build images, push to the shared ACR
+# (prometheusagsacr.azurecr.io), then commit the new tag into the tenant
+# values file — that commit IS the deploy. ArgoCD picks it up and reconciles
+# automatically (selfHeal: true). No SSH, no static cloud credentials: auth
+# to Azure is via GitHub OIDC federated to the `github-actions-aks-deploy`
+# Azure AD app (see docs/runbook.md §13.2), which holds only AcrPush on the
+# registry — it cannot touch the cluster directly, matching the existing
+# convention used by every other project on this cluster.
+#
+# The `production` GitHub Environment (required reviewers) still gates this
+# job — the same approval gate previously wired to the old SSH-based
+# deploy.yml now protects this one instead.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "crates/**"
+      - "docker/**"
+      - "images/postgres18/**"
+      - "deploy/helm/flint-forge/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/deploy-aks.yml"
+  workflow_dispatch:
+    inputs:
+      tenant:
+        description: 'Tenant values file to update (deploy/helm/flint-forge/values-<tenant>.yaml)'
+        required: true
+        default: flint-forge
+
+concurrency:
+  group: deploy-aks-${{ inputs.tenant || 'flint-forge' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # to commit the updated image tag back to main
+  id-token: write    # for Azure OIDC login (no stored credentials)
+
+env:
+  ACR: prometheusagsacr.azurecr.io
+  TENANT: ${{ inputs.tenant || 'flint-forge' }}
+
+jobs:
+  build-and-push:
+    name: Build & push images
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      sha: ${{ steps.sha.outputs.short }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Azure login (OIDC, keyless)
+        uses: azure/login@v2
+        with:
+          # Client/tenant/subscription IDs are not secrets under OIDC
+          # federation (there is no shared secret to leak) — repo Variables,
+          # per azure/login's own convention, not Environment secrets.
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR login
+        run: az acr login --name "${{ env.ACR }}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push fdb-gateway
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/fdb-gateway/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ACR }}/flint-forge/gateway:${{ steps.sha.outputs.short }}
+            ${{ env.ACR }}/flint-forge/gateway:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push fke-server
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/fke-server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ACR }}/flint-forge/kiln:${{ steps.sha.outputs.short }}
+            ${{ env.ACR }}/flint-forge/kiln:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push postgres18 (wal-g image)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: images/postgres18/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ACR }}/flint-forge/postgres18:${{ steps.sha.outputs.short }}
+            ${{ env.ACR }}/flint-forge/postgres18:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  update-gitops-tag:
+    name: Commit new tag (triggers ArgoCD sync)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Install yq
+        uses: mikefarah/yq@v4.44.3
+
+      - name: Pin image tags in tenant values
+        run: |
+          FILE="deploy/helm/flint-forge/values-${{ env.TENANT }}.yaml"
+          SHA="${{ needs.build-and-push.outputs.sha }}"
+          if [ ! -f "$FILE" ]; then
+            echo "::error::$FILE does not exist — is TENANT ('${{ env.TENANT }}') correct?"
+            exit 1
+          fi
+          yq -i "
+            .postgres.image.tag = \"${SHA}\" |
+            .gateway.image.tag = \"${SHA}\" |
+            .kiln.image.tag = \"${SHA}\"
+          " "$FILE"
+          cat "$FILE"
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "deploy/helm/flint-forge/values-${{ env.TENANT }}.yaml"
+          if git diff --cached --quiet; then
+            echo "No tag change — nothing to deploy."
+            exit 0
+          fi
+          git commit -m "deploy(${{ env.TENANT }}): pin images to ${{ needs.build-and-push.outputs.sha }} [skip ci]"
+          git push origin HEAD:main
+
+      - name: Summary
+        run: |
+          echo "### Deploy queued for ArgoCD" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Tenant | ${{ env.TENANT }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image tag | ${{ needs.build-and-push.outputs.sha }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ArgoCD Application | ${{ env.TENANT }} (namespace ${{ env.TENANT }}) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "ArgoCD auto-syncs within its poll interval (selfHeal: true). Watch with:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "kubectl get application ${{ env.TENANT }} -n argocd -w" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

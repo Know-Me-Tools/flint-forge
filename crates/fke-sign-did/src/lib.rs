@@ -33,6 +33,7 @@
 //! Verification fails with `SignError::Expired` if the current UTC time falls
 //! outside the window.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 use std::collections::HashMap;
 use std::sync::Mutex;

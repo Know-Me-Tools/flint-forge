@@ -1,5 +1,6 @@
 //! ComponentStore adapter: IPFS (Kubo HTTP API). Content-addressed.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 use async_trait::async_trait;
 use fke_domain::ContentId;
@@ -46,6 +47,13 @@ impl ComponentStore for StoreIpfs {
     /// Upload bytes to IPFS via `POST /api/v0/add`.
     ///
     /// Returns the CID reported by Kubo in the `Hash` field of the JSON response.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Io`] if: the request cannot be sent (Kubo
+    /// unreachable, connection reset, timeout); Kubo responds with a non-2xx
+    /// status; the response body is not valid UTF-8/JSON; or the JSON body is
+    /// missing the expected `Hash` field.
     async fn put(&self, bytes: &[u8]) -> Result<ContentId, StoreError> {
         let url = format!("{}/api/v0/add", self.base_url);
 
@@ -94,6 +102,13 @@ impl ComponentStore for StoreIpfs {
     }
 
     /// Fetch content by CID via `POST /api/v0/cat?arg=<cid>`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::NotFound`] when Kubo responds `404` (the CID is
+    /// not pinned/known to this node). Returns [`StoreError::Io`] if the
+    /// request cannot be sent, Kubo responds with any other non-2xx status,
+    /// or the response body cannot be read.
     async fn get(&self, id: &ContentId) -> Result<Vec<u8>, StoreError> {
         let url = format!("{}/api/v0/cat", self.base_url);
 

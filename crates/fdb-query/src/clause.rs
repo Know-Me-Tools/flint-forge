@@ -188,7 +188,9 @@ pub enum OrderError {
 /// Pagination bounds resolved from `limit`/`offset` params or a `Range` header.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Limits {
+    /// Maximum number of rows to return (`LIMIT`); `None` renders no clause.
     pub limit: Option<u64>,
+    /// Number of rows to skip before the first returned row (`OFFSET`); `None` renders no clause.
     pub offset: Option<u64>,
 }
 
@@ -237,6 +239,7 @@ impl Limits {
     pub fn to_sql(&self) -> String {
         use std::fmt::Write as _;
         let mut out = String::new();
+        // `write!` into a `String` is infallible; discarding the `Result` is safe (both sites below).
         if let Some(l) = self.limit {
             let _ = write!(out, " LIMIT {l}");
         }
@@ -256,7 +259,12 @@ pub enum RangeError {
     Malformed(String),
     /// `end` was less than `start`.
     #[error("inverted Range: {start}-{end}")]
-    Inverted { start: u64, end: u64 },
+    Inverted {
+        /// The range's starting offset, as parsed from the header.
+        start: u64,
+        /// The range's ending offset, which was less than `start`.
+        end: u64,
+    },
 }
 
 /// The `count` strategy from `Prefer: count=exact|planned|estimated`.

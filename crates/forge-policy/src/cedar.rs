@@ -46,10 +46,20 @@ pub struct PolicyEntry {
 #[non_exhaustive]
 #[derive(Debug, thiserror::Error)]
 pub enum PolicyLoadError {
+    /// The [`PolicySource`] could not be reached (e.g. the backing database
+    /// query failed). The engine keeps its previously loaded `PolicySet`.
     #[error("policy source unavailable")]
     SourceUnavailable,
+    /// The policy entry identified by `id` failed to parse as valid Cedar
+    /// policy source text. The whole reload is rejected — a single bad
+    /// policy does not partially update the set.
     #[error("policy parse failed for id {id}")]
-    ParseFailed { id: String },
+    ParseFailed {
+        /// The [`PolicyEntry::id`] of the policy that failed to parse.
+        id: String,
+    },
+    /// A syntactically valid policy could not be added to the in-progress
+    /// `PolicySet` (e.g. a duplicate `PolicyId`).
     #[error("policy set assembly failed")]
     AssemblyFailed,
 }
@@ -62,6 +72,12 @@ pub trait PolicySource: Send + Sync {
     /// Load all enabled policy entries. Returning an error causes the engine
     /// to fall back to the last-known-good `PolicySet` (or an empty set on
     /// first load — which denies everything).
+    ///
+    /// # Errors
+    /// Implementations should return [`PolicyLoadError::SourceUnavailable`]
+    /// when the backing store cannot be reached; other [`PolicyLoadError`]
+    /// variants are produced by the caller ([`CedarPolicyEngine::reload`])
+    /// while compiling the returned entries, not by `load` itself.
     async fn load(&self) -> Result<Vec<PolicyEntry>, PolicyLoadError>;
 }
 
@@ -85,8 +101,15 @@ impl CedarPolicyEngine {
             source,
             policies: arc_swap::ArcSwap::new(Arc::new(PolicySet::new())),
         };
-        // Best-effort initial load; ignore errors (start deny-all).
-        let _ = engine.reload().await;
+        // Best-effort initial load; a failure here is fail-closed-safe (the
+        // engine already starts deny-all), but it's an operational blind spot
+        // if it goes unnoticed — a down/misconfigured policy source would
+        // otherwise leave the gateway silently denying every request with no
+        // trace of why. `PolicyLoadError` never carries policy text or
+        // principal identifiers, so it's safe to log.
+        if let Err(e) = engine.reload().await {
+            tracing::warn!(error = %e, "initial Cedar policy load failed; starting deny-all");
+        }
         engine
     }
     /// Create an engine with a static policy set (for tests).
@@ -102,6 +125,14 @@ impl CedarPolicyEngine {
     /// active `PolicySet`. On failure, the previous set is retained.
     ///
     /// SECURITY: policy text and principal identifiers MUST NOT appear in spans.
+    ///
+    /// # Errors
+    /// - [`PolicyLoadError::SourceUnavailable`] — propagated from
+    ///   [`PolicySource::load`] when the backing store could not be reached
+    /// - [`PolicyLoadError::ParseFailed`] — one of the loaded entries is not
+    ///   valid Cedar policy source text
+    /// - [`PolicyLoadError::AssemblyFailed`] — a parsed policy could not be
+    ///   added to the new `PolicySet` (e.g. a duplicate id)
     #[instrument(skip(self), fields(action = "reload"))]
     pub async fn reload(&self) -> Result<(), PolicyLoadError> {
         let entries = self.source.load().await?;

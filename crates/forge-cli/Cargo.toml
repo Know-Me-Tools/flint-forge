@@ -23,6 +23,7 @@ base64 = { workspace = true }
 sha2 = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
+ed25519-dalek = { workspace = true }
 jsonwebtoken = { workspace = true }
 sqlx = { workspace = true }
 fke-domain = { path = "../fke-domain" }

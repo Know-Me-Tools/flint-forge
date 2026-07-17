@@ -4,6 +4,7 @@ on:
     branches: ['**']
   pull_request:
     branches: ['**']
+  workflow_dispatch: {}
 
 jobs:
   rust:
@@ -11,9 +12,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # p16-c009: full history needed so scripts/check_coverage.sh can diff
+          # against the PR base ref to determine which crates changed.
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt, clippy, llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
       - name: fmt
         run: cargo fmt --all --check
@@ -21,6 +26,20 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test
         run: cargo test --workspace
+      # p16-c009: coverage gate — >=90% line coverage on crates this PR
+      # touches (not workspace-wide, to avoid punishing legacy low-coverage
+      # areas in one PR); workspace-wide total is always printed as a metric.
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+      - name: Coverage gate
+        run: bash scripts/check_coverage.sh
+      # p16-c009: license + advisory policy, alongside the existing cargo-audit
+      # advisory-only gate below. See deny.toml for the allowed-license list
+      # and any explicitly-permitted exceptions.
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+      - name: License + advisory policy (cargo-deny)
+        run: cargo deny check licenses advisories
       # p10-c003: Security advisory gate. Fails on any unfixed advisory with
       # CVSS >= 7.0 that is not in .cargo/audit.toml allowlist.
       # Allowlisted: quick-xml (DoS via operator-controlled S3), rsa/sqlx-mysql
@@ -81,21 +100,20 @@ jobs:
         run: ./scripts/ci-test.sh
 
 # ── Performance regression gate ───────────────────────────────────────────────
-# p10-c005: Runs k6 regression.js against a live staging stack.
-# Triggered manually (workflow_dispatch) only — requires STAGING_BASE_URL secret
-# and a valid STAGING_SMOKE_TOKEN. Not a required gate for PRs (staging dependency).
-#
-# To trigger:
-#   GitHub → Actions → CI → Run workflow → supply environment inputs.
-#
-# To update thresholds after measuring baselines:
-#   1. Run individual scripts (health.js, components.js, mcp_tools.js) against staging.
-#   2. Record P50/P95/P99 in docs/performance.md.
-#   3. Update threshold values in perf/k6/regression.js to measured_p99 * 1.20.
+# p16-c008: there is no separate "staging" host — the only environment that
+# exists short of a real client deployment is this repo's own
+# docker-compose.yml stack, so that's what gets measured. Runs automatically
+# on every push to main (self-updating baseline) and on manual dispatch;
+# skipped on PRs to keep PR CI fast. handleSummary() in regression.js emits
+# perf-summary.json with the measured p99s, which this job uses to rewrite
+# its own thresholds/BASELINE_DATE/BASELINE_SOURCE and commit the result —
+# no human runs this by hand.
   performance:
     name: k6 Performance Regression
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -109,8 +127,80 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y k6
 
+      - name: Start the stack (docker-compose.yml — the only 'staging' that exists)
+        run: docker compose -f docker-compose.yml up -d --build
+
+      - name: Wait for stack healthy
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/healthz > /dev/null && \
+            curl -sf http://localhost:8090/healthz > /dev/null && \
+            echo "Stack healthy" && exit 0
+            echo "Waiting ($i/60)..."; sleep 3
+          done
+          echo "Timed out waiting for stack" >&2
+          docker compose -f docker-compose.yml logs --tail 200
+          exit 1
+
+      - name: Mint smoke token
+        run: |
+          chmod +x scripts/mint_smoke_token.sh
+          echo "SMOKE_TOKEN=$(JWT_SECRET=change-me-in-production ./scripts/mint_smoke_token.sh)" >> "$GITHUB_ENV"
+
       - name: Run regression suite
         env:
-          BASE_URL: ${{ secrets.STAGING_BASE_URL }}
-          TOKEN:    ${{ secrets.STAGING_SMOKE_TOKEN }}
+          BASE_URL: http://localhost:8080
+          TOKEN: ${{ env.SMOKE_TOKEN }}
         run: k6 run perf/k6/regression.js
+
+      - name: Record results
+        id: record
+        run: |
+          DATE="$(date -u +%Y-%m-%d)"
+          RESULTS_FILE="perf/results/${DATE}-docker-compose-ci.json"
+          mkdir -p perf/results
+          cp perf-summary.json "$RESULTS_FILE"
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+
+          python3 - "$RESULTS_FILE" "$DATE" <<'PYEOF'
+          import json, re, sys, math
+          results_file, date = sys.argv[1], sys.argv[2]
+          summary = json.load(open(results_file))
+          reg_path = "perf/k6/regression.js"
+          src = open(reg_path).read()
+          for endpoint, p99 in summary.items():
+              if p99 is None:
+                  continue
+              threshold = math.ceil(p99 * 1.20 / 5) * 5  # round up to nearest 5ms
+              pattern = re.compile(
+                  r"('http_req_duration\{endpoint:%s\}':\s*\['p\(99\)<)\d+(']),.*" % re.escape(endpoint)
+              )
+              replacement = r"\g<1>%d\g<2>,   // measured %.1f ms × 1.20, %s docker-compose CI" % (threshold, p99, date)
+              src, n = pattern.subn(replacement, src)
+              if n == 0:
+                  print(f"::warning::no threshold line matched for endpoint '{endpoint}' — leaving as-is")
+          src = re.sub(r"const BASELINE_DATE\s*=\s*'[^']*';", f"const BASELINE_DATE   = '{date}';", src)
+          src = re.sub(
+              r"const BASELINE_SOURCE\s*=\s*'[^']*';",
+              "const BASELINE_SOURCE = 'docker-compose.yml stack, measured in CI (.github/workflows/ci.yml performance job)';",
+              src,
+          )
+          open(reg_path, "w").write(src)
+          print(f"Updated thresholds from {results_file}: {summary}")
+          PYEOF
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose -f docker-compose.yml down -v
+
+      - name: Commit updated baseline
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add perf/results/ perf/k6/regression.js
+          if git diff --cached --quiet; then
+            echo "No measurable change — nothing to commit."
+            exit 0
+          fi
+          git commit -m "perf: update k6 regression thresholds from ${{ steps.record.outputs.date }} docker-compose CI run [skip ci]"
+          git push origin HEAD:${{ github.ref_name }}

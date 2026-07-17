@@ -54,8 +54,16 @@ pub fn secret_reveal_request(secret_name: &str) -> Request {
 /// Convenience trait for checking Kiln capabilities against any [`Pep`].
 #[async_trait]
 pub trait KilnPep {
+    /// Check whether `who` may invoke a Kiln edge function (data-plane
+    /// execution).
     async fn can_invoke(&self, who: &RlsContext) -> Decision;
+    /// Check whether `who` may register a new function or update an
+    /// existing one (control-plane write).
     async fn can_register(&self, who: &RlsContext) -> Decision;
+    /// Check whether `who` may use a specific `flint:host` capability
+    /// (`db`, `llm`, `kv`, `identity`, `secrets`, `http_outgoing`) that a
+    /// component's manifest declares. Distinct from `can_invoke`, which gates
+    /// whether the caller may run the function at all.
     async fn can_use_capability(&self, who: &RlsContext, capability: &str) -> Decision;
 }
 
@@ -105,6 +113,9 @@ mod tests {
         let r = secret_reveal_request("db-password");
         assert_eq!(r.action, KILN_SECRET_REVEAL);
         assert_eq!(r.resource, "kiln:secret:db-password");
-        assert_ne!(secret_reveal_request("a").resource, secret_reveal_request("b").resource);
+        assert_ne!(
+            secret_reveal_request("a").resource,
+            secret_reveal_request("b").resource
+        );
     }
 }

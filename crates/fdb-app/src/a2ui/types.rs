@@ -8,11 +8,17 @@
 /// including any per-application and per-design-system overrides applied.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ResolvedComponent {
+    /// Unique component identifier, matches `flint_a2ui.components.slug`.
     pub slug: String,
+    /// The underlying primitive UI element this component renders as (e.g. `button`, `input`).
     pub primitive_type: String,
+    /// Grouping used to organize components in the registry UI and SDK catalogs.
     pub category: String,
+    /// JSON Schema describing the component's accepted props.
     pub schema: serde_json::Value,
+    /// Human-readable description shown in the registry and generated SDK docs.
     pub description: Option<String>,
+    /// Which SDK renderers (React, Flutter, HTMX) support this component.
     pub renderers: Renderers,
     /// Merged prop defaults from component_overrides (empty object if none)
     pub prop_defaults: serde_json::Value,
@@ -32,8 +38,11 @@ pub struct ResolvedComponent {
 /// A component with `htmx: false` is excluded from the HTMX renderer template set.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Renderers {
+    /// Whether the React SDK renders this component.
     pub react: bool,
+    /// Whether the Flutter SDK renders this component.
     pub flutter: bool,
+    /// Whether the HTMX/Askama renderer renders this component.
     pub htmx: bool,
 }
 
@@ -55,8 +64,10 @@ impl Default for Renderers {
 /// Reference: <https://design-tokens.org/schema/2024>
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct DesignToken {
+    /// The token's literal value (e.g. a color, dimension, or font-family string).
     #[serde(rename = "$value")]
     pub value: String,
+    /// The DTCG token type (e.g. `"color"`, `"dimension"`, `"fontFamily"`).
     #[serde(rename = "$type")]
     pub token_type: String,
 }
@@ -75,6 +86,9 @@ pub struct DesignToken {
 pub struct DesignTokenMap(pub serde_json::Value);
 
 impl DesignTokenMap {
+    /// Build an empty token map (an empty JSON object), used as the default
+    /// when a design system has not yet imported any tokens.
+    #[must_use]
     pub fn empty() -> Self {
         Self(serde_json::Value::Object(serde_json::Map::default()))
     }

@@ -21,6 +21,18 @@ pub enum QueryParam {
     /// A SQL `NULL` placeholder. Rare — most nullability is expressed via the
     /// `is` operator's inlined literal, but bulk-insert `missing=default` uses it.
     Null,
+    /// A `pgvector` embedding, bound with an explicit `::vector` cast at the
+    /// call site. Produced by `/rpc` argument binding when a function
+    /// parameter's declared type is `vector(N)`.
+    Vector(Vec<f32>),
+    /// A native `bigint` value — e.g. `LIMIT`/`OFFSET`. Bind this (not
+    /// `Text` + an explicit `::bigint` cast) for any placeholder whose SQL
+    /// context makes Postgres infer an `int8` parameter type on its own
+    /// (`LIMIT $n`, `OFFSET $n`): the client-side `ToSql` type check runs
+    /// against the *inferred* type, and `Text`'s `accepts()` does not
+    /// include `INT8` — a `Text`-bound value there fails to serialize before
+    /// the query ever reaches the server.
+    BigInt(i64),
 }
 
 impl QueryParam {

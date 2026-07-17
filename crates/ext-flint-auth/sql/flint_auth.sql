@@ -12,7 +12,13 @@ BEGIN
         CREATE ROLE anon NOLOGIN;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
-        CREATE ROLE service_role NOLOGIN;
+        -- BYPASSRLS: service_role is the fabric's "GOD" role (see
+        -- docs/FLINT-KEYS.md in flint-gate). Real bypass, not a per-policy
+        -- current_setting('role') = 'service_role' predicate simulation —
+        -- migrations/0013_force_rls.sql applies FORCE ROW LEVEL SECURITY to
+        -- this repo's internal tables, closing the owner/superuser bypass
+        -- path, which makes a real attribute the only remaining mechanism.
+        CREATE ROLE service_role NOLOGIN BYPASSRLS;
     END IF;
 END
 $$;

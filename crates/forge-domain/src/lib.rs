@@ -1,5 +1,6 @@
 //! Forge core domain — pure cross-cutting types. No infrastructure dependencies.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 use serde::{Deserialize, Serialize};
 
@@ -20,12 +21,16 @@ pub type Json = serde_json::Value;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum ForgeError {
+    /// The caller's credentials did not authenticate, or no credentials were presented.
     #[error("unauthorized")]
     Unauthorized,
+    /// The requested resource does not exist (or is not visible to the caller).
     #[error("not found")]
     NotFound,
+    /// An adapter/backend (database, external service, etc.) returned an error.
     #[error("backend: {0}")]
     Backend(String),
+    /// A policy engine (Cedar, Keto) denied the requested action.
     #[error("policy denied")]
     PolicyDenied,
 }

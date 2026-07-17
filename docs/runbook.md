@@ -105,7 +105,26 @@ KETO_BASE_URL=http://keto:4466
 FRF_ENDPOINT=http://frf:50051
 FLINT_CHANGE_SOURCE=listen          # "listen" = Postgres LISTEN/NOTIFY; "fabric" = FRF gRPC
 FLINT_LISTEN_CAPACITY=1024
+
+# JWKS-based bearer verification (forge-identity::verify_and_build, via fdb-auth) — p16-c005
+FLINT_GATE_JWKS_URL=https://gate.example.com/.well-known/jwks.json
+FLINT_GATE_ISSUER=https://gate.example.com
+FLINT_GATE_AUDIENCE=                # required unless FLINT_GATE_MODE=development (see below)
+FLINT_GATE_MODE=production          # default; "development" skips the mandatory-audience check
+FLINT_GATE_JWKS_TTL_SECS=600        # JWKS cache TTL before a background refetch (default 10 min)
 ```
+
+**`FLINT_GATE_MODE` / `FLINT_GATE_AUDIENCE`:** production is the default —
+unset, empty, or anything other than exactly `development` requires
+`FLINT_GATE_AUDIENCE` to be set, and every bearer-verification call fails
+closed (`MissingEnv("FLINT_GATE_AUDIENCE")`) until it is. Set
+`FLINT_GATE_MODE=development` for local iteration against a gate that hasn't
+configured an audience yet.
+
+**`FLINT_GATE_JWKS_TTL_SECS`:** the JWKS cache refreshes automatically once an
+entry is older than this TTL, and separately refetches immediately (rate-limited
+to once per 5 seconds) whenever a token's `kid` isn't found in the cached set —
+so an upstream signing-key rotation is picked up without a gateway restart.
 
 > **`FLINT_JWT_SECRET` / `JWT_SECRET` is a separate, unrelated variable —
 > `fdb-gateway` never reads it.** It is consumed only by `forge-cli token mint`
@@ -499,6 +518,27 @@ docker compose logs fdb-gateway 2>&1 | grep "migrations applied"
 # Expected: INFO database migrations applied
 ```
 
+### 4.3 Row-Level Security on Tenant Tables (operator responsibility)
+
+Flint Forge's own migrations (`migrations/0013_force_rls.sql`) apply
+`FORCE ROW LEVEL SECURITY` to its internal tables (`flint_a2ui.*`,
+`flint_kiln.*`). Tenant/application tables — anything an operator creates in
+their own schema and exposes via the REST/GraphQL reflection compiler — are
+**not** owned by these migrations. When creating a table with an RLS policy,
+always apply both statements, not just the first:
+
+```sql
+ALTER TABLE public.my_table ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.my_table FORCE ROW LEVEL SECURITY;
+```
+
+`ENABLE` alone does not apply RLS to the table's owner or to a superuser
+session. Every REST/GraphQL request runs under `SET LOCAL ROLE authenticated`
+(a non-owner, non-superuser role — see `fdb-postgres::PgBackend::acquire`),
+so `FORCE` is defense-in-depth rather than the primary enforcement mechanism —
+but it is what keeps RLS holding even if a future connection somehow acquires
+a session without that role de-escalation.
+
 ### 4.3 View Applied Migrations
 
 ```bash
@@ -770,20 +810,33 @@ docker compose exec db psql -U flint -d flint \
 
 ### 9.1 GitHub Actions secrets required
 
-The `.github/workflows/deploy.yml` workflow reads the following repository/environment secrets.
-Add them under **Settings → Secrets and variables → Actions → Environment secrets** for the
-`staging` environment.
+The `.github/workflows/deploy.yml` workflow reads the following **Environment secrets** —
+add them under **Settings → Environments → staging → Environment secrets** (not repository
+secrets: `deploy.yml`'s job sets `environment: ${{ inputs.environment }}`, so `staging` and
+`production` — see §13 — each define their own copies of the same secret names).
+
+> **p16-c008 migration note:** these secrets were previously named with a `STAGING_` prefix
+> (`STAGING_SSH_HOST`, etc.) as plain repository secrets. `deploy.yml` now reads the generic
+> names below, scoped per-Environment, so a `production` deploy target can reuse the same
+> workflow without ever-growing prefixes. **Before the next staging deploy runs**, rename (or
+> recreate) these secrets under the `staging` Environment using the names below — the old
+> `STAGING_*`-prefixed repository secrets are no longer read by the workflow.
 
 | Secret name | Description | Example value |
 |---|---|---|
-| `STAGING_SSH_HOST` | Hostname or IP of the staging server | `staging.example.com` |
-| `STAGING_SSH_USER` | SSH username on the staging server | `deploy` |
-| `STAGING_SSH_KEY` | Contents of the **private** SSH key (`id_ed25519`) whose public key is in the server's `~/.ssh/authorized_keys` | `-----BEGIN OPENSSH PRIVATE KEY-----…` |
-| `STAGING_JWT_SECRET` | The raw HS256 signing key (content of secrets/jwt_secret.txt on the staging host). Used by mint_smoke_token.sh to generate fresh 1-hour JWTs before each smoke test run. **⚠ See warning below — the resulting token is currently rejected by the gateway.** | *(run rotate_secrets.sh on staging, then copy secrets/jwt_secret.txt content)* |
+| `SSH_HOST` | Hostname or IP of the target server | `staging.example.com` |
+| `SSH_USER` | SSH username on the target server | `deploy` |
+| `SSH_KEY` | Contents of the **private** SSH key (`id_ed25519`) whose public key is in the server's `~/.ssh/authorized_keys` | `-----BEGIN OPENSSH PRIVATE KEY-----…` |
+| `JWT_SECRET` | The raw HS256 signing key (content of `secrets/jwt_secret.txt` on the target host). Used by `mint_smoke_token.sh` to generate fresh 1-hour JWTs before each smoke test run. **⚠ See warning below — the resulting token is currently rejected by the gateway.** | *(run `rotate_secrets.sh` on the host, then copy `secrets/jwt_secret.txt` content)* |
 | `STAGING_BASE_URL` | Public HTTPS base URL of the staging stack — used by the k6 performance regression job | `https://forge.example.com` |
 
-> **Security note:** `STAGING_SSH_KEY` must be a **dedicated deploy key** — never reuse a
-> personal key. Rotate it quarterly or immediately after any team member departure.
+> **Security note:** `SSH_KEY` must be a **dedicated deploy key** — never reuse a
+> personal key. Rotate it quarterly or immediately after any team member departure. Use a
+> **different** deploy key per environment (staging's key must not also work on production).
+
+Separately, `STAGING_BASE_URL` (a **repository** secret, not Environment-scoped — used by
+`.github/workflows/ci.yml`'s `performance` job, not `deploy.yml`) is unaffected by this
+change and keeps its existing `STAGING_`-prefixed name.
 
 > **⚠ Known issue — smoke-test auth is currently broken.** `fdb-gateway`'s
 > bearer verification (`forge-identity::verify_and_build`, §2.2) only accepts
@@ -1111,9 +1164,10 @@ static bearer token that remains valid indefinitely.
 ### 12.1 Overview
 
 `scripts/rotate_staging_jwt.sh` rotates the raw HS256 signing key stored in the
-`STAGING_JWT_SECRET` GitHub Actions secret. It also writes the same key locally
-to `secrets/jwt_secret.txt` so operators can mint smoke tokens on the staging
-host during troubleshooting.
+`staging` GitHub Environment's `JWT_SECRET` secret (p16-c008: renamed from the
+repo-level `STAGING_JWT_SECRET` — see §9.1/§13). It also writes the same key
+locally to `secrets/jwt_secret.txt` so operators can mint smoke tokens on the
+staging host during troubleshooting.
 
 The script is intended to be run manually when:
 
@@ -1145,7 +1199,7 @@ The script performs the following steps:
 
 1. Generates a new 32-byte hex random string with `openssl rand -hex 32`.
 2. Writes it to `secrets/jwt_secret.txt` with `chmod 600`.
-3. Updates `STAGING_JWT_SECRET` via `gh secret set STAGING_JWT_SECRET`.
+3. Updates the `staging` Environment's `JWT_SECRET` via `gh secret set JWT_SECRET --env staging`.
 
 ### 12.4 Applying the new key
 
@@ -1167,16 +1221,203 @@ BASE_URL=https://forge.example.com KILN_URL=http://localhost:8090 \
 ### 12.5 Rollback
 
 If the rotation breaks something that depends on `mint_smoke_token.sh` output,
-restore the previous value of `STAGING_JWT_SECRET` from a secure backup and
-re-run the stack restart. This key only affects tokens minted by
-`mint_smoke_token.sh` / `forge token mint` — it has no effect on the gateway's
-JWKS-based verification (§2.2), which is unaffected by this rotation either way.
+restore the previous value of the `staging` Environment's `JWT_SECRET` from a
+secure backup and re-run the stack restart. This key only affects tokens
+minted by `mint_smoke_token.sh` / `forge token mint` — it has no effect on the
+gateway's JWKS-based verification (§2.2), which is unaffected by this rotation
+either way.
 
 ### 12.6 Security notes
 
 - Never commit `secrets/jwt_secret.txt`; the directory is already gitignored.
 - Do not print the secret value in CI logs. The script passes it directly to `gh`
   and redacts it from output.
-- Treat `STAGING_JWT_SECRET` with the same access controls as production signing
-  keys; staging keys can mint tokens that exercise the same code paths.
+- Treat the `staging` Environment's `JWT_SECRET` with the same access controls
+  as production signing keys; staging keys can mint tokens that exercise the
+  same code paths.
 
+---
+
+## §13 — Production Deploy Setup (p16-c008)
+
+### 13.1 Overview — corrected architecture
+
+**This section originally assumed a single SSH-reachable production host and
+S3-backed backups. Both assumptions were wrong for this org's actual
+infrastructure and have been replaced.** flint-forge's real production
+target is Kubernetes: a shared, multi-tenant AKS cluster (`main`, resource
+group `prometheus-rg`, subscription "Azure subscription 1") already running
+ArgoCD in-cluster and used by several other projects (firecrawl, hotseaters,
+matrix, stalwart, and others — see `kubectl get namespaces`). There is no
+single "production host" and no S3 — the org's cloud provider is Azure.
+There is also no separate "staging" environment: short of an actual client
+deployment, the only environment that exists is this repo's own
+`docker-compose.yml` stack, which §9's staging-deploy content (SSH to a
+`STAGING_*`-secrets host) predates and no longer reflects — treat local
+docker-compose as the only pre-production environment until a real client
+deployment exists.
+
+Everything below is fully automated — no operator needs to run any of it by
+hand for the system to function. What follows documents *how* the automation
+works and how to extend it (e.g. onboarding a new client), not a checklist
+to execute.
+
+### 13.2 Components
+
+| Component | What it does | Where |
+|---|---|---|
+| AKS cluster `main` | Shared Kubernetes cluster, OIDC issuer + Workload Identity enabled | resource group `prometheus-rg`, region `centralus` |
+| ArgoCD (in-cluster) | Watches this repo, reconciles each tenant's `Application` | namespace `argocd` on `main` — not a separate control-plane cluster |
+| `deploy/argocd/flint-forge-applicationset.yaml` | One `Application` per tenant (list generator) | applied once: `kubectl apply -f deploy/argocd/flint-forge-applicationset.yaml` |
+| `deploy/helm/flint-forge/` | The chart every tenant `Application` deploys | this repo |
+| `deploy/helm/flint-forge/values-<tenant>.yaml` | Per-tenant image tags + backup config (non-secret) | this repo — CI commits new image tags here |
+| ACR `prometheusagsacr.azurecr.io` | Shared container registry | resource group `prometheus-rg` |
+| Azure AD app `github-actions-aks-deploy` | GitHub OIDC → Azure identity for CI (AcrPush only — no cluster access; ArgoCD does the actual deploy) | shared across projects on this cluster, appId `dcca803b-47f0-496d-b1d4-e1b0c0cfc79e` |
+| Managed identity `flint-forge-walg-identity` | Workload Identity for wal-g's Azure Blob access (no static keys) | resource group `flint-forge-rg` |
+| Storage account `stflintforgebakc69689`, container `pg-backups` | wal-g backup target | resource group `flint-forge-rg`, region `centralus` |
+
+None of the values above are secrets — Client IDs, storage account names,
+and resource names carry no access on their own under OIDC/Workload
+Identity federation (there is no shared secret to leak), so they're
+committed directly in `values-<tenant>.yaml` and this doc rather than
+hidden in a secret store.
+
+### 13.3 Deploy flow (fully automated, no SSH)
+
+1. A push to `main` touching `crates/**`, `docker/**`, `images/postgres18/**`,
+   or the Helm chart triggers `.github/workflows/deploy-aks.yml`.
+2. That workflow authenticates to Azure via GitHub OIDC (no stored Azure
+   credential — `azure/login@v2` with `vars.AZURE_CLIENT_ID/TENANT_ID/
+   SUBSCRIPTION_ID`, federated per `github-actions-aks-deploy`'s
+   `repo:Know-Me-Tools/flint-forge:...` subjects), builds and pushes the
+   `gateway`, `kiln`, and `postgres18` images to ACR, then commits the new
+   commit-sha tag into `deploy/helm/flint-forge/values-<tenant>.yaml`.
+3. That commit **is** the deploy — ArgoCD (already watching this repo,
+   `selfHeal: true`) picks it up and reconciles the cluster automatically.
+   Nothing in CI ever touches `kubectl`/the cluster directly.
+4. The `build-and-push` job runs under the `production` GitHub Environment
+   (required reviewers) — the same human-approval gate originally set up for
+   the retired SSH workflow now protects this one (a second,
+   environment-scoped federated credential was added for this:
+   `repo:Know-Me-Tools/flint-forge:environment:production`).
+
+Watch a rollout: `kubectl get application <tenant> -n argocd -w` (requires
+`az aks get-credentials -g prometheus-rg -n main` + cluster access — this is
+an operator/debugging action, not something CI needs).
+
+### 13.4 Backups — wal-g to Azure Blob Storage via Workload Identity
+
+**No static storage keys exist anywhere in this system.** The postgres pod's
+ServiceAccount (`<release>-postgres`) carries an `azure.workload.identity/
+client-id` annotation pointing at `flint-forge-walg-identity`; the AKS
+workload-identity webhook injects `AZURE_CLIENT_ID`/`AZURE_TENANT_ID`/
+`AZURE_FEDERATED_TOKEN_FILE` into any pod labeled `azure.workload.identity/
+use: "true"` using that ServiceAccount, and wal-g's Azure backend picks
+those up via the standard Azure default-credential chain automatically. The
+identity is granted `Storage Blob Data Contributor` scoped to exactly the
+`pg-backups` container — nothing broader.
+
+- **Continuous WAL archiving**: `archive_command=wal-g wal-push %p`, set
+  directly on the postgres StatefulSet's container args
+  (`deploy/helm/flint-forge/templates/postgres.yaml`) when
+  `backup.enabled=true`.
+- **Periodic base backups**: `deploy/helm/flint-forge/templates/
+  backup-cronjob.yaml`, a CronJob that `kubectl exec`s `wal-g backup-push`
+  directly in the postgres pod (avoids needing a `ReadWriteMany` volume for
+  a second pod — `wal-g` needs local `$PGDATA` filesystem access). This
+  trigger pod itself carries no Azure identity — only RBAC to `exec` into
+  the postgres pod, since the actual wal-g process and its Workload Identity
+  live inside that pod.
+- **The docker-compose S3 path (`docker-compose.prod.yml`, `images/
+  postgres18/entrypoint-walg.sh`, `backup-loop.sh`) still exists but is not
+  the supported production path** — this org will never deploy that way.
+  Those scripts remain functional no-ops for local/dev compose (no secret
+  files present there → they exit cleanly without archiving) and are left
+  in place only for anyone running a standalone single-host compose
+  instance outside this org's AKS cluster.
+
+### 13.5 Restore drill — automated, recurring, non-disruptive
+
+`deploy/helm/flint-forge/templates/restore-drill-cronjob.yaml`
+(`backup.restoreDrill.enabled`, weekly by default) fetches the latest wal-g
+backup into a **throwaway `emptyDir`** — never the live postgres
+`PersistentVolumeClaim` — starts Postgres against it, confirms it leaves
+recovery mode, runs a verification query, and reports pass/fail via pod
+logs and exit code (`kubectl logs -n <namespace> job/<latest-restore-drill-job>`,
+or `kubectl get events -n <namespace> --field-selector
+involvedObject.kind=Job`). Because it never touches the production volume,
+this can safely run unattended on a schedule — it proves backups are
+restorable continuously, not just once.
+
+This replaces the old `scripts/restore_pg_pitr.sh` (still present and usable
+for a real DR failover exercise against docker-compose — it deliberately
+stops the live `db` service, which the automated drill above does not) as
+the mechanism that satisfies the proposal's "prove data comes back, not just
+that a backup file was written" requirement. Its first real run happens
+automatically once flint-forge is deployed and at least one backup cycle has
+completed — there was nothing to restore before that point, so no drill
+result exists yet:
+
+| Date | Target | Verified by | Result |
+|---|---|---|---|
+| _(pending — first scheduled run after initial deployment + one backup cycle)_ | | | |
+
+Check the current status any time with:
+`kubectl get cronjob <tenant>-restore-drill -n <tenant>` and
+`kubectl logs -n <tenant> -l app.kubernetes.io/component=restore-drill --tail=50`.
+
+### 13.6 Performance baselines — automated against docker-compose
+
+`.github/workflows/ci.yml`'s `performance` job runs on every push to `main`
+(and on manual dispatch): it builds and starts the `docker-compose.yml`
+stack in the CI runner (the only "staging" that exists — see §13.1), runs
+`perf/k6/regression.js`, and uses `regression.js`'s own `handleSummary()`
+output (`perf-summary.json`) to rewrite its own P99 thresholds
+(`ceil(measured_p99 * 1.20)`, rounded to the nearest 5ms),
+`BASELINE_DATE`/`BASELINE_SOURCE`, and a results file under `perf/results/`
+— then commits that back to `main` (`[skip ci]`). No one runs k6 by hand for
+this to work; the baseline keeps itself current on every merge.
+
+### 13.7 Onboarding a new tenant
+
+Since there is no single production deployment, adding a client is a
+repeatable, scriptable sequence, not a new pipeline:
+
+1. Provision a federated credential for that tenant's postgres pod:
+   ```bash
+   az identity federated-credential create \
+     --name <tenant>-postgres-sa \
+     --identity-name flint-forge-walg-identity \
+     --resource-group flint-forge-rg \
+     --issuer "https://centralus.oic.prod-aks.azure.com/d48ebfee-d3e4-474c-8616-509f441e438f/51e63d24-bb81-414a-8b5e-9ac64e70e766/" \
+     --subject "system:serviceaccount:<tenant>:<tenant>-postgres" \
+     --audience "api://AzureADTokenExchange"
+   ```
+   (Reusing the same managed identity + storage account with a
+   tenant-specific blob prefix is fine for now; provision a dedicated
+   storage account per tenant instead if data isolation requirements demand
+   it — not needed for the current single-tenant deployment.)
+2. Create `deploy/helm/flint-forge/values-<tenant>.yaml` (copy
+   `values-flint-forge.yaml`, adjust `backup.azPrefix` to a
+   tenant-specific blob prefix).
+3. Add a `list` element to `deploy/argocd/flint-forge-applicationset.yaml`
+   with that tenant's name/namespace/values file.
+4. `kubectl apply -f deploy/argocd/flint-forge-applicationset.yaml` —
+   ArgoCD creates the namespace and reconciles the rest.
+5. Trigger `deploy-aks.yml` with `tenant: <tenant>` (`workflow_dispatch`) to
+   push its first image build, or wait for the next `main` push.
+
+### 13.8 LLM background worker default
+
+`llm.enable_background_worker` (a Postgres `shared_preload_libraries` +
+postmaster-context GUC in `ext-flint-llm`) defaults to **disabled** — LLM
+calls run synchronously. This was a deliberate decision, not an oversight:
+enabling it means every deployment runs an additional persistent background
+worker process, requires `shared_preload_libraries` to be configured
+correctly at postmaster start (a restart to toggle), and adds an operational
+surface (the worker's own health/monitoring) that isn't justified until there
+is an actual need for async LLM job processing. Operators who need async
+processing (e.g., long-running embedding batch jobs that shouldn't block a
+request) should explicitly opt in by setting `llm.enable_background_worker =
+on` in their Postgres configuration and ensuring the extension is listed in
+`shared_preload_libraries`.

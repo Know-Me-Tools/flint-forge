@@ -2,16 +2,6 @@
 
 ## Tasks
 
-- [x] Bump `sqlx = "0.8"` → `sqlx = "0.9"` in `[workspace.dependencies]` of `Cargo.toml`
-- [x] Run `cargo check --workspace`; fix any API changes from 0.8→0.9
-- [x] Run `cargo update generic-array`; confirm pgvector traits still unify
-- [x] Run `cargo test -p fdb-reflection`; confirm vector RPC tests pass
-- [x] Add `metrics = "0.24"` to `crates/fdb-gateway/Cargo.toml`
-- [x] Add `spawn_pool_metrics(pool)` function to `crates/fdb-gateway/src/telemetry.rs`
-- [x] Call `telemetry::spawn_pool_metrics(pool.clone())` in `main()` after pool creation
-- [x] Verify: `cargo check -p fdb-gateway`; `metrics::gauge!` calls compile
-- [x] `cargo clippy --workspace -- -D warnings` clean
-- [x] `cargo test --workspace` passes
 - [x] `cargo audit` clean
 
 ## Execution notes (2026-07-14, p16-c006 reconcile)

@@ -30,5 +30,7 @@ use async_trait::async_trait;
 /// * `subject` — the subject identifier (PII — never logged).
 #[async_trait]
 pub trait KetoCheck: Send + Sync {
+    /// Returns `true` when `subject` holds `relation` on `object` within
+    /// `namespace`; `false` on any denial or internal failure (fail-closed).
     async fn check(&self, namespace: &str, object: &str, relation: &str, subject: &str) -> bool;
 }

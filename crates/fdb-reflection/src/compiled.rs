@@ -13,11 +13,16 @@ use crate::model::DatabaseModel;
 /// SECURITY: `DatabaseModel.tables[*].vault_key` contains `EncryptedDek`
 /// (ciphertext only). Plaintext DEK is never stored here.
 pub struct CompiledState {
+    /// Schema version this state was compiled from (`DatabaseModel::version`).
+    /// Also broadcast on `StateManager`'s `watch::Sender<u64>` on every hot-swap.
     pub version: u64,
+    /// The reflected database IR this state was compiled from.
     pub database_model: Arc<DatabaseModel>,
     /// Compiled Axum router built from `DatabaseModel` by `RestCompiler`.
     /// Wrapped in `Arc` because `Router` is not `Clone`.
     pub router: Arc<Router>,
+    /// OpenAPI 3 document describing `router`'s REST surface, built by
+    /// `OpenApiCompiler::compile` and served as-is (e.g. at `/openapi.json`).
     pub openapi_doc: serde_json::Value,
     /// MCP tool definitions compiled from `DatabaseModel` by `McpCompiler`.
     /// Served at `/mcp/v1/tools`. Hot-swapped on DDL changes.
@@ -36,12 +41,15 @@ pub struct CompiledState {
 pub struct A2uiCatalog {
     /// URI identifying this catalog, e.g. "/a2ui/v1/catalog/flint-base/1.0"
     pub catalog_id: String,
+    /// Semantic version of the catalog contents, e.g. `"1.0.0"`.
     pub version: String,
+    /// The component definitions themselves.
     pub components: Vec<A2uiCatalogEntry>,
 }
 
 impl A2uiCatalog {
     /// An empty catalog used when the flint_a2ui schema is not yet deployed.
+    #[must_use]
     pub fn empty() -> Self {
         Self {
             catalog_id: String::new(),
@@ -54,10 +62,17 @@ impl A2uiCatalog {
 /// A single component entry in the A2UI catalog.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct A2uiCatalogEntry {
+    /// Unique component identifier within the catalog, e.g. `"data-table"`.
     pub slug: String,
+    /// The underlying A2UI primitive this component renders as (e.g. `"table"`,
+    /// `"form"`, `"chart"`).
     pub primitive_type: String,
+    /// Grouping used for catalog browsing/ordering (`flint_a2ui.components`
+    /// is queried `ORDER BY category, slug`).
     pub category: String,
+    /// JSON Schema describing this component's configurable properties.
     pub schema: serde_json::Value,
+    /// Human-readable description of the component, if provided.
     pub description: Option<String>,
 }
 

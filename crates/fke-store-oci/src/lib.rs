@@ -12,6 +12,7 @@
 //! | `KILN_OCI_USER`     | no       | Basic-auth username                      |
 //! | `KILN_OCI_TOKEN`    | no       | Basic-auth password / token              |
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 use async_trait::async_trait;
 use fke_domain::ContentId;
@@ -50,6 +51,13 @@ impl StoreOci {
     ///
     /// Returns `Err(StoreError::Io)` when either required variable is absent;
     /// never panics.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Io`] if `KILN_OCI_REGISTRY` or `KILN_OCI_REPO`
+    /// is not set in the environment. `KILN_OCI_USER`/`KILN_OCI_TOKEN` are
+    /// optional — when either is absent the client falls back to anonymous
+    /// auth rather than erroring.
     pub fn new() -> Result<Self, StoreError> {
         let registry = env::var("KILN_OCI_REGISTRY")
             .map_err(|_| StoreError::Io("KILN_OCI_REGISTRY env var not set".to_string()))?;
@@ -123,6 +131,12 @@ impl ComponentStore for StoreOci {
     /// Compute the sha256 digest, push one OCI layer, and return the
     /// `ContentId`.  Idempotent: if the manifest already exists the push is
     /// skipped and the same `ContentId` is returned.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Io`] if the existence check or push fails for
+    /// any reason other than "not found" — registry unreachable, auth
+    /// rejected, malformed reference, or any other registry error.
     async fn put(&self, bytes: &[u8]) -> Result<ContentId, StoreError> {
         // 1. Compute content digest.
         let hex = {
@@ -152,6 +166,14 @@ impl ComponentStore for StoreOci {
     }
 
     /// Pull the single layer stored under `id` and return its raw bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::NotFound`] if the manifest for `id` does not
+    /// exist in the registry, or if the manifest exists but carries zero
+    /// layers (should not happen for artifacts pushed by [`Self::put`], but
+    /// guarded against defensively). Returns [`StoreError::Io`] for any other
+    /// registry failure (network error, auth rejected, malformed reference).
     async fn get(&self, id: &ContentId) -> Result<Vec<u8>, StoreError> {
         let reference = self.make_reference(id)?;
 
@@ -169,6 +191,13 @@ impl ComponentStore for StoreOci {
     }
 
     /// Returns `true` when the manifest for `id` exists in the registry.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Io`] if the registry cannot be reached or
+    /// responds with an error other than "manifest not found" (a `404` or
+    /// [`OciDistributionError::ImageManifestNotFoundError`] is treated as
+    /// `Ok(false)`, not an error).
     async fn exists(&self, id: &ContentId) -> Result<bool, StoreError> {
         let reference = self.make_reference(id)?;
 

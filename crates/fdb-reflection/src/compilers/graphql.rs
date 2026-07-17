@@ -49,6 +49,9 @@ pub type SubStreamFactory = Arc<
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum GraphQlCompileError {
+    /// `async_graphql::dynamic::Schema::finish()` rejected the assembled
+    /// schema (e.g. a type/name collision between reflected tables, such as
+    /// two tables producing the same PascalCase `<Name>Changes` type).
     #[error("schema build error: {0}")]
     Build(String),
 }

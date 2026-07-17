@@ -1,0 +1,12 @@
+{
+  "stage": "execute",
+  "completedAt": "2026-07-12T14:15:36Z",
+  "outputs": [
+    "execution.md",
+    "progress.json"
+  ],
+  "nextStage": "reflect",
+  "summaryForNext": "Backend=openspec, self-executing via /kbd-apply (Claude Code CLI); dispatch contract in execution.md. First change dispatched: p16-c001-rest-rls-enforcement, now IN_PROGRESS in progress.json. Approval gate flagged for c008 (human/operator required for prod credentials + backup drill); fallback documented if the RLS-pool design conflicts with hexagonal layering constraints.",
+  "skipped": false,
+  "skipReason": null
+}

@@ -3,6 +3,7 @@
 //! Configuration is driven entirely by environment variables so the binary
 //! stays secret-free at compile time.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 use std::sync::Arc;
 
@@ -37,6 +38,14 @@ impl StoreS3 {
     /// - `KILN_S3_ACCESS_KEY`
     /// - `KILN_S3_SECRET_KEY`
     /// - `KILN_S3_REGION`     — defaults to `us-east-1`
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Io`] if `KILN_S3_BUCKET` is not set, or if the
+    /// underlying `AmazonS3Builder` rejects the assembled configuration
+    /// (e.g. a malformed `KILN_S3_ENDPOINT` URL). All other environment
+    /// variables are optional and simply fall back to defaults or
+    /// anonymous/unauthenticated credentials when absent.
     pub fn from_env() -> Result<Self, StoreError> {
         use object_store::aws::AmazonS3Builder;
 
@@ -111,6 +120,12 @@ impl ComponentStore for StoreS3 {
     /// The operation is idempotent: uploading the same bytes twice yields the
     /// same [`ContentId`] and simply overwrites the object (which is a no-op
     /// in practice because the content is identical).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Io`] if the upload fails — network failure,
+    /// authentication/authorization rejected by the bucket, or any other
+    /// error surfaced by the underlying `object_store` backend.
     async fn put(&self, bytes: &[u8]) -> Result<ContentId, StoreError> {
         let hex = sha256_hex(bytes);
         let path = Path::from(hex.as_str());
@@ -125,6 +140,13 @@ impl ComponentStore for StoreS3 {
     /// Retrieve the bytes stored under `id`.
     ///
     /// Returns [`StoreError::NotFound`] when no object exists for the given id.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Io`] if `id` does not carry the `sha256:` prefix
+    /// (malformed `ContentId`), or if the download fails for a reason other
+    /// than "not found". Returns [`StoreError::NotFound`] when the object is
+    /// absent from the store.
     async fn get(&self, id: &ContentId) -> Result<Vec<u8>, StoreError> {
         let hex = digest_from_id(id)?;
         let path = Path::from(hex.as_str());
@@ -138,6 +160,13 @@ impl ComponentStore for StoreS3 {
     }
 
     /// Return `true` if an object for `id` exists in the store.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Io`] if `id` does not carry the `sha256:` prefix
+    /// (malformed `ContentId`), or if the `HEAD` request fails for a reason
+    /// other than "not found" (a missing object is `Ok(false)`, not an
+    /// error).
     async fn exists(&self, id: &ContentId) -> Result<bool, StoreError> {
         let hex = digest_from_id(id)?;
         let path = Path::from(hex.as_str());

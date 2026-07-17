@@ -3,27 +3,14 @@
 //! under the 500-line limit.
 
 use axum::{http::StatusCode, response::IntoResponse, Json};
+use fdb_query::QueryParam;
 use forge_domain::is_safe_identifier;
+use forge_identity::RlsContext;
 use serde_json::{json, Map, Value};
 use tracing::instrument;
 
 use super::RestState;
-use crate::model::{is_vector_type, FnMeta};
-
-/// Pick the overload whose argument names are an exact set-match for the
-/// request body's keys; fall back to the first candidate when no exact match
-/// exists, so a caller not supplying every arg name still resolves
-/// deterministically rather than 404ing. Postgres allows function
-/// overloading (same schema+name, different argument lists — e.g.
-/// `cron.schedule(text, text)` vs `cron.schedule(text, text, text)`), so
-/// `candidates` may contain more than one entry for the same (schema, name).
-fn select_overload<'a>(candidates: &[&'a FnMeta], body: &Map<String, Value>) -> Option<&'a FnMeta> {
-    candidates
-        .iter()
-        .find(|f| f.args.len() == body.len() && f.args.iter().all(|a| body.contains_key(&a.name)))
-        .or_else(|| candidates.first())
-        .copied()
-}
+use crate::model::is_vector_type;
 
 /// POST /rpc/<schema>/<fn_name> — call a Postgres function with optional vector args.
 ///
@@ -34,22 +21,21 @@ fn select_overload<'a>(candidates: &[&'a FnMeta], body: &Map<String, Value>) -> 
 ///
 /// Returns the result rows as a JSON array. Returns 400 on malformed vector args
 /// or unknown function, 500 on database errors.
-#[instrument(skip(state, body), fields(schema = %schema, fn_name = %fn_name))]
+#[instrument(skip(state, rls, body), fields(schema = %schema, fn_name = %fn_name))]
 pub(super) async fn handle_rpc(
+    state: RestState,
+    rls: RlsContext,
     schema: String,
     fn_name: String,
-    state: RestState,
-    body: Map<String, Value>,
+    Json(body): Json<Map<String, Value>>,
 ) -> impl IntoResponse {
-    // Locate the function metadata in the compiled model — see
-    // `select_overload` for why more than one candidate can share (schema, name).
-    let candidates: Vec<_> = state
+    // Locate the function metadata in the compiled model.
+    let fn_meta = match state
         .model
         .functions
         .iter()
-        .filter(|f| f.schema == schema && f.name == fn_name)
-        .collect();
-    let fn_meta = match select_overload(&candidates, &body) {
+        .find(|f| f.schema == schema && f.name == fn_name)
+    {
         Some(f) => f,
         None => {
             return (
@@ -60,10 +46,6 @@ pub(super) async fn handle_rpc(
         }
     };
 
-    // Build the parameterised SQL call:
-    //   SELECT * FROM <schema>.<fn>($1, $2, ...) AS t
-    // Placeholder numbering matches the arg order from FnMeta.
-    let placeholders: Vec<String> = (1..=fn_meta.args.len()).map(|i| format!("${i}")).collect();
     // SECURITY: interpolate the identifiers from the *compiled model*
     // (`fn_meta`), not the raw path params — the model is reflected from
     // pg_catalog and is the trusted source. Belt-and-braces, re-validate.
@@ -74,6 +56,39 @@ pub(super) async fn handle_rpc(
         )
             .into_response();
     }
+
+    // Bind arguments in declaration order, dispatching on pg_type. Vector args
+    // cast `::vector` (matching `PgVectorRpc`'s convention) — Postgres infers
+    // `$n`'s type from the function's declared parameter type, and
+    // `pgvector::Vector`'s `ToSql::accepts` matches it. Everything else binds
+    // uncast via `json_bind` (string values as plain text; see its doc
+    // comment) so Postgres infers the parameter's type from the function
+    // signature directly, matching whatever `json_bind` produces for `text`
+    // parameters — the common case.
+    let mut placeholders: Vec<String> = Vec::with_capacity(fn_meta.args.len());
+    let mut binds: Vec<QueryParam> = Vec::with_capacity(fn_meta.args.len());
+    for (i, arg) in fn_meta.args.iter().enumerate() {
+        let idx = i + 1;
+        let val = body.get(&arg.name).cloned().unwrap_or(Value::Null);
+        if is_vector_type(&arg.pg_type) {
+            match json_to_vector(val) {
+                Ok(vec) => {
+                    placeholders.push(format!("${idx}::vector"));
+                    binds.push(QueryParam::Vector(vec.into()));
+                }
+                Err(msg) => {
+                    return (StatusCode::BAD_REQUEST, Json(json!({"error": msg}))).into_response();
+                }
+            }
+        } else {
+            placeholders.push(format!("${idx}"));
+            binds.push(super::json_bind(&val));
+        }
+    }
+
+    // Build the parameterised SQL call:
+    //   SELECT * FROM <schema>.<fn>($1, $2::vector, ...) AS t
+    // Placeholder numbering matches the arg order from FnMeta.
     let call_sql = format!(
         "SELECT row_to_json(t) AS row FROM {}.{}({}) AS t",
         fn_meta.schema,
@@ -81,34 +96,12 @@ pub(super) async fn handle_rpc(
         placeholders.join(", ")
     );
 
-    // Bind arguments in declaration order, dispatching on pg_type.
-    // SAFETY: `fn_meta.schema`/`fn_meta.name` passed `is_safe_identifier` above.
-    let mut q = sqlx::query(sqlx::AssertSqlSafe(call_sql));
-    for arg in &fn_meta.args {
-        let val = body.get(&arg.name).cloned().unwrap_or(Value::Null);
-        if is_vector_type(&arg.pg_type) {
-            match json_to_vector(val) {
-                Ok(vec) => {
-                    q = q.bind(vec);
-                }
-                Err(msg) => {
-                    return (StatusCode::BAD_REQUEST, Json(json!({"error": msg}))).into_response();
-                }
-            }
-        } else {
-            q = q.bind(val);
-        }
-    }
-
     // Execute and collect result rows.
-    match q.fetch_all(&state.pool).await {
+    match state.executor.execute_raw(&call_sql, binds, &rls).await {
         Ok(rows) => {
             let result: Vec<Value> = rows
                 .into_iter()
-                .filter_map(|row| {
-                    use sqlx::Row;
-                    row.try_get::<Value, _>("row").ok()
-                })
+                .filter_map(|mut row| row.remove("row"))
                 .collect();
             Json(Value::Array(result)).into_response()
         }
@@ -170,88 +163,8 @@ impl JsonTypeName for Value {
 
 #[cfg(test)]
 mod tests {
-    use super::{json_to_vector, select_overload};
-    use crate::model::ArgMeta;
+    use super::json_to_vector;
     use serde_json::json;
-
-    fn fn_meta(name: &str, arg_names: &[&str]) -> super::FnMeta {
-        super::FnMeta {
-            schema: "cron".into(),
-            name: name.into(),
-            args: arg_names
-                .iter()
-                .map(|n| ArgMeta {
-                    name: (*n).into(),
-                    pg_type: "text".into(),
-                })
-                .collect(),
-            return_type: "bigint".into(),
-            security_definer: false,
-        }
-    }
-
-    /// p16-c-followup gate: given two overloads, the one whose argument names
-    /// exactly match the request body's keys must be selected — not
-    /// whichever happens to be first in the model.
-    #[test]
-    fn select_overload_picks_exact_arg_match() {
-        let two_arg = fn_meta("schedule", &["schedule", "command"]);
-        let three_arg = fn_meta("schedule", &["job_name", "schedule", "command"]);
-        let candidates = vec![&two_arg, &three_arg];
-
-        let body: serde_json::Map<String, serde_json::Value> = [
-            ("job_name".to_string(), json!("nightly")),
-            ("schedule".to_string(), json!("0 3 * * *")),
-            ("command".to_string(), json!("SELECT 1;")),
-        ]
-        .into_iter()
-        .collect();
-
-        let selected = select_overload(&candidates, &body).expect("a candidate matches");
-        assert_eq!(selected.args.len(), 3, "must select the 3-arg overload");
-    }
-
-    #[test]
-    fn select_overload_picks_the_other_exact_match() {
-        let two_arg = fn_meta("schedule", &["schedule", "command"]);
-        let three_arg = fn_meta("schedule", &["job_name", "schedule", "command"]);
-        let candidates = vec![&two_arg, &three_arg];
-
-        let body: serde_json::Map<String, serde_json::Value> = [
-            ("schedule".to_string(), json!("0 3 * * *")),
-            ("command".to_string(), json!("SELECT 1;")),
-        ]
-        .into_iter()
-        .collect();
-
-        let selected = select_overload(&candidates, &body).expect("a candidate matches");
-        assert_eq!(selected.args.len(), 2, "must select the 2-arg overload");
-    }
-
-    #[test]
-    fn select_overload_falls_back_to_first_when_no_exact_match() {
-        let two_arg = fn_meta("schedule", &["schedule", "command"]);
-        let candidates = vec![&two_arg];
-
-        // Body doesn't match any overload's arg set exactly (extra key).
-        let body: serde_json::Map<String, serde_json::Value> = [
-            ("schedule".to_string(), json!("0 3 * * *")),
-            ("command".to_string(), json!("SELECT 1;")),
-            ("unexpected".to_string(), json!("value")),
-        ]
-        .into_iter()
-        .collect();
-
-        let selected = select_overload(&candidates, &body).expect("falls back to first");
-        assert_eq!(selected.args.len(), 2);
-    }
-
-    #[test]
-    fn select_overload_returns_none_for_empty_candidates() {
-        let candidates: Vec<&super::FnMeta> = vec![];
-        let body = serde_json::Map::new();
-        assert!(select_overload(&candidates, &body).is_none());
-    }
 
     #[test]
     fn json_to_vector_accepts_float_array() {

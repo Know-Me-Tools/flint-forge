@@ -1,0 +1,11 @@
+{
+  "stage": "plan",
+  "completedAt": "2026-07-12T14:11:33Z",
+  "outputs": [
+    "plan.md"
+  ],
+  "nextStage": "execute",
+  "summaryForNext": "9 changes ordered into 4 execution rounds; Round 1 (parallel, no deps) is c001 REST-RLS, c002 Kiln signatures, c004 realtime default, c005 auth hardening. First change to apply: p16-c001-rest-rls-enforcement (highest severity, tenant isolation). Trade-off surfaced: P0-only (c001-c004, ~2-3wk) is the honest minimum v1.0 bar if full 4-6wk scope isn't feasible; c008 needs a human operator for credentials/backup drills.",
+  "skipped": false,
+  "skipReason": null
+}

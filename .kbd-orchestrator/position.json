@@ -1,16 +1,16 @@
 {
   "schemaVersion": "1",
-  "updatedAt": "2026-07-16T21:46:05Z",
+  "updatedAt": "2026-07-14T12:01:22Z",
   "cursor": [
-    "p16-v1.0-release-closure"
+    "p16-production-remediation"
   ],
   "root": {
     "type": "phase",
-    "id": "p16-v1.0-release-closure",
+    "id": "p16-production-remediation",
     "status": "executing",
     "progress": {
-      "done": 0,
-      "total": 0
+      "done": 7,
+      "total": 9
     },
     "children": [],
     "annotations": []

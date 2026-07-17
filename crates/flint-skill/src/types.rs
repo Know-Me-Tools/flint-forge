@@ -68,9 +68,10 @@ impl LlmOptions {
     /// Serialize to the JSON string the `flint:host/llm.complete` WIT import
     /// expects as its `opts` parameter.
     ///
-    /// Errors only if the struct contains a non-serializable value inside
-    /// `extra` (e.g. a serde_json::Number that is not finite). That is a
-    /// programming error in skill code; surface it via [`SkillError::Json`].
+    /// # Errors
+    /// Only if the struct contains a non-serializable value inside `extra`
+    /// (e.g. a `serde_json::Number` that is not finite). That is a
+    /// programming error in skill code; surfaced as [`SkillError::Json`].
     ///
     /// [`SkillError::Json`]: crate::SkillError::Json
     pub fn to_json(&self) -> SkillResult<String> {
@@ -122,7 +123,12 @@ impl DbRow {
     /// Used by [`Database::query`] implementations after a successful WIT
     /// `flint:host/db.query` call to decode each JSON-encoded row.
     ///
+    /// # Errors
+    /// Returns [`SkillError::Json`] if `s` is not valid JSON. The offending
+    /// string is carried in the error's `payload` field for diagnostics.
+    ///
     /// [`Database::query`]: crate::Database::query
+    /// [`SkillError::Json`]: crate::SkillError::Json
     pub fn from_json_str(s: &str) -> SkillResult<Self> {
         let value: serde_json::Value =
             serde_json::from_str(s).map_err(|source| SkillError::Json {
@@ -148,8 +154,12 @@ impl DbRow {
     /// Decode the row into a domain type. Skills typically define a `FromRow`
     /// impl per query and call `row.into_typed::<User>()`.
     ///
-    /// Errors if any field is missing or has the wrong type. The error
-    /// carries the offending row payload for diagnostics.
+    /// # Errors
+    /// Returns [`SkillError::Json`] if `T` cannot be deserialized from the
+    /// row's JSON value (a field is missing or has the wrong type). The
+    /// error carries the offending row payload for diagnostics.
+    ///
+    /// [`SkillError::Json`]: crate::SkillError::Json
     pub fn into_typed<T: for<'de> Deserialize<'de>>(self) -> SkillResult<T> {
         serde_json::from_value(self.0.clone()).map_err(|source| SkillError::Json {
             source,

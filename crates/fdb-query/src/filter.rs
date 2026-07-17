@@ -19,9 +19,14 @@ pub enum FilterTree {
     Leaf {
         /// Raw column reference (validated at render time via `parse_column_ref`).
         column: String,
+        /// The comparison operator (`eq`, `gt`, `like`, `fts`, …).
         op: Operator,
+        /// The raw (unbound) filter value, e.g. the `18` in `age=gte.18`.
         value: String,
+        /// `true` when the filter was prefixed with `not.` (e.g. `not.eq.foo`).
         negate: bool,
+        /// The `(any)`/`(all)` array-quantifier modifier (`col=eq(any).{1,2,3}`),
+        /// `None` when the operator is not array-quantified.
         quantifier: Option<Quantifier>,
         /// Text-search config for the four FTS operators; `None` otherwise. The
         /// structural analog of `quantifier`, threaded through to `render_fts`.

@@ -1,0 +1,83 @@
+{{- if .Values.backup.enabled }}
+# p16-c008: wal-g PITR backups to Azure Blob Storage via the postgres pod's
+# Workload Identity (see postgres.yaml and docs/runbook.md §13 — no static
+# storage keys involved). Continuous WAL archiving is configured on the
+# postgres StatefulSet itself (archive_command runs as a local subprocess
+# inside that pod). Periodic full base backups run here via a CronJob that
+# `kubectl exec`s into the postgres pod to invoke `wal-g backup-push` — this
+# avoids requiring a ReadWriteMany storage class for a second pod to share
+# the data volume, since `wal-g backup-push` needs local filesystem access
+# to $PGDATA. This trigger pod itself needs no Azure credentials at all —
+# only RBAC to exec into the postgres pod (below) — since the actual wal-g
+# process and its identity live inside that pod.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "flint-forge.fullname" . }}-backup
+  labels:
+    app.kubernetes.io/component: backup
+    {{- include "flint-forge.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "flint-forge.fullname" . }}-backup-exec
+  labels:
+    app.kubernetes.io/component: backup
+    {{- include "flint-forge.labels" . | nindent 4 }}
+rules:
+  # Scoped to exactly what `kubectl exec` needs — no broader pod/cluster access.
+  - apiGroups: [""]
+    resources: ["pods", "pods/exec"]
+    verbs: ["get", "list", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "flint-forge.fullname" . }}-backup-exec
+  labels:
+    app.kubernetes.io/component: backup
+    {{- include "flint-forge.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "flint-forge.fullname" . }}-backup
+roleRef:
+  kind: Role
+  name: {{ include "flint-forge.fullname" . }}-backup-exec
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "flint-forge.fullname" . }}-backup
+  labels:
+    app.kubernetes.io/component: backup
+    {{- include "flint-forge.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: backup
+            {{- include "flint-forge.selectorLabels" . | nindent 12 }}
+        spec:
+          serviceAccountName: {{ include "flint-forge.fullname" . }}-backup
+          restartPolicy: Never
+          containers:
+            - name: backup-trigger
+              image: {{ .Values.backup.kubectlImage | quote }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  POD="$(kubectl get pods -l app.kubernetes.io/component=postgres,app.kubernetes.io/instance={{ .Release.Name }} -o jsonpath='{.items[0].metadata.name}')"
+                  echo "Triggering wal-g backup-push in pod: $POD"
+                  kubectl exec "$POD" -c postgres -- wal-g backup-push /var/lib/postgresql/data
+{{- end }}

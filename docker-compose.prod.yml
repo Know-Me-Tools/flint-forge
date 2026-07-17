@@ -29,6 +29,14 @@ secrets:
     file: ./secrets/postgres_password.txt
   caddy_tls_email:
     file: ./secrets/caddy_tls_email.txt
+  # p16-c008: wal-g S3-compatible object storage credentials for continuous
+  # WAL archiving + scheduled base backups (see docs/runbook.md §13.4). Absent
+  # by default — `db`'s entrypoint-walg.sh and the `backup` service both
+  # no-op cleanly if these files don't exist (local dev / CI / staging).
+  walg_s3_access_key:
+    file: ./secrets/walg_s3_access_key.txt
+  walg_s3_secret_key:
+    file: ./secrets/walg_s3_secret_key.txt
 
 services:
   db:
@@ -39,8 +47,37 @@ services:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       # Override the hardcoded password in the base compose — DB now reads from the file.
       POSTGRES_PASSWORD: ""
+      # p16-c008: wal-g continuous WAL archiving target + region. Empty by
+      # default (archive_command below then fails loudly per WAL segment
+      # instead of silently discarding WAL — see docs/runbook.md §13.4 for why
+      # that's the intentional fail-closed behavior, not a bug). Operator sets
+      # these once the S3-compatible backup target is provisioned.
+      WALG_S3_PREFIX: ${WALG_S3_PREFIX:-}
+      AWS_REGION: ${WALG_AWS_REGION:-}
     secrets:
       - postgres_password
+      - walg_s3_access_key
+      - walg_s3_secret_key
+    # p16-c008: adds archive_mode/archive_command for wal-g continuous WAL
+    # archiving to the base image's CMD (docker-compose `command:` replaces
+    # the Dockerfile CMD entirely, so every base flag is repeated here).
+    # `archive_timeout` bounds how long a lightly-loaded DB can go without an
+    # archived segment (a fully-synchronous, low-write instance could
+    # otherwise wait indefinitely between "natural" segment switches).
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - shared_preload_libraries=pg_net,pg_cron,flint_llm
+      - -c
+      - cron.database_name=flint
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=wal-g wal-push %p
+      - -c
+      - archive_timeout=60
     deploy:
       resources:
         limits:
@@ -54,7 +91,44 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
-    # In production, prefer a managed database; this container is for staging only.
+    # p16-c008: this docker-compose single-host path is NOT the supported
+    # production target — see docs/runbook.md §13.1. Production is the
+    # Kubernetes deployment (deploy/helm/flint-forge), where wal-g backs up
+    # to Azure Blob Storage via Workload Identity and is verified by an
+    # automated, recurring restore drill (§13.5). This compose S3-based wal-g
+    # config still works for anyone running a standalone single-host
+    # instance outside that cluster, but has no restore-drill coverage of
+    # its own — treat it as unverified if you rely on it.
+
+  # p16-c008: scheduled wal-g base backups. Runs the same pinned image as `db`
+  # (wal-g is already installed there) against a read-only mount of the same
+  # data volume, connecting to `db` over the network to drive the
+  # START_BACKUP/STOP_BACKUP protocol — this is the periodic full-backup half
+  # of PITR; `db`'s archive_command above is the continuous-WAL half. See
+  # docs/runbook.md §13.4 for the restore procedure and drill requirement.
+  backup:
+    build:
+      context: .
+      dockerfile: images/postgres18/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - postgres_data:/var/lib/postgresql/data:ro
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: flint
+      PGDATABASE: flint
+      WALG_S3_PREFIX: ${WALG_S3_PREFIX:-}
+      AWS_REGION: ${WALG_AWS_REGION:-}
+      WALG_BACKUP_INTERVAL_SECS: ${WALG_BACKUP_INTERVAL_SECS:-86400}
+    secrets:
+      - postgres_password
+      - walg_s3_access_key
+      - walg_s3_secret_key
+    entrypoint: ["/usr/local/bin/backup-loop.sh"]
 
   fdb-gateway:
     restart: unless-stopped
@@ -67,6 +141,10 @@ services:
     # No FLINT_JWT_SECRET_FILE annotation needed — the entrypoint handles this.
     environment:
       RUST_LOG: info
+      # Explicit (matches the code default as of p16-c004): Postgres LISTEN/NOTIFY
+      # change-stream source for GraphQL subscriptions. `fabric` (FRF gRPC) still
+      # returns an empty stream pending OQ-FRF-1 — do not select it here.
+      FLINT_CHANGE_SOURCE: listen
     secrets:
       - jwt_secret
       - postgres_password

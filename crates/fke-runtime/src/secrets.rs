@@ -97,7 +97,10 @@ impl HostSecret for KilnHostState {
     }
 
     async fn drop(&mut self, rep: Resource<SecretHandle>) -> wasmtime::Result<()> {
-        self.table.delete(rep).map(|_| ()).map_err(wasmtime::Error::from)
+        self.table
+            .delete(rep)
+            .map(|_| ())
+            .map_err(wasmtime::Error::from)
     }
 }
 
@@ -118,7 +121,10 @@ impl Host for KilnHostState {
             .map(|rls| rls.keto_subject.clone())
             .unwrap_or_default();
         self.table
-            .push(SecretHandle { name, publisher_did })
+            .push(SecretHandle {
+                name,
+                publisher_did,
+            })
             .map_err(|e| HostError {
                 code: "INTERNAL".to_owned(),
                 message: format!("failed to allocate secret handle: {e}"),

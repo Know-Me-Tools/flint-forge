@@ -10,6 +10,13 @@ use crate::model::{ArgMeta, Column, DatabaseModel, FnMeta, Table};
 pub struct OpenApiCompiler;
 
 impl OpenApiCompiler {
+    /// Compile `model` into a complete OpenAPI 3.1.0 document: one path pair
+    /// (`/<schema>/<table>` list+insert, `/<schema>/<table>/{id}`-style
+    /// update+delete) per table, one `POST /rpc/<schema>/<fn>` path per
+    /// function, and a `components.schemas` entry per table derived from its
+    /// columns. `info.version` is set to `model.version` (the schema
+    /// generation), and every route requires the shared `bearerAuth` scheme.
+    #[must_use]
     pub fn compile(model: &DatabaseModel) -> Value {
         let mut paths = serde_json::Map::new();
         let mut schemas = serde_json::Map::new();

@@ -78,6 +78,66 @@ kiln:
     KILN_EPOCH_INTERVAL_MS: "10"
 
 # ------------------------------------------------------------------------------
+# Backups (p16-c008) — wal-g continuous WAL archiving + scheduled base
+# backups for point-in-time recovery, targeting Azure Blob Storage via
+# Azure AD Workload Identity — no static storage keys anywhere. The postgres
+# pod authenticates as `backup.workloadIdentityClientId` (a federated
+# user-assigned managed identity, see docs/runbook.md §13.2) purely through
+# its ServiceAccount annotation; wal-g's Azure backend picks up the ambient
+# AZURE_CLIENT_ID/AZURE_TENANT_ID/AZURE_FEDERATED_TOKEN_FILE env vars the AKS
+# workload-identity webhook injects automatically. See docs/runbook.md §13.
+# ------------------------------------------------------------------------------
+backup:
+  enabled: false
+  # Cron schedule (in-cluster time) for the periodic wal-g backup-push base backup.
+  schedule: "0 2 * * *"
+  # archive_timeout: max seconds Postgres waits before force-switching to a new
+  # WAL segment, bounding how much data an interruption could lose (PITR still
+  # recovers up to the last archived WAL record, not just the last base backup).
+  archiveTimeoutSeconds: 60
+  # Azure Storage account (not a secret — the account name alone grants no
+  # access; authentication is entirely via Workload Identity below).
+  storageAccount: ""
+  # Blob container + prefix wal-g archives WAL segments and base backups to,
+  # e.g. "azure://pg-backups/<tenant>".
+  azPrefix: ""
+  # Client ID of the user-assigned managed identity federated to this
+  # release's postgres ServiceAccount (system:serviceaccount:<namespace>:
+  # <fullname>-postgres). Provision with `az identity federated-credential
+  # create` — see docs/runbook.md §13.2. Not a secret; safe to commit.
+  workloadIdentityClientId: ""
+  # Image providing the `kubectl` CLI for the backup CronJob's exec-trigger container.
+  kubectlImage: "bitnami/kubectl:1.31"
+  # Automated restore-drill (docs/runbook.md §13.4.3): recurring, unattended
+  # proof that backups actually restore, into a throwaway scratch volume —
+  # never the live postgres PVC, so this never risks or interrupts
+  # production. Replaces the old manual/one-time operator drill.
+  restoreDrill:
+    enabled: false
+    schedule: "0 4 * * 1"   # weekly, Mondays 04:00 in-cluster time
+    scratchVolumeSize: 10Gi
+
+# ------------------------------------------------------------------------------
+# External access (p16-c008) — Kubernetes Gateway API (Envoy Gateway), matching
+# the pattern every other app on the shared `main` AKS cluster already uses
+# (see e.g. the `firecrawl` namespace's Gateway/HTTPRoute pair): a dedicated
+# Gateway per app, HTTP (port 80) redirecting to HTTPS (port 443), TLS
+# terminated from a cert-manager-issued Secret. Unlike the *.prometheusags.ai
+# apps (which share one pre-issued wildcard cert), this issues its own
+# single-host certificate via HTTP-01 — no wildcard, so no DNS-01/Azure DNS
+# access is needed, only DNS pointing `host` at the cluster's shared Envoy
+# Gateway LoadBalancer IP.
+# ------------------------------------------------------------------------------
+ingress:
+  enabled: false
+  host: ""
+  gatewayClassName: eg
+  # cert-manager ClusterIssuer using the gatewayHTTPRoute HTTP-01 solver
+  # (routes ACME challenges through the cluster-wide acme-http01-gateway in
+  # envoy-gateway-system) — already provisioned on `main`, not created here.
+  clusterIssuer: letsencrypt-http01
+
+# ------------------------------------------------------------------------------
 # Secrets
 # ------------------------------------------------------------------------------
 # In production, create these secrets out-of-band and set `existingSecretName`.

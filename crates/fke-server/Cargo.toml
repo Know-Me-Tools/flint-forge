@@ -19,6 +19,8 @@ fke-domain = { path = "../fke-domain" }
 fke-ports = { path = "../fke-ports" }
 fke-runtime = { path = "../fke-runtime" }
 fke-registry = { path = "../fke-registry" }
+fke-sign-did = { path = "../fke-sign-did" }
+fke-sign-cosign = { path = "../fke-sign-cosign" }
 fdb-auth = { path = "../fdb-auth" }
 forge-identity = { path = "../forge-identity" }
 forge-policy = { path = "../forge-policy" }
@@ -39,6 +41,10 @@ base64 = "0.22"
 # p14-c005: Prometheus /metrics endpoint and custom Kiln counters.
 axum-prometheus = { workspace = true }
 metrics = "0.24"
+
+[dev-dependencies]
+ed25519-dalek = { workspace = true }
+sha2 = { workspace = true }
 
 [lints]
 workspace = true

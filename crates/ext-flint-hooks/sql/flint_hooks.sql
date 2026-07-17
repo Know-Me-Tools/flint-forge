@@ -153,8 +153,18 @@ BEGIN
         -- The hook payload becomes a ToolCallResult with the table change data.
         IF wh.target_type = 'agui_run' AND wh.agui_run_id IS NOT NULL THEN
             tool_call_id := gen_random_uuid()::text;
-            agui_url     := 'http://localhost:8080/agents/v1/'
-                            || wh.agui_run_id || '/events';
+            -- p16-c006: base URL is a deployment-configurable GUC, not a
+            -- hardcoded localhost address (which never worked in a real
+            -- multi-host deployment). Defaults to localhost for local dev;
+            -- operators override per-deployment via
+            -- `ALTER DATABASE ... SET flint.agui_base_url = 'https://...'`
+            -- (or in postgresql.conf) — same `current_setting(name, true)`
+            -- pattern already used for `request.jwt.claims`/`request.headers`.
+            agui_url     := coalesce(
+                                current_setting('flint.agui_base_url', true),
+                                'http://localhost:8080'
+                             )
+                            || '/agents/v1/' || wh.agui_run_id || '/events';
 
             -- Emit ToolCallStart
             agui_event := jsonb_build_object(

@@ -27,9 +27,12 @@ pub trait Identity {
 
     /// Convenience: decode [`Identity::claims_json`] into a [`serde_json::Value`].
     ///
-    /// Errors only if the host returned malformed JSON, which would be a host
-    /// bug. Skill code that wants typed claims should define a `Claims` struct
+    /// Skill code that wants typed claims should define a `Claims` struct
     /// and call `serde_json::from_str` on [`Identity::claims_json`] directly.
+    ///
+    /// # Errors
+    /// Returns [`crate::SkillError::Json`] only if the host returned
+    /// malformed JSON, which would indicate a host bug.
     fn claims(&self) -> crate::error::SkillResult<Value> {
         let raw = self.claims_json();
         serde_json::from_str(&raw).map_err(|source| crate::SkillError::Json {

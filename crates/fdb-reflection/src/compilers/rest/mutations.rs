@@ -4,7 +4,7 @@
 //! Shared state (`RestState`) and response/SQL helpers live in the parent
 //! module and are re-used here via `super::`.
 
-use axum::{http::StatusCode, response::IntoResponse};
+use axum::{extract::Query, http::StatusCode, response::IntoResponse, Json};
 use forge_domain::is_safe_identifier;
 use forge_identity::RlsContext;
 use forge_policy::{Decision, Request as PolicyRequest};
@@ -12,14 +12,11 @@ use serde_json::{Map, Value};
 use std::collections::HashMap;
 use tracing::instrument;
 
-use crate::compilers::filters::{
-    bind_mutation_value, bind_param, cast_hints_for, mutation_placeholder, mutation_value_to_bind,
-    render_where_with_hints,
-};
+use crate::compilers::filters::render_where;
 
 use super::{
-    bad_request, forbidden, insert_response, internal_error, parse_filters, rows_response,
-    RestState, KETO_NAMESPACE,
+    bad_request, forbidden, insert_response, internal_error, json_bind, parse_filters,
+    rows_response, RestState, KETO_NAMESPACE,
 };
 
 /// Run the mutation authorization gates for `<schema>.<table>` under `rls`.
@@ -72,11 +69,11 @@ pub(super) async fn mutation_guard(
 /// with the inserted row and a `Location: /<schema>/<table>/<pk>` header.
 #[instrument(skip(state, rls, body), fields(schema = %schema, table = %table))]
 pub(super) async fn handle_insert(
+    state: RestState,
     schema: String,
     table: String,
-    state: RestState,
     rls: RlsContext,
-    body: Map<String, Value>,
+    Json(body): Json<Map<String, Value>>,
 ) -> impl IntoResponse {
     if !is_safe_identifier(&schema) || !is_safe_identifier(&table) {
         return bad_request("invalid schema or table identifier");
@@ -89,35 +86,34 @@ pub(super) async fn handle_insert(
     }
 
     // Validate every column name before it is interpolated.
-    let hints = cast_hints_for(&state.model, &schema, &table);
     let mut columns: Vec<String> = Vec::with_capacity(body.len());
-    let mut binds = Vec::with_capacity(body.len());
-    let mut placeholders: Vec<String> = Vec::with_capacity(body.len());
-    for (idx, (col, val)) in (1_usize..).zip(&body) {
+    let mut values: Vec<Value> = Vec::with_capacity(body.len());
+    for (col, val) in &body {
         if !is_safe_identifier(col) {
             return bad_request(&format!("invalid column identifier: {col}"));
         }
-        let bind = mutation_value_to_bind(val);
-        placeholders.push(mutation_placeholder(idx, &bind, hints.get(col)));
         columns.push(col.clone());
-        binds.push(bind);
+        values.push(val.clone());
     }
 
+    // No cast: Postgres infers each `$n`'s type from the target column being
+    // inserted into (see `json_bind`'s doc comment for why an explicit
+    // `::jsonb` cast here is wrong — it silently corrupts string values via
+    // the `jsonb → text` assignment cast's JSON-quoting).
+    let placeholders: Vec<String> = (1..=columns.len()).map(|i| format!("${i}")).collect();
     let sql = format!(
         "INSERT INTO {schema}.{table} ({cols}) VALUES ({ph}) RETURNING row_to_json({table}) AS row",
         cols = columns.join(", "),
         ph = placeholders.join(", "),
     );
 
-    // SAFETY: `schema`, `table`, and every column above passed `is_safe_identifier`;
-    // all values are bound as `$n`, never interpolated.
-    let mut q = sqlx::query(sqlx::AssertSqlSafe(sql));
-    for b in &binds {
-        q = bind_mutation_value(q, b);
-    }
+    let binds = values.iter().map(json_bind).collect();
 
-    match q.fetch_one(&state.pool).await {
-        Ok(row) => insert_response(&row, &schema, &table),
+    match state.executor.execute_raw(&sql, binds, &rls).await {
+        Ok(rows) => match rows.into_iter().next() {
+            Some(row) => insert_response(&row, &schema, &table),
+            None => internal_error(),
+        },
         Err(e) => {
             tracing::error!(error = %e, "handle_insert query error");
             internal_error()
@@ -132,12 +128,12 @@ pub(super) async fn handle_insert(
 /// rows, or `204 No Content` when nothing matched.
 #[instrument(skip(state, rls, params, body), fields(schema = %schema, table = %table))]
 pub(super) async fn handle_update(
+    state: RestState,
     schema: String,
     table: String,
-    state: RestState,
     rls: RlsContext,
-    params: HashMap<String, String>,
-    body: Map<String, Value>,
+    Query(params): Query<HashMap<String, String>>,
+    Json(body): Json<Map<String, Value>>,
 ) -> impl IntoResponse {
     if !is_safe_identifier(&schema) || !is_safe_identifier(&table) {
         return bad_request("invalid schema or table identifier");
@@ -149,21 +145,18 @@ pub(super) async fn handle_update(
         return bad_request("update body must not be empty");
     }
 
-    // SET clause — validate columns, bind values starting at $1.
-    let hints = cast_hints_for(&state.model, &schema, &table);
+    // SET clause — validate columns, bind values starting at $1. No cast: see
+    // `json_bind`'s doc comment for why an explicit `::jsonb` cast here is
+    // wrong (silently corrupts string values via JSON-quoting on assignment).
     let mut set_parts: Vec<String> = Vec::with_capacity(body.len());
-    let mut binds = Vec::new();
+    let mut binds: Vec<fdb_query::QueryParam> = Vec::new();
     let mut idx = 1_usize;
     for (col, val) in &body {
         if !is_safe_identifier(col) {
             return bad_request(&format!("invalid column identifier: {col}"));
         }
-        let bind = mutation_value_to_bind(val);
-        set_parts.push(format!(
-            "{col} = {}",
-            mutation_placeholder(idx, &bind, hints.get(col))
-        ));
-        binds.push(bind);
+        set_parts.push(format!("{col} = ${idx}"));
+        binds.push(json_bind(val));
         idx += 1;
     }
 
@@ -171,7 +164,7 @@ pub(super) async fn handle_update(
         Ok(f) => f,
         Err(resp) => return *resp,
     };
-    let where_clause = match render_where_with_hints(&filter_tree, idx, &hints) {
+    let where_clause = match render_where(&filter_tree, idx) {
         Ok(wc) => wc,
         Err(msg) => return bad_request(&msg),
     };
@@ -182,17 +175,9 @@ pub(super) async fn handle_update(
         where_sql = where_clause.sql,
     );
 
-    // SAFETY: `schema`, `table`, and every SET/filter column passed
-    // `is_safe_identifier`; all values are bound as `$n`, never interpolated.
-    let mut q = sqlx::query(sqlx::AssertSqlSafe(sql));
-    for b in &binds {
-        q = bind_mutation_value(q, b);
-    }
-    for b in &where_clause.binds {
-        q = bind_param(q, b);
-    }
+    binds.extend(where_clause.binds);
 
-    match q.fetch_all(&state.pool).await {
+    match state.executor.execute_raw(&sql, binds, &rls).await {
         Ok(rows) if rows.is_empty() => StatusCode::NO_CONTENT.into_response(),
         Ok(rows) => rows_response(&rows),
         Err(e) => {
@@ -207,11 +192,11 @@ pub(super) async fn handle_update(
 /// Returns `204 No Content`.
 #[instrument(skip(state, rls, params), fields(schema = %schema, table = %table))]
 pub(super) async fn handle_delete(
+    state: RestState,
     schema: String,
     table: String,
-    state: RestState,
     rls: RlsContext,
-    params: HashMap<String, String>,
+    Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
     if !is_safe_identifier(&schema) || !is_safe_identifier(&table) {
         return bad_request("invalid schema or table identifier");
@@ -220,12 +205,11 @@ pub(super) async fn handle_delete(
         return *resp;
     }
 
-    let hints = cast_hints_for(&state.model, &schema, &table);
     let filter_tree = match parse_filters(&params) {
         Ok(f) => f,
         Err(resp) => return *resp,
     };
-    let where_clause = match render_where_with_hints(&filter_tree, 1, &hints) {
+    let where_clause = match render_where(&filter_tree, 1) {
         Ok(wc) => wc,
         Err(msg) => return bad_request(&msg),
     };
@@ -235,14 +219,11 @@ pub(super) async fn handle_delete(
         where_sql = where_clause.sql,
     );
 
-    // SAFETY: `schema`, `table`, and every filter column passed
-    // `is_safe_identifier`; all values are bound as `$n`, never interpolated.
-    let mut q = sqlx::query(sqlx::AssertSqlSafe(sql));
-    for b in &where_clause.binds {
-        q = bind_param(q, b);
-    }
-
-    match q.execute(&state.pool).await {
+    match state
+        .executor
+        .execute_raw(&sql, where_clause.binds, &rls)
+        .await
+    {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => {
             tracing::error!(error = %e, "handle_delete query error");
@@ -254,15 +235,15 @@ pub(super) async fn handle_delete(
 #[cfg(test)]
 mod tests {
     //! Mutation gate tests — exercise `mutation_guard` directly with mock
-    //! Keto/Cedar gates. The guard runs BEFORE any SQL, so a lazy (never-dialed)
-    //! pool is sufficient: a denial returns before the pool is touched.
+    //! Keto/Cedar gates. The guard runs BEFORE any SQL, so a never-invoked
+    //! executor is sufficient: a denial returns before the executor is touched.
 
     use super::mutation_guard;
     use crate::compilers::rest::RestState;
     use crate::model::{DatabaseModel, Table};
     use async_trait::async_trait;
     use axum::http::StatusCode;
-    use fdb_ports::KetoCheck;
+    use fdb_ports::{BackendError, KetoCheck, SqlExecutor};
     use forge_identity::RlsContext;
     use forge_policy::{Decision, Pep, Request as PolicyRequest};
     use std::sync::Arc;
@@ -310,11 +291,23 @@ mod tests {
         }
     }
 
+    struct UnusedExecutor;
+    #[async_trait]
+    impl SqlExecutor for UnusedExecutor {
+        async fn execute_raw(
+            &self,
+            _sql: &str,
+            _params: Vec<fdb_query::QueryParam>,
+            _rls: &RlsContext,
+        ) -> Result<Vec<serde_json::Map<String, serde_json::Value>>, BackendError> {
+            unreachable!("a denial returns before the executor is touched")
+        }
+    }
+
     fn state_with_gates(keto: Option<Arc<dyn KetoCheck>>, pep: Option<Arc<dyn Pep>>) -> RestState {
-        let pool = sqlx::PgPool::connect_lazy("postgres://localhost/test").expect("lazy pool");
         RestState {
             model: Arc::new(minimal_model()),
-            pool,
+            executor: Arc::new(UnusedExecutor),
             keto,
             pep,
         }

@@ -129,5 +129,21 @@ export function handleSummary(data) {
   lines.push('─────────────────────────────────────────────────────────────────');
   lines.push('');
   console.log(lines.join('\n'));
-  return {};
+
+  // p16-c008: machine-readable p99s per endpoint, consumed by
+  // .github/workflows/ci.yml's `performance` job to auto-update this file's
+  // own thresholds/BASELINE_DATE — see the threshold update procedure above.
+  const p99 = (tag) => {
+    const m = thresholds[`http_req_duration{endpoint:${tag}}`];
+    return m && m.values ? m.values['p(99)'] : null;
+  };
+  const summary = {
+    healthz: p99('healthz'),
+    components: p99('components'),
+    mcp_tools: p99('mcp_tools'),
+  };
+
+  return {
+    'perf-summary.json': JSON.stringify(summary, null, 2),
+  };
 }

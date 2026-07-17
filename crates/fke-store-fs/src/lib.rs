@@ -3,12 +3,14 @@
 //! Stores WASM component bytes at `{root}/{sha256_prefix}/{sha256_hex}`.
 //! The two-character prefix sharding keeps directory listing fast for large catalogs.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 use std::path::PathBuf;
 
 use async_trait::async_trait;
 use fke_domain::ContentId;
 use fke_ports::{ComponentStore, StoreError};
+use sha2::{Digest, Sha256};
 use tokio::fs;
 
 /// Filesystem-backed component store.
@@ -19,6 +21,12 @@ pub struct StoreFs {
 impl StoreFs {
     /// Create a new `StoreFs` rooted at `root`.
     /// The directory is created if it does not exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Io`] if `root` cannot be created — for example
+    /// because a path component exists as a non-directory file, or the
+    /// process lacks permission to create the directory.
     pub async fn new(root: impl Into<PathBuf>) -> Result<Self, StoreError> {
         let root = root.into();
         fs::create_dir_all(&root)
@@ -35,13 +43,7 @@ impl StoreFs {
 }
 
 fn content_id_for(bytes: &[u8]) -> ContentId {
-    // Stable-ish hash without sha2 dep — deterministic for same input.
-    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-    for &b in bytes {
-        h ^= u64::from(b);
-        h = h.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    ContentId(format!("sha256:{h:016x}{:016x}", bytes.len() as u64))
+    ContentId(format!("sha256:{:x}", Sha256::digest(bytes)))
 }
 
 #[async_trait]
@@ -120,5 +122,14 @@ mod tests {
     #[test]
     fn content_id_differs_for_different_input() {
         assert_ne!(content_id_for(b"hello"), content_id_for(b"world"));
+    }
+
+    /// p16-c002: real SHA-256, not the prior FNV-style pseudo-hash.
+    #[test]
+    fn content_id_matches_known_sha256_vector() {
+        assert_eq!(
+            content_id_for(b"abc").0,
+            "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+        );
     }
 }

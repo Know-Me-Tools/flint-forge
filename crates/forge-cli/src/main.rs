@@ -241,6 +241,11 @@ async fn register(args: RegisterArgs) -> Result<()> {
         version: args.version.clone(),
         not_before: args.not_before,
         not_after: args.not_after,
+        // did:prometheus: signature attachment isn't wired into this CLI's
+        // register flow yet; cosign-signed components look their signature up
+        // from Rekor by content_digest instead of this field. See
+        // FunctionManifest::signature_b64's doc comment.
+        signature_b64: None,
     };
 
     let body = RegisterBody {

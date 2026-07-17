@@ -1,0 +1,176 @@
+//! `forge fn register` — register a WASM component with the Kiln control-plane.
+
+use std::path::PathBuf;
+
+use anyhow::{bail, Context, Result};
+use base64::Engine as _;
+use chrono::{Duration, Utc};
+use clap::Args;
+use fke_domain::{Capability, FunctionManifest};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use tracing::info;
+
+#[derive(Args)]
+pub struct RegisterArgs {
+    /// Path to the .wasm component file.
+    pub path: PathBuf,
+    /// Function name. Defaults to the file stem.
+    #[arg(short, long)]
+    pub name: Option<String>,
+    /// Function version.
+    #[arg(short, long, default_value = "1.0.0")]
+    pub version: String,
+    /// Publisher DID recorded in the manifest. Ignored (and overridden) when
+    /// `--signing-key` is supplied, since the DID is derived from the key.
+    #[arg(long, default_value = "did:flint:operator")]
+    pub publisher_did: String,
+    /// Path to a raw 32-byte Ed25519 seed file. When supplied, the CLI signs
+    /// the component and sets `publisher_did` to `did:prometheus:<pubkey>`
+    /// (base64url), which `fke-sign-did`'s verifier resolves without a
+    /// network call. Without this, the server's mandatory signature check
+    /// (p16-c002) rejects the registration.
+    #[arg(long)]
+    pub signing_key: Option<PathBuf>,
+    /// Granted capabilities (comma-separated).
+    #[arg(long, value_delimiter = ',', default_value = "HttpOutgoing")]
+    pub capabilities: Vec<String>,
+    /// Manifest not-before date (RFC3339).
+    #[arg(long, default_value_t = default_not_before())]
+    pub not_before: String,
+    /// Manifest not-after date (RFC3339).
+    #[arg(long, default_value_t = default_not_after())]
+    pub not_after: String,
+    /// Kiln control-plane base URL.
+    #[arg(long, env = "KILN_ADMIN_URL", default_value = "http://localhost:8090")]
+    pub admin_url: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct RegisterBody {
+    name: String,
+    version: String,
+    manifest: FunctionManifest,
+    wasm_base64: String,
+}
+
+fn default_not_before() -> String {
+    Utc::now().to_rfc3339()
+}
+
+fn default_not_after() -> String {
+    (Utc::now() + Duration::days(365)).to_rfc3339()
+}
+
+/// Sign `wasm_bytes` for registration: `did:prometheus:<pubkey>` derived from
+/// the key, and a signature over `sha256(artifact) || content_digest` — the
+/// exact message `fke-sign-did::VerifierDid` reconstructs and checks.
+fn sign_component(
+    seed_path: &std::path::Path,
+    wasm_bytes: &[u8],
+    content_digest: &str,
+) -> Result<(String, String)> {
+    use ed25519_dalek::Signer as _;
+
+    let seed_bytes = std::fs::read(seed_path)
+        .with_context(|| format!("failed to read signing key {}", seed_path.display()))?;
+    let seed: [u8; 32] = seed_bytes
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("signing key must be exactly 32 raw bytes"))?;
+    let signing_key = ed25519_dalek::SigningKey::from_bytes(&seed);
+    let did = format!(
+        "did:prometheus:{}",
+        base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(signing_key.verifying_key().to_bytes())
+    );
+
+    let artifact_hash = Sha256::digest(wasm_bytes);
+    let mut msg = Vec::with_capacity(32 + content_digest.len());
+    msg.extend_from_slice(&artifact_hash);
+    msg.extend_from_slice(content_digest.as_bytes());
+
+    let signature = signing_key.sign(&msg);
+    let signature_b64 = base64::engine::general_purpose::STANDARD.encode(signature.to_bytes());
+
+    Ok((did, signature_b64))
+}
+
+fn parse_capability(value: &str) -> Result<Capability> {
+    match value.to_ascii_lowercase().as_str() {
+        "db" => Ok(Capability::Db),
+        "llm" => Ok(Capability::Llm),
+        "kv" => Ok(Capability::Kv),
+        "identity" => Ok(Capability::Identity),
+        "secrets" => Ok(Capability::Secrets),
+        "httpoutgoing" | "http" => Ok(Capability::HttpOutgoing),
+        _ => bail!("unknown capability: {value}"),
+    }
+}
+
+pub async fn register(args: RegisterArgs) -> Result<()> {
+    let wasm_bytes = tokio::fs::read(&args.path)
+        .await
+        .with_context(|| format!("failed to read wasm file {}", args.path.display()))?;
+    let digest = format!("{:x}", Sha256::digest(&wasm_bytes));
+    let wasm_base64 = base64::engine::general_purpose::STANDARD.encode(&wasm_bytes);
+
+    let name = match args.name {
+        Some(name) => name,
+        None => args
+            .path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(str::to_owned)
+            .with_context(|| format!("could not derive name from {}", args.path.display()))?,
+    };
+
+    let capabilities: Vec<Capability> = args
+        .capabilities
+        .iter()
+        .map(|s| parse_capability(s))
+        .collect::<Result<Vec<_>>>()?;
+
+    let (publisher_did, signature_b64) = match &args.signing_key {
+        Some(path) => {
+            let (did, sig) = sign_component(path, &wasm_bytes, &digest)?;
+            (did, Some(sig))
+        }
+        None => (args.publisher_did, None),
+    };
+
+    let manifest = FunctionManifest {
+        publisher_did,
+        content_digest: digest.clone(),
+        capabilities,
+        version: args.version.clone(),
+        not_before: args.not_before,
+        not_after: args.not_after,
+        signature_b64,
+    };
+
+    let body = RegisterBody {
+        name: name.clone(),
+        version: args.version,
+        manifest,
+        wasm_base64,
+    };
+
+    let client = reqwest::Client::new();
+    let url = format!("{}/admin/functions", args.admin_url.trim_end_matches('/'));
+    let response = client
+        .post(&url)
+        .json(&body)
+        .send()
+        .await
+        .with_context(|| format!("failed to POST to {url}"))?;
+
+    let status = response.status();
+    let text = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        bail!("registration failed: {status} {text}");
+    }
+
+    info!(name, digest, status = %status, "registered function");
+    println!("{text}");
+    Ok(())
+}

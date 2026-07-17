@@ -4,10 +4,12 @@
 //! bytes from `flint_kiln.functions`. Falls back to `StoreError::NotFound`
 //! when no matching row exists.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 use async_trait::async_trait;
 use fke_domain::{ContentId, FunctionManifest};
 use fke_ports::{ComponentRegistry, ComponentStore, StoreError};
+use sha2::{Digest, Sha256};
 use sqlx::{types::Json as SqlxJson, FromRow, PgPool};
 
 /// Postgres-backed component registry.
@@ -16,6 +18,11 @@ pub struct PgRegistry {
 }
 
 impl PgRegistry {
+    /// Wrap an existing `PgPool` as a `PgRegistry`.
+    ///
+    /// Does not verify connectivity or that the `flint_kiln` schema exists —
+    /// callers are expected to have already run the Kiln migrations
+    /// (`migrations/0010_flint_kiln.sql`) against `pool`.
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
@@ -54,6 +61,11 @@ pub struct PgComponentStore {
 }
 
 impl PgComponentStore {
+    /// Wrap an existing `PgPool` as a `PgComponentStore`.
+    ///
+    /// Does not verify connectivity or that the `flint_kiln` schema exists —
+    /// callers are expected to have already run the Kiln migrations
+    /// (`migrations/0010_flint_kiln.sql`) against `pool`.
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
@@ -106,19 +118,7 @@ impl ComponentStore for PgComponentStore {
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
-    use std::fmt::Write as _;
-    // Simple stdlib SHA-256 using sha2 would be ideal, but to keep deps lean
-    // we use a deterministic pseudo-hash based on the byte length + first 16 bytes.
-    // TODO: replace with sha2::Sha256 once sha2 is a workspace dep.
-    let mut hash = 0u64;
-    for (i, &b) in bytes.iter().enumerate().take(64) {
-        hash = hash.wrapping_add(u64::from(b).wrapping_mul(i as u64 + 1));
-        hash = hash.rotate_left(7);
-    }
-    hash = hash.wrapping_add(bytes.len() as u64);
-    let mut s = String::new();
-    let _ = write!(s, "{hash:016x}{:016x}", bytes.len() as u64);
-    s
+    format!("{:x}", Sha256::digest(bytes))
 }
 
 #[cfg(test)]
@@ -137,5 +137,19 @@ mod tests {
         let a = sha256_hex(b"hello");
         let b = sha256_hex(b"world");
         assert_ne!(a, b);
+    }
+
+    /// p16-c002: this is a *real* SHA-256, not the prior pseudo-hash — assert
+    /// against the actual well-known digest vectors, not just stability.
+    #[test]
+    fn sha256_hex_matches_known_vectors() {
+        assert_eq!(
+            sha256_hex(b""),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        );
+        assert_eq!(
+            sha256_hex(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+        );
     }
 }

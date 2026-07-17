@@ -1,4 +1,16 @@
 {{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "flint-forge.fullname" . }}-postgres
+  labels:
+    app.kubernetes.io/component: postgres
+    {{- include "flint-forge.labels" . | nindent 4 }}
+  {{- if and .Values.backup.enabled .Values.backup.workloadIdentityClientId }}
+  annotations:
+    azure.workload.identity/client-id: {{ .Values.backup.workloadIdentityClientId | quote }}
+  {{- end }}
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -18,7 +30,11 @@ spec:
       labels:
         app.kubernetes.io/component: postgres
         {{- include "flint-forge.selectorLabels" . | nindent 8 }}
+        {{- if and .Values.backup.enabled .Values.backup.workloadIdentityClientId }}
+        azure.workload.identity/use: "true"
+        {{- end }}
     spec:
+      serviceAccountName: {{ include "flint-forge.fullname" . }}-postgres
       containers:
         - name: postgres
           image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
@@ -26,6 +42,19 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres
+          {{- if .Values.backup.enabled }}
+          # p16-c008: continuous WAL archiving via wal-g. archive_command runs
+          # as postgres's own subprocess, so no extra container/volume needed
+          # here — only the periodic base backup (backup-cronjob.yaml) needs
+          # `kubectl exec` into this pod.
+          args:
+            - "-c"
+            - "archive_mode=on"
+            - "-c"
+            - "archive_command=wal-g wal-push %p"
+            - "-c"
+            - "archive_timeout={{ .Values.backup.archiveTimeoutSeconds }}"
+          {{- end }}
           env:
             - name: POSTGRES_USER
               value: {{ .Values.postgres.user | quote }}
@@ -33,6 +62,16 @@ spec:
               value: {{ .Values.postgres.password | quote }}
             - name: POSTGRES_DB
               value: {{ .Values.postgres.database | quote }}
+            {{- if .Values.backup.enabled }}
+            # No AZURE_CLIENT_ID/AZURE_TENANT_ID/AZURE_FEDERATED_TOKEN_FILE here —
+            # the AKS workload-identity mutating webhook injects those automatically
+            # onto any pod carrying the azure.workload.identity/use label whose
+            # ServiceAccount has the client-id annotation (both set above).
+            - name: WALG_AZ_PREFIX
+              value: {{ .Values.backup.azPrefix | quote }}
+            - name: AZURE_STORAGE_ACCOUNT
+              value: {{ .Values.backup.storageAccount | quote }}
+            {{- end }}
           resources:
             {{- toYaml .Values.postgres.resources | nindent 12 }}
           volumeMounts:
