@@ -372,8 +372,18 @@ pub(crate) async fn run() {
         .layer(axum::middleware::from_fn(rls_layer::require_rls))
         .with_state(agui_state);
 
-    let app = Router::new()
+    // p16-c008: /healthz built as its own Router<GatewayState>, merged in
+    // AFTER the per-IP rate-limit layer below — same reasoning as /metrics.
+    // Kubernetes liveness/readiness probes hit this from the node's IP on
+    // every scrape interval and must never be subject to the same per-client
+    // rate limit as real REST/GraphQL traffic. Rate-limiting the probe
+    // itself caused the kubelet to see sustained 429s and kill an otherwise-
+    // healthy pod (first surfaced by the ssr cluster deploy).
+    let healthz_router = Router::new()
         .route("/healthz", get(healthz))
+        .with_state(gateway_state.clone());
+
+    let app = Router::new()
         .route("/openapi.json", get(openapi_handler))
         .route("/mcp/v1/tools", get(mcp_tools_handler))
         .route("/rpc/vector", axum::routing::post(rpc_vector_handler))
@@ -435,6 +445,8 @@ pub(crate) async fn run() {
         tracing::info!("rate limiting disabled (FLINT_RATE_LIMIT_REST=0)");
         app
     };
+
+    let app = app.merge(healthz_router);
 
     // Use into_make_service_with_connect_info so that PeerIpKeyExtractor can
     // read ConnectInfo<SocketAddr> from the request extensions.  This is a no-op

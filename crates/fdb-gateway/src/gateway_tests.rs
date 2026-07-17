@@ -107,6 +107,44 @@ mod rate_limit_tests {
             "second immediate request should be rate-limited"
         );
     }
+
+    /// Regression for the p16-c008 `/healthz` incident: a route merged onto
+    /// the router AFTER `GovernorLayer` (mirroring `bootstrap.rs`'s
+    /// `app.layer(layer)` then `.merge(healthz_router)`) must be exempt from
+    /// the per-IP limit — even once the bucket for `/ping` is exhausted.
+    /// Kubernetes' liveness/readiness probes hit `/healthz` on every scrape
+    /// interval from the node's IP; subjecting that traffic to the same
+    /// limiter as real REST/GraphQL requests caused sustained 429s that made
+    /// the kubelet kill an otherwise-healthy pod.
+    #[tokio::test]
+    async fn route_merged_after_governor_layer_bypasses_rate_limit() {
+        let cfg = GovernorConfigBuilder::default()
+            .per_second(1)
+            .burst_size(1)
+            .finish()
+            .expect("cfg");
+        let rate_limited = Router::new()
+            .route("/ping", get(|| async { "pong" }))
+            .layer(GovernorLayer::new(cfg));
+        let exempt = Router::new().route("/healthz", get(|| async { "ok" }));
+        let app = rate_limited.merge(exempt);
+
+        // Exhaust /ping's burst bucket.
+        let res1 = app.clone().oneshot(make_request("/ping")).await.unwrap();
+        assert_eq!(res1.status(), StatusCode::OK);
+        let res2 = app.clone().oneshot(make_request("/ping")).await.unwrap();
+        assert_eq!(res2.status(), StatusCode::TOO_MANY_REQUESTS);
+
+        // /healthz must still succeed from the same peer, repeatedly.
+        for _ in 0..5_u8 {
+            let health = app.clone().oneshot(make_request("/healthz")).await.unwrap();
+            assert_eq!(
+                health.status(),
+                StatusCode::OK,
+                "/healthz must never be subject to the per-IP rate limit"
+            );
+        }
+    }
 }
 
 // ─── Security-header unit tests ───────────────────────────────────────────────

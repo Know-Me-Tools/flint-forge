@@ -34,7 +34,7 @@ use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _
 
 use handlers::admin::{list_functions, register_function};
 use handlers::health::healthz;
-use handlers::invoke::{invoke_function, invoke_function_versioned};
+use handlers::invoke::invoke_function;
 use state::KilnState;
 
 #[tokio::main]
@@ -110,11 +110,14 @@ async fn main() {
             "/metrics",
             get(move || std::future::ready(metric_handle.render())),
         )
-        .route("/functions/v1/{name}", any(invoke_function))
-        .route(
-            "/functions/v1/{name}@{version}",
-            any(invoke_function_versioned),
-        )
+        // p16-c008: axum 0.8 allows only one dynamic capture per path
+        // segment — the former two-route split ("{name}" and
+        // "{name}@{version}") registered two routes matching the identical
+        // single-segment path shape, which axum rejects at startup with
+        // "Only one parameter is allowed per path segment" (crash-looping
+        // the whole process). Route both forms through one handler that
+        // captures the full segment and splits on '@' internally.
+        .route("/functions/v1/{name_or_versioned}", any(invoke_function))
         .layer(metric_layer);
 
     if cfg!(feature = "control-plane") {
