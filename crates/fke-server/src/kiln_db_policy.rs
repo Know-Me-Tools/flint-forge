@@ -11,7 +11,7 @@
 
 use async_trait::async_trait;
 use forge_policy::{PolicyEntry, PolicyLoadError, PolicySource};
-use sqlx::{PgPool, Row};
+use sqlx::{types::Uuid, PgPool, Row};
 
 /// Loads enabled Cedar policies from `flint_kiln.cedar_policies`.
 pub struct DbKilnPolicySource {
@@ -39,7 +39,10 @@ impl PolicySource for DbKilnPolicySource {
         let entries = rows
             .into_iter()
             .map(|r| PolicyEntry {
-                id: r.get::<String, _>("id"),
+                // `id` is `uuid` in flint_kiln.cedar_policies — sqlx has no
+                // Decode<Postgres> for uuid -> String directly, so decode as
+                // Uuid then stringify for PolicyEntry's Cedar PolicyId shape.
+                id: r.get::<Uuid, _>("id").to_string(),
                 text: r.get::<String, _>("policy_text"),
                 enabled: r.get::<bool, _>("enabled"),
             })
