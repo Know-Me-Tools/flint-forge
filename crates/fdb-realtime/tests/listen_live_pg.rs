@@ -151,9 +151,9 @@ async fn listen_change_source_watch_delivers_event() {
             database_url: url.clone(),
             broadcast_capacity: 64,
         },
-        KetoConfig {
+        Some(KetoConfig {
             base_url: keto.uri(),
-        },
+        }),
     )
     .await
     .expect("listen source");

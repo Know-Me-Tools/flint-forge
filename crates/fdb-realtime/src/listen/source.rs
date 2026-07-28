@@ -22,7 +22,11 @@ pub struct ListenChangeSource {
     /// HTTP client for the Keto coarse check.
     pub(super) http: reqwest::Client,
     /// Keto read-API config (reused from the crate root).
-    pub(super) keto: KetoConfig,
+    /// `None` when the deployment's authorization model is Postgres RLS only
+    /// (the default). The subscribe-time coarse check is then skipped and no
+    /// Ory Keto service is required; the per-event RLS re-query downstream
+    /// remains authoritative either way.
+    pub(super) keto: Option<KetoConfig>,
     /// Aborts the background listen task (and drops its dedicated PG connection)
     /// when the last clone of this source is dropped. Shared via `Arc` so cloning
     /// the source keeps the single task alive; the guard fires only on final drop.
@@ -51,7 +55,7 @@ impl ListenChangeSource {
     ///
     /// - [`ListenError::Connect`] if the dedicated connection cannot be established.
     /// - [`ListenError::Listen`] if `LISTEN flint_change` fails.
-    pub async fn new(cfg: ListenConfig, keto: KetoConfig) -> Result<Self, ListenError> {
+    pub async fn new(cfg: ListenConfig, keto: Option<KetoConfig>) -> Result<Self, ListenError> {
         let mut listener = sqlx::postgres::PgListener::connect(&cfg.database_url)
             .await
             .map_err(|e| {

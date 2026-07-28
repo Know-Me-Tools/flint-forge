@@ -53,15 +53,19 @@ impl ChangeStreamSource for ListenChangeSource {
         // otherwise be the Keto network latency). On deny, `rx` is simply dropped.
         let rx = self.tx.subscribe();
 
-        // Keto coarse check, FAIL CLOSED. Reuses the exact crate helper.
-        keto_check_via_http(
-            &self.http,
-            &self.keto.base_url,
-            &spec.entity_type,
-            &spec.tenant,
-            &who.keto_subject,
-        )
-        .await?;
+        // Keto coarse check, FAIL CLOSED — only when the deployment opted into
+        // Keto. With `None` there is no relation model to consult; the per-event
+        // RLS re-query below is authoritative and unchanged.
+        if let Some(keto) = &self.keto {
+            keto_check_via_http(
+                &self.http,
+                &keto.base_url,
+                &spec.entity_type,
+                &spec.tenant,
+                &who.keto_subject,
+            )
+            .await?;
+        }
 
         // Filter the fan-out by entity_type. The tenant match is best-effort;
         // the RLS re-query downstream is authoritative.

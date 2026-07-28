@@ -25,7 +25,9 @@ use crate::graphql::handle_graphql_query;
 use crate::handlers::{healthz, mcp_tools_handler, openapi_handler, rpc_vector_handler};
 use crate::subscriptions::{build_subscription_factory, graphql_ws_handler};
 use crate::GatewayState;
-use crate::{agui_hook_dispatcher, keto_sync, policy_source, rls_layer, routes, telemetry};
+use crate::{
+    agui_hook_dispatcher, authz_mode, keto_sync, policy_source, rls_layer, routes, telemetry,
+};
 
 // Composition root: sequential wiring of pools, adapters, gates, routes. Called
 // from the anyhow-at-the-edge binary entry point (`main()` in `main.rs`); a
@@ -121,38 +123,94 @@ pub(crate) async fn run() {
     };
     let rest_executor: Arc<dyn fdb_ports::SqlExecutor> = Arc::new(PgRest::new(rest_pool));
 
-    // Spawn the Keto sync background task BEFORE compiling routes, so the
-    // KetoCheck adapter can be threaded into the reflection compiler's mutation
-    // gates (and hot-reloads).
-    // SECURITY: this pool is the privileged reflection pool — MUST NOT be the user RLS pool.
-    let keto_sync_cfg = keto_sync::keto_sync_config_from_env(Arc::new(
-        PgPool::connect(&database_url)
-            .await
-            .expect("keto-sync pool connect"),
-    ));
-    let (keto_task, keto_cache) = keto_sync::KetoSyncTask::new(keto_sync_cfg);
-    let _keto_sync_handle = keto_task.spawn();
+    // Resolve the authorization model BEFORE any Keto wiring, so `rls` mode
+    // never opens the extra pool or spawns the sync task.
+    //
+    // Postgres grants + RLS (`rls_layer` + `SET LOCAL ROLE`) and the Cedar PEP
+    // are always on and are the complete authorization story — the same model
+    // Supabase implements. Keto is an additional coarse relation check that only
+    // some deployments want, so it is opt-in.
+    let authz_mode_raw = std::env::var(authz_mode::AUTHZ_MODE_VAR).ok();
+    let mode = match authz_mode::resolve_authz_mode(authz_mode_raw.as_deref()) {
+        Ok(m) => m,
+        Err(bad) => panic!(
+            "{} has unrecognized value {bad:?}; expected \"rls\" or \"rls+keto\". \
+             Refusing to start rather than guessing an authorization model.",
+            authz_mode::AUTHZ_MODE_VAR
+        ),
+    };
+    let (mode, legacy_used) = authz_mode::apply_legacy_gate_var(
+        mode,
+        authz_mode_raw.is_some(),
+        std::env::var(authz_mode::LEGACY_KETO_GATE_VAR)
+            .ok()
+            .as_deref(),
+    );
+    if legacy_used {
+        tracing::warn!(
+            "{} is deprecated — set {}=rls instead. It names only the mutation \
+             half, leaving subscriptions gated.",
+            authz_mode::LEGACY_KETO_GATE_VAR,
+            authz_mode::AUTHZ_MODE_VAR
+        );
+    }
 
-    // KetoCheck adapter — the composition-time bridge between the background
-    // cache and the mutation gates.
-    let keto_adapter: Arc<dyn fdb_ports::KetoCheck> =
-        Arc::new(keto_sync::KetoCacheAdapter::new(keto_cache));
+    // Keto wiring, only when opted in. In `rls` mode none of this runs: no extra
+    // PgPool, no 30s polling, and no dependency on `flint_meta.keto_tuples`.
+    //
+    // SECURITY: this pool is the privileged reflection pool — MUST NOT be the user RLS pool.
+    let keto_adapter: Option<Arc<dyn fdb_ports::KetoCheck>> = if mode.keto_enabled() {
+        let keto_sync_cfg = keto_sync::keto_sync_config_from_env(Arc::new(
+            PgPool::connect(&database_url)
+                .await
+                .expect("keto-sync pool connect"),
+        ));
+        let (keto_task, keto_cache) = keto_sync::KetoSyncTask::new(keto_sync_cfg);
+
+        // Prime the cache BEFORE binding. An empty or unreadable tuple set makes
+        // the fail-closed gate deny every mutation while reads keep working —
+        // indistinguishable from a policy bug at runtime. Failing at startup
+        // turns that into a one-line fix.
+        match keto_task.prime().await {
+            Err(e) => panic!(
+                "{}=rls+keto but the Keto tuple cache could not be loaded: {e}. \
+                 Fix the database or set {}=rls.",
+                authz_mode::AUTHZ_MODE_VAR,
+                authz_mode::AUTHZ_MODE_VAR
+            ),
+            Ok(0) => panic!(
+                "{}=rls+keto but flint_meta.keto_tuples is EMPTY — every mutation \
+                 would be denied. Seed relation tuples or set {}=rls.",
+                authz_mode::AUTHZ_MODE_VAR,
+                authz_mode::AUTHZ_MODE_VAR
+            ),
+            Ok(n) => tracing::info!(tuples = n, "keto gate enabled"),
+        }
+
+        let _keto_sync_handle = keto_task.spawn();
+        Some(Arc::new(keto_sync::KetoCacheAdapter::new(keto_cache)))
+    } else {
+        tracing::info!(
+            "authz mode: rls — authorization is Postgres RLS + Cedar only; Keto disabled"
+        );
+        None
+    };
 
     // Cedar policy enforcement point, backed by flint_meta.cedar_policies via
     // the privileged pool. Starts deny-all until the first successful load.
     let policy_source = Arc::new(policy_source::DbPolicySource::new(pool.clone()));
     let pep: Arc<dyn forge_policy::Pep> = Arc::new(CedarPolicyEngine::new(policy_source).await);
 
-    // Thread both gates into the reflection compiler so initial + hot-swapped
-    // routers enforce Keto + Cedar on every mutation.
+    // Thread the gates into the reflection compiler so initial + hot-swapped
+    // routers enforce them on every mutation. `keto: None` means the relation
+    // check is skipped entirely (`mutation_guard`); Cedar always runs.
     let gates = MutationGates {
-        keto: Some(Arc::clone(&keto_adapter)),
+        keto: keto_adapter.clone(),
         pep: Some(Arc::clone(&pep)),
     };
 
     // Build the GraphQL subscription live-stream factory (Quarry + adapters).
-    let sub_stream_factory =
-        build_subscription_factory(&database_url, Arc::clone(&keto_adapter)).await;
+    let sub_stream_factory = build_subscription_factory(&database_url, mode).await;
 
     let engine = ReflectionEngine::new(pool.clone());
     let state_manager = Arc::new(
@@ -212,7 +270,7 @@ pub(crate) async fn run() {
         graphql_executor,
         vector_rpc,
         pool: pool.clone(),
-        keto: Some(keto_adapter),
+        keto: keto_adapter,
     };
 
     // Build gateway routes as Router<()> by applying state, then merge the

@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 mod agui_hook_dispatcher;
+mod authz_mode;
 mod bootstrap;
 mod graphql;
 mod handlers;
