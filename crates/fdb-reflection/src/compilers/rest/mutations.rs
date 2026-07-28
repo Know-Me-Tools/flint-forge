@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use tracing::instrument;
 
 use crate::compilers::filters::render_where;
+use crate::model::DatabaseModel;
 
 use super::{
     bad_request, forbidden, insert_response, internal_error, json_bind, parse_filters,
@@ -100,7 +101,11 @@ pub(super) async fn handle_insert(
     // inserted into (see `json_bind`'s doc comment for why an explicit
     // `::jsonb` cast here is wrong — it silently corrupts string values via
     // the `jsonb → text` assignment cast's JSON-quoting).
-    let placeholders: Vec<String> = (1..=columns.len()).map(|i| format!("${i}")).collect();
+    let placeholders: Vec<String> = columns
+        .iter()
+        .enumerate()
+        .map(|(i, col)| placeholder_for(&state.model, &schema, &table, col, i + 1))
+        .collect();
     let sql = format!(
         "INSERT INTO {schema}.{table} ({cols}) VALUES ({ph}) RETURNING row_to_json({table}) AS row",
         cols = columns.join(", "),
@@ -119,6 +124,68 @@ pub(super) async fn handle_insert(
             internal_error()
         }
     }
+}
+
+/// Render the `$n` placeholder for a mutation value, cast to the target
+/// column's reflected Postgres type when a cast is needed.
+///
+/// Postgres infers an uncast `$n`'s type from the assignment target, which
+/// works when the bound Rust type matches — `Text` into `text`, `Json` into
+/// `jsonb`. It does NOT work for a JSON string bound as `Text` against a
+/// `date`, `numeric`, `uuid`, `bool`, or `timestamptz` column: the bind fails
+/// with "error serializing parameter N" before the query runs, so those columns
+/// were simply unwritable through the REST API.
+///
+/// The cast is per-column, from `DatabaseModel`'s reflected `pg_type` — never a
+/// blanket `::jsonb`. A blanket jsonb cast was tried previously and is wrong:
+/// the `jsonb → text` assignment cast preserves JSON quoting, silently turning
+/// `tenant-a` into `"tenant-a"` (see `json_bind`'s doc comment).
+///
+/// Text-ish and json-ish targets are deliberately left UNCAST so that
+/// well-tested path keeps its exact current behavior.
+fn placeholder_for(
+    model: &DatabaseModel,
+    schema: &str,
+    table: &str,
+    col: &str,
+    idx: usize,
+) -> String {
+    let Some(pg_type) = model
+        .tables
+        .iter()
+        .find(|t| t.schema == schema && t.name == table)
+        .and_then(|t| t.columns.iter().find(|c| c.name == col))
+        .map(|c| c.pg_type.as_str())
+    else {
+        // Unreflected column: leave uncast. The statement fails downstream with
+        // Postgres's own "column does not exist", which is clearer than a cast
+        // to a type we had to guess.
+        return format!("${idx}");
+    };
+
+    if needs_no_cast(pg_type) {
+        format!("${idx}")
+    } else {
+        // `pg_type` comes from the reflected catalog, not from user input.
+        format!("${idx}::{pg_type}")
+    }
+}
+
+/// Whether a reflected Postgres type is already inferred correctly from an
+/// uncast bind, and so must be left alone.
+fn needs_no_cast(pg_type: &str) -> bool {
+    matches!(
+        pg_type,
+        "text"
+            | "varchar"
+            | "character varying"
+            | "bpchar"
+            | "character"
+            | "name"
+            | "citext"
+            | "json"
+            | "jsonb"
+    )
 }
 
 /// `PATCH /<schema>/<table>` — update rows matching the query filter, gated.
@@ -155,7 +222,8 @@ pub(super) async fn handle_update(
         if !is_safe_identifier(col) {
             return bad_request(&format!("invalid column identifier: {col}"));
         }
-        set_parts.push(format!("{col} = ${idx}"));
+        let ph = placeholder_for(&state.model, &schema, &table, col, idx);
+        set_parts.push(format!("{col} = {ph}"));
         binds.push(json_bind(val));
         idx += 1;
     }
