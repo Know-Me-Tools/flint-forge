@@ -96,6 +96,27 @@ impl KetoSyncTask {
         tokio::spawn(async move { self.run().await })
     }
 
+    /// Load the tuple cache once, synchronously, reporting the tuple count.
+    ///
+    /// Called at startup before the server binds. The background loop swallows
+    /// poll failures and retains the (initially empty) cache, which is correct
+    /// for a transient blip but catastrophic as a *startup* state: the gate is
+    /// fail-closed, so an empty cache denies every mutation while reads keep
+    /// working — a state that reads as a policy bug rather than a missing
+    /// configuration. Surfacing the error and the count lets the composition
+    /// root refuse to start instead.
+    ///
+    /// # Errors
+    ///
+    /// Propagates the query failure verbatim (missing table, wrong column,
+    /// unreachable database) so the operator sees the actual cause.
+    pub async fn prime(&self) -> Result<usize, sqlx::Error> {
+        let tuples = fetch_keto_tuples(&self.config.pool).await?;
+        let count = tuples.len();
+        *self.cache.write().await = tuples;
+        Ok(count)
+    }
+
     async fn run(self) {
         tracing::info!(
             interval_secs = self.config.interval.as_secs(),
@@ -145,8 +166,17 @@ struct KetoTupleRow {
 /// This function deliberately does NOT set any RLS GUCs — the caller is responsible
 /// for providing a pool that connects as a privileged role.
 async fn fetch_keto_tuples(pool: &PgPool) -> Result<Vec<KetoCacheEntry>, sqlx::Error> {
+    // The column is `object_id` (see `ext-flint-meta/sql/flint_meta.sql` — it is
+    // also part of the primary key and of `keto_tuples_object_idx`), aliased to
+    // `object` so the in-memory cache keeps its domain vocabulary.
+    //
+    // Selecting a bare `object` fails with `column "object" does not exist`,
+    // which the poll loop catches and logs as "retaining stale cache". On a
+    // fresh install that cache is EMPTY, and because the Keto gate guards
+    // **mutations only**, the visible symptom is that every write is denied 403
+    // while reads keep working — a schema mismatch that presents as a policy bug.
     let rows: Vec<KetoTupleRow> = sqlx::query_as(
-        "SELECT namespace, object, relation, subject_id FROM flint_meta.keto_tuples",
+        "SELECT namespace, object_id AS object, relation, subject_id FROM flint_meta.keto_tuples",
     )
     .fetch_all(pool)
     .await?;
