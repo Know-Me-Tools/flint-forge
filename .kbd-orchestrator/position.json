@@ -1,18 +1,1630 @@
 {
   "schemaVersion": "1",
-  "updatedAt": "2026-07-14T12:01:22Z",
+  "generatedBy": "kbd-runtime",
+  "sourceRevision": 2,
+  "updatedAt": "2026-07-29T00:08:58.761638Z",
   "cursor": [
     "p16-production-remediation"
   ],
   "root": {
     "type": "phase",
-    "id": "p16-production-remediation",
-    "status": "executing",
+    "id": "4818e02b-67ae-41e9-89fd-d5edf710f702",
+    "status": "completed",
     "progress": {
-      "done": 7,
-      "total": 9
+      "done": 102,
+      "total": 143
     },
-    "children": [],
+    "children": [
+      {
+        "type": "phase",
+        "id": "anon_and_service_role_keys",
+        "canonicalId": "anon_and_service_role_keys",
+        "status": "COMPLETE",
+        "progress": {
+          "done": 5,
+          "total": 5
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "ark-c001-forge-keygen-and-token-claims",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "ark-c002-forge-auth-sql-role-model",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "ark-c003-gate-api-key-roles-and-trusted-headers",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "ark-c004-realtime-principal-metadata-propagation",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "ark-c005-cross-project-configuration-docs",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p0-workspace-foundation",
+        "canonicalId": "p0-workspace-foundation",
+        "status": "PENDING",
+        "progress": {
+          "done": 0,
+          "total": 0
+        },
+        "children": [],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p1-anvil-meta-foundation",
+        "canonicalId": "p1-anvil-meta-foundation",
+        "status": "PENDING",
+        "progress": {
+          "done": 0,
+          "total": 0
+        },
+        "children": [],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p10-production-launch",
+        "canonicalId": "p10-production-launch",
+        "status": "COMPLETE",
+        "progress": {
+          "done": 6,
+          "total": 6
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p10-c001-tls-termination",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p10-c002-secrets-management",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p10-c003-cargo-audit-ci",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p10-c004-alerting-rules",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p10-c005-k6-baseline",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p10-c006-changelog-release",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p11-api-stability",
+        "canonicalId": "p11-api-stability",
+        "status": "COMPLETE",
+        "progress": {
+          "done": 6,
+          "total": 6
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p11-c001-a2ui-api-freeze",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p11-c002-kiln-abi-freeze",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p11-c003-sdk-v1-alignment",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p11-c004-k6-baselines",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p11-c005-entrypoint-secrets",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p11-c006-staging-token-rotation",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p12-v1-release",
+        "canonicalId": "p12-v1-release",
+        "status": "PENDING",
+        "progress": {
+          "done": 1,
+          "total": 2
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p12-c001-k6-measure",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p12-c002-v1-tag",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p13-continuous-operations",
+        "canonicalId": "p13-continuous-operations",
+        "status": "PENDING",
+        "progress": {
+          "done": 4,
+          "total": 5
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p13-c001-k6-baselines-measure",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p13-c002-dependency-maintenance",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p13-c003-monitoring-review",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p13-c004-api-versioning-gate",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p13-c005-v1.1.0-planning",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p14-v1.1.0",
+        "canonicalId": "p14-v1.1.0",
+        "status": "COMPLETE",
+        "progress": {
+          "done": 5,
+          "total": 5
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p14-c001-sqlx-prometheus",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p14-c002-kiln-guest-sdk",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p14-c003-a2ui-hot-reload",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p14-c004-jwt-rotation-automation",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p14-c005-kiln-metrics",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p15-v1.0-production-readiness",
+        "canonicalId": "p15-v1.0-production-readiness",
+        "status": "COMPLETE",
+        "progress": {
+          "done": 5,
+          "total": 5
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p15-c001-anvil-extension-stabilization",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p15-c002-migration-integrity",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p15-c003-operator-cli",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p15-c004-e2e-performance-validation",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p15-c005-docs-production-artifacts",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p16-production-remediation",
+        "canonicalId": "p16-production-remediation",
+        "status": "COMPLETE",
+        "progress": {
+          "done": 9,
+          "total": 9
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p16-c001-rest-rls-enforcement",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p16-c002-kiln-supply-chain-trust",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p16-c003-kiln-sandbox-authz",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p16-c004-realtime-default-delivery",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p16-c005-auth-hardening",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p16-c006-config-truth-tracker-reconcile",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p16-c007-file-size-compliance",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p16-c008-production-operations",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p16-c009-vgv-quality-gates",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p16-v1.0-release-closure",
+        "canonicalId": "p16-v1.0-release-closure",
+        "status": "PENDING",
+        "progress": {
+          "done": 5,
+          "total": 6
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p16-c001-pgcron-amd64-link",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p16-c002-realtime-fail-closed",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p16-c003-green-integration-ci",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p16-c004-security-disclosure",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p16-c005-docs-reality-reconciliation",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p16-c006-selfhost-operator-guide",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p2-quarry-backfill",
+        "canonicalId": "p2-quarry-backfill",
+        "status": "PENDING",
+        "progress": {
+          "done": 0,
+          "total": 2
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p2-c007-openapi-compiler",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p2-c006-pgvector-rpc",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p2-quarry-reflection-engine",
+        "canonicalId": "p2-quarry-reflection-engine",
+        "status": "PENDING",
+        "progress": {
+          "done": 0,
+          "total": 7
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p2-c001-fdb-auth",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p2-c002-fdb-postgres",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p2-c003-flint-reflection-crate",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p2-c004-rest-compiler",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p2-c005-arcswap-hot-reload",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p2-c006-pgvector-rpc",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p2-c007-openapi-compiler",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p3-auth-rls-keto",
+        "canonicalId": "p3-auth-rls-keto",
+        "status": "PENDING",
+        "progress": {
+          "done": 0,
+          "total": 11
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p3-c010-mount-reflection-router",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c011-ketocheck-port-trait",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c012-forge-policy-cedar",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c013-rest-handle-list",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c014-rest-handle-mutations",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c015-gate-tests-rest-and-vault",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c016-gate-tests-mocks",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c017-fdb-realtime-stub",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c018-introspection-merge-verify",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c019-postgrest-query-engine",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c020-listen-change-source",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p3-graphql-hybrid-engine",
+        "canonicalId": "p3-graphql-hybrid-engine",
+        "status": "PENDING",
+        "progress": {
+          "done": 0,
+          "total": 9
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p3-c005-pg-graphql-pg18",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c008-extended-guc-propagation",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c001-graphql-passthrough",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c007-graphql-compiler",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c002-subscriptions",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c004-graphql-transport-ws",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c003-introspection-merge",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c006-keto-sync",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p3-c009-predicate-pushdown",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p3.5-ci-postgres-hardening",
+        "canonicalId": "p3.5-ci-postgres-hardening",
+        "status": "PENDING",
+        "progress": {
+          "done": 0,
+          "total": 5
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p35-c001-clippy-unblock-hello-component",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p35-c002-gateway-test-debt",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p35-c003-ci-postgres-service",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p35-c004-db-integration-tests",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p35-c005-p3-bookkeeping-reconcile",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p4-flint-ember",
+        "canonicalId": "p4-flint-ember",
+        "status": "PENDING",
+        "progress": {
+          "done": 0,
+          "total": 4
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p4-c001-liter-llm-binding",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p4-c002-async-embeddings",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p4-c003-sync-surface",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p4-c004-summaries",
+            "status": "PENDING",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p5-a2ui-registry",
+        "canonicalId": "p5-a2ui-registry",
+        "status": "COMPLETE",
+        "progress": {
+          "done": 15,
+          "total": 15
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p5-c001-flint-a2ui-schema",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c002-base-components-seed",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c003-auto-binding-trigger",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c009-compiled-state-upgrade",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c014-sdk-schema-extensions",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c010-react-sdk",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c011-flutter-sdk",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c004-embeddings-pipeline",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c005-application-model",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c006-rest-api",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c007-event-driven-assembly",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c008-protocol-surfaces",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c012-htmx-renderer",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c015-claude-design-skill",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p5-c013-opendesign-integration",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p5-flint-a2ui-registry",
+        "canonicalId": "p5-flint-a2ui-registry",
+        "status": "PENDING",
+        "progress": {
+          "done": 0,
+          "total": 0
+        },
+        "children": [],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p6-kiln-runtime",
+        "canonicalId": "p6-kiln-runtime",
+        "status": "COMPLETE",
+        "progress": {
+          "done": 4,
+          "total": 4
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p6-c001-wasmtime-runtime",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p6-c002-pg-registry",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p6-c003-fke-server-wire",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p6-c004-store-fs",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p6b-kiln-hardening",
+        "canonicalId": "p6b-kiln-hardening",
+        "status": "COMPLETE",
+        "progress": {
+          "done": 8,
+          "total": 8
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p6b-c001-cedar-gate",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p6b-c002-kiln-bgw",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p6b-c003-wit-bindings",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p6b-c004-sign-did",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p6b-c005-sign-cosign",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p6b-c006-store-oci",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p6b-c007-store-ipfs",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p6b-c008-store-s3",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p7-ag-ui-mcp-tools",
+        "canonicalId": "p7-ag-ui-mcp-tools",
+        "status": "COMPLETE",
+        "progress": {
+          "done": 9,
+          "total": 9
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p7-c008-mcp-server-endpoint",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p7-c004-mcp-compiler",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p7-c003-agui-emitter",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p7-c005-a2ui-surface-emitter",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p7-c005a-copilotkit-catalog-endpoint",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p7-c007-agui-state-propagation",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p7-c006-a2ui-gate",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p7-c001-webhook-kiln-wiring",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p7-c002-agentproto-pipe",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p7b-kiln-production",
+        "canonicalId": "p7b-kiln-production",
+        "status": "COMPLETE",
+        "progress": {
+          "done": 6,
+          "total": 6
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p7b-c001-epoch-interruption",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p7b-c002-cedar-db-policies",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p7b-c003-bgw-publisher-id",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p7b-c004-fulcio-chain",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p7b-c005-did-http-resolution",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p7b-c006-integration-tests",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p8-sdk-completeness",
+        "canonicalId": "p8-sdk-completeness",
+        "status": "COMPLETE",
+        "progress": {
+          "done": 7,
+          "total": 7
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p8-c001-react-sdk-completeness",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p8-c002-flutter-sdk-reconnect",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p8-c003-ci-pipeline",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p8-c004-htmx-remaining-components",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p8-c005-design-token-export",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p8-c006-opendesign-zip-import",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p8-c007-claude-skill-gate-tests",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      },
+      {
+        "type": "phase",
+        "id": "p9-hardening",
+        "canonicalId": "p9-hardening",
+        "status": "COMPLETE",
+        "progress": {
+          "done": 7,
+          "total": 7
+        },
+        "children": [
+          {
+            "type": "change",
+            "id": "p9-c001-docker-compose",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p9-c002-runbook",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p9-c003-rate-limiting",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p9-c004-observability",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p9-c005-security-audit",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p9-c006-performance-audit",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          },
+          {
+            "type": "change",
+            "id": "p9-c007-staging-deploy",
+            "status": "COMPLETE",
+            "progress": {
+              "done": 0,
+              "total": 0
+            }
+          }
+        ],
+        "annotations": []
+      }
+    ],
     "annotations": []
   }
 }

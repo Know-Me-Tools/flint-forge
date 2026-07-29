@@ -12,11 +12,14 @@ use serde_json::{Map, Value};
 use std::collections::HashMap;
 use tracing::instrument;
 
-use crate::compilers::filters::render_where;
+use crate::compilers::filters::{
+    cast_hints_for, mutation_placeholder, mutation_value_to_bind, render_where_with_hints,
+    MutationBind,
+};
 
 use super::{
-    bad_request, forbidden, insert_response, internal_error, json_bind, parse_filters,
-    rows_response, RestState, KETO_NAMESPACE,
+    bad_request, forbidden, insert_response, internal_error, parse_filters, rows_response,
+    RestState, KETO_NAMESPACE,
 };
 
 /// Run the mutation authorization gates for `<schema>.<table>` under `rls`.
@@ -87,29 +90,36 @@ pub(super) async fn handle_insert(
 
     // Validate every column name before it is interpolated.
     let mut columns: Vec<String> = Vec::with_capacity(body.len());
-    let mut values: Vec<Value> = Vec::with_capacity(body.len());
+    let mut binds: Vec<MutationBind> = Vec::with_capacity(body.len());
     for (col, val) in &body {
         if !is_safe_identifier(col) {
             return bad_request(&format!("invalid column identifier: {col}"));
         }
         columns.push(col.clone());
-        values.push(val.clone());
+        binds.push(mutation_value_to_bind(val));
     }
 
-    // No cast: Postgres infers each `$n`'s type from the target column being
-    // inserted into (see `json_bind`'s doc comment for why an explicit
-    // `::jsonb` cast here is wrong — it silently corrupts string values via
-    // the `jsonb → text` assignment cast's JSON-quoting).
-    let placeholders: Vec<String> = (1..=columns.len()).map(|i| format!("${i}")).collect();
+    // Cast each `$n` to the target column's reflected type. `mutation_placeholder`
+    // casts only a `Text` bind, never a `Json` container — which is what keeps a
+    // `jsonb` column's value out of the `jsonb → text` assignment cast that
+    // silently JSON-quotes string values (`"tenant-a"` instead of `tenant-a`)
+    // and breaks any RLS `WITH CHECK` comparing them.
+    let hints = cast_hints_for(&state.model, &schema, &table);
+    let placeholders: Vec<String> = columns
+        .iter()
+        .zip(&binds)
+        .enumerate()
+        .map(|(i, (col, bind))| mutation_placeholder(i + 1, bind, hints.get(col)))
+        .collect();
     let sql = format!(
         "INSERT INTO {schema}.{table} ({cols}) VALUES ({ph}) RETURNING row_to_json({table}) AS row",
         cols = columns.join(", "),
         ph = placeholders.join(", "),
     );
 
-    let binds = values.iter().map(json_bind).collect();
+    let params = binds.iter().map(MutationBind::to_query_param).collect();
 
-    match state.executor.execute_raw(&sql, binds, &rls).await {
+    match state.executor.execute_raw(&sql, params, &rls).await {
         Ok(rows) => match rows.into_iter().next() {
             Some(row) => insert_response(&row, &schema, &table),
             None => internal_error(),
@@ -145,9 +155,10 @@ pub(super) async fn handle_update(
         return bad_request("update body must not be empty");
     }
 
-    // SET clause — validate columns, bind values starting at $1. No cast: see
-    // `json_bind`'s doc comment for why an explicit `::jsonb` cast here is
-    // wrong (silently corrupts string values via JSON-quoting on assignment).
+    // SET clause — validate columns, bind values starting at $1, each cast to
+    // the target column's reflected type (never a `Json` container; see
+    // `handle_insert`).
+    let hints = cast_hints_for(&state.model, &schema, &table);
     let mut set_parts: Vec<String> = Vec::with_capacity(body.len());
     let mut binds: Vec<fdb_query::QueryParam> = Vec::new();
     let mut idx = 1_usize;
@@ -155,8 +166,10 @@ pub(super) async fn handle_update(
         if !is_safe_identifier(col) {
             return bad_request(&format!("invalid column identifier: {col}"));
         }
-        set_parts.push(format!("{col} = ${idx}"));
-        binds.push(json_bind(val));
+        let bind = mutation_value_to_bind(val);
+        let ph = mutation_placeholder(idx, &bind, hints.get(col));
+        set_parts.push(format!("{col} = {ph}"));
+        binds.push(bind.to_query_param());
         idx += 1;
     }
 
@@ -164,7 +177,9 @@ pub(super) async fn handle_update(
         Ok(f) => f,
         Err(resp) => return *resp,
     };
-    let where_clause = match render_where(&filter_tree, idx) {
+    // Cast filter placeholders too: `?id=eq.<uuid>` against a non-text column
+    // fails at the driver's parameter-type-inference step without it.
+    let where_clause = match render_where_with_hints(&filter_tree, idx, &hints) {
         Ok(wc) => wc,
         Err(msg) => return bad_request(&msg),
     };
@@ -209,7 +224,9 @@ pub(super) async fn handle_delete(
         Ok(f) => f,
         Err(resp) => return *resp,
     };
-    let where_clause = match render_where(&filter_tree, 1) {
+    // Cast filter placeholders — same reason as `handle_update`.
+    let hints = cast_hints_for(&state.model, &schema, &table);
+    let where_clause = match render_where_with_hints(&filter_tree, 1, &hints) {
         Ok(wc) => wc,
         Err(msg) => return bad_request(&msg),
     };

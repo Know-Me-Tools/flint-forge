@@ -21,7 +21,7 @@ use fdb_query::embed::{
 use fdb_query::QueryParam;
 
 use crate::compilers::embed_schema::embed_schema_from_model;
-use crate::compilers::filters::{parse_filter_tree, render_where};
+use crate::compilers::filters::{cast_hints_for, parse_filter_tree, render_where_with_hints};
 
 use super::{bad_request, internal_error, RestState};
 
@@ -58,7 +58,8 @@ pub(super) async fn handle_list(
     // route embed-scoped params (`?child.col=…`, `order=child.col.dir`) onto the
     // matching embed. Non-embed params fall through to top-level filters.
     let embed_schema = embed_schema_from_model(&state.model);
-    let inner = match build_inner_query(&schema, &table, &params, &embed_schema) {
+    let hints = cast_hints_for(&state.model, &schema, &table);
+    let inner = match build_inner_query(&schema, &table, &params, &embed_schema, &hints) {
         Ok(inner) => inner,
         Err(msg) => return bad_request(&msg),
     };
@@ -119,6 +120,7 @@ pub(super) fn build_inner_query(
     table: &str,
     params: &HashMap<String, String>,
     embed_schema: &fdb_query::embed::EmbedSchema,
+    hints: &fdb_query::CastHints,
 ) -> Result<InnerQuery, String> {
     // Parse the select= grammar; route embed-scoped params onto their embeds.
     let mut embed_select = match params.get("select") {
@@ -143,7 +145,7 @@ pub(super) fn build_inner_query(
 
     // No embeds → the simple, previously-shipped shape (no parent alias).
     if embed_select.embeds.is_empty() {
-        let where_clause = render_where(&filter_tree, 1)?;
+        let where_clause = render_where_with_hints(&filter_tree, 1, hints)?;
         let sql = format!("SELECT * FROM {schema}.{table} {}", where_clause.sql);
         return Ok(InnerQuery {
             sql,
@@ -163,8 +165,17 @@ pub(super) fn build_inner_query(
     // render_projection prepends the base ("*"); qualify it to the parent alias.
     let projection = embed_items_sql.replacen('*', &format!("{parent_alias}.*"), 1);
 
-    // 2) Top-level WHERE, params continue after the projection params.
-    let where_clause = render_where(&filter_tree, after_proj)?;
+    // 2) Top-level WHERE, params continue after the projection params. `hints`
+    // is the PARENT table's; embed-scoped child filters inside the projection
+    // are cast separately by `render_projection`, which qualifies each embed's
+    // own hints with its correlation alias (`fdb-query`'s `embed::render`).
+    //
+    // KNOWN GAP (pre-existing, not introduced here): `render_inner_guards`
+    // below applies NO hints, so a `!inner` guard filtering a typed child
+    // column (`?select=*,orders!inner(*)&orders.total=gt.100`) still binds
+    // uncast. Fixing it means threading child hints into `render_inner_exists`
+    // in `fdb-query` — a change to that crate's API, tracked separately.
+    let where_clause = render_where_with_hints(&filter_tree, after_proj, hints)?;
     let after_where = after_proj + where_clause.binds.len();
 
     // 3) !inner / filter-by-embed EXISTS guards, params continue after WHERE.
@@ -331,8 +342,14 @@ mod tests {
     fn no_embed_path_is_unchanged_simple_select() {
         let m = embed_model();
         let es = embed_schema_from_model(&m);
-        let inner = build_inner_query("public", "orders", &params(&[("total", "gte.100")]), &es)
-            .expect("inner");
+        let inner = build_inner_query(
+            "public",
+            "orders",
+            &params(&[("total", "gte.100")]),
+            &es,
+            &fdb_query::CastHints::none(),
+        )
+        .expect("inner");
         assert_eq!(inner.sql, "SELECT * FROM public.orders WHERE total >= $1");
         assert_eq!(inner.binds.len(), 1);
     }
@@ -347,6 +364,7 @@ mod tests {
             "customers",
             &params(&[("select", "*,orders(*)")]),
             &es,
+            &fdb_query::CastHints::none(),
         )
         .expect("inner");
         // Parent star qualified to the alias; embed rendered as a subselect; aliased FROM.
@@ -373,6 +391,7 @@ mod tests {
             "customers",
             &params(&[("select", "*,orders(*)"), ("orders.total", "gt.50")]),
             &es,
+            &fdb_query::CastHints::none(),
         )
         .expect("inner");
         assert!(
@@ -393,6 +412,7 @@ mod tests {
             "customers; DROP",
             &params(&[("select", "*,orders(*)")]),
             &es,
+            &fdb_query::CastHints::none(),
         );
         assert!(r.is_err(), "unsafe parent table must error");
     }

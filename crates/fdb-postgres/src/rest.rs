@@ -164,6 +164,13 @@ impl PgRest {
             .await
             .map_err(|e| BackendError::Query(format!("bound query: {e}")))?;
 
+        // Commit the RLS transaction `acquire` opened. Without this every
+        // INSERT/UPDATE/DELETE routed through here is rolled back when the
+        // pooled connection is recycled, while still reporting success — the
+        // `RETURNING` rows above are read inside the same doomed transaction.
+        // See `PgConn::commit`.
+        pg_conn.commit().await?;
+
         Ok(project_rows(&rows))
     }
 }

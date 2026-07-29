@@ -68,7 +68,10 @@ pub struct FabricChangeSource {
     channel: Arc<tonic::transport::Channel>,
     /// HTTP client for Keto relation check.
     http: reqwest::Client,
-    keto: KetoConfig,
+    /// `None` when the deployment's authorization model is Postgres RLS only
+    /// (the default) — the subscribe-time coarse check is skipped and no Ory
+    /// Keto service is required.
+    keto: Option<KetoConfig>,
 }
 
 impl FabricChangeSource {
@@ -83,7 +86,7 @@ impl FabricChangeSource {
     /// # Errors
     ///
     /// Returns [`FabricError::Connect`] when `frf.endpoint` is not a valid URI.
-    pub fn new(frf: FrfConfig, keto: KetoConfig) -> Result<Self, FabricError> {
+    pub fn new(frf: FrfConfig, keto: Option<KetoConfig>) -> Result<Self, FabricError> {
         let channel = tonic::transport::Channel::from_shared(frf.endpoint)
             .map_err(|e| FabricError::Connect(e.to_string()))?
             .connect_lazy();
@@ -122,8 +125,10 @@ impl ChangeStreamSource for FabricChangeSource {
         who: &RlsContext,
         // SECURITY: who.keto_subject MUST NOT be logged here or in any span above.
     ) -> Result<BoxStream<'static, Result<ChangeEvent, StreamError>>, StreamError> {
-        // Step 1: Keto coarse check — confirm `keto_subject` has `view` on `entity_type`.
-        // Fail closed: if Keto is unreachable, deny the subscription.
+        // Step 1: Keto coarse check — confirm `keto_subject` has `view` on
+        // `entity_type`. Fail closed: if Keto is unreachable, deny.
+        // Skipped when the deployment did not opt into Keto; the downstream RLS
+        // re-query is authoritative in either case.
         self.keto_check(&spec.entity_type, &spec.tenant, &who.keto_subject)
             .await?;
 
@@ -228,6 +233,10 @@ impl FabricChangeSource {
 
     /// Keto coarse check — confirm view permission before opening a stream.
     ///
+    /// A no-op when the deployment did not opt into Keto: there is no relation
+    /// model to consult, so there is nothing to deny on. Keeping the skip here
+    /// rather than at each call site means a future caller cannot forget it.
+    ///
     /// SECURITY: `subject` is PII; MUST NOT be logged.
     async fn keto_check(
         &self,
@@ -235,14 +244,10 @@ impl FabricChangeSource {
         tenant_id: &str,
         subject: &str,
     ) -> Result<(), StreamError> {
-        keto_check_via_http(
-            &self.http,
-            &self.keto.base_url,
-            entity_type,
-            tenant_id,
-            subject,
-        )
-        .await
+        let Some(keto) = &self.keto else {
+            return Ok(());
+        };
+        keto_check_via_http(&self.http, &keto.base_url, entity_type, tenant_id, subject).await
     }
 }
 
@@ -269,11 +274,36 @@ mod tests {
             FrfConfig {
                 endpoint: "http://frf.invalid:50051".into(),
             },
-            KetoConfig {
+            Some(KetoConfig {
                 base_url: "http://keto.invalid:4466".into(),
-            },
+            }),
         )
         .expect("lazy channel construction must not fail")
+    }
+
+    /// A source configured WITHOUT Keto must not attempt the coarse check.
+    ///
+    /// `keto.invalid` is unresolvable, so if `keto_check` still dialled it the
+    /// call would fail with a Keto error rather than returning `Ok(())`. This is
+    /// what lets a deployment run with no Ory Keto service at all — the
+    /// per-event RLS re-query downstream remains authoritative.
+    #[tokio::test]
+    async fn keto_check_is_skipped_when_not_configured() {
+        let source = FabricChangeSource::new(
+            FrfConfig {
+                endpoint: "http://frf.invalid:50051".into(),
+            },
+            None,
+        )
+        .expect("lazy channel construction must not fail");
+
+        let result = source
+            .keto_check("orders", "tenant-a", "subject-should-not-be-sent")
+            .await;
+        assert!(
+            result.is_ok(),
+            "no Keto configured ⇒ no check, no network call, no denial"
+        );
     }
 
     /// p16-c002 gate: while OQ-FRF-1 is unresolved the fabric adapter must

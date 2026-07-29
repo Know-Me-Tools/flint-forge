@@ -1,36 +1,26 @@
 {
+  "schemaVersion": "5",
+  "generatedBy": "kbd-runtime",
+  "sourceRevision": 2,
+  "projectId": "4818e02b-67ae-41e9-89fd-d5edf710f702",
+  "runId": "p16-production-remediation-20260729T000858Z",
+  "path": [
+    "p16-production-remediation"
+  ],
+  "phaseIds": [
+    "p16-production-remediation"
+  ],
+  "activePhaseId": "p16-production-remediation",
   "phase": "p16-production-remediation",
-  "previousPhase": "p15-v1.0-production-readiness",
-  "status": "phase_complete",
-  "updatedAt": "2026-07-17",
-  "next_action": "p16-production-remediation is fully reflected (9/9 changes MET, reflection.md written). One Definition-of-Done item remains genuinely open per the reflection: a fresh docs/audits/ re-audit of the P0/P1 paths has not been independently re-run this phase. Recommended next phase should either (a) run that fresh audit + cut the corrected v1.0.1/re-tagged v1.0.0 release, or (b) close c008's remaining ssr-specific debt (backup/restore-drill/perf baselines) and c002's SCT/OIDC-identity follow-up. See reflection.md's 'Recommended Focus for Next Phase' for the full prioritized list.",
-  "next_pending_change": "p16-c008-production-operations",
-  "exact_next_command": "/kbd-new-phase <name> (or /kbd-next-phase to auto-seed from reflection.md)",
-  "seeded_from": "2026-07-12 production-readiness audit (docs/audits/2026-07-12-production-readiness.md)",
-  "changes_completed": 9,
-  "changes_total": 9,
-  "active_changes": [],
-  "execution_round_order": {
-    "round_1_parallel": [
-      "p16-c001-rest-rls-enforcement",
-      "p16-c002-kiln-supply-chain-trust",
-      "p16-c004-realtime-default-delivery",
-      "p16-c005-auth-hardening"
-    ],
-    "round_2_parallel": [
-      "p16-c003-kiln-sandbox-authz",
-      "p16-c006-config-truth-tracker-reconcile"
-    ],
-    "round_3_parallel": [
-      "p16-c007-file-size-compliance",
-      "p16-c008-production-operations"
-    ],
-    "round_4": [
-      "p16-c009-vgv-quality-gates"
-    ]
-  },
-  "note": "All 9 phase changes are archived/complete: p16-c001 through p16-c009. p16-c008 (production operations) was the last to close -- see its progress.json notes for the full deploy history (four iterative fix-push-redeploy cycles against the ssr AKS cluster) and docs/runbook.md \u00a713.9 for the reusable ssr deploy topology.",
-  "assessment_complete": true,
-  "plan_complete": true,
-  "execution_complete": true
+  "childPointer": null,
+  "change": null,
+  "currentTask": null,
+  "status": "completed",
+  "completionMetric": "implementation",
+  "implementationCompleted": 102,
+  "implementationTotal": 143,
+  "planRevision": 1,
+  "revision": 2,
+  "exactNextCommand": "/kbd-new-phase <name> (or /kbd-next-phase to auto-seed from reflection.md)",
+  "updatedAt": "2026-07-29T00:08:58.761638Z"
 }

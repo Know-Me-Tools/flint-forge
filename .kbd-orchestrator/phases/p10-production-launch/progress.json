@@ -1,35 +1,107 @@
 {
+  "schemaVersion": "2",
+  "generatedBy": "kbd-runtime",
+  "sourceRevision": 2,
   "phase": "p10-production-launch",
-  "status": "complete",
-  "changes_completed": 6,
+  "phaseId": "p10-production-launch",
+  "parentPhase": null,
+  "last_updated": "2026-07-29T00:08:58.761638Z",
+  "last_updated_by": "kbd-runtime",
   "changes_total": 6,
-  "assessment_complete": true,
-  "plan_complete": true,
-  "execution_started": false,
-  "created_at": "2026-07-06",
-  "seeded_from": "p9-hardening/reflection.md",
-  "last_updated_by": "opencode",
-  "last_updated_at": "2026-07-06T00:00:00Z",
+  "changes_completed": 6,
+  "implementation_total": 6,
+  "implementation_completed": 6,
+  "completion": {
+    "primaryCounter": "implementation",
+    "implementation": {
+      "completed": 6,
+      "total": 6,
+      "status": "COMPLETE"
+    },
+    "evidence": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "certification": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "publication": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    }
+  },
   "changes": [
-    { "id": "p10-c001-tls-termination",   "status": "done", "completed_at": "2026-07-06", "priority": "P0" },
-    { "id": "p10-c002-secrets-management", "status": "done", "completed_at": "2026-07-06", "priority": "P0" },
-    { "id": "p10-c003-cargo-audit-ci",    "status": "done", "completed_at": "2026-07-06", "priority": "P0" },
-    { "id": "p10-c004-alerting-rules",    "status": "done", "completed_at": "2026-07-06", "priority": "P1" },
-    { "id": "p10-c005-k6-baseline",       "status": "done", "completed_at": "2026-07-06", "priority": "P1" },
-    { "id": "p10-c006-changelog-release", "status": "done", "completed_at": "2026-07-06", "priority": "P2" }
+    {
+      "id": "p10-c001-tls-termination",
+      "title": "p10-c001-tls-termination",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p10-c002-secrets-management",
+      "title": "p10-c002-secrets-management",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p10-c003-cargo-audit-ci",
+      "title": "p10-c003-cargo-audit-ci",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p10-c004-alerting-rules",
+      "title": "p10-c004-alerting-rules",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p10-c005-k6-baseline",
+      "title": "p10-c005-k6-baseline",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p10-c006-changelog-release",
+      "title": "p10-c006-changelog-release",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    }
   ],
-  "goals_file": ".kbd-orchestrator/phases/p10-production-launch/goals.md",
-  "open_questions": [
-    "OQ-P10-1: TLS strategy — Caddy confirmed (automatic ACME, simple Caddyfile)",
-    "OQ-P10-2: Secrets backend — Docker Compose secrets: confirmed (provider-agnostic)",
-    "OQ-P10-3: Version scheme — v0.10.0 recommended (v1.0.0 premature before API stability)",
-    "OQ-P10-4: wasmtime 26→36.x API migration scope in fke-runtime (NEW — assess finding)"
-  ],
-  "mvp_gate": [
-    "docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d starts full stack with TLS",
-    "Secrets not in .env; rotate_secrets.sh documented",
-    "cargo audit gate live in CI; 0 unfixed CVSS >= 7.0",
-    "cargo test --workspace passes",
-    "cargo clippy --workspace -- -D warnings clean"
-  ]
+  "children": {},
+  "migrationStatus": null
 }

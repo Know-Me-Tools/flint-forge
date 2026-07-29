@@ -1,45 +1,85 @@
 {
+  "schemaVersion": "2",
+  "generatedBy": "kbd-runtime",
+  "sourceRevision": 2,
   "phase": "p4-flint-ember",
-  "status": "verified",
-  "changes_completed": 4,
+  "phaseId": "p4-flint-ember",
+  "parentPhase": null,
+  "last_updated": "2026-07-29T00:08:58.761638Z",
+  "last_updated_by": "kbd-runtime",
   "changes_total": 4,
+  "changes_completed": 0,
+  "implementation_total": 4,
+  "implementation_completed": 0,
+  "completion": {
+    "primaryCounter": "implementation",
+    "implementation": {
+      "completed": 0,
+      "total": 4,
+      "status": "PENDING"
+    },
+    "evidence": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "certification": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "publication": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    }
+  },
   "changes": [
     {
       "id": "p4-c001-liter-llm-binding",
-      "status": "implemented",
-      "goal": "G1",
-      "priority": "P0"
+      "title": "p4-c001-liter-llm-binding",
+      "status": "PENDING",
+      "implementation_status": "PENDING",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
     },
     {
       "id": "p4-c002-async-embeddings",
-      "status": "implemented",
-      "goal": "G2",
-      "priority": "P0",
-      "depends_on": "p4-c001"
+      "title": "p4-c002-async-embeddings",
+      "status": "PENDING",
+      "implementation_status": "PENDING",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
     },
     {
       "id": "p4-c003-sync-surface",
-      "status": "implemented",
-      "goal": "G3",
-      "priority": "P0",
-      "depends_on": "p4-c001"
+      "title": "p4-c003-sync-surface",
+      "status": "PENDING",
+      "implementation_status": "PENDING",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
     },
     {
       "id": "p4-c004-summaries",
-      "status": "implemented",
-      "goal": "G4",
-      "priority": "P1",
-      "depends_on": "p4-c002"
+      "title": "p4-c004-summaries",
+      "status": "PENDING",
+      "implementation_status": "PENDING",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
     }
   ],
-  "change_order": [
-    "p4-c001-liter-llm-binding",
-    "p4-c002-async-embeddings",
-    "p4-c003-sync-surface",
-    "p4-c004-summaries"
-  ],
-  "assessment_complete": true,
-  "plan_complete": true,
-  "assessment_file": ".kbd-orchestrator/phases/p4-flint-ember/assessment.md",
-  "plan_file": ".kbd-orchestrator/phases/p4-flint-ember/plan.md"
+  "children": {},
+  "migrationStatus": null
 }

@@ -110,7 +110,7 @@ pub fn render_where(tree: &FilterTree, start_index: usize) -> Result<WhereClause
 /// resolved Postgres type for that leaf's base column, when one exists — the
 /// fix for filtering a non-text column (`int4`/`int8`/`bool`/`uuid`/...): the
 /// sqlx driver declares a bound `String` as `text` explicitly, so `id = $1`
-/// against an `int4` column fails server-side without the `$1::int4` cast.
+/// against an `int4` column fails server-side without the `$1::text::int4` cast.
 ///
 /// # Errors
 /// Returns a message string on identifier/render failure (maps to HTTP 400).
@@ -179,6 +179,26 @@ pub enum MutationBind {
     Null,
 }
 
+impl MutationBind {
+    /// Project onto the [`QueryParam`] channel used by
+    /// [`fdb_ports::SqlExecutor::execute_raw`].
+    ///
+    /// The REST handlers hand already-rendered `(sql, params)` pairs to the
+    /// executor rather than binding through `sqlx` themselves, so they need this
+    /// rather than [`bind_mutation_value`]. The mapping is the same one
+    /// [`mutation_placeholder`] assumes when deciding whether to cast: `Text`
+    /// carries the value's text form (castable to the column's type), `Json`
+    /// stays a JSON container (never cast), and `Null` binds SQL `NULL`.
+    #[must_use]
+    pub fn to_query_param(&self) -> QueryParam {
+        match self {
+            MutationBind::Text(s) => QueryParam::Text(s.clone()),
+            MutationBind::Json(v) => QueryParam::Json(v.to_string()),
+            MutationBind::Null => QueryParam::Null,
+        }
+    }
+}
+
 /// Convert a JSON body value into its bind channel. Scalars become PostgREST-
 /// style text (numbers/bools via `to_string()`, strings verbatim, no JSON
 /// quoting); containers stay JSON.
@@ -196,10 +216,26 @@ pub fn mutation_value_to_bind(v: &serde_json::Value) -> MutationBind {
 /// The `$n` placeholder for a mutation bind, cast to `cast` when the bind is
 /// text and a cast is resolved (never for `Json`/`Null` — a container value
 /// already targets `jsonb`, and casting `NULL` is unnecessary).
+///
+/// The cast is deliberately `$n::text::<type>`, **not** `$n::<type>`. A bare
+/// `$n::boolean` makes Postgres infer parameter *n*'s type as `boolean`, and
+/// the driver then type-checks the bound Rust value against that inferred type:
+/// `String`'s `ToSql::accepts(BOOL)` is false, so the bind fails client-side
+/// with "error serializing parameter N" before the statement ever reaches the
+/// server. Interposing `::text` pins the parameter to `text` — verified against
+/// a live Postgres 18 via `pg_prepared_statements.parameter_types`, which
+/// reports `{boolean,…}` for the bare form and `{text,…}` for this one — so the
+/// driver sends a string and Postgres applies the target type's own text-input
+/// parser. Parenthesizing (`($n)::boolean`) does *not* help; it infers
+/// `boolean` just the same.
+///
+/// This is the same client-side inference trap that
+/// [`fdb_query::QueryParam::BigInt`] documents for `LIMIT $n`, reached here
+/// through an explicit cast rather than through SQL context.
 #[must_use]
 pub fn mutation_placeholder(idx: usize, bind: &MutationBind, cast: Option<&str>) -> String {
     match (bind, cast) {
-        (MutationBind::Text(_), Some(t)) => format!("${idx}::{t}"),
+        (MutationBind::Text(_), Some(t)) => format!("${idx}::text::{t}"),
         _ => format!("${idx}"),
     }
 }
@@ -288,7 +324,7 @@ mod tests {
         let tree = parse_filter_tree(&params(&[("id", "eq.5")])).unwrap();
         let hints = CastHints::from_pairs([("id", "int4")]);
         let wc = render_where_with_hints(&tree, 1, &hints).unwrap();
-        assert_eq!(wc.sql, "WHERE id = $1::int4");
+        assert_eq!(wc.sql, "WHERE id = $1::text::int4");
     }
 
     #[test]
@@ -319,7 +355,7 @@ mod tests {
     fn mutation_placeholder_casts_only_text_binds() {
         assert_eq!(
             mutation_placeholder(1, &MutationBind::Text("5".into()), Some("int4")),
-            "$1::int4"
+            "$1::text::int4"
         );
         assert_eq!(
             mutation_placeholder(1, &MutationBind::Text("5".into()), None),

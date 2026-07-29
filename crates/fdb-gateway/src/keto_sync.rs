@@ -40,14 +40,16 @@ use tracing::instrument;
 /// `subject_id` is PII — MUST NOT be logged, traced, or included in error messages.
 #[derive(Debug, Default, Clone)]
 pub struct KetoCacheEntry {
-    // Fields read by the cache_check function (used once OQ-Iggy is resolved).
-    #[allow(dead_code)]
+    /// Relation namespace — always `entities` for table mutations.
     pub namespace: String,
-    #[allow(dead_code)]
+    /// The guarded object, `"<schema>.<table>"` (aliased from the DDL's
+    /// `object_id` column so the cache keeps its domain vocabulary).
     pub object: String,
-    #[allow(dead_code)]
+    /// The granted relation — `insert` / `update` / `delete`.
     pub relation: String,
-    #[allow(dead_code)]
+    /// The subject the relation is granted to.
+    ///
+    /// SECURITY: PII — MUST NOT be logged, traced, or put in an error message.
     pub subject_id: String,
 }
 
@@ -94,6 +96,27 @@ impl KetoSyncTask {
     /// can abort it on shutdown.
     pub fn spawn(self) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move { self.run().await })
+    }
+
+    /// Load the tuple cache once, synchronously, reporting the tuple count.
+    ///
+    /// Called at startup before the server binds. The background loop swallows
+    /// poll failures and retains the (initially empty) cache, which is correct
+    /// for a transient blip but catastrophic as a *startup* state: the gate is
+    /// fail-closed, so an empty cache denies every mutation while reads keep
+    /// working — a state that reads as a policy bug rather than a missing
+    /// configuration. Surfacing the error and the count lets the composition
+    /// root refuse to start instead.
+    ///
+    /// # Errors
+    ///
+    /// Propagates the query failure verbatim (missing table, wrong column,
+    /// unreachable database) so the operator sees the actual cause.
+    pub async fn prime(&self) -> Result<usize, sqlx::Error> {
+        let tuples = fetch_keto_tuples(&self.config.pool).await?;
+        let count = tuples.len();
+        *self.cache.write().await = tuples;
+        Ok(count)
     }
 
     async fn run(self) {
@@ -145,8 +168,17 @@ struct KetoTupleRow {
 /// This function deliberately does NOT set any RLS GUCs — the caller is responsible
 /// for providing a pool that connects as a privileged role.
 async fn fetch_keto_tuples(pool: &PgPool) -> Result<Vec<KetoCacheEntry>, sqlx::Error> {
+    // The column is `object_id` (see `ext-flint-meta/sql/flint_meta.sql` — it is
+    // also part of the primary key and of `keto_tuples_object_idx`), aliased to
+    // `object` so the in-memory cache keeps its domain vocabulary.
+    //
+    // Selecting a bare `object` fails with `column "object" does not exist`,
+    // which the poll loop catches and logs as "retaining stale cache". On a
+    // fresh install that cache is EMPTY, and because the Keto gate guards
+    // **mutations only**, the visible symptom is that every write is denied 403
+    // while reads keep working — a schema mismatch that presents as a policy bug.
     let rows: Vec<KetoTupleRow> = sqlx::query_as(
-        "SELECT namespace, object, relation, subject_id FROM flint_meta.keto_tuples",
+        "SELECT namespace, object_id AS object, relation, subject_id FROM flint_meta.keto_tuples",
     )
     .fetch_all(pool)
     .await?;
@@ -168,8 +200,8 @@ async fn fetch_keto_tuples(pool: &PgPool) -> Result<Vec<KetoCacheEntry>, sqlx::E
 /// SECURITY: `subject_id` is PII — MUST NOT appear in the return value or logs.
 /// Returns `true` only when a matching tuple exists; false otherwise (fail-closed).
 ///
-/// Called once OQ-Iggy resolves and FabricChangeSource integrates this cache.
-#[allow(dead_code)]
+/// Reached in production via [`KetoCacheAdapter::check`], which `bootstrap`
+/// wires into `MutationGates` when `FLINT_AUTHZ_MODE=rls+keto`.
 pub async fn cache_check(
     cache: &KetoCache,
     namespace: &str,
@@ -224,6 +256,8 @@ pub struct KetoCacheAdapter {
 }
 
 impl KetoCacheAdapter {
+    /// Wrap a shared [`KetoCache`] as an [`fdb_ports::KetoCheck`] gate.
+    #[must_use]
     pub fn new(cache: KetoCache) -> Self {
         Self { cache }
     }

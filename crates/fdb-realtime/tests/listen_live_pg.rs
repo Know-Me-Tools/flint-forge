@@ -91,16 +91,27 @@ async fn trigger_notifies_insert_update_delete_payloads() {
         .await
         .expect("delete");
 
-    // Collect the three notifications (with a timeout so a miss fails loudly).
+    // Collect this schema's three notifications (with a timeout so a miss fails
+    // loudly).
+    //
+    // `flint_change` is ONE channel shared by every table with change-notify
+    // enabled, and the `#[tokio::test]` fns in this file run concurrently
+    // against the same database. Taking the next three notifications
+    // unconditionally made this test assert on a sibling's payload
+    // (`flint_listen_it2` arriving where `flint_listen_it` was expected) — a
+    // real flake, not a trigger bug. Filter to this test's own schema and
+    // ignore the rest.
     let mut ops = Vec::new();
-    for _ in 0..3 {
+    while ops.len() < 3 {
         let notif = tokio::time::timeout(Duration::from_secs(5), listener.recv())
             .await
             .expect("notification within 5s")
             .expect("recv ok");
         let payload: serde_json::Value =
             serde_json::from_str(notif.payload()).expect("payload is JSON");
-        assert_eq!(payload["schema"], "flint_listen_it");
+        if payload["schema"] != "flint_listen_it" {
+            continue; // another test's table on the shared channel
+        }
         assert_eq!(payload["table"], "widget");
         assert_eq!(payload["truncated"], false);
         ops.push(payload["op"].as_str().expect("op str").to_owned());
@@ -151,9 +162,9 @@ async fn listen_change_source_watch_delivers_event() {
             database_url: url.clone(),
             broadcast_capacity: 64,
         },
-        KetoConfig {
+        Some(KetoConfig {
             base_url: keto.uri(),
-        },
+        }),
     )
     .await
     .expect("listen source");
@@ -194,6 +205,74 @@ async fn listen_change_source_watch_delivers_event() {
     );
 
     pool.execute("DROP SCHEMA flint_listen_it2 CASCADE;")
+        .await
+        .expect("cleanup");
+}
+
+/// p17: `FLINT_AUTHZ_MODE=rls` (Keto not configured) must open a subscription
+/// with no Keto service anywhere.
+///
+/// `ListenChangeSource` is the DEFAULT change source, but only
+/// `FabricChangeSource` had a skip-when-not-configured test — so the path most
+/// deployments actually take was the one without coverage. The skip now lives
+/// in `ListenChangeSource::keto_check` (matching Fabric's guarded-method
+/// shape); this proves it: no `MockServer` is started, so any attempt to make
+/// an HTTP call fails closed with `StreamError::Unavailable` rather than
+/// silently passing.
+#[ignore = "requires live Postgres 18 with migrations applied"]
+#[tokio::test]
+async fn listen_change_source_watch_skips_keto_when_not_configured() {
+    use fdb_domain::SubscriptionSpec;
+    use fdb_ports::ChangeStreamSource;
+    use fdb_realtime::{ListenChangeSource, ListenConfig};
+    use forge_identity::RlsContext;
+
+    let Some(url) = database_url() else {
+        eprintln!("DATABASE_URL unset — skipping");
+        return;
+    };
+    let pool = PgPool::connect(&url).await.expect("connect");
+    ensure_notify_ddl(&pool).await;
+    pool.execute(
+        "DROP SCHEMA IF EXISTS flint_listen_it3 CASCADE; \
+         CREATE SCHEMA flint_listen_it3; \
+         CREATE TABLE flint_listen_it3.doc (id int PRIMARY KEY, body text); \
+         CALL flint.enable_change_notify('flint_listen_it3', 'doc');",
+    )
+    .await
+    .expect("ephemeral setup");
+
+    // `None` — the `rls` default. No Keto stub is started on purpose.
+    let source = ListenChangeSource::new(
+        ListenConfig {
+            database_url: url.clone(),
+            broadcast_capacity: 64,
+        },
+        None,
+    )
+    .await
+    .expect("listen source");
+
+    let who = RlsContext {
+        role: "authenticated".into(),
+        claims_json: "{}".into(),
+        raw_bearer: "t".into(),
+        keto_subject: "user-1".into(),
+        vault_key_id: None,
+    };
+    let spec = SubscriptionSpec {
+        tenant: String::new(),
+        entity_type: "flint_listen_it3.doc".into(),
+        filter: None,
+    };
+
+    let stream = source.watch(spec, &who).await;
+    assert!(
+        stream.is_ok(),
+        "no Keto configured ⇒ no check, no network call, no denial"
+    );
+
+    pool.execute("DROP SCHEMA flint_listen_it3 CASCADE;")
         .await
         .expect("cleanup");
 }

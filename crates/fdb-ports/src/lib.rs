@@ -66,6 +66,16 @@ pub trait DatabaseBackend: Send + Sync {
     /// transaction, so every subsequent statement runs under the caller's
     /// Postgres RLS context.
     ///
+    /// # Transaction contract
+    ///
+    /// The returned connection holds an **open transaction** — the GUCs above
+    /// are `SET LOCAL`, which requires one. A caller that executes anything
+    /// with side effects MUST commit it before dropping the connection
+    /// (`fdb_postgres::PgConn::commit`); otherwise the pool's recycle rolls the
+    /// work back while the statement's own `RETURNING` clause still reports
+    /// success, because it reads inside the transaction being discarded.
+    /// Read-only callers may skip the commit.
+    ///
     /// # Errors
     ///
     /// Returns [`BackendError::Connection`] when no pooled connection is

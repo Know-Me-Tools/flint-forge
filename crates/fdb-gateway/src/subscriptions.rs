@@ -41,7 +41,7 @@ use crate::GatewayState;
 /// from the subscriber's claims here (the compiler has no per-subscriber context).
 pub(crate) async fn build_subscription_factory(
     database_url: &str,
-    keto_adapter: Arc<dyn fdb_ports::KetoCheck>,
+    mode: crate::authz_mode::AuthzMode,
 ) -> SubStreamFactory {
     let make_pool = || {
         let mut cfg = deadpool_postgres::Config::new();
@@ -55,9 +55,13 @@ pub(crate) async fn build_subscription_factory(
 
     let sub_rest = Arc::new(PgRest::new(make_pool()));
     let sub_graphql = Arc::new(PgGraphQl::new(make_pool()));
-    let realtime_keto_cfg = KetoConfig {
+    // `None` in `rls` mode: the change sources then skip the subscribe-time
+    // relation check entirely, so no Ory Keto service needs to be deployed or
+    // reachable. The per-event RLS re-query downstream remains authoritative
+    // either way — it is what makes skipping the coarse check safe.
+    let realtime_keto_cfg = mode.keto_enabled().then(|| KetoConfig {
         base_url: std::env::var("KETO_BASE_URL").unwrap_or_else(|_| "http://keto:4466".into()),
-    };
+    });
 
     // Select the change-stream backend. Default `listen` (in-process Postgres
     // LISTEN/NOTIFY — real events, no external dependency). `FLINT_CHANGE_SOURCE=fabric`
@@ -93,8 +97,11 @@ pub(crate) async fn build_subscription_factory(
                 )
             }
         };
-    let quarry =
-        Arc::new(Quarry::new(sub_rest, sub_graphql, change_source).with_keto(keto_adapter));
+    // No `.with_keto(...)`: `Quarry::subscribe_rls_filtered` only calls
+    // `changes.watch()` and never `check_keto`, so wiring the adapter here was
+    // dead code that implied subscriptions were gated through the port. The real
+    // subscribe-time gate lives in the change source (see `realtime_keto_cfg`).
+    let quarry = Arc::new(Quarry::new(sub_rest, sub_graphql, change_source));
 
     Arc::new(
         move |mut spec: SubscriptionSpec, table_meta: TableMeta, who: RlsContext| {

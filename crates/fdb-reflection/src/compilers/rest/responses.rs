@@ -24,24 +24,25 @@ pub(super) fn parse_filters(
     parse_filter_tree(params).map_err(|e| Box::new(bad_request(&e.to_string())))
 }
 
-/// Bind a JSON body value as an uncast `$n` parameter, letting Postgres infer
-/// the placeholder's type from the INSERT/UPDATE target column.
+/// Bind a JSON value as an uncast `$n` parameter, letting Postgres infer the
+/// placeholder's type from context.
 ///
-/// A `Value::String` binds as `QueryParam::Text` — matching Postgres's
-/// inference for the common case of a `text`/`varchar` target column, so no
-/// cast is needed or wanted. Casting `$n::jsonb` here was tried and is wrong:
-/// Postgres's `jsonb → text` assignment cast preserves the JSON
-/// representation (quotes included, e.g. `"tenant-a"` instead of
+/// **`/rpc` only.** Table CRUD uses
+/// [`crate::compilers::filters::mutation_value_to_bind`] +
+/// `mutation_placeholder` instead, which pair the bind channel with a cast to
+/// the *reflected column type* — the two must agree, and this function alone
+/// cannot satisfy that (it maps a JSON number to `QueryParam::Json`, so pairing
+/// it with a `$n::int4` cast yields `cannot cast type jsonb to integer`).
+/// Function arguments have no reflected column to cast to: `handle_rpc` casts
+/// from the function's own signature, so an uncast bind is correct there.
+///
+/// A `Value::String` binds as `QueryParam::Text`. Casting `$n::jsonb` here was
+/// tried and is wrong: Postgres's `jsonb → text` assignment cast preserves the
+/// JSON representation (quotes included, e.g. `"tenant-a"` instead of
 /// `tenant-a`), which silently corrupts string values and made every insert
-/// whose value happened to also be compared by an RLS `WITH CHECK` policy
-/// fail with "new row violates row-level security policy" — the value never
-/// matched the unquoted comparison, discovered running this change's own
-/// live-Postgres gate test. Non-string values still bind as
-/// `QueryParam::Json` (uncast) for a genuinely `jsonb`-typed target column;
-/// binding into a *typed, non-text, non-jsonb* column (`int4`, `bool`, `uuid`,
-/// …) remains a known, separately-tracked gap (see this change's proposal.md
-/// §3) since Postgres would infer that column's own type and neither
-/// `Text` nor `Json` accepts it.
+/// whose value was also compared by an RLS `WITH CHECK` policy fail with "new
+/// row violates row-level security policy" — discovered running p16-c001's
+/// live-Postgres gate test.
 pub(super) fn json_bind(v: &Value) -> fdb_query::QueryParam {
     match v {
         Value::String(s) => fdb_query::QueryParam::Text(s.clone()),

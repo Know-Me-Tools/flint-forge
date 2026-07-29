@@ -2,10 +2,10 @@
 #![forbid(unsafe_code)]
 
 mod agui_hook_dispatcher;
+mod authz_mode;
 mod bootstrap;
 mod graphql;
 mod handlers;
-mod keto_sync;
 mod policy_source;
 mod rls_layer;
 mod routes;
@@ -47,6 +47,10 @@ pub(crate) struct GatewayState {
 // adapters, gates, and routes lives in `bootstrap::run()` (p16 file-size
 // split of what used to be a single long `main()` body) — behavior unchanged.
 #[tokio::main]
-async fn main() {
-    bootstrap::run().await;
+async fn main() -> anyhow::Result<()> {
+    // `anyhow` at the binary edge (per CLAUDE.md's quality gates): a
+    // misconfigured `FLINT_AUTHZ_MODE`, or `rls+keto` with an empty tuple
+    // cache, exits with a one-line operator-readable message rather than a
+    // panic backtrace.
+    bootstrap::run().await
 }

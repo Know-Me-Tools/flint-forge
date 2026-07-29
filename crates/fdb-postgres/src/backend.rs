@@ -89,7 +89,12 @@ impl DatabaseBackend for PgBackend {
         object
             .execute(&format!(r#"SET LOCAL ROLE "{}""#, rls.role), &[])
             .await
-            .map_err(|e| PgError::SetLocal(format!("SET LOCAL ROLE: {e}")))?;
+            // `{e}` alone renders as "db error" — use the same unwrapping the
+            // error module applies, or a missing GRANT is indistinguishable
+            // from a syntax error in the logs.
+            .map_err(|e| {
+                PgError::SetLocal(format!("SET LOCAL ROLE: {}", crate::error::describe_pg(&e)))
+            })?;
 
         // The six GUCs: `SET LOCAL <name> = $1` is also invalid (SET rejects binds).
         // Use `set_config(name, value, is_local=true)`, which binds the VALUE safely
@@ -161,6 +166,10 @@ impl DatabaseBackend for PgBackend {
             .query(&wrapped, &binds)
             .await
             .map_err(|e| BackendError::Query(format!("kiln query_json: {e}")))?;
+
+        // `sql` may be DML with `RETURNING` (the doc above says so), so this
+        // path must commit for the same reason `PgRest::run_bound` does.
+        pg_conn.commit().await?;
 
         rows.iter()
             .map(|row| {

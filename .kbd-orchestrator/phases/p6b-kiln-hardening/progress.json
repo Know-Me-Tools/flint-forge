@@ -1,24 +1,129 @@
 {
+  "schemaVersion": "2",
+  "generatedBy": "kbd-runtime",
+  "sourceRevision": 2,
   "phase": "p6b-kiln-hardening",
-  "status": "complete",
-  "changes_completed": 8,
+  "phaseId": "p6b-kiln-hardening",
+  "parentPhase": null,
+  "last_updated": "2026-07-29T00:08:58.761638Z",
+  "last_updated_by": "kbd-runtime",
   "changes_total": 8,
-  "assessment_complete": true,
-  "plan_complete": true,
-  "execution_started": true,
-  "created_at": "2026-07-04",
-  "seeded_from": "p6-kiln-runtime/reflection.md",
-  "last_updated_by": "opencode",
-  "last_updated_at": "2026-07-04T00:00:00Z",
+  "changes_completed": 8,
+  "implementation_total": 8,
+  "implementation_completed": 8,
+  "completion": {
+    "primaryCounter": "implementation",
+    "implementation": {
+      "completed": 8,
+      "total": 8,
+      "status": "COMPLETE"
+    },
+    "evidence": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "certification": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "publication": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    }
+  },
   "changes": [
-    { "id": "p6b-c001-cedar-gate",    "status": "done", "completed_at": "2026-07-04", "priority": "P0" },
-    { "id": "p6b-c002-kiln-bgw",      "status": "done", "completed_at": "2026-07-04", "priority": "P0" },
-    { "id": "p6b-c003-wit-bindings",  "status": "done", "completed_at": "2026-07-04", "priority": "P0" },
-    { "id": "p6b-c004-sign-did",      "status": "done", "completed_at": "2026-07-04", "priority": "P1" },
-    { "id": "p6b-c005-sign-cosign",   "status": "done", "completed_at": "2026-07-04", "priority": "P1" },
-    { "id": "p6b-c006-store-oci",     "status": "done", "completed_at": "2026-07-04", "priority": "P1" },
-    { "id": "p6b-c007-store-ipfs",    "status": "done", "completed_at": "2026-07-04", "priority": "P2" },
-    { "id": "p6b-c008-store-s3",      "status": "done", "completed_at": "2026-07-04", "priority": "P2" }
+    {
+      "id": "p6b-c001-cedar-gate",
+      "title": "p6b-c001-cedar-gate",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p6b-c002-kiln-bgw",
+      "title": "p6b-c002-kiln-bgw",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p6b-c003-wit-bindings",
+      "title": "p6b-c003-wit-bindings",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p6b-c004-sign-did",
+      "title": "p6b-c004-sign-did",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p6b-c005-sign-cosign",
+      "title": "p6b-c005-sign-cosign",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p6b-c006-store-oci",
+      "title": "p6b-c006-store-oci",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p6b-c007-store-ipfs",
+      "title": "p6b-c007-store-ipfs",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p6b-c008-store-s3",
+      "title": "p6b-c008-store-s3",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    }
   ],
-  "goals_file": ".kbd-orchestrator/phases/p6b-kiln-hardening/goals.md"
+  "children": {},
+  "migrationStatus": null
 }

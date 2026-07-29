@@ -53,15 +53,11 @@ impl ChangeStreamSource for ListenChangeSource {
         // otherwise be the Keto network latency). On deny, `rx` is simply dropped.
         let rx = self.tx.subscribe();
 
-        // Keto coarse check, FAIL CLOSED. Reuses the exact crate helper.
-        keto_check_via_http(
-            &self.http,
-            &self.keto.base_url,
-            &spec.entity_type,
-            &spec.tenant,
-            &who.keto_subject,
-        )
-        .await?;
+        // Keto coarse check, FAIL CLOSED. The skip-when-not-configured lives
+        // inside `keto_check` rather than here, matching `FabricChangeSource`
+        // so a future caller cannot forget it.
+        self.keto_check(&spec.entity_type, &spec.tenant, &who.keto_subject)
+            .await?;
 
         // Filter the fan-out by entity_type. The tenant match is best-effort;
         // the RLS re-query downstream is authoritative.
@@ -97,5 +93,29 @@ impl ChangeStreamSource for ListenChangeSource {
             .boxed();
 
         Ok(stream)
+    }
+}
+
+impl ListenChangeSource {
+    /// Subscribe-time Keto relation check, fail-closed.
+    ///
+    /// A no-op when the deployment did not opt into Keto
+    /// (`FLINT_AUTHZ_MODE=rls`): there is no relation model to consult, so
+    /// there is nothing to deny on, and the per-event RLS re-query layered on
+    /// above remains authoritative either way. Keeping the skip here rather
+    /// than at the call site means a future caller cannot forget it — the same
+    /// reasoning `FabricChangeSource::keto_check` records.
+    ///
+    /// SECURITY: `subject` is PII; MUST NOT be logged.
+    async fn keto_check(
+        &self,
+        entity_type: &str,
+        tenant_id: &str,
+        subject: &str,
+    ) -> Result<(), StreamError> {
+        let Some(keto) = &self.keto else {
+            return Ok(());
+        };
+        keto_check_via_http(&self.http, &keto.base_url, entity_type, tenant_id, subject).await
     }
 }

@@ -1,29 +1,96 @@
 {
+  "schemaVersion": "2",
+  "generatedBy": "kbd-runtime",
+  "sourceRevision": 2,
   "phase": "p13-continuous-operations",
-  "status": "complete",
-  "changes_completed": 4,
+  "phaseId": "p13-continuous-operations",
+  "parentPhase": null,
+  "last_updated": "2026-07-29T00:08:58.761638Z",
+  "last_updated_by": "kbd-runtime",
   "changes_total": 5,
-  "assessment_complete": false,
-  "plan_complete": false,
-  "execution_started": false,
-  "created_at": "2026-07-06",
-  "seeded_from": "p12-v1-release/reflection.md",
-  "last_updated_by": "opencode",
-  "last_updated_at": "2026-07-06T00:00:00Z",
+  "changes_completed": 4,
+  "implementation_total": 5,
+  "implementation_completed": 4,
+  "completion": {
+    "primaryCounter": "implementation",
+    "implementation": {
+      "completed": 4,
+      "total": 5,
+      "status": "IN_PROGRESS"
+    },
+    "evidence": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "certification": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "publication": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    }
+  },
   "changes": [
-    { "id": "p13-c001-k6-baselines-measure", "status": "deferred", "priority": "P0", "trigger": "staging host available", "note": "still unavailable; TBD in ROADMAP.md" },
-    { "id": "p13-c002-dependency-maintenance", "status": "done", "completed_at": "2026-07-06", "priority": "P1", "trigger": "monthly cadence or new CVE" },
-    { "id": "p13-c003-monitoring-review", "status": "done", "completed_at": "2026-07-06", "priority": "P1", "trigger": "30 days post-deploy", "note": "docs/monitoring.md written; threshold tuning deferred to 30d mark" },
-    { "id": "p13-c004-api-versioning-gate", "status": "done", "completed_at": "2026-07-06", "priority": "P1", "trigger": "first proposed API change" },
-    { "id": "p13-c005-v1.1.0-planning", "status": "done", "completed_at": "2026-07-06", "priority": "P2", "trigger": "organic — 3+ roadmap items identified", "note": "docs/ROADMAP.md written with 6 items; p14 exit condition met" }
+    {
+      "id": "p13-c001-k6-baselines-measure",
+      "title": "p13-c001-k6-baselines-measure",
+      "status": "PENDING",
+      "implementation_status": "PENDING",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p13-c002-dependency-maintenance",
+      "title": "p13-c002-dependency-maintenance",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p13-c003-monitoring-review",
+      "title": "p13-c003-monitoring-review",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p13-c004-api-versioning-gate",
+      "title": "p13-c004-api-versioning-gate",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p13-c005-v1.1.0-planning",
+      "title": "p13-c005-v1.1.0-planning",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    }
   ],
-  "goals_file": ".kbd-orchestrator/phases/p13-continuous-operations/goals.md",
-  "open_questions": [],
-  "standing_ci_gates": [
-    "cargo fmt --all --check",
-    "cargo clippy --workspace --all-targets -- -D warnings",
-    "cargo test --workspace",
-    "cargo audit"
-  ],
-  "completion_trigger": "G5 yields docs/ROADMAP.md with 3+ items, OR significant feature cluster approved, OR /kbd-new-phase p14-*"
+  "children": {},
+  "migrationStatus": null
 }

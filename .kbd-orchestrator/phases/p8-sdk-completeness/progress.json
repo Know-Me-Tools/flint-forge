@@ -1,28 +1,118 @@
 {
+  "schemaVersion": "2",
+  "generatedBy": "kbd-runtime",
+  "sourceRevision": 2,
   "phase": "p8-sdk-completeness",
-  "status": "complete",
-  "changes_completed": 7,
+  "phaseId": "p8-sdk-completeness",
+  "parentPhase": null,
+  "last_updated": "2026-07-29T00:08:58.761638Z",
+  "last_updated_by": "kbd-runtime",
   "changes_total": 7,
-  "assessment_complete": true,
-  "plan_complete": true,
-  "execution_started": true,
-  "created_at": "2026-07-04",
-  "seeded_from": "p7b-kiln-production/reflection.md",
-  "last_updated_by": "opencode",
-  "last_updated_at": "2026-07-04T00:00:00Z",
+  "changes_completed": 7,
+  "implementation_total": 7,
+  "implementation_completed": 7,
+  "completion": {
+    "primaryCounter": "implementation",
+    "implementation": {
+      "completed": 7,
+      "total": 7,
+      "status": "COMPLETE"
+    },
+    "evidence": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "certification": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "publication": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    }
+  },
   "changes": [
-    { "id": "p8-c001-react-sdk-completeness",  "status": "done", "completed_at": "2026-07-04", "priority": "P0" },
-    { "id": "p8-c002-flutter-sdk-reconnect",    "status": "done", "completed_at": "2026-07-04", "priority": "P0" },
-    { "id": "p8-c003-ci-pipeline",              "status": "done", "completed_at": "2026-07-04", "priority": "P0" },
-    { "id": "p8-c004-htmx-remaining-components","status": "done", "completed_at": "2026-07-04", "priority": "P1" },
-    { "id": "p8-c005-design-token-export",       "status": "done", "completed_at": "2026-07-04", "priority": "P1" },
-    { "id": "p8-c006-opendesign-zip-import",     "status": "done", "completed_at": "2026-07-04", "priority": "P1" },
-    { "id": "p8-c007-claude-skill-gate-tests",   "status": "done", "completed_at": "2026-07-04", "priority": "P2" }
+    {
+      "id": "p8-c001-react-sdk-completeness",
+      "title": "p8-c001-react-sdk-completeness",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p8-c002-flutter-sdk-reconnect",
+      "title": "p8-c002-flutter-sdk-reconnect",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p8-c003-ci-pipeline",
+      "title": "p8-c003-ci-pipeline",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p8-c004-htmx-remaining-components",
+      "title": "p8-c004-htmx-remaining-components",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p8-c005-design-token-export",
+      "title": "p8-c005-design-token-export",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p8-c006-opendesign-zip-import",
+      "title": "p8-c006-opendesign-zip-import",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p8-c007-claude-skill-gate-tests",
+      "title": "p8-c007-claude-skill-gate-tests",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    }
   ],
-  "goals_file": ".kbd-orchestrator/phases/p8-sdk-completeness/goals.md",
-  "open_questions": [
-    "OQ-P8-1: zip crate version for G6 ZIP extraction",
-    "OQ-P8-2: cargo-component installation in GitHub Actions for G3",
-    "OQ-P8-3: ghcr.io credentials for Docker image publish in G3"
-  ]
+  "children": {},
+  "migrationStatus": null
 }

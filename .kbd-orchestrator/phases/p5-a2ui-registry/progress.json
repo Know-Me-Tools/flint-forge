@@ -1,60 +1,206 @@
 {
+  "schemaVersion": "2",
+  "generatedBy": "kbd-runtime",
+  "sourceRevision": 2,
   "phase": "p5-a2ui-registry",
-  "status": "in_progress",
-  "changes_completed": 15,
+  "phaseId": "p5-a2ui-registry",
+  "parentPhase": null,
+  "last_updated": "2026-07-29T00:08:58.761638Z",
+  "last_updated_by": "kbd-runtime",
   "changes_total": 15,
-  "status": "complete",
-  "changes": [
-    { "id": "p5-c001-flint-a2ui-schema",       "status": "done", "priority": "P0" },
-    { "id": "p5-c002-base-components-seed",     "status": "done", "priority": "P0" },
-    { "id": "p5-c003-auto-binding-trigger",     "status": "done", "priority": "P0" },
-    { "id": "p5-c009-compiled-state-upgrade",   "status": "done", "priority": "P0" },
-    { "id": "p5-c014-sdk-schema-extensions",    "status": "done", "priority": "P0" },
-    { "id": "p5-c010-react-sdk",                "status": "done", "priority": "P0" },
-    { "id": "p5-c011-flutter-sdk",              "status": "done", "priority": "P0" },
-    { "id": "p5-c004-embeddings-pipeline",      "status": "done", "priority": "P1" },
-    { "id": "p5-c005-application-model",        "status": "done", "priority": "P1" },
-    { "id": "p5-c006-rest-api",                 "status": "done", "priority": "P1", "archived": "2026-07-04" },
-    { "id": "p5-c007-event-driven-assembly",    "status": "done", "priority": "P1" },
-    { "id": "p5-c008-protocol-surfaces",        "status": "done", "priority": "P1" },
-    { "id": "p5-c012-htmx-renderer",            "status": "done", "priority": "P2" },
-    { "id": "p5-c015-claude-design-skill",      "status": "done", "priority": "P2", "completed_at": "2026-07-04" },
-    { "id": "p5-c013-opendesign-integration",   "status": "done", "priority": "P2", "completed_at": "2026-07-04" }
-  ],
-  "mvp_changes": [
-    "p5-c001-flint-a2ui-schema",
-    "p5-c002-base-components-seed",
-    "p5-c003-auto-binding-trigger",
-    "p5-c009-compiled-state-upgrade",
-    "p5-c014-sdk-schema-extensions",
-    "p5-c010-react-sdk",
-    "p5-c011-flutter-sdk"
-  ],
-  "sdk_dependency_order": [
-    "p5-c014",
-    "p5-c010",
-    "p5-c011",
-    "p5-c013"
-  ],
-  "assessment_complete": true,
-  "plan_complete": true,
-  "execution_started": true,
-  "goals_file": ".kbd-orchestrator/phases/p5-a2ui-registry/goals.md",
-  "created_at": "2026-06-30",
-  "spec_files": [
-    "docs/FLINT-A2UI-REGISTRY-SPEC.md",
-    "docs/FLINT-PHASE-PLAN-REVISED.md"
-  ],
-  "openspec_changes_dir": "openspec/changes/",
-  "open_questions": {
-    "OQ-13": "flutter/genui genui ^1.0.0 stable — pin ^0.9.2 for now",
-    "OQ-14": "OpenDesign plugin marketplace availability — GitHub-path install for now"
+  "changes_completed": 15,
+  "implementation_total": 15,
+  "implementation_completed": 15,
+  "completion": {
+    "primaryCounter": "implementation",
+    "implementation": {
+      "completed": 15,
+      "total": 15,
+      "status": "COMPLETE"
+    },
+    "evidence": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "certification": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "publication": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    }
   },
-  "last_updated_by": "opencode",
-  "last_updated_at": "2026-07-04T00:00:00Z",
-  "notes": [
-    "p5-c006 was archived 2026-07-04; REST routes live in crates/fdb-gateway/src/routes/a2ui.rs",
-    "p5-c008 unblocked the Phase 7 MCP server endpoint dependency by implementing a minimal MCP server in fdb-gateway",
-    "All P0 + P1 changes complete; remaining P2 changes are c012, c013, c015"
-  ]
+  "changes": [
+    {
+      "id": "p5-c001-flint-a2ui-schema",
+      "title": "p5-c001-flint-a2ui-schema",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c002-base-components-seed",
+      "title": "p5-c002-base-components-seed",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c003-auto-binding-trigger",
+      "title": "p5-c003-auto-binding-trigger",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c009-compiled-state-upgrade",
+      "title": "p5-c009-compiled-state-upgrade",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c014-sdk-schema-extensions",
+      "title": "p5-c014-sdk-schema-extensions",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c010-react-sdk",
+      "title": "p5-c010-react-sdk",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c011-flutter-sdk",
+      "title": "p5-c011-flutter-sdk",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c004-embeddings-pipeline",
+      "title": "p5-c004-embeddings-pipeline",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c005-application-model",
+      "title": "p5-c005-application-model",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c006-rest-api",
+      "title": "p5-c006-rest-api",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c007-event-driven-assembly",
+      "title": "p5-c007-event-driven-assembly",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c008-protocol-surfaces",
+      "title": "p5-c008-protocol-surfaces",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c012-htmx-renderer",
+      "title": "p5-c012-htmx-renderer",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c015-claude-design-skill",
+      "title": "p5-c015-claude-design-skill",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p5-c013-opendesign-integration",
+      "title": "p5-c013-opendesign-integration",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    }
+  ],
+  "children": {},
+  "migrationStatus": null
 }

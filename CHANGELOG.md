@@ -8,6 +8,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### BREAKING
+- **authz**: Keto is now **opt-in**. `FLINT_AUTHZ_MODE` selects the
+  authorization model: `rls` (the new default) enforces Postgres grants + RLS +
+  Cedar with no Keto anywhere; `rls+keto` additionally applies Zanzibar-style
+  relation checks to mutations and subscriptions.
+
+  **Deployments currently relying on Keto MUST set `FLINT_AUTHZ_MODE=rls+keto`.**
+  Without it the relation gate is skipped — RLS and Cedar are unaffected and
+  still enforced, but the coarse pre-filter is not applied.
+
+  Rationale for defaulting off: RLS + Cedar are always on and are the complete
+  authorization story (the model Supabase implements; their own 2026 roadmap
+  treats Zanzibar/OpenFGA as an optional add-on, not a request-path
+  dependency). An application with no per-subject relation tuples has none to
+  seed, and because the gate is fail-closed, an empty tuple set denied **every**
+  mutation while reads kept working — a configuration mismatch that presented as
+  a policy bug. In `rls+keto` the gateway now refuses to start on an empty or
+  unreadable tuple cache, converting that silent 403-everything into a
+  one-line-fix startup error.
+
+  An unrecognized value is a hard startup failure, never a silent fallback.
+  `FLINT_KETO_MUTATION_GATE` is honoured as a deprecated alias only when
+  `FLINT_AUTHZ_MODE` is unset. (p16 `de0f103`, reviewed and accepted in p17)
+- **realtime**: `ListenChangeSource::new` takes `Option<KetoConfig>` rather than
+  `KetoConfig`. Passing `None` skips the subscribe-time relation check, which is
+  what makes `FLINT_AUTHZ_MODE=rls` able to open a subscription without a
+  reachable Ory Keto service. A public signature change in a shared crate; there
+  was no other way to make that path optional. (p17)
+- **fdb-app**: Removed `Quarry::with_keto`, `Quarry::check_keto`,
+  `Quarry::execute_rest_mutation`, the `Quarry.keto` field, and `MutationError`.
+  This cluster was unreachable from any production path and checked an
+  incompatible tuple shape — `(entities, <bare table>, "mutate", subject)` —
+  against the live gate's `(entities, "<schema>.<table>",
+  insert|update|delete, subject)`, so relation tuples seeded against it could
+  never match. Mutation authorization lives in `fdb-reflection`'s
+  `mutation_guard`. (p17)
+
+### Fixed
+- **rest**: Typed (non-`text`) columns are writable and filterable again over
+  REST. Casts now render as `$n::text::<type>` (and `$n::text[]::<type>[]` for
+  array binds) so the bound parameter stays `text` and Postgres applies the
+  target type's own input parser. A bare `$n::<type>` made Postgres infer the
+  *parameter* as that type, which `tokio-postgres` then rejected client-side
+  with "error serializing parameter N". (p17)
+- **rest, graphql, kiln**: Writes are no longer silently discarded.
+  `PgBackend::acquire` opens a transaction (required for the `SET LOCAL` RLS
+  GUCs) that nothing committed, so deadpool rolled it back on recycle while the
+  statement's own `RETURNING` clause still reported success. Adds
+  `PgConn::commit()`, called from the REST/`rpc`, GraphQL, and Kiln
+  `flint:host/db` write paths. Affected every mutation on every surface. (p17)
+
 - **realtime**: `FabricChangeSource` (the FRF gRPC change source) now **fails
   closed**: opening a subscription with `FLINT_CHANGE_SOURCE=fabric` returns a
   transport-level error (`StreamError::Unavailable`) instead of silently
