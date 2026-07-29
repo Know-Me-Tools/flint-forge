@@ -89,6 +89,27 @@ INSERT INTO flint_meta.schema_version (ddl_tag, object_name)
 VALUES ('INSTALL', 'ext-flint-meta');
 
 -- ── Keto tuples (permission cache) ─────────────────────────────────────────
+--
+-- Read ONLY when the gateway runs with FLINT_AUTHZ_MODE=rls+keto. In the
+-- default `rls` mode this table is never queried.
+--
+-- Seeding contract — a tuple grants a subject one mutation verb on one table:
+--
+--   namespace   'entities'                 (the only namespace the gate uses)
+--   object_id   '<schema>.<table>'         e.g. 'public.orders' — SCHEMA-QUALIFIED
+--   relation    'insert' | 'update' | 'delete'
+--   subject_id  the JWT subject (PII — never log it)
+--
+-- Both halves matter. A bare table name in object_id, or a catch-all relation
+-- such as 'mutate', will never match: `fdb_reflection`'s `mutation_guard` looks
+-- up exactly (entities, "<schema>.<table>", <verb>, subject). A second gate in
+-- `fdb-app` once used the bare-table/'mutate' shape, but it was unreachable
+-- from any production path and was removed in p17 — tuples seeded against it
+-- silently matched nothing.
+--
+-- The gate is FAIL-CLOSED: with rls+keto set and this table empty, every
+-- mutation is denied while reads keep working. The gateway therefore refuses to
+-- start on an empty cache rather than serving traffic that uniformly 403s.
 CREATE TABLE IF NOT EXISTS flint_meta.keto_tuples (
     namespace   text    NOT NULL,
     object_id   text    NOT NULL,

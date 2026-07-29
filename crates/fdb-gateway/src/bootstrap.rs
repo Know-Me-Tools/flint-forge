@@ -31,7 +31,18 @@ use crate::{agui_hook_dispatcher, authz_mode, policy_source, rls_layer, routes, 
 // from the anyhow-at-the-edge binary entry point (`main()` in `main.rs`); a
 // long linear body is idiomatic here.
 #[allow(clippy::too_many_lines)]
-pub(crate) async fn run() {
+/// Wire every pool, adapter, gate, and route, then serve until shutdown.
+///
+/// # Errors
+///
+/// Returns an error rather than panicking for operator-fixable misconfiguration
+/// — an unrecognized `FLINT_AUTHZ_MODE`, or `rls+keto` with an unreadable or
+/// empty tuple cache. `main` prints it and exits non-zero, which is a readable
+/// one-line diagnostic instead of a panic backtrace. Infrastructure failures
+/// that indicate a broken deployment rather than a typo (pool connect, initial
+/// migration, schema compile) still `expect`, matching the rest of this
+/// composition root.
+pub(crate) async fn run() -> anyhow::Result<()> {
     // p9-c004: Initialise structured tracing (fmt + optional OTLP) and Prometheus metrics.
     // Guard is held for the process lifetime so the OTLP exporter flushes cleanly on exit.
     let _telemetry_guard = telemetry::init_tracing();
@@ -129,14 +140,13 @@ pub(crate) async fn run() {
     // Supabase implements. Keto is an additional coarse relation check that only
     // some deployments want, so it is opt-in.
     let authz_mode_raw = std::env::var(authz_mode::AUTHZ_MODE_VAR).ok();
-    let mode = match authz_mode::resolve_authz_mode(authz_mode_raw.as_deref()) {
-        Ok(m) => m,
-        Err(bad) => panic!(
+    let mode = authz_mode::resolve_authz_mode(authz_mode_raw.as_deref()).map_err(|bad| {
+        anyhow::anyhow!(
             "{} has unrecognized value {bad:?}; expected \"rls\" or \"rls+keto\". \
              Refusing to start rather than guessing an authorization model.",
             authz_mode::AUTHZ_MODE_VAR
-        ),
-    };
+        )
+    })?;
     let (mode, legacy_used) = authz_mode::apply_legacy_gate_var(
         mode,
         authz_mode_raw.is_some(),
@@ -170,18 +180,22 @@ pub(crate) async fn run() {
         // indistinguishable from a policy bug at runtime. Failing at startup
         // turns that into a one-line fix.
         match keto_task.prime().await {
-            Err(e) => panic!(
-                "{}=rls+keto but the Keto tuple cache could not be loaded: {e}. \
-                 Fix the database or set {}=rls.",
-                authz_mode::AUTHZ_MODE_VAR,
-                authz_mode::AUTHZ_MODE_VAR
-            ),
-            Ok(0) => panic!(
-                "{}=rls+keto but flint_meta.keto_tuples is EMPTY — every mutation \
-                 would be denied. Seed relation tuples or set {}=rls.",
-                authz_mode::AUTHZ_MODE_VAR,
-                authz_mode::AUTHZ_MODE_VAR
-            ),
+            Err(e) => {
+                return Err(anyhow::anyhow!(
+                    "{}=rls+keto but the Keto tuple cache could not be loaded: {e}. \
+                     Fix the database or set {}=rls.",
+                    authz_mode::AUTHZ_MODE_VAR,
+                    authz_mode::AUTHZ_MODE_VAR
+                ))
+            }
+            Ok(0) => {
+                return Err(anyhow::anyhow!(
+                    "{}=rls+keto but flint_meta.keto_tuples is EMPTY — every mutation \
+                     would be denied. Seed relation tuples or set {}=rls.",
+                    authz_mode::AUTHZ_MODE_VAR,
+                    authz_mode::AUTHZ_MODE_VAR
+                ))
+            }
             Ok(n) => tracing::info!(tuples = n, "keto gate enabled"),
         }
 
@@ -530,5 +544,7 @@ pub(crate) async fn run() {
         app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
     )
     .await
-    .expect("serve");
+    .map_err(|e| anyhow::anyhow!("serve: {e}"))?;
+
+    Ok(())
 }

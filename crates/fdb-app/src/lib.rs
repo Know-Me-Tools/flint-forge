@@ -5,10 +5,8 @@
 pub mod a2ui;
 pub mod graphql;
 
-use fdb_domain::{ChangeEvent, RestQuery, RestResult, SubscriptionSpec, TableMeta};
-use fdb_ports::{
-    BackendError, ChangeStreamSource, GraphQlExecutor, KetoCheck, RestExecutor, StreamError,
-};
+use fdb_domain::{ChangeEvent, RestQuery, SubscriptionSpec, TableMeta};
+use fdb_ports::{BackendError, ChangeStreamSource, GraphQlExecutor, RestExecutor, StreamError};
 use forge_domain::Json;
 use forge_identity::RlsContext;
 use forge_policy::{Decision, Pep, Request as PolicyRequest};
@@ -17,13 +15,11 @@ use std::sync::Arc;
 
 /// Wires the use-cases over whatever adapters the interface layer injects.
 ///
-/// `keto` is `Option<Arc<dyn KetoCheck>>` so that the Quarry can operate
-/// without a Keto gate during early boot or test scaffolding. When `Some`,
-/// mutation use-cases call `KetoCheck::check()` before delegating to the
-/// executor and return a typed 403 on denial.
+/// `pep` is `Option<Arc<dyn Pep>>` — the Cedar policy enforcement point. When
+/// `Some`, [`Quarry::check_pep`] consults it; `None` skips the gate, which is
+/// what early boot and test scaffolding use.
 ///
-/// `pep` is `Option<Arc<dyn Pep>>` — the Cedar policy enforcement point.
-/// When `Some`, mutation use-cases call `Pep::check()` after the Keto gate.
+/// Mutation authorization does **not** live here — see [`Quarry::new`].
 pub struct Quarry {
     /// REST query/mutation executor adapter (Postgres-backed in production).
     pub rest: Arc<dyn RestExecutor>,
@@ -31,34 +27,17 @@ pub struct Quarry {
     pub graphql: Arc<dyn GraphQlExecutor>,
     /// Change-stream source for subscriptions (gRPC client of the realtime fabric).
     pub changes: Arc<dyn ChangeStreamSource>,
-    /// Optional Keto relation-check gate for mutations; `None` disables the gate.
-    pub keto: Option<Arc<dyn KetoCheck>>,
     /// Optional Cedar policy enforcement point; `None` disables the gate.
     pub pep: Option<Arc<dyn Pep>>,
 }
 
-/// Typed mutation-denial error surfaced when `KetoCheck::check()` returns `false`.
+/// Typed denial returned by [`Quarry::check_pep`] when Cedar denies the action.
+///
+/// Carries no PII by design: the subject reaches the policy engine but never
+/// the error value.
 #[derive(Debug, thiserror::Error)]
-#[error("forbidden: Keto relation check denied")]
+#[error("forbidden: policy check denied")]
 pub struct ForbiddenError;
-
-/// Error returned by mutation use-cases.
-#[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-pub enum MutationError {
-    /// Keto or Cedar gate denied the operation.
-    #[error("forbidden")]
-    Forbidden,
-    /// The backend executor failed.
-    #[error(transparent)]
-    Backend(#[from] BackendError),
-}
-
-impl From<ForbiddenError> for MutationError {
-    fn from(_: ForbiddenError) -> Self {
-        Self::Forbidden
-    }
-}
 
 /// Error returned by subscription use-cases.
 #[derive(Debug, thiserror::Error)]
@@ -73,9 +52,16 @@ pub enum SubscriptionError {
 }
 
 impl Quarry {
-    /// Construct a `Quarry` from the three mandatory adapters, with no Keto
-    /// gate and no Cedar PEP attached. Use [`Quarry::with_keto`] and
-    /// [`Quarry::with_pep`] to attach those gates at composition time.
+    /// Construct a `Quarry` from the three mandatory adapters, with no Cedar
+    /// PEP attached. Use [`Quarry::with_pep`] to attach it at composition time.
+    ///
+    /// There is deliberately no Keto gate here. The live mutation gate is
+    /// `fdb_reflection`'s `mutation_guard`, which checks
+    /// `(entities, "<schema>.<table>", insert|update|delete, subject)`. `Quarry`
+    /// once carried a parallel gate keyed on `(entities, <bare table>, "mutate",
+    /// subject)` — an incompatible tuple shape that no production path ever
+    /// reached, so tuples seeded against it could never match. Removed in p17
+    /// rather than left as a second, unreachable vocabulary.
     pub fn new(
         rest: Arc<dyn RestExecutor>,
         graphql: Arc<dyn GraphQlExecutor>,
@@ -85,16 +71,8 @@ impl Quarry {
             rest,
             graphql,
             changes,
-            keto: None,
             pep: None,
         }
-    }
-
-    /// Attach a Keto check adapter. Called once at gateway composition time.
-    #[must_use]
-    pub fn with_keto(mut self, keto: Arc<dyn KetoCheck>) -> Self {
-        self.keto = Some(keto);
-        self
     }
 
     /// Attach a Cedar policy enforcement point. Called once at gateway
@@ -103,26 +81,6 @@ impl Quarry {
     pub fn with_pep(mut self, pep: Arc<dyn Pep>) -> Self {
         self.pep = Some(pep);
         self
-    }
-
-    /// Mutation-time Keto gate. Returns `Ok(())` when the check passes (or
-    /// when no Keto adapter is configured), `Err(ForbiddenError)` when denied.
-    ///
-    /// SECURITY: `subject` is PII and MUST NOT be logged. The error variant
-    /// carries no PII by design.
-    pub async fn check_keto(
-        &self,
-        namespace: &str,
-        object: &str,
-        relation: &str,
-        subject: &str,
-    ) -> Result<(), ForbiddenError> {
-        if let Some(keto) = &self.keto {
-            if !keto.check(namespace, object, relation, subject).await {
-                return Err(ForbiddenError);
-            }
-        }
-        Ok(())
     }
 
     /// Capability-time Cedar policy gate. Returns `Ok(())` when the policy
@@ -146,21 +104,6 @@ impl Quarry {
             }
         }
         Ok(())
-    }
-
-    /// Execute a REST mutation under the Keto gate.
-    ///
-    /// Fail-closed: if a Keto adapter is configured and denies the `mutate`
-    /// relation on the target table, returns `MutationError::Forbidden`.
-    /// Otherwise delegates to the configured `RestExecutor`.
-    pub async fn execute_rest_mutation(
-        &self,
-        q: RestQuery,
-        who: &RlsContext,
-    ) -> Result<RestResult, MutationError> {
-        self.check_keto("entities", &q.table, "mutate", &who.keto_subject)
-            .await?;
-        Ok(self.rest.execute(q, who).await?)
     }
 
     /// Subscribe to a change stream with per-event RLS re-query filtering.
