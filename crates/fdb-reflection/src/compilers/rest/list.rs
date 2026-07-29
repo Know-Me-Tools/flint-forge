@@ -170,11 +170,13 @@ pub(super) fn build_inner_query(
     // are cast separately by `render_projection`, which qualifies each embed's
     // own hints with its correlation alias (`fdb-query`'s `embed::render`).
     //
-    // KNOWN GAP (pre-existing, not introduced here): `render_inner_guards`
-    // below applies NO hints, so a `!inner` guard filtering a typed child
-    // column (`?select=*,orders!inner(*)&orders.total=gt.100`) still binds
-    // uncast. Fixing it means threading child hints into `render_inner_exists`
-    // in `fdb-query` — a change to that crate's API, tracked separately.
+    // The `!inner` guards rendered at (3) are cast the same way, and do NOT
+    // need hints threaded in from here: `render_inner_exists` builds its
+    // predicate via `child_where`, which applies the embed's own
+    // `ResolvedEmbed::cast_hints` (populated per child table by
+    // `embed_schema_from_model`) qualified to the child alias. So
+    // `?select=*,orders!inner(*)&orders.total=gt.100` binds `total` cast to its
+    // reflected column type, not as bare text.
     let where_clause = render_where_with_hints(&filter_tree, after_proj, hints)?;
     let after_where = after_proj + where_clause.binds.len();
 

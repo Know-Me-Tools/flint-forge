@@ -82,12 +82,19 @@ fn fixture_model() -> DatabaseModel {
 
 /// GET /restrouter_it/widget — the exact reported repro (list route, zero
 /// path captures). Must not be 500.
-async fn assert_list_ok(app: &Router) {
+///
+/// The `rls` extension is required, not optional: `handle_list` declares
+/// `Extension<RlsContext>` exactly like the mutation handlers, so axum rejects
+/// the request with a 500 before the handler body runs when it is absent.
+/// Omitting it here made this test fail for a reason that had nothing to do
+/// with path extraction — the thing it exists to check.
+async fn assert_list_ok(app: &Router, rls: &RlsContext) {
     let resp = app
         .clone()
         .oneshot(
             Request::builder()
                 .uri("/restrouter_it/widget")
+                .extension(rls.clone())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -169,7 +176,11 @@ async fn assert_delete_no_content(app: &Router, rls: &RlsContext) {
 }
 
 /// POST /rpc/restrouter_it/echo_one — RPC route (same bug class).
-async fn assert_rpc_ok(app: &Router) {
+///
+/// `handle_rpc` also declares `Extension<RlsContext>` — every route the REST
+/// compiler mounts does — so this needs the extension for the same reason
+/// `assert_list_ok` does.
+async fn assert_rpc_ok(app: &Router, rls: &RlsContext) {
     let resp = app
         .clone()
         .oneshot(
@@ -177,6 +188,7 @@ async fn assert_rpc_ok(app: &Router) {
                 .method("POST")
                 .uri("/rpc/restrouter_it/echo_one")
                 .header(header::CONTENT_TYPE, "application/json")
+                .extension(rls.clone())
                 .body(Body::from("{}"))
                 .unwrap(),
         )
@@ -226,11 +238,11 @@ async fn rest_router_extracts_schema_and_table_without_path_captures() {
     let app = RestCompiler::compile(&model, executor);
     let rls = test_rls();
 
-    assert_list_ok(&app).await;
+    assert_list_ok(&app, &rls).await;
     assert_insert_created(&app, &rls).await;
     assert_update_ok(&app, &rls).await;
     assert_delete_no_content(&app, &rls).await;
-    assert_rpc_ok(&app).await;
+    assert_rpc_ok(&app, &rls).await;
 
     sqlx::query("DROP SCHEMA restrouter_it CASCADE;")
         .execute(&pool)

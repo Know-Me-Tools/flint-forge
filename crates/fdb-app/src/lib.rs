@@ -9,17 +9,24 @@ use fdb_domain::{ChangeEvent, RestQuery, SubscriptionSpec, TableMeta};
 use fdb_ports::{BackendError, ChangeStreamSource, GraphQlExecutor, RestExecutor, StreamError};
 use forge_domain::Json;
 use forge_identity::RlsContext;
-use forge_policy::{Decision, Pep, Request as PolicyRequest};
 use futures::stream::{BoxStream, StreamExt};
 use std::sync::Arc;
 
 /// Wires the use-cases over whatever adapters the interface layer injects.
 ///
-/// `pep` is `Option<Arc<dyn Pep>>` — the Cedar policy enforcement point. When
-/// `Some`, [`Quarry::check_pep`] consults it; `None` skips the gate, which is
-/// what early boot and test scaffolding use.
+/// # Authorization does not live here
 ///
-/// Mutation authorization does **not** live here — see [`Quarry::new`].
+/// `Quarry` carries no gate of its own. Both live gates sit in
+/// `fdb-reflection`'s `mutation_guard`, which consults Keto and Cedar through
+/// `RestState`; subscriptions are authorized by the change source's own
+/// subscribe-time check plus the per-event RLS re-query in
+/// [`Quarry::subscribe_rls_filtered`].
+///
+/// A Cedar `pep` field with `with_pep`/`check_pep` accessors used to live here
+/// and was removed in p17. The gateway's only `Quarry::new` call
+/// (`subscriptions.rs`) never attached a PEP, so the field was permanently
+/// `None` and the check unreachable — the same "gate that looks like
+/// enforcement but never runs" shape as the Keto cluster removed alongside it.
 pub struct Quarry {
     /// REST query/mutation executor adapter (Postgres-backed in production).
     pub rest: Arc<dyn RestExecutor>,
@@ -27,17 +34,7 @@ pub struct Quarry {
     pub graphql: Arc<dyn GraphQlExecutor>,
     /// Change-stream source for subscriptions (gRPC client of the realtime fabric).
     pub changes: Arc<dyn ChangeStreamSource>,
-    /// Optional Cedar policy enforcement point; `None` disables the gate.
-    pub pep: Option<Arc<dyn Pep>>,
 }
-
-/// Typed denial returned by [`Quarry::check_pep`] when Cedar denies the action.
-///
-/// Carries no PII by design: the subject reaches the policy engine but never
-/// the error value.
-#[derive(Debug, thiserror::Error)]
-#[error("forbidden: policy check denied")]
-pub struct ForbiddenError;
 
 /// Error returned by subscription use-cases.
 #[derive(Debug, thiserror::Error)]
@@ -52,16 +49,24 @@ pub enum SubscriptionError {
 }
 
 impl Quarry {
-    /// Construct a `Quarry` from the three mandatory adapters, with no Cedar
-    /// PEP attached. Use [`Quarry::with_pep`] to attach it at composition time.
+    /// Construct a `Quarry` from the three mandatory adapters.
     ///
-    /// There is deliberately no Keto gate here. The live mutation gate is
-    /// `fdb_reflection`'s `mutation_guard`, which checks
-    /// `(entities, "<schema>.<table>", insert|update|delete, subject)`. `Quarry`
-    /// once carried a parallel gate keyed on `(entities, <bare table>, "mutate",
-    /// subject)` — an incompatible tuple shape that no production path ever
-    /// reached, so tuples seeded against it could never match. Removed in p17
-    /// rather than left as a second, unreachable vocabulary.
+    /// There is deliberately no authorization gate here — neither Keto nor
+    /// Cedar. Both live gates sit in `fdb_reflection`'s `mutation_guard`:
+    ///
+    /// - Keto is checked as
+    ///   `(entities, "<schema>.<table>", insert|update|delete, subject)`.
+    ///   `Quarry` once carried a parallel gate keyed on
+    ///   `(entities, <bare table>, "mutate", subject)` — an incompatible tuple
+    ///   shape that no production path ever reached, so tuples seeded against
+    ///   it could never match.
+    /// - Cedar is consulted through `RestState::pep`. `Quarry` once carried its
+    ///   own `pep` field with `with_pep`/`check_pep` accessors, but the
+    ///   gateway's only construction site (`subscriptions.rs`) never attached
+    ///   one, leaving the field permanently `None` and the check unreachable.
+    ///
+    /// Both were removed in p17 rather than left as a second, unreachable
+    /// vocabulary that reads like enforcement.
     pub fn new(
         rest: Arc<dyn RestExecutor>,
         graphql: Arc<dyn GraphQlExecutor>,
@@ -71,39 +76,7 @@ impl Quarry {
             rest,
             graphql,
             changes,
-            pep: None,
         }
-    }
-
-    /// Attach a Cedar policy enforcement point. Called once at gateway
-    /// composition time.
-    #[must_use]
-    pub fn with_pep(mut self, pep: Arc<dyn Pep>) -> Self {
-        self.pep = Some(pep);
-        self
-    }
-
-    /// Capability-time Cedar policy gate. Returns `Ok(())` when the policy
-    /// allows (or when no PEP is configured), `Err(ForbiddenError)` when denied.
-    ///
-    /// SECURITY: `who` contains PII. The error variant carries no PII by design.
-    pub async fn check_pep(
-        &self,
-        who: &RlsContext,
-        action: &str,
-        resource: &str,
-    ) -> Result<(), ForbiddenError> {
-        if let Some(pep) = &self.pep {
-            let req = PolicyRequest {
-                action: action.into(),
-                resource: resource.into(),
-                context: forge_domain::Json::Null,
-            };
-            if pep.check(who, &req).await == Decision::Deny {
-                return Err(ForbiddenError);
-            }
-        }
-        Ok(())
     }
 
     /// Subscribe to a change stream with per-event RLS re-query filtering.

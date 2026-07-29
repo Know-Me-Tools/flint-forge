@@ -10,7 +10,6 @@ fdb-domain = { path = "../fdb-domain" }
 fdb-ports = { path = "../fdb-ports" }
 forge-identity = { path = "../forge-identity" }
 forge-domain = { path = "../forge-domain" }
-forge-policy = { path = "../forge-policy" }
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
