@@ -35,6 +35,24 @@ pub struct Table {
     /// Whether row-level security is enabled on this table. REST/GraphQL
     /// compilation and the subscription RLS re-query both depend on this flag.
     pub rls_enabled: bool,
+    /// Whether `FORCE ROW LEVEL SECURITY` is set. Without it the table **owner**
+    /// bypasses every policy, so `rls_enabled` alone overstates protection for
+    /// any table owned by the connecting role.
+    ///
+    /// `#[serde(default)]`: added in p17, so a model serialized before then
+    /// deserializes as `false` rather than failing.
+    #[serde(default)]
+    pub rls_forced: bool,
+    /// Whether `authenticated` or `anon` hold any privilege on the table — i.e.
+    /// whether it is reachable through the Data API at all. A table with RLS off
+    /// but no grants is correctly hidden via `REVOKE` and is not an exposure.
+    #[serde(default)]
+    pub api_granted: bool,
+    /// Number of RLS policies. `rls_enabled` with zero policies denies
+    /// everything for non-owners — commonly a mid-development state, and the
+    /// shape that presents as "every write 403s while reads succeed".
+    #[serde(default)]
+    pub policy_count: i32,
     /// Ciphertext-only DEK. Never contains plaintext key material.
     pub vault_key: Option<EncryptedDek>,
 }

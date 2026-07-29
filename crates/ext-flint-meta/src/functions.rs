@@ -83,13 +83,17 @@ RETURNS TABLE (
     table_name   text,
     is_view      bool,
     description  text,
-    rls_enabled  bool
+    rls_enabled  bool,
+    rls_forced   bool,
+    api_granted  bool,
+    policy_count int
 )
 LANGUAGE sql
 STABLE PARALLEL SAFE
 SECURITY INVOKER
 AS $$
-    SELECT schema_name, table_name, is_view, description, rls_enabled
+    SELECT schema_name, table_name, is_view, description, rls_enabled,
+           rls_forced, api_granted, policy_count
     FROM   flint_meta.cache_tables
     WHERE  schema_filter IS NULL OR schema_name = schema_filter
     ORDER  BY schema_name, table_name;

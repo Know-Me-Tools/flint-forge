@@ -239,6 +239,11 @@ pub(crate) async fn run() -> anyhow::Result<()> {
 
     let _listener_handle = Arc::clone(&state_manager).start_listener();
 
+    // p17: publish the RLS-posture gauge and keep it current across hot-reloads.
+    // The aggregated warning is emitted by the reflection pass itself; this makes
+    // the same signal alertable instead of only greppable.
+    telemetry::spawn_rls_posture_metric(Arc::clone(&state_manager));
+
     // p7-c007: Spawn the AG-UI state propagation task.
     // When the schema hot-swaps, emit a StateSnapshot event on the "schema" run
     // so connected agent frontends can update their tool picker in real-time.

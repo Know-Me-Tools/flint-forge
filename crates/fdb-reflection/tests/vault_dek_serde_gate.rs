@@ -41,6 +41,9 @@ fn model_with_vault_key() -> DatabaseModel {
             pk: vec!["id".into()],
             fk: vec![],
             rls_enabled: true,
+            rls_forced: true,
+            api_granted: false,
+            policy_count: 1,
             // Ciphertext bytes standing in for a KMS-wrapped DEK.
             vault_key: Some(EncryptedDek(vec![0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02])),
         }],

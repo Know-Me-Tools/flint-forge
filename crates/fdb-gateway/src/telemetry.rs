@@ -129,3 +129,45 @@ pub fn spawn_pool_metrics(pool: sqlx::PgPool) {
         }
     });
 }
+
+/// Publish the count of tables whose RLS posture is worth reporting, and
+/// refresh it on every schema hot-reload.
+///
+/// `fdb-reflection`'s `permission_analysis` pass classifies each table and logs
+/// an aggregated warning; it returns the count but takes no metrics dependency
+/// of its own (the hexagonal rule — a pure pass must not reach for
+/// infrastructure). This is where that count becomes alertable, so an exposed
+/// table is caught by a monitor rather than by someone reading startup logs.
+///
+/// Driven by the `StateManager`'s version watch channel rather than a timer:
+/// the value only changes when the schema does, and every DDL-triggered
+/// recompile ticks that channel.
+///
+/// Call once after the `StateManager` is constructed:
+///   `telemetry::spawn_rls_posture_metric(Arc::clone(&state_manager));`
+pub fn spawn_rls_posture_metric(state_manager: std::sync::Arc<fdb_reflection::StateManager>) {
+    metrics::describe_gauge!(
+        "flint_tables_rls_reportable",
+        "Tables reachable through the Data API whose RLS posture warrants \
+         review (exposed without RLS, RLS enabled with no policies, or RLS \
+         not FORCEd). Zero is the healthy value."
+    );
+
+    tokio::spawn(async move {
+        let mut version_rx = state_manager.subscribe_version();
+        loop {
+            // Classify the model currently mounted, then wait for the next
+            // hot-reload. Publishing before the first `changed()` means the
+            // gauge is populated from startup, not only after the first DDL.
+            let count = fdb_reflection::passes::permission_analysis::count_reportable(
+                &state_manager.current().database_model,
+            );
+            metrics::gauge!("flint_tables_rls_reportable")
+                .set(f64::from(u32::try_from(count).unwrap_or(u32::MAX)));
+
+            if version_rx.changed().await.is_err() {
+                break; // StateManager dropped — nothing left to report on
+            }
+        }
+    });
+}
