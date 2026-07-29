@@ -44,19 +44,32 @@ BEGIN
 
         IF obj.command_tag IN ('CREATE TABLE', 'ALTER TABLE') THEN
             INSERT INTO flint_meta.cache_tables
-                        (schema_name, table_name, is_view, rls_enabled, updated_at)
+                        (schema_name, table_name, is_view, rls_enabled, rls_forced,
+                         api_granted, policy_count, updated_at)
             SELECT n.nspname,
                    c.relname,
                    c.relkind = 'v',
                    c.relrowsecurity,
+                   c.relforcerowsecurity,
+                   -- Reachable through the Data API at all? A table with RLS off
+                   -- but no grants to the API roles is correctly hidden and must
+                   -- not be reported as exposed.
+                   EXISTS (SELECT 1 FROM pg_roles r
+                    WHERE r.rolname IN ('authenticated','anon')
+                      AND has_table_privilege(r.oid, c.oid,
+                            'SELECT, INSERT, UPDATE, DELETE')),
+                   (SELECT count(*) FROM pg_policy pol WHERE pol.polrelid = c.oid),
                    now()
             FROM   pg_class     c
             JOIN   pg_namespace n ON n.oid = c.relnamespace
             WHERE  n.nspname = obj.schema_name
               AND  c.relname = split_part(obj.object_identity, '.', 2)
             ON CONFLICT (schema_name, table_name) DO UPDATE
-              SET rls_enabled = EXCLUDED.rls_enabled,
-                  updated_at  = now();
+              SET rls_enabled  = EXCLUDED.rls_enabled,
+                  rls_forced   = EXCLUDED.rls_forced,
+                  api_granted  = EXCLUDED.api_granted,
+                  policy_count = EXCLUDED.policy_count,
+                  updated_at   = now();
 
             -- Incrementally mirror column metadata for the affected table.
             DELETE FROM flint_meta.cache_columns
@@ -87,6 +100,30 @@ BEGIN
               AND  c.relname = split_part(obj.object_identity, '.', 2)
               AND  a.attnum > 0
               AND  NOT a.attisdropped;
+
+        ELSIF obj.command_tag IN ('CREATE POLICY', 'ALTER POLICY', 'DROP POLICY',
+                                  'GRANT', 'REVOKE') THEN
+            -- Policy and grant DDL do not carry a usable table identity in
+            -- `object_identity` (a policy identity is "pol ON schema.table";
+            -- GRANT may name several objects at once), so rather than parse it,
+            -- re-derive the three exposure columns for every cached table in the
+            -- affected schema. Bounded by that schema's table count, and these
+            -- commands are rare relative to DML.
+            UPDATE flint_meta.cache_tables ct
+            SET    rls_enabled  = c.relrowsecurity,
+                   rls_forced   = c.relforcerowsecurity,
+                   api_granted  = EXISTS (SELECT 1 FROM pg_roles r
+                    WHERE r.rolname IN ('authenticated','anon')
+                      AND has_table_privilege(r.oid, c.oid,
+                            'SELECT, INSERT, UPDATE, DELETE')),
+                   policy_count = (SELECT count(*) FROM pg_policy pol
+                                   WHERE pol.polrelid = c.oid),
+                   updated_at   = now()
+            FROM   pg_class     c
+            JOIN   pg_namespace n ON n.oid = c.relnamespace
+            WHERE  ct.schema_name = n.nspname
+              AND  ct.table_name  = c.relname
+              AND  n.nspname      = obj.schema_name;
 
         ELSIF obj.command_tag IN ('CREATE VIEW', 'ALTER VIEW') THEN
             INSERT INTO flint_meta.cache_tables
@@ -263,8 +300,19 @@ BEGIN
 
     -- Repopulate cache_tables (tables, views, and materialised views).
     INSERT INTO flint_meta.cache_tables
-                (schema_name, table_name, is_view, rls_enabled, updated_at)
-    SELECT n.nspname, c.relname, c.relkind = 'v', c.relrowsecurity, now()
+                (schema_name, table_name, is_view, rls_enabled, rls_forced,
+                 api_granted, policy_count, updated_at)
+    SELECT n.nspname,
+           c.relname,
+           c.relkind = 'v',
+           c.relrowsecurity,
+           c.relforcerowsecurity,
+           EXISTS (SELECT 1 FROM pg_roles r
+                    WHERE r.rolname IN ('authenticated','anon')
+                      AND has_table_privilege(r.oid, c.oid,
+                            'SELECT, INSERT, UPDATE, DELETE')),
+           (SELECT count(*) FROM pg_policy pol WHERE pol.polrelid = c.oid),
+           now()
     FROM   pg_class     c
     JOIN   pg_namespace n ON n.oid = c.relnamespace
     WHERE  c.relkind IN ('r', 'v', 'm')
@@ -398,7 +446,12 @@ CREATE EVENT TRIGGER flint_meta_ddl_refresh
         'CREATE TABLE', 'ALTER TABLE',
         'CREATE VIEW',  'ALTER VIEW',
         'CREATE FUNCTION',
-        'CREATE TYPE'
+        'CREATE TYPE',
+        -- Policy and grant DDL change a table's exposure without touching the
+        -- table itself. Omitting these left `policy_count`/`api_granted` stale
+        -- the moment anyone ran CREATE POLICY or GRANT — i.e. immediately.
+        'CREATE POLICY', 'ALTER POLICY', 'DROP POLICY',
+        'GRANT', 'REVOKE'
     )
     EXECUTE FUNCTION flint_meta.refresh_cache();
 

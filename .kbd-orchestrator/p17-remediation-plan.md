@@ -470,6 +470,85 @@ Success criteria:
 
 Changes 1–3 unblock San Saba. If Change 4 slips, it does not hold the rest.
 
+## Change 4 — scope changed mid-execution (2026-07-29)
+
+**`FLINT_REQUIRE_RLS=strict` was dropped entirely, not deferred.** The operator's
+reasoning, which supersedes the plan as written: developers must be able to
+create and use tables during development *before* they know what the correct
+policies are. A gate that refuses to mount a policy-less table breaks that loop,
+gets switched off, and then protects nothing. This also matches what Supabase
+actually does — labels, alerts, and a lint, but it never refuses to serve.
+
+Change 4 is therefore **observability only**, and the corollary is that the
+report must be *accurate*: a warning that fires on correctly-configured tables is
+noise, and noise gets filtered out, which is the same failure as a disabled gate.
+
+### The classifier keys on GRANTS, not `rls_enabled`
+
+Four postures, because three distinct conditions were being collapsed into one
+misleading warning:
+
+| Posture | Condition | Reported |
+|---|---|---|
+| `NotExposed` | No grant to `authenticated`/`anon` | **no** — the `REVOKE` pattern is correct |
+| `Unprotected` | Granted **and** RLS off | yes — the real Broken Access Control case |
+| `NoPolicies` | RLS on, zero policies | yes — fails closed; San Saba's 403-everything shape |
+| `NotForced` | RLS on with policies, not FORCEd | yes — owner bypasses; `rls_enabled` called this "protected" |
+
+The `NotExposed`/`Unprotected` split is the load-bearing one: both have RLS off,
+and only the grant check distinguishes a correctly-hidden table from a genuinely
+exposed one. Validated against five live tables on Postgres 18.4 — every branch
+reachable and distinguishable.
+
+Each message names both legitimate resolutions inline ("add a policy — use
+`USING (true)` if the data really is public, so the decision is recorded — or
+REVOKE the API roles"), because a warning that only states a problem gets
+ignored.
+
+### BLOCKED: the SQL half cannot ship from this environment
+
+`flint_meta.tables()` is extension-owned:
+
+```
+ERROR: cannot drop function flint_meta.tables(text) because
+       extension ext-flint-meta requires it
+```
+
+The new `cache_tables` columns, the trigger changes (including the `CREATE
+POLICY`/`GRANT` tags, without which the two new signals go stale immediately),
+and the widened `tables()` signature all require a real pgrx extension version
+bump — `cargo-pgrx` is unavailable here, the same pre-existing toolchain gap
+p16-c007 recorded for `ext-flint-vault`.
+
+What *was* verified against the live container: the classifier SQL against all
+five postures; that a `GRANT` flips the exposure signal `false → true`; that the
+upgrade `ALTER TABLE … ADD COLUMN IF NOT EXISTS` applies cleanly to the real
+pre-p17 six-column `cache_tables`; and that the new accessor body returns rows
+(tested under a probe name, then dropped).
+
+**Until an extension upgrade lands, `rls_forced`/`api_granted`/`policy_count`
+read as `false`/`0` on every deployment**, so the classifier reports
+`NotExposed` for everything — silence, not false alarms. `#[serde(default)]` and
+`NOT NULL DEFAULT` make that safe. Failing quiet is the right direction for a
+signal that has not shipped, but it does mean the warning is inert until then.
+
+### The Rust half had to be made version-tolerant
+
+First cut of `engine.rs` named the three new columns directly in its
+`flint_meta.tables()` query. That **broke gateway startup against any
+not-yet-upgraded database** — `column "rls_forced" does not exist` — which
+`gateway_startup_live_pg` caught immediately, with an error message that named
+the exact failure mode ("a flint_meta.* reflection function is missing or its
+signature has drifted"). That test earned its keep.
+
+The constraint is structural, not incidental: the extension is upgraded by a
+DBA-side `ALTER EXTENSION`, the gateway by a container deploy, and the two cannot
+be made atomic. **A gateway build must therefore tolerate both signatures.**
+
+Fixed by reading the new columns through `to_jsonb(t)->>'…'` with `COALESCE`
+defaults, verified against the live pre-p17 `tables()`. Post-upgrade the same
+query picks the real values up automatically, with no second deploy.
+
 ## Defects found but deliberately NOT fixed here (2026-07-29)
 
 Both are real, both are pre-existing, and both are outside p17's scope. Recorded

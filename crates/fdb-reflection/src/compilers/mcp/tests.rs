@@ -17,6 +17,9 @@ fn make_table(schema: &str, name: &str, columns: Vec<Column>, pk: Vec<&str>) -> 
             to_col: "id".into(),
         }],
         rls_enabled: true,
+        rls_forced: true,
+        api_granted: false,
+        policy_count: 1,
         vault_key: None,
     }
 }

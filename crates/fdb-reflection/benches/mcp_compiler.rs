@@ -30,6 +30,9 @@ fn make_model(table_count: usize) -> DatabaseModel {
             pk: vec!["id".into()],
             fk: vec![],
             rls_enabled: true,
+            rls_forced: true,
+            api_granted: false,
+            policy_count: 1,
             vault_key: None,
         })
         .collect();

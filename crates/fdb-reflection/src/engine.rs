@@ -55,6 +55,11 @@ impl ReflectionEngine {
 
         passes::normalization::run(&mut model);
         passes::validation::run(&model)?;
+
+        // Reports RLS posture and returns the reportable count. The count is
+        // published as a gauge by the composition root (`fdb-gateway`), which
+        // already owns the metrics registry — this crate stays free of any
+        // metrics dependency, and the pass stays a pure function over the model.
         passes::permission_analysis::run(&model);
 
         Ok(model)
@@ -68,22 +73,47 @@ impl ReflectionEngine {
     }
 
     async fn fetch_tables(&self) -> Result<Vec<Table>, ReflectionError> {
-        let rows: Vec<(String, String, bool)> =
-            sqlx::query_as("SELECT schema_name, table_name, rls_enabled FROM flint_meta.tables()")
-                .fetch_all(&self.pool)
-                .await?;
+        // The three RLS-posture columns are read through `to_jsonb(t)->>…`
+        // rather than named directly, so this query works against BOTH the
+        // pre-p17 five-column `flint_meta.tables()` and the widened one.
+        //
+        // `flint_meta.tables()` is extension-owned: widening it requires a pgrx
+        // extension version bump, which cannot be applied in lockstep with a
+        // gateway deploy. Naming the new columns directly made the gateway fail
+        // its initial schema compile against any not-yet-upgraded database
+        // (`column "rls_forced" does not exist`) — caught by
+        // `gateway_startup_live_pg`, which exists for exactly this drift.
+        //
+        // The COALESCE defaults mean an un-upgraded database yields
+        // `rls_forced=false, api_granted=false, policy_count=0`, which
+        // `permission_analysis` classifies as `NotExposed` — silent, rather than
+        // warning about every table on the strength of data it does not have.
+        let rows: Vec<(String, String, bool, bool, bool, i32)> = sqlx::query_as(
+            "SELECT schema_name, table_name, rls_enabled, \
+                    COALESCE((to_jsonb(t)->>'rls_forced')::bool, false), \
+                    COALESCE((to_jsonb(t)->>'api_granted')::bool, false), \
+                    COALESCE((to_jsonb(t)->>'policy_count')::int, 0) \
+             FROM flint_meta.tables() t",
+        )
+        .fetch_all(&self.pool)
+        .await?;
 
         Ok(rows
             .into_iter()
-            .map(|(schema, name, rls_enabled)| Table {
-                schema,
-                name,
-                columns: vec![],
-                pk: vec![],
-                fk: vec![],
-                rls_enabled,
-                vault_key: None,
-            })
+            .map(
+                |(schema, name, rls_enabled, rls_forced, api_granted, policy_count)| Table {
+                    schema,
+                    name,
+                    columns: vec![],
+                    pk: vec![],
+                    fk: vec![],
+                    rls_enabled,
+                    rls_forced,
+                    api_granted,
+                    policy_count,
+                    vault_key: None,
+                },
+            )
             .collect())
     }
 

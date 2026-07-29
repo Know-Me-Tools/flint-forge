@@ -44,6 +44,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   never match. Mutation authorization lives in `fdb-reflection`'s
   `mutation_guard`. (p17)
 
+### Added
+- **observability**: Startup now classifies each reflected table's row-security
+  posture and reports the actionable ones in one aggregated warning per
+  condition, naming the fix inline. Four conditions are distinguished, keyed on
+  whether `authenticated`/`anon` actually hold a grant rather than on
+  `rls_enabled` alone: exposed with RLS off; RLS on with **zero policies**
+  (denies everything — the shape that presents as "writes 403, reads work"); RLS
+  on but not `FORCE`d (owner bypasses every policy); and not API-reachable at all
+  (the `REVOKE` pattern — deliberately silent, so doing the right thing does not
+  generate noise). A `flint_tables_rls_reportable` gauge publishes the count and
+  refreshes on every schema hot-reload.
+
+  This is observability, not a gate: a table without policies is a normal
+  mid-development state, and a gate that blocks it would be switched off and
+  then protect nothing. **No route is ever refused.** (p17)
+
+  Requires an `ext-flint-meta` extension upgrade to become live — the new
+  `cache_tables` columns and trigger coverage are extension-owned. The gateway
+  tolerates both the old and new `flint_meta.tables()` signatures, so it can be
+  deployed before or after that upgrade; until it lands the flags read as their
+  defaults and the classifier stays silent.
+
 ### Fixed
 - **rest**: Typed (non-`text`) columns are writable and filterable again over
   REST. Casts now render as `$n::text::<type>` (and `$n::text[]::<type>[]` for
