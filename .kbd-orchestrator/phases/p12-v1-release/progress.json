@@ -1,30 +1,63 @@
 {
+  "schemaVersion": "2",
+  "generatedBy": "kbd-runtime",
+  "sourceRevision": 2,
   "phase": "p12-v1-release",
-  "status": "complete",
-  "changes_completed": 1,
+  "phaseId": "p12-v1-release",
+  "parentPhase": null,
+  "last_updated": "2026-07-29T00:08:58.761638Z",
+  "last_updated_by": "kbd-runtime",
   "changes_total": 2,
-  "assessment_complete": true,
-  "plan_complete": true,
-  "execution_started": false,
-  "created_at": "2026-07-06",
-  "seeded_from": "p11-api-stability/reflection.md",
-  "last_updated_by": "opencode",
-  "last_updated_at": "2026-07-06T00:00:00Z",
+  "changes_completed": 1,
+  "implementation_total": 2,
+  "implementation_completed": 1,
+  "completion": {
+    "primaryCounter": "implementation",
+    "implementation": {
+      "completed": 1,
+      "total": 2,
+      "status": "IN_PROGRESS"
+    },
+    "evidence": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "certification": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "publication": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    }
+  },
   "changes": [
-    { "id": "p12-c001-k6-measure", "status": "deferred", "priority": "P0", "blocker": "requires live staging stack; waived per goals.md fallback" },
-    { "id": "p12-c002-v1-tag",     "status": "done", "completed_at": "2026-07-06", "priority": "P0" }
+    {
+      "id": "p12-c001-k6-measure",
+      "title": "p12-c001-k6-measure",
+      "status": "PENDING",
+      "implementation_status": "PENDING",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p12-c002-v1-tag",
+      "title": "p12-c002-v1-tag",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    }
   ],
-  "goals_file": ".kbd-orchestrator/phases/p12-v1-release/goals.md",
-  "open_questions": [
-    "OQ-P12-1: Is staging available for k6 measurement? If not, tag v1.0.0 with TBD baselines.",
-    "OQ-P12-2: Should the v1.0.0 release notes include Docker image digests (requires docker.yml workflow to have run successfully for v1.0.0 images)?"
-  ],
-  "mvp_gate": [
-    "regression.js thresholds measured OR documented as TBD",
-    "[workspace.package] version = '1.0.0' in Cargo.toml",
-    "git tag v1.0.0 pushed to origin",
-    "GitHub Release v1.0.0 created",
-    "cargo test --workspace passes",
-    "cargo clippy --workspace -- -D warnings clean"
-  ]
+  "children": {},
+  "migrationStatus": null
 }

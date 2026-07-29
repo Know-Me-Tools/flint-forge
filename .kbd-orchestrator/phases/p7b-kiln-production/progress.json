@@ -1,27 +1,107 @@
 {
+  "schemaVersion": "2",
+  "generatedBy": "kbd-runtime",
+  "sourceRevision": 2,
   "phase": "p7b-kiln-production",
-  "status": "complete",
-  "changes_completed": 6,
+  "phaseId": "p7b-kiln-production",
+  "parentPhase": null,
+  "last_updated": "2026-07-29T00:08:58.761638Z",
+  "last_updated_by": "kbd-runtime",
   "changes_total": 6,
-  "assessment_complete": true,
-  "plan_complete": true,
-  "execution_started": true,
-  "created_at": "2026-07-04",
-  "seeded_from": "p6b-kiln-hardening/reflection.md",
-  "last_updated_by": "opencode",
-  "last_updated_at": "2026-07-04T00:00:00Z",
+  "changes_completed": 6,
+  "implementation_total": 6,
+  "implementation_completed": 6,
+  "completion": {
+    "primaryCounter": "implementation",
+    "implementation": {
+      "completed": 6,
+      "total": 6,
+      "status": "COMPLETE"
+    },
+    "evidence": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "certification": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "publication": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    }
+  },
   "changes": [
-    { "id": "p7b-c001-epoch-interruption", "status": "done", "completed_at": "2026-07-04", "priority": "P0" },
-    { "id": "p7b-c002-cedar-db-policies",  "status": "done", "completed_at": "2026-07-04", "priority": "P0" },
-    { "id": "p7b-c003-bgw-publisher-id",   "status": "done", "completed_at": "2026-07-04", "priority": "P0" },
-    { "id": "p7b-c004-fulcio-chain",        "status": "done", "completed_at": "2026-07-04", "priority": "P1" },
-    { "id": "p7b-c005-did-http-resolution", "status": "done", "completed_at": "2026-07-04", "priority": "P1" },
-    { "id": "p7b-c006-integration-tests",   "status": "done", "completed_at": "2026-07-04", "priority": "P2" }
+    {
+      "id": "p7b-c001-epoch-interruption",
+      "title": "p7b-c001-epoch-interruption",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p7b-c002-cedar-db-policies",
+      "title": "p7b-c002-cedar-db-policies",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p7b-c003-bgw-publisher-id",
+      "title": "p7b-c003-bgw-publisher-id",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p7b-c004-fulcio-chain",
+      "title": "p7b-c004-fulcio-chain",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p7b-c005-did-http-resolution",
+      "title": "p7b-c005-did-http-resolution",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p7b-c006-integration-tests",
+      "title": "p7b-c006-integration-tests",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    }
   ],
-  "goals_file": ".kbd-orchestrator/phases/p7b-kiln-production/goals.md",
-  "open_questions": [
-    "OQ-P7B-1: sigstore crate version/API stability (gates G4)",
-    "OQ-P7B-2: moka vs std TTL cache for DID key caching (G5)",
-    "OQ-P7B-3: testcontainers version + module images (G6)"
-  ]
+  "children": {},
+  "migrationStatus": null
 }

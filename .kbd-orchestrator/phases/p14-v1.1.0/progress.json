@@ -1,33 +1,96 @@
 {
+  "schemaVersion": "2",
+  "generatedBy": "kbd-runtime",
+  "sourceRevision": 2,
   "phase": "p14-v1.1.0",
-  "status": "completed",
-  "changes_completed": 5,
+  "phaseId": "p14-v1.1.0",
+  "parentPhase": null,
+  "last_updated": "2026-07-29T00:08:58.761638Z",
+  "last_updated_by": "kbd-runtime",
   "changes_total": 5,
-  "assessment_complete": true,
-  "plan_complete": true,
-  "execution_started": true,
-  "created_at": "2026-07-07",
-  "seeded_from": "p13-continuous-operations/reflection.md",
-  "last_updated_by": "opencode",
-  "last_updated_at": "2026-07-07T18:30:00Z",
+  "changes_completed": 5,
+  "implementation_total": 5,
+  "implementation_completed": 5,
+  "completion": {
+    "primaryCounter": "implementation",
+    "implementation": {
+      "completed": 5,
+      "total": 5,
+      "status": "COMPLETE"
+    },
+    "evidence": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "certification": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    },
+    "publication": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    }
+  },
   "changes": [
-    { "id": "p14-c001-sqlx-prometheus",   "status": "done", "completed_at": "2026-07-07", "priority": "P0", "note": "sqlx 0.9 deferred (SqlSafeStr breaks dynamic SQL); pool metrics added on 0.8" },
-    { "id": "p14-c002-kiln-guest-sdk",     "status": "done", "completed_at": "2026-07-07", "priority": "P1", "note": "fixed integration test syntax and serde_json assertion; cargo check/test/clippy pass" },
-    { "id": "p14-c003-a2ui-hot-reload",    "status": "done", "completed_at": "2026-07-07", "priority": "P1", "note": "migration, broadcast_all wiring, and SDK hook already present; verified by workspace test/clippy" },
-    { "id": "p14-c004-jwt-rotation-automation", "status": "done", "completed_at": "2026-07-07", "priority": "P2", "note": "added scripts/rotate_staging_jwt.sh with --dry-run; documented in scripts/README.md and docs/runbook.md §12" },
-    { "id": "p14-c005-kiln-metrics",       "status": "done", "completed_at": "2026-07-07", "priority": "P2", "note": "added /metrics via axum-prometheus; kiln_invocations_total{function}, kiln_fuel_consumed_total, kiln_epoch_traps_total" }
+    {
+      "id": "p14-c001-sqlx-prometheus",
+      "title": "p14-c001-sqlx-prometheus",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p14-c002-kiln-guest-sdk",
+      "title": "p14-c002-kiln-guest-sdk",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p14-c003-a2ui-hot-reload",
+      "title": "p14-c003-a2ui-hot-reload",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p14-c004-jwt-rotation-automation",
+      "title": "p14-c004-jwt-rotation-automation",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    },
+    {
+      "id": "p14-c005-kiln-metrics",
+      "title": "p14-c005-kiln-metrics",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "last_task_completed": null,
+      "next_task_pending": null,
+      "blockers": []
+    }
   ],
-  "goals_file": ".kbd-orchestrator/phases/p14-v1.1.0/goals.md",
-  "open_questions": [
-    "OQ-P14-1: Does sqlx 0.9 break any workspace API surface vs 0.8?",
-    "OQ-P14-2: Is wasm32-wasip2 target available in the current stable toolchain for flint-skill?"
-  ],
-  "mvp_gate": [
-    "sqlx pool metrics emitted on /metrics",
-    "cargo update succeeds without breaking pgvector",
-    "flint-skill crate compiles for wasm32-wasip2",
-    "A2UI hot-reload triggers re-compile + SSE notification",
-    "cargo test --workspace passes",
-    "cargo clippy --workspace -- -D warnings clean"
-  ]
+  "children": {},
+  "migrationStatus": null
 }
