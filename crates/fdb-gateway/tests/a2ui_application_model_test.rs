@@ -5,12 +5,76 @@
 /// Set DATABASE_URL before running:
 ///     DATABASE_URL=... cargo test --test a2ui_application_model_test
 /// Tests skip gracefully when DATABASE_URL is unset.
+///
+/// # Idempotency
+///
+/// These tests write fixed slugs and user ids into shared tables, so they must
+/// leave the database exactly as they found it or a second run fails on a
+/// duplicate key. Three separate defects broke that:
+///
+/// 1. The `components` and `role_assignments` inserts had no `ON CONFLICT`
+///    clause, unlike the `applications`/`roles` inserts beside them, so a
+///    re-run hit `23505` immediately.
+/// 2. Cleanup ran only on the success path — any failing assertion left the
+///    fixtures behind, so one failure poisoned every subsequent run.
+/// 3. **The cleanup never worked even on success.** It passed several
+///    statements separated by `;` to a single `sqlx::query(...).bind(...)`,
+///    which uses Postgres's extended protocol — that rejects multi-statement
+///    SQL with `ERROR: there is no parameter $1`, and the error was discarded
+///    by `let _ =`. Verified against a live Postgres 18: zero rows deleted.
+///
+/// The fix is `purge_fixture`, called both before and after each test, running
+/// one statement per call. Cleaning up *first* is what makes a run recover from
+/// a previously-poisoned database instead of requiring manual intervention.
 use sqlx::PgPool;
 use uuid::Uuid;
 
 async fn connect() -> Option<PgPool> {
     let url = std::env::var("DATABASE_URL").ok()?;
     PgPool::connect(&url).await.ok()
+}
+
+/// Delete every row this file's fixtures create, in foreign-key order.
+///
+/// `role_assignments` → `roles` → `components` → `applications`: the reverse of
+/// creation order. Doing it in any other order raises
+/// `violates foreign key constraint`, which is exactly what happens when you
+/// try to clear these by hand.
+///
+/// Idempotent and safe on an already-clean database, so it can run at the start
+/// of a test (to recover from an earlier failed run) as well as at the end.
+/// Each statement is issued separately — see the module docs for why bundling
+/// them silently did nothing.
+async fn purge_fixture(pool: &PgPool, app_slug: &str) {
+    let app_ids: Vec<Uuid> =
+        sqlx::query_scalar("SELECT id FROM flint_a2ui.applications WHERE slug = $1")
+            .bind(app_slug)
+            .fetch_all(pool)
+            .await
+            .expect("look up fixture application");
+
+    for app_id in app_ids {
+        sqlx::query("DELETE FROM flint_a2ui.role_assignments WHERE application_id = $1")
+            .bind(app_id)
+            .execute(pool)
+            .await
+            .expect("purge role_assignments");
+        sqlx::query("DELETE FROM flint_a2ui.roles WHERE application_id = $1")
+            .bind(app_id)
+            .execute(pool)
+            .await
+            .expect("purge roles");
+        sqlx::query("DELETE FROM flint_a2ui.components WHERE application_id = $1")
+            .bind(app_id)
+            .execute(pool)
+            .await
+            .expect("purge components");
+        sqlx::query("DELETE FROM flint_a2ui.applications WHERE id = $1")
+            .bind(app_id)
+            .execute(pool)
+            .await
+            .expect("purge application");
+    }
 }
 
 #[tokio::test]
@@ -38,6 +102,10 @@ async fn test_resolve_components_returns_base_for_anonymous_user() {
 async fn test_resolve_components_app_specific_requires_role() {
     let Some(pool) = connect().await else { return };
 
+    // Clear anything a previous (possibly failed) run left behind, so this test
+    // does not inherit a poisoned database.
+    purge_fixture(&pool, "p5c005-test-app").await;
+
     let app_id: Uuid = sqlx::query_scalar(
         "INSERT INTO flint_a2ui.applications (slug, name)
          VALUES ('p5c005-test-app', 'p5-c005 test app')
@@ -48,12 +116,15 @@ async fn test_resolve_components_app_specific_requires_role() {
     .await
     .expect("insert test application failed");
 
-    // Create an app-specific component.
+    // Create an app-specific component. `ON CONFLICT` mirrors the applications
+    // and roles inserts around it; without it a re-run failed on the
+    // `components_slug_key` unique constraint.
     sqlx::query(
         "INSERT INTO flint_a2ui.components
              (slug, category, primitive_type, schema, is_base, application_id, description)
          VALUES ('p5c005-custom-widget', 'feedback', 'CustomWidget',
-                 '{\"type\":\"object\"}'::jsonb, false, $1, 'app-specific widget')",
+                 '{\"type\":\"object\"}'::jsonb, false, $1, 'app-specific widget')
+         ON CONFLICT (slug) DO UPDATE SET application_id = EXCLUDED.application_id",
     )
     .bind(app_id)
     .execute(&pool)
@@ -93,7 +164,8 @@ async fn test_resolve_components_app_specific_requires_role() {
 
     sqlx::query(
         "INSERT INTO flint_a2ui.role_assignments (application_id, role_id, user_id)
-         VALUES ($1, $2, 'authorized-user')",
+         VALUES ($1, $2, 'authorized-user')
+         ON CONFLICT (application_id, role_id, user_id) DO NOTHING",
     )
     .bind(app_id)
     .bind(role_id)
@@ -116,21 +188,14 @@ async fn test_resolve_components_app_specific_requires_role() {
         "authorized user should see app-specific component"
     );
 
-    // Cleanup
-    let _ = sqlx::query(
-        "DELETE FROM flint_a2ui.role_assignments WHERE user_id IN ('authorized-user', 'unauthorized-user');
-         DELETE FROM flint_a2ui.roles WHERE application_id = $1;
-         DELETE FROM flint_a2ui.components WHERE application_id = $1;
-         DELETE FROM flint_a2ui.applications WHERE id = $1",
-    )
-    .bind(app_id)
-    .execute(&pool)
-    .await;
+    purge_fixture(&pool, "p5c005-test-app").await;
 }
 
 #[tokio::test]
 async fn test_role_hierarchy_inheritance() {
     let Some(pool) = connect().await else { return };
+
+    purge_fixture(&pool, "p5c005-hierarchy-app").await;
 
     let app_id: Uuid = sqlx::query_scalar(
         "INSERT INTO flint_a2ui.applications (slug, name)
@@ -170,7 +235,8 @@ async fn test_role_hierarchy_inheritance() {
     // as both 'admin' and 'editor'.
     sqlx::query(
         "INSERT INTO flint_a2ui.role_assignments (application_id, role_id, user_id)
-         VALUES ($1, $2, 'hierarchy-user')",
+         VALUES ($1, $2, 'hierarchy-user')
+         ON CONFLICT (application_id, role_id, user_id) DO NOTHING",
     )
     .bind(app_id)
     .bind(parent_role_id)
@@ -196,13 +262,5 @@ async fn test_role_hierarchy_inheritance() {
         "user should inherit descendant role 'editor'"
     );
 
-    // Cleanup
-    let _ = sqlx::query(
-        "DELETE FROM flint_a2ui.role_assignments WHERE user_id = 'hierarchy-user';
-         DELETE FROM flint_a2ui.roles WHERE application_id = $1;
-         DELETE FROM flint_a2ui.applications WHERE id = $1",
-    )
-    .bind(app_id)
-    .execute(&pool)
-    .await;
+    purge_fixture(&pool, "p5c005-hierarchy-app").await;
 }
