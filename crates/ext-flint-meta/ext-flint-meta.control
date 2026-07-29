@@ -1,5 +1,5 @@
 comment = 'Flint Forge schema-cache / reflection metadata layer (flint_meta)'
-default_version = '0.1.0'
+default_version = '0.1.1'
 module_pathname = '$libdir/ext-flint-meta'
 relocatable = false
 superuser = true

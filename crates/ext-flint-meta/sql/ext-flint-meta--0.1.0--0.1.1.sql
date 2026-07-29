@@ -1,29 +1,157 @@
-//! DDL event trigger declarations for ext-flint-meta.
-//!
-//! The trigger logic runs in PL/pgSQL to avoid pgrx event trigger FFI complexity.
-//! This module contains only `extension_sql!` declarations; no Rust functions are
-//! exported. The SQL is ordered after the bootstrap tables via the `requires`
-//! attribute.
-//!
-//! ## Trigger summary
-//!
-//! | Trigger | Event | Cache target |
-//! |---------|-------|--------------|
-//! | `flint_meta_ddl_refresh`    | `ddl_command_end` | cache_tables, cache_functions, cache_types |
-//! | `flint_meta_ddl_invalidate` | `sql_drop`        | cache_tables, cache_functions, cache_types |
-//!
-//! Both triggers write a row to `flint_meta.schema_version` and emit a
-//! `pg_notify('meta_runtime', …)` so the reflection engine can invalidate its
-//! in-process cache without polling.
-//!
-//! `flint_meta.full_refresh()` is the reconciliation escape-hatch: it truncates
-//! all `cache_*` tables and repopulates them from `pg_catalog`. Call it after any
-//! DDL that the incremental triggers do not cover (see `meta-trigger-coverage.md`).
+/* ext-flint-meta 0.1.0 → 0.1.1
+ *
+ * Adds the three RLS-posture columns to flint_meta.cache_tables, widens
+ * flint_meta.tables() to return them, and extends the DDL event trigger to fire
+ * on policy and grant DDL.
+ *
+ * WHY THIS FILE EXISTS
+ *
+ * The 0.1.0 schema was changed in place by an earlier commit: the columns were
+ * added to sql/flint_meta.sql and tables() was widened, but default_version
+ * stayed at 0.1.0. That is invisible to a fresh `CREATE EXTENSION` (which runs
+ * the bootstrap file and gets the new shape) and fatal to an existing install
+ * (which runs nothing, because `ALTER EXTENSION ... UPDATE` only ever executes
+ * <name>--<from>--<to>.sql scripts — never the bootstrap file, ALTERs inside it
+ * included). Existing databases were therefore stranded on the old shape with
+ * no upgrade path at all. This script is that path.
+ *
+ * Written to be safe to run against a database that already has some of these
+ * objects, because a 0.1.0 install that was created *after* the in-place schema
+ * edit already has the new columns and the new tables() while still reporting
+ * version 0.1.0. Both shapes must converge here.
+ *
+ * ORDERING NOTE
+ *
+ * The gateway tolerates both tables() signatures (it selects the new columns
+ * through a to_jsonb fallback), so extension upgrade and gateway deploy do not
+ * have to be atomic and may be applied in either order.
+ */
 
-use pgrx::prelude::*;
+-- ── 1. Columns ──────────────────────────────────────────────────────────────
+-- IF NOT EXISTS: an install created after the in-place edit already has these.
+ALTER TABLE flint_meta.cache_tables
+    ADD COLUMN IF NOT EXISTS rls_forced   bool NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS api_granted  bool NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS policy_count int  NOT NULL DEFAULT 0;
 
-extension_sql!(
-    r#"
+-- ── 2. tables() ─────────────────────────────────────────────────────────────
+-- The return type changes, and CREATE OR REPLACE cannot alter a function's OUT
+-- parameters ("cannot change return type of existing function"), so the old one
+-- must be dropped. A plain DROP fails on an extension-owned object --
+--   ERROR: cannot drop function flint_meta.tables(text) because extension
+--          ext-flint-meta requires it
+-- so membership is released first. Verified against a live 0.1.0 install.
+ALTER EXTENSION "ext-flint-meta" DROP FUNCTION flint_meta.tables(text);
+DROP FUNCTION IF EXISTS flint_meta.tables(text);
+
+-- Kept byte-identical to the definition in src/functions.rs so a fresh install
+-- and an upgraded one are indistinguishable.
+CREATE FUNCTION flint_meta.tables(schema_filter text DEFAULT NULL)
+RETURNS TABLE (
+    schema_name  text,
+    table_name   text,
+    is_view      bool,
+    description  text,
+    rls_enabled  bool,
+    rls_forced   bool,
+    api_granted  bool,
+    policy_count int
+)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+SECURITY INVOKER
+AS $$
+    SELECT schema_name, table_name, is_view, description, rls_enabled,
+           rls_forced, api_granted, policy_count
+    FROM   flint_meta.cache_tables
+    WHERE  schema_filter IS NULL OR schema_name = schema_filter
+    ORDER  BY schema_name, table_name;
+$$;
+
+-- DROP discarded the old grants along with the function.
+GRANT EXECUTE ON FUNCTION flint_meta.tables(text) TO authenticated, anon, service_role;
+
+-- Re-attach to the extension, but only if it is not already a member: inside a
+-- real `ALTER EXTENSION ... UPDATE` Postgres auto-attaches objects created by
+-- the script, and an unconditional ADD would then fail with
+--   ERROR: function flint_meta.tables(text) is already a member of extension
+-- Running this file by hand (psql \i) gets no auto-attach, so the ADD is needed
+-- there. The guard makes both paths work.
+DO $do$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM   pg_depend d
+        JOIN   pg_extension e ON e.oid = d.refobjid
+        WHERE  d.classid    = 'pg_proc'::regclass
+          AND  d.objid      = 'flint_meta.tables(text)'::regprocedure
+          AND  d.refclassid = 'pg_extension'::regclass
+          AND  d.deptype    = 'e'
+          AND  e.extname    = 'ext-flint-meta'
+    ) THEN
+        ALTER EXTENSION "ext-flint-meta" ADD FUNCTION flint_meta.tables(text);
+    END IF;
+END
+$do$;
+
+-- ── 3. Event trigger ────────────────────────────────────────────────────────
+-- Policy and grant DDL change a table's exposure without touching the table
+-- itself, so without these tags policy_count and api_granted go stale the
+-- moment anyone runs CREATE POLICY or GRANT. Event triggers have no
+-- CREATE OR REPLACE, so this is a drop and recreate; the tag list is kept in
+-- sync with src/triggers.rs. Membership is released first for the same reason
+-- as tables() above -- the trigger is extension-owned and cannot be dropped
+-- while it is.
+ALTER EXTENSION "ext-flint-meta" DROP EVENT TRIGGER flint_meta_ddl_refresh;
+DROP EVENT TRIGGER IF EXISTS flint_meta_ddl_refresh;
+
+CREATE EVENT TRIGGER flint_meta_ddl_refresh
+    ON ddl_command_end
+    WHEN TAG IN (
+        'CREATE TABLE', 'ALTER TABLE',
+        'CREATE VIEW',  'ALTER VIEW',
+        'CREATE FUNCTION',
+        'CREATE TYPE',
+        'CREATE POLICY', 'ALTER POLICY', 'DROP POLICY',
+        'GRANT', 'REVOKE'
+    )
+    EXECUTE FUNCTION flint_meta.refresh_cache();
+
+DO $do$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM   pg_depend d
+        JOIN   pg_extension e ON e.oid = d.refobjid
+        JOIN   pg_event_trigger t ON t.oid = d.objid
+        WHERE  d.classid    = 'pg_event_trigger'::regclass
+          AND  t.evtname    = 'flint_meta_ddl_refresh'
+          AND  d.refclassid = 'pg_extension'::regclass
+          AND  d.deptype    = 'e'
+          AND  e.extname    = 'ext-flint-meta'
+    ) THEN
+        ALTER EXTENSION "ext-flint-meta" ADD EVENT TRIGGER flint_meta_ddl_refresh;
+    END IF;
+END
+$do$;
+
+-- ── 3b. Cache-maintenance functions ─────────────────────────────────────────
+-- refresh_cache(), invalidate_cache() and full_refresh() are defined in an
+-- `extension_sql!` block,
+-- which -- like the bootstrap file -- runs ONLY on CREATE EXTENSION. An
+-- ALTER EXTENSION ... UPDATE therefore leaves both at their 0.1.0 bodies, which
+-- do not write rls_forced / api_granted / policy_count at all.
+--
+-- Without this section the upgrade backfills posture correctly exactly once and
+-- then goes stale on the very next DDL event: verified on a live install, where
+-- after upgrading, `CREATE POLICY` on a FORCE-RLS table still reported
+-- rls_forced=false, policy_count=0 -- the precise staleness these columns exist
+-- to eliminate. The trigger fires (its tag list is updated above); the function
+-- it calls was simply the old one.
+--
+-- All three bodies below are copied verbatim from src/triggers.rs and must be kept
+-- in sync with it; that file remains the source of truth for a fresh install.
+
 -- ── refresh_cache(): fired on ddl_command_end ─────────────────────────────
 CREATE OR REPLACE FUNCTION flint_meta.refresh_cache()
 RETURNS event_trigger
@@ -478,82 +606,36 @@ BEGIN
 END;
 $$;
 
--- ── Event trigger registrations ────────────────────────────────────────────
-CREATE EVENT TRIGGER flint_meta_ddl_refresh
-    ON ddl_command_end
-    WHEN TAG IN (
-        'CREATE TABLE', 'ALTER TABLE',
-        'CREATE VIEW',  'ALTER VIEW',
-        'CREATE FUNCTION',
-        'CREATE TYPE',
-        -- Policy and grant DDL change a table's exposure without touching the
-        -- table itself. Omitting these left `policy_count`/`api_granted` stale
-        -- the moment anyone ran CREATE POLICY or GRANT — i.e. immediately.
-        'CREATE POLICY', 'ALTER POLICY', 'DROP POLICY',
-        'GRANT', 'REVOKE'
-    )
-    EXECUTE FUNCTION flint_meta.refresh_cache();
-
-CREATE EVENT TRIGGER flint_meta_ddl_invalidate
-    ON sql_drop
-    EXECUTE FUNCTION flint_meta.invalidate_cache();
-"#,
-    name = "flint_meta_triggers",
-    requires = ["flint_meta_bootstrap"]
-);
-
-#[cfg(any(test, feature = "pg_test"))]
-#[pg_schema]
-mod tests {
-    use pgrx::prelude::*;
-
-    #[pg_test]
-    fn test_full_refresh_runs() {
-        // full_refresh() must complete without error and increment schema_version.
-        let v_before: i64 =
-            Spi::get_one::<i64>("SELECT COALESCE(MAX(version), 0) FROM flint_meta.schema_version")
-                .unwrap_or(None)
-                .unwrap_or(0);
-
-        Spi::run("SELECT flint_meta.full_refresh()").unwrap();
-
-        let v_after: i64 =
-            Spi::get_one::<i64>("SELECT COALESCE(MAX(version), 0) FROM flint_meta.schema_version")
-                .unwrap_or(None)
-                .unwrap_or(0);
-
-        assert!(
-            v_after > v_before,
-            "full_refresh() must increment schema_version"
-        );
-    }
-
-    #[pg_test]
-    fn test_cache_tables_populated_after_refresh() {
-        // Create a table, run full_refresh, verify the table appears in cache_tables.
-        Spi::run(
-            "CREATE TABLE IF NOT EXISTS public.meta_trigger_test_tbl \
-             (id int PRIMARY KEY)",
-        )
-        .unwrap();
-
-        Spi::run("SELECT flint_meta.full_refresh()").unwrap();
-
-        let found: bool = Spi::get_one::<bool>(
-            "SELECT EXISTS( \
-                SELECT 1 FROM flint_meta.cache_tables \
-                WHERE  schema_name = 'public' \
-                  AND  table_name  = 'meta_trigger_test_tbl' \
-             )",
-        )
-        .unwrap_or(None)
-        .unwrap_or(false);
-
-        assert!(
-            found,
-            "meta_trigger_test_tbl should appear in cache_tables after full_refresh"
-        );
-
-        Spi::run("DROP TABLE IF EXISTS public.meta_trigger_test_tbl").unwrap();
-    }
-}
+-- ── 4. Backfill ─────────────────────────────────────────────────────────────
+-- The columns above landed with DEFAULT false / 0 on every existing row, so
+-- without a backfill every table reports as unprotected and unexposed until
+-- some later DDL event happens to touch it.
+--
+-- Deliberately NOT `SELECT flint_meta.full_refresh()`. That function is defined
+-- in an `extension_sql!` block, which -- exactly like the bootstrap file -- runs
+-- only on CREATE EXTENSION. During ALTER EXTENSION ... UPDATE the *0.1.0* body
+-- is still installed, and it does not know about these three columns: calling it
+-- truncates cache_tables and repopulates it with the posture columns left at
+-- their defaults. Verified on a live 0.1.0 install, where that path reported
+-- four FORCE-RLS tables (flint_a2ui.components, .events, .component_overrides,
+-- flint_kiln.cedar_policies) as rls_forced=false with policy_count=0 -- i.e.
+-- silently worse than not backfilling, because the values look authoritative.
+--
+-- So update the posture columns in place, from pg_catalog, using the same
+-- expressions full_refresh() uses. No TRUNCATE: the other cache_* tables are
+-- untouched by this upgrade and their rows stay valid.
+UPDATE flint_meta.cache_tables ct
+SET    rls_enabled  = c.relrowsecurity,
+       rls_forced   = c.relforcerowsecurity,
+       api_granted  = EXISTS (SELECT 1 FROM pg_roles r
+                               WHERE r.rolname IN ('authenticated','anon')
+                                 AND has_table_privilege(r.oid, c.oid,
+                                       'SELECT, INSERT, UPDATE, DELETE')),
+       policy_count = (SELECT count(*) FROM pg_policy pol
+                        WHERE pol.polrelid = c.oid),
+       updated_at   = now()
+FROM   pg_class c
+JOIN   pg_namespace n ON n.oid = c.relnamespace
+WHERE  c.relname  = ct.table_name
+  AND  n.nspname  = ct.schema_name
+  AND  c.relkind IN ('r', 'v', 'm');

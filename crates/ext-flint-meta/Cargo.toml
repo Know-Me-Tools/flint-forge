@@ -1,6 +1,6 @@
 [package]
 name = "ext-flint-meta"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 description = "Flint Forge schema-cache layer for the flint_meta extension. Holds pre-computed catalog tables that the Rust reflection engine reads instead of querying pg_catalog directly."

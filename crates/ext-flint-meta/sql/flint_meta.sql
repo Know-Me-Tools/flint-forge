@@ -30,10 +30,18 @@ CREATE TABLE IF NOT EXISTS flint_meta.cache_tables (
     PRIMARY KEY (schema_name, table_name)
 );
 
--- Upgrade path for an already-installed extension: the three columns above are
--- additions, so an existing cache_tables needs them backfilled rather than
--- recreated (the table is a cache, but dropping it would lose the rows until
--- the next full_refresh).
+-- Defensive only — this is NOT the upgrade path.
+--
+-- This file is loaded via `extension_sql_file!(..., bootstrap)`, which Postgres
+-- runs on `CREATE EXTENSION` and never on `ALTER EXTENSION ... UPDATE`. So for
+-- an extension already installed at 0.1.0 these ALTERs cannot fire, and the
+-- three columns would stay missing no matter how many times they are listed
+-- here. The real upgrade path is `sql/ext-flint-meta--0.1.0--0.1.1.sql`.
+--
+-- Kept because `CREATE TABLE IF NOT EXISTS` above is a no-op when the table
+-- already exists (e.g. a re-`CREATE EXTENSION` over a schema left behind by
+-- `DROP EXTENSION` without `CASCADE`), which would otherwise leave a
+-- pre-0.1.1 cache_tables in place with the new code reading it.
 ALTER TABLE flint_meta.cache_tables
     ADD COLUMN IF NOT EXISTS rls_forced   bool NOT NULL DEFAULT false,
     ADD COLUMN IF NOT EXISTS api_granted  bool NOT NULL DEFAULT false,
