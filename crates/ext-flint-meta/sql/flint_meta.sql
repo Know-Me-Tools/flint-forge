@@ -11,10 +11,33 @@ CREATE TABLE IF NOT EXISTS flint_meta.cache_tables (
     table_name    text        NOT NULL,
     is_view       bool        NOT NULL DEFAULT false,
     description   text,
+    -- pg_class.relrowsecurity — `ENABLE ROW LEVEL SECURITY`.
     rls_enabled   bool        NOT NULL DEFAULT false,
+    -- pg_class.relforcerowsecurity — `FORCE ROW LEVEL SECURITY`. Without it the
+    -- table OWNER bypasses every policy, so `rls_enabled` alone overstates
+    -- protection for any table owned by the connecting role.
+    rls_forced    bool        NOT NULL DEFAULT false,
+    -- Whether `authenticated` or `anon` hold any table privilege. This is what
+    -- makes a table reachable through the Data API at all: a table with RLS off
+    -- but no grants is correctly hidden (the `REVOKE` pattern), and must not be
+    -- reported as exposed.
+    api_granted   bool        NOT NULL DEFAULT false,
+    -- Count of RLS policies. `rls_enabled` with zero policies denies everything
+    -- for non-owners — usually a mid-development state, and the shape that
+    -- presents as "every write 403s while reads work".
+    policy_count  int         NOT NULL DEFAULT 0,
     updated_at    timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (schema_name, table_name)
 );
+
+-- Upgrade path for an already-installed extension: the three columns above are
+-- additions, so an existing cache_tables needs them backfilled rather than
+-- recreated (the table is a cache, but dropping it would lose the rows until
+-- the next full_refresh).
+ALTER TABLE flint_meta.cache_tables
+    ADD COLUMN IF NOT EXISTS rls_forced   bool NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS api_granted  bool NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS policy_count int  NOT NULL DEFAULT 0;
 
 -- ── Cache: columns ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS flint_meta.cache_columns (

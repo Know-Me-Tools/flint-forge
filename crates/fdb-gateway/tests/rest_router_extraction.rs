@@ -63,6 +63,9 @@ fn fixture_model() -> DatabaseModel {
             pk: vec!["id".into()],
             fk: vec![],
             rls_enabled: false,
+            rls_forced: false,
+            api_granted: false,
+            policy_count: 0,
             vault_key: None,
         }],
         functions: vec![FnMeta {
