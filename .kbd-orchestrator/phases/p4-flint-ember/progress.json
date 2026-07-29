@@ -8,9 +8,9 @@
   "last_updated": "2026-07-29T00:08:58.761638Z",
   "last_updated_by": "kbd-runtime",
   "changes_total": 4,
-  "changes_completed": 0,
+  "changes_completed": 4,
   "implementation_total": 4,
-  "implementation_completed": 0,
+  "implementation_completed": 4,
   "completion": {
     "primaryCounter": "implementation",
     "implementation": {
@@ -38,46 +38,50 @@
     {
       "id": "p4-c001-liter-llm-binding",
       "title": "p4-c001-liter-llm-binding",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p4-c002-async-embeddings",
       "title": "p4-c002-async-embeddings",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p4-c003-sync-surface",
       "title": "p4-c003-sync-surface",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p4-c004-summaries",
       "title": "p4-c004-summaries",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     }
   ],
   "children": {},

@@ -8,9 +8,9 @@
   "last_updated": "2026-07-29T00:08:58.761638Z",
   "last_updated_by": "kbd-runtime",
   "changes_total": 5,
-  "changes_completed": 0,
+  "changes_completed": 5,
   "implementation_total": 5,
-  "implementation_completed": 0,
+  "implementation_completed": 5,
   "completion": {
     "primaryCounter": "implementation",
     "implementation": {
@@ -38,57 +38,62 @@
     {
       "id": "p35-c001-clippy-unblock-hello-component",
       "title": "p35-c001-clippy-unblock-hello-component",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p35-c002-gateway-test-debt",
       "title": "p35-c002-gateway-test-debt",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p35-c003-ci-postgres-service",
       "title": "p35-c003-ci-postgres-service",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p35-c004-db-integration-tests",
       "title": "p35-c004-db-integration-tests",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p35-c005-p3-bookkeeping-reconcile",
       "title": "p35-c005-p3-bookkeeping-reconcile",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     }
   ],
   "children": {},

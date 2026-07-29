@@ -17,10 +17,11 @@
   "currentTask": null,
   "status": "completed",
   "completionMetric": "implementation",
-  "implementationCompleted": 102,
+  "implementationCompleted": 140,
   "implementationTotal": 143,
   "planRevision": 1,
   "revision": 2,
   "exactNextCommand": "/kbd-new-phase <name> (or /kbd-next-phase to auto-seed from reflection.md)",
-  "updatedAt": "2026-07-29T00:08:58.761638Z"
+  "updatedAt": "2026-07-29T00:08:58.761638Z",
+  "reconciliationNote": "Recounted 2026-07-29 after reconciling KBD legacy-state migration artifacts. The previous 102/143 was correct arithmetic over incorrect records: the migration seeded PENDING for 41 changes whose code had already shipped. 38 were verified delivered and set DONE; 3 remain PENDING because they are genuinely incomplete (p12-c001-k6-measure, p13-c001-k6-baselines-measure, p16-c006-selfhost-operator-guide)."
 }

@@ -8,9 +8,9 @@
   "last_updated": "2026-07-29T00:08:58.761638Z",
   "last_updated_by": "kbd-runtime",
   "changes_total": 9,
-  "changes_completed": 0,
+  "changes_completed": 9,
   "implementation_total": 9,
-  "implementation_completed": 0,
+  "implementation_completed": 9,
   "completion": {
     "primaryCounter": "implementation",
     "implementation": {
@@ -38,101 +38,110 @@
     {
       "id": "p3-c005-pg-graphql-pg18",
       "title": "p3-c005-pg-graphql-pg18",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p3-c008-extended-guc-propagation",
       "title": "p3-c008-extended-guc-propagation",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p3-c001-graphql-passthrough",
       "title": "p3-c001-graphql-passthrough",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p3-c007-graphql-compiler",
       "title": "p3-c007-graphql-compiler",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p3-c002-subscriptions",
       "title": "p3-c002-subscriptions",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p3-c004-graphql-transport-ws",
       "title": "p3-c004-graphql-transport-ws",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p3-c003-introspection-merge",
       "title": "p3-c003-introspection-merge",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p3-c006-keto-sync",
       "title": "p3-c006-keto-sync",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p3-c009-predicate-pushdown",
       "title": "p3-c009-predicate-pushdown",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     }
   ],
   "children": {},

@@ -8,9 +8,9 @@
   "last_updated": "2026-07-29T00:08:58.761638Z",
   "last_updated_by": "kbd-runtime",
   "changes_total": 2,
-  "changes_completed": 0,
+  "changes_completed": 2,
   "implementation_total": 2,
-  "implementation_completed": 0,
+  "implementation_completed": 2,
   "completion": {
     "primaryCounter": "implementation",
     "implementation": {
@@ -38,24 +38,26 @@
     {
       "id": "p2-c007-openapi-compiler",
       "title": "p2-c007-openapi-compiler",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p2-c006-pgvector-rpc",
       "title": "p2-c006-pgvector-rpc",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     }
   ],
   "children": {},

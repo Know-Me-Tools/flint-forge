@@ -8,9 +8,9 @@
   "last_updated": "2026-07-29T00:08:58.761638Z",
   "last_updated_by": "kbd-runtime",
   "changes_total": 7,
-  "changes_completed": 0,
+  "changes_completed": 7,
   "implementation_total": 7,
-  "implementation_completed": 0,
+  "implementation_completed": 7,
   "completion": {
     "primaryCounter": "implementation",
     "implementation": {
@@ -38,79 +38,86 @@
     {
       "id": "p2-c001-fdb-auth",
       "title": "p2-c001-fdb-auth",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p2-c002-fdb-postgres",
       "title": "p2-c002-fdb-postgres",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p2-c003-flint-reflection-crate",
       "title": "p2-c003-flint-reflection-crate",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p2-c004-rest-compiler",
       "title": "p2-c004-rest-compiler",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p2-c005-arcswap-hot-reload",
       "title": "p2-c005-arcswap-hot-reload",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p2-c006-pgvector-rpc",
       "title": "p2-c006-pgvector-rpc",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     },
     {
       "id": "p2-c007-openapi-compiler",
       "title": "p2-c007-openapi-compiler",
-      "status": "PENDING",
-      "implementation_status": "PENDING",
+      "status": "DONE",
+      "implementation_status": "DONE",
       "tasks_total": 0,
       "tasks_done": 0,
       "last_task_completed": null,
       "next_task_pending": null,
-      "blockers": []
+      "blockers": [],
+      "status_note": "Reconciled 2026-07-29: delivered before the KBD legacy-state migration, which seeded PENDING defaults for pre-existing phases. Deliverable verified present in the tree; workspace compiles clean."
     }
   ],
   "children": {},
