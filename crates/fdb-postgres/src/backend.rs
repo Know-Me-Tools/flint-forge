@@ -167,6 +167,10 @@ impl DatabaseBackend for PgBackend {
             .await
             .map_err(|e| BackendError::Query(format!("kiln query_json: {e}")))?;
 
+        // `sql` may be DML with `RETURNING` (the doc above says so), so this
+        // path must commit for the same reason `PgRest::run_bound` does.
+        pg_conn.commit().await?;
+
         rows.iter()
             .map(|row| {
                 let value: serde_json::Value = row

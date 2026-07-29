@@ -12,7 +12,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use fdb_gateway::a2ui_embedder;
+use fdb_gateway::{a2ui_embedder, keto_sync};
 use fdb_postgres::{PgGraphQl, PgRest, PgVectorRpc};
 use fdb_reflection::MutationGates;
 use fdb_reflection::{ReflectionEngine, StateManager};
@@ -25,9 +25,7 @@ use crate::graphql::handle_graphql_query;
 use crate::handlers::{healthz, mcp_tools_handler, openapi_handler, rpc_vector_handler};
 use crate::subscriptions::{build_subscription_factory, graphql_ws_handler};
 use crate::GatewayState;
-use crate::{
-    agui_hook_dispatcher, authz_mode, keto_sync, policy_source, rls_layer, routes, telemetry,
-};
+use crate::{agui_hook_dispatcher, authz_mode, policy_source, rls_layer, routes, telemetry};
 
 // Composition root: sequential wiring of pools, adapters, gates, routes. Called
 // from the anyhow-at-the-edge binary entry point (`main()` in `main.rs`); a

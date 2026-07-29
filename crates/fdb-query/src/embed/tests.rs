@@ -251,7 +251,10 @@ fn embedded_filter_on_typed_column_casts_qualified_placeholder() {
     let resolved = resolve_embeds(&sel, "customers", "p", &schema).unwrap();
     let base = Select::default();
     let (sql, _, _) = render_projection(&base, &resolved, 1).unwrap();
-    assert!(sql.contains("orders_1.total > $1::int4"), "got: {sql}");
+    assert!(
+        sql.contains("orders_1.total > $1::text::int4"),
+        "got: {sql}"
+    );
 }
 
 #[test]

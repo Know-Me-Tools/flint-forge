@@ -122,7 +122,9 @@ impl InsertPlan {
                 .zip(&self.columns)
                 .map(|(p, col)| {
                     let ph = match (p, hints.get(col)) {
-                        (QueryParam::Text(_), Some(t)) => format!("${idx}::{t}"),
+                        // `::text::` — see `operator::scalar_placeholder` for why a
+                        // bare `$n::<type>` fails client-side on a text-bound param.
+                        (QueryParam::Text(_), Some(t)) => format!("${idx}::text::{t}"),
                         _ => format!("${idx}"),
                     };
                     params.push(p.clone());
@@ -217,7 +219,8 @@ impl UpdatePlan {
             validate_identifier(col)
                 .map_err(|_| FilterError::Ident(crate::IdentError::Unsafe(col.clone())))?;
             let ph = match (val, hints.get(col)) {
-                (QueryParam::Text(_), Some(t)) => format!("${idx}::{t}"),
+                // `::text::` — see `operator::scalar_placeholder`.
+                (QueryParam::Text(_), Some(t)) => format!("${idx}::text::{t}"),
                 _ => format!("${idx}"),
             };
             sets.push(format!("{col} = {ph}"));
@@ -519,7 +522,7 @@ mod tests {
         .unwrap();
         let (sql, _) = plan.render_with_hints(&hints);
         // id is cast; name is text-compatible so it is left bare.
-        assert_eq!(sql, "INSERT INTO t (id, name) VALUES ($1::int4, $2)");
+        assert_eq!(sql, "INSERT INTO t (id, name) VALUES ($1::text::int4, $2)");
     }
 
     #[test]
@@ -539,7 +542,10 @@ mod tests {
             returning: ReturnKind::Minimal,
         };
         let (sql, _) = plan.render_with_hints(&hints).expect("render");
-        assert_eq!(sql, "UPDATE t SET status = $1::int4 WHERE id = $2::int8");
+        assert_eq!(
+            sql,
+            "UPDATE t SET status = $1::text::int4 WHERE id = $2::text::int8"
+        );
     }
 
     #[test]
@@ -558,7 +564,7 @@ mod tests {
             returning: ReturnKind::Minimal,
         };
         let (sql, _) = plan.render_with_hints(&hints).expect("render");
-        assert_eq!(sql, "DELETE FROM t WHERE id = $1::uuid");
+        assert_eq!(sql, "DELETE FROM t WHERE id = $1::text::uuid");
     }
 
     #[test]

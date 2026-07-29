@@ -6,7 +6,6 @@ mod authz_mode;
 mod bootstrap;
 mod graphql;
 mod handlers;
-mod keto_sync;
 mod policy_source;
 mod rls_layer;
 mod routes;

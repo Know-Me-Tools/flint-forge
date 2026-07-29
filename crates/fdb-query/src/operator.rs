@@ -201,9 +201,11 @@ impl Operator {
 /// this) and is ignored there.
 ///
 /// `cast` is an optional, already-validated Postgres base type (e.g. `int4`).
-/// When present, it is appended to the bound placeholder (`$n::int4`, or
-/// `$n::int4[]` for an array bind) so a driver that declares the bound value's
-/// type explicitly as text (`sqlx`) still resolves against a non-text column.
+/// When present, the bound placeholder is cast *through text* —
+/// `$n::text::int4`, or `$n::text[]::int4[]` for an array bind — so the value
+/// resolves against a non-text column without changing the parameter's own
+/// inferred type (see [`scalar_placeholder`] for why the intermediate `text`
+/// step is required rather than a bare `$n::int4`).
 /// Ignored for containment operators (already bind `jsonb`) and `is` (no bind).
 ///
 /// Returns `(sql_fragment, params, next_index_after)`.
@@ -302,18 +304,35 @@ pub fn render_condition(
     }
 }
 
-/// A scalar placeholder, cast to `cast` when present: `$n` or `$n::int4`.
+/// A scalar placeholder, cast to `cast` when present: `$n` or `$n::text::int4`.
+///
+/// The cast goes *through* `text` deliberately. A bare `$n::int4` makes Postgres
+/// infer parameter *n* as `int4`, and a driver that type-checks its bound value
+/// against the inferred type (`tokio-postgres`) then rejects a bound `String`
+/// client-side with "error serializing parameter N" — the statement never
+/// reaches the server. `$n::text::int4` pins the parameter to `text`, so the
+/// driver sends a string and Postgres applies `int4`'s own text-input parser.
+/// Confirmed against a live Postgres 18 by reading
+/// `pg_prepared_statements.parameter_types`.
 fn scalar_placeholder(idx: usize, cast: Option<&str>) -> String {
     match cast {
-        Some(t) => format!("${idx}::{t}"),
+        Some(t) => format!("${idx}::text::{t}"),
         None => format!("${idx}"),
     }
 }
 
-/// An array-bind placeholder, cast to `cast[]` when present: `$n` or `$n::int4[]`.
+/// An array-bind placeholder, cast to `cast[]` when present: `$n` or
+/// `$n::text[]::int4[]`.
+///
+/// Same text-first reasoning as [`scalar_placeholder`], but the intermediate
+/// type is `text[]`, not `text` — this placeholder's value binds as a
+/// `Vec<String>` (`QueryParam::TextArray`), so pinning the parameter to scalar
+/// `text` would mismatch the bound value just as badly as pinning it to
+/// `int4[]`. Verified against a live Postgres 18: `$n::text::int4[]` infers
+/// `{text}` while `$n::text[]::int4[]` infers `{text[]}`.
 fn array_placeholder(idx: usize, cast: Option<&str>) -> String {
     match cast {
-        Some(t) => format!("${idx}::{t}[]"),
+        Some(t) => format!("${idx}::text[]::{t}[]"),
         None => format!("${idx}"),
     }
 }
@@ -668,11 +687,11 @@ mod tests {
     fn cast_appends_to_scalar_placeholder() {
         assert_eq!(
             render_cast("id", Operator::Eq, "1", "int4").0,
-            "id = $1::int4"
+            "id = $1::text::int4"
         );
         assert_eq!(
             render_cast("id", Operator::Gte, "1", "int8").0,
-            "id >= $1::int8"
+            "id >= $1::text::int8"
         );
     }
 
@@ -689,7 +708,7 @@ mod tests {
             1,
         )
         .expect("render");
-        assert_eq!(sql, "id = ANY($1::int4[])");
+        assert_eq!(sql, "id = ANY($1::text[]::int4[])");
 
         let (sql, _, _) = render_condition(
             "id",
@@ -702,7 +721,7 @@ mod tests {
             1,
         )
         .expect("render");
-        assert_eq!(sql, "id = ANY($1::int4[])");
+        assert_eq!(sql, "id = ANY($1::text[]::int4[])");
     }
 
     #[test]

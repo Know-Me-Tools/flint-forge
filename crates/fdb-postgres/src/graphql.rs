@@ -70,6 +70,12 @@ impl GraphQlExecutor for PgGraphQl {
             .await
             .map_err(|e| BackendError::Internal(format!("graphql.resolve: {e}")))?;
 
+        // `graphql.resolve` serves Mutation as well as Query (§3.2), so this
+        // path writes and must commit the RLS transaction — otherwise every
+        // GraphQL mutation is rolled back on connection recycle while still
+        // returning a success payload. See `PgConn::commit`.
+        pg_conn.commit().await?;
+
         // pg_graphql returns JSONB. tokio-postgres can read it as a String
         // (the text representation of JSONB), then we deserialize.
         let raw: String = row.get(0);

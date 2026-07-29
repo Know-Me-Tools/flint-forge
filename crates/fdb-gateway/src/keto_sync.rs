@@ -40,14 +40,16 @@ use tracing::instrument;
 /// `subject_id` is PII — MUST NOT be logged, traced, or included in error messages.
 #[derive(Debug, Default, Clone)]
 pub struct KetoCacheEntry {
-    // Fields read by the cache_check function (used once OQ-Iggy is resolved).
-    #[allow(dead_code)]
+    /// Relation namespace — always `entities` for table mutations.
     pub namespace: String,
-    #[allow(dead_code)]
+    /// The guarded object, `"<schema>.<table>"` (aliased from the DDL's
+    /// `object_id` column so the cache keeps its domain vocabulary).
     pub object: String,
-    #[allow(dead_code)]
+    /// The granted relation — `insert` / `update` / `delete`.
     pub relation: String,
-    #[allow(dead_code)]
+    /// The subject the relation is granted to.
+    ///
+    /// SECURITY: PII — MUST NOT be logged, traced, or put in an error message.
     pub subject_id: String,
 }
 
@@ -198,8 +200,8 @@ async fn fetch_keto_tuples(pool: &PgPool) -> Result<Vec<KetoCacheEntry>, sqlx::E
 /// SECURITY: `subject_id` is PII — MUST NOT appear in the return value or logs.
 /// Returns `true` only when a matching tuple exists; false otherwise (fail-closed).
 ///
-/// Called once OQ-Iggy resolves and FabricChangeSource integrates this cache.
-#[allow(dead_code)]
+/// Reached in production via [`KetoCacheAdapter::check`], which `bootstrap`
+/// wires into `MutationGates` when `FLINT_AUTHZ_MODE=rls+keto`.
 pub async fn cache_check(
     cache: &KetoCache,
     namespace: &str,
@@ -254,6 +256,8 @@ pub struct KetoCacheAdapter {
 }
 
 impl KetoCacheAdapter {
+    /// Wrap a shared [`KetoCache`] as an [`fdb_ports::KetoCheck`] gate.
+    #[must_use]
     pub fn new(cache: KetoCache) -> Self {
         Self { cache }
     }
