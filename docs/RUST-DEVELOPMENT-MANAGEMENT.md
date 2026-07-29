@@ -49,19 +49,37 @@ For any epoch or goal:
 3. **Then, and only then, write the integration tests** — shaped around the code that is
    *proven* to compile and work, not around a guess made before the parts existed.
 
-### The 3-wait budget
+### Test at the phase boundary, not during the phase
 
-> During a single epoch or goal, wait for tests a **maximum of 3 times**.
+> Do **not** run the test suite while a phase is in flight. Run it once the phase is
+> implementation-complete, immediately before reflection.
 
-A "wait for tests" is any point where we stop forward implementation to run a test suite
-and block on its result. Reserve those three waits for genuine integration checkpoints —
-not for validating an individual function the moment it is written. Spend them on:
+A "test wait" is any point where we stop forward implementation to run a test suite and
+block on its result. Mid-phase, that wait buys almost nothing and costs a great deal:
 
-- confirming a whole subsystem wires together end-to-end (e.g. "a real JWT produces a
-  real RLS row filter"), or
-- a final green run before declaring the goal complete.
+- **The code is not yet certified to provide value.** A phase that is half-wired has not
+  earned a verdict. Most failures at that point say "not connected yet" — which we
+  already know — and they cannot be distinguished from failures that mean something.
+- **The shape is still moving.** Tests written or run against a shape that changes an
+  hour later get rewritten along with it. That is the specific waste this rule exists to
+  eliminate.
+- **Every run costs a full compile.** In this workspace that is minutes, repeatedly, for
+  a signal `cargo check` mostly already gave us.
 
-Track wait-count in the phase state (`.kbd-orchestrator/.../progress.json`) so it is
+So the suite runs at the boundary, where the result is actionable: the phase is
+implementation-complete, and the next step is reflection.
+
+**Implementation-complete** means every load-bearing piece is present and connected — no
+`todo!()` on a live path, no port without an adapter, no handler that never gets mounted.
+
+Once that first boundary run happens, further runs are fine *for driving a known failure
+to green*. What is ruled out is spot-checking new code as it is written.
+
+If a phase feels long enough to want a mid-phase run, that is a signal the phase is too
+big. Split it, and let the phase boundary fall where the test run wanted to be — the run
+is then legitimate, because it is a boundary.
+
+Track the run count in the phase state (`.kbd-orchestrator/.../progress.json`) so it is
 auditable per Base Rule #18.
 
 ### What this does *not* mean
@@ -69,6 +87,12 @@ auditable per Base Rule #18.
 - **It is not "skip testing."** Base Rule #14 stands: implementation is not complete
   until verified. Integration-First changes *when* and *at what granularity* we test —
   the whole section, at the end — not *whether* we test.
+- **It is not "write tests later."** Tests for new behavior are still authored as part of
+  the work. What is deferred is *running the suite*, not writing coverage.
+- **It does not defer `cargo check`.** A compile check is not a test. It runs freely
+  throughout the phase, and it is precisely what makes deferring the suite safe — type,
+  borrow, and trait resolution catch the errors a mid-phase test run would have caught,
+  at a fraction of the cost.
 - **It is not "skip thinking or typing."** Base Rules #1, #10, #13 stand. The reason we
   can defer tests safely is that these gates catch whole classes of error at author time.
 - **It does not license dead ends.** "More code implemented properly" means load-bearing,
@@ -99,7 +123,8 @@ its cost**, and when we do, we use the cheapest form that answers the question.
   Integration-First implementation — `check` is the correct tool.
 - **Do not compile after every component.** Batch. Implement a coherent slice, then run
   one `cargo check` (workspace or `-p <crate>`) to validate it. A full `cargo build` /
-  `cargo test` is a checkpoint action, spent against the 3-wait budget — not a reflex.
+  `cargo test` is a phase-boundary action, run once the phase is implementation-complete
+  — not a reflex.
 - **`--release` / production builds happen at the end**, for production use only. Never
   run a release build to "just see if it works."
 - **Scope your checks.** Use `cargo check -p <crate>` while iterating on one crate; only

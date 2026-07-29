@@ -250,13 +250,18 @@ Nothing in a plan exists in isolation — a change only has meaning in relation 
 - **Prioritize implementing the entire plan over testing it along the way.** Err on the side of getting MORE code implemented properly — Base Rules #1, #10, #13, #14, #17 already force thinking, typing, and validation as we write, so the risk to manage is an *unfinished, disconnected* system, not an untested function.
 - **Execute the full plan first:** make every logical connection, leave no gaps or unimplemented load-bearing pieces (no `todo!()` on a live path, no port without an adapter, no unmounted handler). Then fix all the bugs. **Then, and only then,** build integration tests around the shape of the code that is *proven* to compile and work — we do not know that shape until the end.
 - **Favor full integration tests of whole sections** over unit tests that validate nothing structurally important.
-- **3-wait budget:** wait for tests a MAXIMUM of 3 times per epoch/goal. Spend those waits on genuine integration checkpoints (a subsystem wiring end-to-end; the final green run), not on validating a single function the moment it is written. Record wait-count in phase `progress.json` (Base Rule #18). This changes *when* and *at what granularity* we test — never *whether* (Base Rule #14 stands).
+- **Test at the phase boundary, not during the phase.** Do NOT run the test suite while a phase is in flight. Testing code that is not yet certified to deliver value is a large, recurring waste: the shape is still moving, the failures are mostly "not wired up yet," and every run costs a full compile. The suite runs **once the phase is implementation-complete, immediately before reflection** — that is the checkpoint the results are actually for.
+  - A phase is implementation-complete when every load-bearing piece is present and connected: no `todo!()` on a live path, no port without an adapter, no unmounted handler.
+  - Additional runs within a phase are for *driving a known failure to green* after that first run — not for spot-checking new code as it is written.
+  - If a phase is long enough that you want a mid-phase run, that is a signal the phase is too big. Split it, and let the boundary fall where the test run wanted to be.
+  - Record the run count in the phase `progress.json` (Base Rule #18).
+- This changes *when* we run the suite — never *whether* (Base Rule #14 stands). Tests are still written for new behavior, and `cargo check` still runs freely throughout; it is a compile check, not a test, and it is what makes deferring the suite safe.
 
 ### Compile Economy
 Compiling Rust costs time, memory, and disk. Compile only when it earns its cost, in the cheapest form that answers the question.
 
 - **Prefer `cargo check` over `cargo build`** — it runs the full front-end but skips codegen/linking (~10× faster) and answers "does this hold together?", which is the question almost all the time during implementation.
-- **Do not compile after every component.** Batch a coherent slice, then run one `cargo check` (`-p <crate>` while iterating on one crate; `--workspace` only to validate cross-crate wiring). A full `cargo build`/`cargo test` is a checkpoint action counted against the 3-wait budget — not a reflex.
+- **Do not compile after every component.** Batch a coherent slice, then run one `cargo check` (`-p <crate>` while iterating on one crate; `--workspace` only to validate cross-crate wiring). A full `cargo build`/`cargo test` is a phase-boundary action — not a reflex.
 - **`--release` / production builds happen at the end, for production use only.** Never run a release build just to see if something works.
 - Build settings that minimize the dev loop (dev-profile `debug = "line-tables-only"`, `opt-level = 0` for our crates + `opt-level = 1` for deps, fast platform linker via `.cargo/config.toml`, `rust-analyzer` on a separate target dir, `sccache` opt-in only) live in `docs/RUST-DEVELOPMENT-MANAGEMENT.md`. `--release` is left fully optimized.
 
