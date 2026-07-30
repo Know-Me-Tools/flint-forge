@@ -1,0 +1,26 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-postgres/src/provisioner.rs",
+      "line": 96,
+      "claim": "The failed-ledger transition is not constrained by plan_hash, so a failed apply with a reused plan_id can mark an unrelated stored plan as failed.",
+      "evidence": "The acceptance dispositions require \"Ledger transition constrained to `status='planned' AND plan_hash` match\"; `mark_failed` updates with `WHERE plan_id = $1 AND status = 'planned'` and does not include `plan_hash`, while the success transition does include `AND plan_hash = $4`.",
+      "suggested_fix": "Pass the plan hash into `mark_failed` and update with `WHERE plan_id = $1 AND status = 'planned' AND plan_hash = $3`."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-postgres/src/provisioner.rs",
+      "line": 329,
+      "claim": "`record_version_after` silently succeeds when no applied ledger row is updated.",
+      "evidence": "The port method documentation says it stamps `version_after` onto an `applied` ledger row, but the implementation calls `conn.execute(... WHERE plan_id = $1 AND status = 'applied')` and ignores the returned row count before returning `Ok(())`.",
+      "suggested_fix": "Capture the affected row count and return a `BackendError::Query` if it is not exactly 1."
+    }
+  ]
+}

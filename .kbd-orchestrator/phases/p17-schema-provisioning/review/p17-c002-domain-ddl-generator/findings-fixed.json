@@ -1,0 +1,34 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-app/src/provision/ddl.rs",
+      "line": 177,
+      "claim": "Existing columns are treated as satisfied by name only, so type/nullability drift can produce a false noop instead of a refusal or repair plan.",
+      "evidence": "Acceptance requires diff vs `live` and `noop` only when satisfied; `emit_table_diff` checks only `existing.columns.iter().any(|c| c.name == col.name)` and immediately `continue`s, ignoring `TableMeta`'s `sql_type` and `nullable` fields.",
+      "suggested_fix": "When a matching live column exists, compare its SQL type and nullability against the requested `ColumnSpec`; return a non-additive drift error if they differ."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-app/src/provision/ddl.rs",
+      "line": 211,
+      "claim": "Caller-declared indexes on existing tables are always re-emitted, so an already-existing caller index cannot diff to no-op as required.",
+      "evidence": "Acceptance criterion: \"A caller index that already exists diffs to no-op.\" The implementation states `TableMeta` lacks index introspection and unconditionally loops `for idx in &table.indexes { emit_index(...) }`, making `statements` non-empty and `noop` false for any spec index on an existing table.",
+      "suggested_fix": "Extend the live metadata input to include indexes or remove the no-op requirement from the contract; then suppress emission and mark `exists: true` when an index is already present."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-domain/src/provision/validate.rs",
+      "line": 185,
+      "claim": "Validation allows a caller index to use the same name as the generated tenant index, causing the caller's requested index to be silently skipped by `IF NOT EXISTS`.",
+      "evidence": "`validate_table` only checks duplicates among caller-provided `idx.name` values, while `emit_tenant_block` in `crates/fdb-app/src/provision/ddl.rs` generates an implicit index named `format!(\"{t}_tenant_idx\")`; a caller index with that name but different columns will be emitted after the generated tenant index and no-op because the name already exists.",
+      "suggested_fix": "For tenant-scoped tables, reject any caller `IndexSpec.name` equal to the reserved generated tenant index name, or choose a generated name that cannot collide and validate that reservation."
+    }
+  ]
+}

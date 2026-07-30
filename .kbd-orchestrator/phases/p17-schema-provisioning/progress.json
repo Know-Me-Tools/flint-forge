@@ -9,13 +9,13 @@
   "execute_complete": false,
   "reflect_complete": false,
   "implementation_total": 39,
-  "implementation_completed": 20,
+  "implementation_completed": 27,
   "changes_total": 7,
   "changes_completed": 0,
   "completion": {
     "primaryCounter": "implementation",
     "implementation": {
-      "completed": 20,
+      "completed": 27,
       "total": 39,
       "status": "PENDING"
     },
@@ -36,7 +36,7 @@
     }
   },
   "completed_changes": [],
-  "active_change": "p17-c004-gateway-schema-routes",
+  "active_change": "p17-c005-ddl-reflection-endpoint",
   "blocked_changes": [],
   "changes": [
     {
@@ -59,7 +59,7 @@
     },
     {
       "id": "p17-c004-gateway-schema-routes",
-      "status": "PENDING",
+      "status": "IMPLEMENTATION_COMPLETE",
       "tasks_total": 7,
       "dir": "changes/2026-07-30-p17-c004-gateway-schema-routes"
     },
@@ -83,9 +83,9 @@
       "optional": true
     }
   ],
-  "last_updated": "2026-07-30T17:19:17Z",
+  "last_updated": "2026-07-30T17:59:15Z",
   "last_updated_by": "claude-fable-5 (kbd-plan)",
   "sourceTool": "unknown",
   "createdBy": "kbd-new-phase",
-  "updatedAt": "2026-07-30T17:19:17Z"
+  "updatedAt": "2026-07-30T17:59:15Z"
 }

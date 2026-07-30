@@ -1,0 +1,26 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "docs/runbook.md",
+      "line": 1513,
+      "claim": "The change adds more content to a file that already exceeds the hard 500-line limit.",
+      "evidence": "Constraint: \"BLOCK any file exceeding 500 lines \u2014 split into directory modules.\" The hunk modifies docs/runbook.md at @@ -1513,3 +1513,64 @@, proving the file is over 500 lines.",
+      "suggested_fix": "Move the new Schema Provisioning runbook section into a separate document under docs/operations/ or docs/runbooks/ and link to it from docs/runbook.md instead of extending the oversized file."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-gateway/tests/provisioning_prereqs.rs",
+      "line": 70,
+      "claim": "The auth-proof test does not authenticate through a protected route as required; it calls the lower-level bearer parser directly.",
+      "evidence": "Acceptance criterion 5 requires the real Sansaba service_role key to \"authenticate a protected route\" and land role=\"service_role\" in RlsContext, but the test uses `fdb_auth::rls_from_bearer(&service_key)` directly at lines 70-73 and never constructs or calls any gateway route.",
+      "suggested_fix": "Exercise the actual fdb-gateway protected route or middleware path with an Authorization bearer header, then assert the resulting RlsContext/authorization outcome for service_role and anon."
+    }
+  ]
+}

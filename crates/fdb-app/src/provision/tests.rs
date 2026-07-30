@@ -9,7 +9,12 @@ use fdb_domain::provision::{
 use fdb_domain::{ColumnMeta, TableMeta};
 
 use super::ddl::{generate, PlanError};
-use super::hash::plan_hash;
+
+/// Hash of a spec generated against a given live state — the tests reason
+/// about plan hashes exactly the way the gateway does: via `generate`.
+fn hash_of(spec: &SchemaSpec, live: &[TableMeta]) -> fdb_domain::provision::PlanHash {
+    generate(spec, live).expect("valid spec").hash
+}
 
 fn col(name: &str, ty: ColumnType, nullable: bool, pk: bool, default: Option<&str>) -> ColumnSpec {
     ColumnSpec {
@@ -204,8 +209,8 @@ fn hash_is_stable_across_input_field_reordering() {
     )
     .expect("parse b");
     assert_eq!(
-        plan_hash(&a).expect("hash a"),
-        plan_hash(&b).expect("hash b"),
+        hash_of(&a, &[]),
+        hash_of(&b, &[]),
         "JSON field order must not affect the hash"
     );
 
@@ -215,9 +220,30 @@ fn hash_is_stable_across_input_field_reordering() {
     )
     .expect("parse c");
     assert_ne!(
-        plan_hash(&a).expect("hash a"),
-        plan_hash(&c).expect("hash c"),
+        hash_of(&a, &[]),
+        hash_of(&c, &[]),
         "a semantic change (column type) must change the hash"
+    );
+}
+
+#[test]
+fn hash_detects_live_schema_drift() {
+    // The D2 drift guard: the same spec re-planned against a drifted live
+    // schema must produce a different hash, or apply's recompute-and-compare
+    // can never refuse. Here the drift is the table appearing (created out of
+    // band) between plan time (empty namespace) and apply time.
+    let s = spec("acme_app", vec![tenant_table("watch")]);
+    let fresh = hash_of(&s, &[]);
+    let drifted_live = [live_table(
+        "acme_app",
+        "watch",
+        &[("id", "text", false), ("payload", "jsonb", false), ("tenant_id", "text", false)],
+        true,
+    )];
+    assert_ne!(
+        fresh,
+        hash_of(&s, &drifted_live),
+        "live-schema drift must change the recomputed hash"
     );
 }
 
@@ -242,8 +268,8 @@ fn hash_treats_column_and_table_order_as_semantic() {
         }],
     };
     assert_ne!(
-        plan_hash(&two_cols("a", "b")).expect("hash ab"),
-        plan_hash(&two_cols("b", "a")).expect("hash ba"),
+        hash_of(&two_cols("a", "b"), &[]),
+        hash_of(&two_cols("b", "a"), &[]),
         "column order is semantic and must change the hash"
     );
 
@@ -252,8 +278,8 @@ fn hash_treats_column_and_table_order_as_semantic() {
         tables: vec![tenant_table(first), tenant_table(second)],
     };
     assert_ne!(
-        plan_hash(&two_tables("t1", "t2")).expect("hash t1t2"),
-        plan_hash(&two_tables("t2", "t1")).expect("hash t2t1"),
+        hash_of(&two_tables("t1", "t2"), &[]),
+        hash_of(&two_tables("t2", "t1"), &[]),
         "table order is semantic and must change the hash"
     );
 }

@@ -60,6 +60,9 @@ fke-server:8090
 | `/agents/v1/*` | GET/POST | Bearer | AG-UI event streaming |
 | `/public/<table>` | GET/POST/PATCH/DELETE | Bearer | Reflection-compiled CRUD |
 | `/rpc/public/<fn>` | POST | Bearer | Reflection-compiled RPC |
+| `/schema/v1/plan` | POST | Bearer (`service_role`) | Schema provisioning: generate + persist a reviewable DDL plan (503 when disabled — see §14) |
+| `/schema/v1/apply` | POST | Bearer (`service_role`) | Schema provisioning: idempotent apply by planHash with 409 drift guard |
+| `/schema/v1/status` | GET | Bearer (`service_role`) | Schema provisioning: enabled flag, allowlist, schema version, last apply |
 
 ### 1.5 Route Summary — fke-server
 

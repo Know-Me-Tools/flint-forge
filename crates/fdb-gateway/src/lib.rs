@@ -12,3 +12,10 @@ pub mod a2ui_embedder;
 /// against a live database, on a write.
 pub mod keto_sync;
 pub mod realtime_source;
+/// The `/schema/v1` provisioning API (FFS-001, p17-c004).
+///
+/// On the library target for the same reason as [`keto_sync`]: the route
+/// group and its `SchemaApiState` must be constructible by
+/// `DATABASE_URL`-gated integration tests, which drive the real handlers
+/// through `tower::ServiceExt::oneshot`.
+pub mod schema_api;

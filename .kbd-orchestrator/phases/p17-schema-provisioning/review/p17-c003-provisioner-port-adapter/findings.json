@@ -1,0 +1,18 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": ".prometheus/events.jsonl",
+      "line": 355,
+      "claim": "The diff does not implement the requested provisioner port adapter target at all.",
+      "evidence": "Packet target is \"p17-c003-provisioner-port-adapter\", but the only diff hunk adds a single telemetry/event JSONL record to `.prometheus/events.jsonl` and changes no crate source, port trait, adapter, tests, or wiring.",
+      "suggested_fix": "Add the actual provisioner port adapter implementation and any required tests/wiring in the relevant crate(s), or provide acceptance criteria showing this telemetry-only change is sufficient."
+    }
+  ]
+}

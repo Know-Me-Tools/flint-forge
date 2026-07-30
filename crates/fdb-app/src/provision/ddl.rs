@@ -89,7 +89,6 @@ fn type_matches(spec_ty: ColumnType, live: &str) -> bool {
 /// [`PlanError::Canonicalize`] if hashing fails.
 pub fn generate(spec: &SchemaSpec, live: &[TableMeta]) -> Result<Plan, PlanError> {
     let warnings = validate_spec(spec)?;
-    let hash = super::hash::plan_hash(spec)?;
     let ns = &spec.namespace;
 
     let mut statements: Vec<String> = Vec::new();
@@ -126,6 +125,10 @@ pub fn generate(spec: &SchemaSpec, live: &[TableMeta]) -> Result<Plan, PlanError
             statements.join("\n\n")
         )
     };
+    // Hash covers spec AND generated DDL: the apply-time drift guard
+    // re-plans against the then-current live schema and compares (see
+    // `hash.rs` module docs for why a spec-only hash cannot detect drift).
+    let hash = super::hash::plan_hash(spec, &ddl)?;
 
     Ok(Plan {
         namespace: ns.clone(),
