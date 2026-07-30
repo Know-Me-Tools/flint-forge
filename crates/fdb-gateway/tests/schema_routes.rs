@@ -28,9 +28,15 @@ mod fdb_gateway_test_support;
 
 #[tokio::test]
 async fn disabled_deployment_returns_503_not_404() {
-    let Some(env) = TestEnv::database_only().await else { return };
+    let Some(env) = TestEnv::database_only().await else {
+        return;
+    };
     let router = env.router_disabled();
-    for (method, uri) in [("GET", "/schema/v1/status"), ("POST", "/schema/v1/plan"), ("POST", "/schema/v1/apply")] {
+    for (method, uri) in [
+        ("GET", "/schema/v1/status"),
+        ("POST", "/schema/v1/plan"),
+        ("POST", "/schema/v1/apply"),
+    ] {
         let response = router
             .clone()
             .oneshot(request(method, uri, None, b"{}"))
@@ -48,7 +54,9 @@ async fn disabled_deployment_returns_503_not_404() {
 
 #[tokio::test]
 async fn missing_authorization_header_is_401() {
-    let Some(env) = TestEnv::database_only().await else { return };
+    let Some(env) = TestEnv::database_only().await else {
+        return;
+    };
     let router = env.router_enabled(&["p17c004_nsx"]);
     let response = router
         .oneshot(request("POST", "/schema/v1/plan", None, b"{}"))
@@ -59,7 +67,9 @@ async fn missing_authorization_header_is_401() {
 
 #[tokio::test]
 async fn garbage_bearer_is_401() {
-    let Some(env) = TestEnv::database_only().await else { return };
+    let Some(env) = TestEnv::database_only().await else {
+        return;
+    };
     let router = env.router_enabled(&["p17c004_nsx"]);
     let response = router
         .oneshot(request("POST", "/schema/v1/plan", Some("not-a-jwt"), b"{}"))
@@ -70,7 +80,9 @@ async fn garbage_bearer_is_401() {
 
 #[tokio::test]
 async fn anon_key_is_403() {
-    let Some(env) = TestEnv::with_keys().await else { return };
+    let Some(env) = TestEnv::with_keys().await else {
+        return;
+    };
     let Some(anon) = env.anon_key.clone() else {
         eprintln!("skipping: FLINT_ANON_KEY not set");
         return;
@@ -89,7 +101,9 @@ async fn anon_key_is_403() {
 
 #[tokio::test]
 async fn reserved_namespace_is_403_even_when_allowlisted() {
-    let Some(env) = TestEnv::with_keys().await else { return };
+    let Some(env) = TestEnv::with_keys().await else {
+        return;
+    };
     // Operator misconfiguration: reserved names must lose to the hard refusal.
     let router = env.router_enabled(&["flint_meta"]);
     let response = router
@@ -103,12 +117,17 @@ async fn reserved_namespace_is_403_even_when_allowlisted() {
         .expect("infallible");
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
     let body = body_json(response).await;
-    assert!(body["error"].as_str().expect("error string").contains("reserved"));
+    assert!(body["error"]
+        .as_str()
+        .expect("error string")
+        .contains("reserved"));
 }
 
 #[tokio::test]
 async fn non_allowlisted_namespace_is_403() {
-    let Some(env) = TestEnv::with_keys().await else { return };
+    let Some(env) = TestEnv::with_keys().await else {
+        return;
+    };
     let router = env.router_enabled(&["p17c004_other"]);
     let response = router
         .oneshot(request(
@@ -122,53 +141,10 @@ async fn non_allowlisted_namespace_is_403() {
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
 
-#[tokio::test]
-async fn plan_apply_replay_and_drift_full_cycle() {
-    let Some(env) = TestEnv::with_keys().await else { return };
+/// Tail of the cycle: 409 drift, 404 unknown hash, and /status reflecting
+/// the apply. Split out of the cycle test for the 100-line lint cap.
+async fn assert_drift_unknown_hash_and_status(env: &TestEnv, router: &Router) {
     let ns = "p17c004_cycle";
-    env.reset_namespace(ns).await;
-    let router: Router = env.router_enabled(&[ns]);
-
-    // 200 plan
-    let response = router
-        .clone()
-        .oneshot(request(
-            "POST",
-            "/schema/v1/plan",
-            Some(&env.service_key),
-            spec_body(ns, "watch").as_bytes(),
-        ))
-        .await
-        .expect("infallible");
-    assert_eq!(response.status(), StatusCode::OK, "plan must succeed");
-    let plan = body_json(response).await;
-    let hash = plan["planHash"].as_str().expect("planHash").to_owned();
-    assert_eq!(plan["noop"], false);
-    assert!(plan["ddl"].as_str().expect("ddl").contains("FORCE ROW LEVEL SECURITY"));
-
-    // 200 apply → table exists on a fresh connection
-    let apply_body = format!(r#"{{"planHash":"{hash}"}}"#);
-    let response = router
-        .clone()
-        .oneshot(request("POST", "/schema/v1/apply", Some(&env.service_key), apply_body.as_bytes()))
-        .await
-        .expect("infallible");
-    assert_eq!(response.status(), StatusCode::OK, "apply must succeed");
-    let applied = body_json(response).await;
-    assert_eq!(applied["applied"], true);
-    assert_eq!(applied["alreadyApplied"], false);
-    assert_eq!(applied["restartRequired"], true);
-    assert!(env.table_exists(ns, "watch").await, "table must exist after apply");
-
-    // 200 replay → alreadyApplied
-    let response = router
-        .clone()
-        .oneshot(request("POST", "/schema/v1/apply", Some(&env.service_key), apply_body.as_bytes()))
-        .await
-        .expect("infallible");
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(body_json(response).await["alreadyApplied"], true);
-
     // 409 drift: fresh plan for a second table, then mutate the namespace out
     // of band before applying.
     let response = router
@@ -182,7 +158,10 @@ async fn plan_apply_replay_and_drift_full_cycle() {
         .await
         .expect("infallible");
     assert_eq!(response.status(), StatusCode::OK);
-    let hash2 = body_json(response).await["planHash"].as_str().expect("planHash").to_owned();
+    let hash2 = body_json(response).await["planHash"]
+        .as_str()
+        .expect("planHash")
+        .to_owned();
     env.create_out_of_band_table(ns, "drifty").await;
     let response = router
         .clone()
@@ -215,13 +194,87 @@ async fn plan_apply_replay_and_drift_full_cycle() {
 
     // status reflects the apply
     let response = router
-        .oneshot(request("GET", "/schema/v1/status", Some(&env.service_key), b""))
+        .clone()
+        .oneshot(request(
+            "GET",
+            "/schema/v1/status",
+            Some(&env.service_key),
+            b"",
+        ))
         .await
         .expect("infallible");
     assert_eq!(response.status(), StatusCode::OK);
     let status = body_json(response).await;
     assert_eq!(status["enabled"], true);
     assert_eq!(status["lastApply"]["status"], "applied");
+}
+
+#[tokio::test]
+async fn plan_apply_replay_and_drift_full_cycle() {
+    let Some(env) = TestEnv::with_keys().await else {
+        return;
+    };
+    let ns = "p17c004_cycle";
+    env.reset_namespace(ns).await;
+    let router: Router = env.router_enabled(&[ns]);
+
+    // 200 plan
+    let response = router
+        .clone()
+        .oneshot(request(
+            "POST",
+            "/schema/v1/plan",
+            Some(&env.service_key),
+            spec_body(ns, "watch").as_bytes(),
+        ))
+        .await
+        .expect("infallible");
+    assert_eq!(response.status(), StatusCode::OK, "plan must succeed");
+    let plan = body_json(response).await;
+    let hash = plan["planHash"].as_str().expect("planHash").to_owned();
+    assert_eq!(plan["noop"], false);
+    assert!(plan["ddl"]
+        .as_str()
+        .expect("ddl")
+        .contains("FORCE ROW LEVEL SECURITY"));
+
+    // 200 apply → table exists on a fresh connection
+    let apply_body = format!(r#"{{"planHash":"{hash}"}}"#);
+    let response = router
+        .clone()
+        .oneshot(request(
+            "POST",
+            "/schema/v1/apply",
+            Some(&env.service_key),
+            apply_body.as_bytes(),
+        ))
+        .await
+        .expect("infallible");
+    assert_eq!(response.status(), StatusCode::OK, "apply must succeed");
+    let applied = body_json(response).await;
+    assert_eq!(applied["applied"], true);
+    assert_eq!(applied["alreadyApplied"], false);
+    assert_eq!(applied["restartRequired"], true);
+    assert!(
+        env.table_exists(ns, "watch").await,
+        "table must exist after apply"
+    );
+
+    // 200 replay → alreadyApplied
+    let response = router
+        .clone()
+        .oneshot(request(
+            "POST",
+            "/schema/v1/apply",
+            Some(&env.service_key),
+            apply_body.as_bytes(),
+        ))
+        .await
+        .expect("infallible");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body_json(response).await["alreadyApplied"], true);
+
+    assert_drift_unknown_hash_and_status(&env, &router).await;
 
     env.reset_namespace(ns).await;
 }
@@ -247,15 +300,22 @@ const RT_TYPES: [(&str, &str, &str); 9] = [
 
 /// Spec with all 36 type x nullability x default combinations.
 fn rt_spec(ns: &str) -> String {
-    let mut columns = vec![
-        r#"{"name":"id","type":"text","nullable":false,"primaryKey":true}"#.to_owned(),
-    ];
+    let mut columns =
+        vec![r#"{"name":"id","type":"text","nullable":false,"primaryKey":true}"#.to_owned()];
     for (ty, _, default) in &RT_TYPES {
         let d = default.replace('"', "");
-        columns.push(format!(r#"{{"name":"c_{ty}_n","type":"{ty}","nullable":true}}"#));
-        columns.push(format!(r#"{{"name":"c_{ty}_nn","type":"{ty}","nullable":false}}"#));
-        columns.push(format!(r#"{{"name":"c_{ty}_nd","type":"{ty}","nullable":true,"default":"{d}"}}"#));
-        columns.push(format!(r#"{{"name":"c_{ty}_nnd","type":"{ty}","nullable":false,"default":"{d}"}}"#));
+        columns.push(format!(
+            r#"{{"name":"c_{ty}_n","type":"{ty}","nullable":true}}"#
+        ));
+        columns.push(format!(
+            r#"{{"name":"c_{ty}_nn","type":"{ty}","nullable":false}}"#
+        ));
+        columns.push(format!(
+            r#"{{"name":"c_{ty}_nd","type":"{ty}","nullable":true,"default":"{d}"}}"#
+        ));
+        columns.push(format!(
+            r#"{{"name":"c_{ty}_nnd","type":"{ty}","nullable":false,"default":"{d}"}}"#
+        ));
     }
     format!(
         r#"{{"namespace":"{ns}","tables":[{{"name":"rt","tenantScoped":true,"columns":[{}]}}]}}"#,
@@ -265,7 +325,9 @@ fn rt_spec(ns: &str) -> String {
 
 #[tokio::test]
 async fn ddl_round_trip_covers_every_column_type() {
-    let Some(env) = TestEnv::with_keys().await else { return };
+    let Some(env) = TestEnv::with_keys().await else {
+        return;
+    };
     let ns = "p17c005_rt";
     env.reset_namespace(ns).await;
     let router = env.router_enabled(&[ns]);
@@ -273,11 +335,19 @@ async fn ddl_round_trip_covers_every_column_type() {
 
     let response = router
         .clone()
-        .oneshot(request("POST", "/schema/v1/plan", Some(&env.service_key), spec.as_bytes()))
+        .oneshot(request(
+            "POST",
+            "/schema/v1/plan",
+            Some(&env.service_key),
+            spec.as_bytes(),
+        ))
         .await
         .expect("infallible");
     assert_eq!(response.status(), StatusCode::OK, "plan must succeed");
-    let hash = body_json(response).await["planHash"].as_str().expect("hash").to_owned();
+    let hash = body_json(response).await["planHash"]
+        .as_str()
+        .expect("hash")
+        .to_owned();
     let response = router
         .clone()
         .oneshot(request(

@@ -14,10 +14,7 @@ use super::{
 };
 
 /// Handler for `GET /schema/v1/status`.
-pub async fn status(
-    State(state): State<SchemaApiState>,
-    headers: HeaderMap,
-) -> Response {
+pub async fn status(State(state): State<SchemaApiState>, headers: HeaderMap) -> Response {
     let provisioner = match require_enabled(&state) {
         Ok(p) => p,
         Err(resp) => return *resp,

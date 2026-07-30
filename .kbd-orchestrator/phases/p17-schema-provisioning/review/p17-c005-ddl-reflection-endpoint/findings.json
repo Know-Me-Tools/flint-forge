@@ -1,0 +1,34 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-gateway/tests/schema_routes.rs",
+      "line": 229,
+      "claim": "The round-trip test does not satisfy the required property because it only checks substring presence for one mixed set of columns, not re-parse equivalence for every ColumnType \u00d7 nullable \u00d7 with/without default.",
+      "evidence": "Acceptance criteria require: \"Round-trip property test WRITTEN ... GET ddl \u2192 re-parse \u2261 original spec for every ColumnType \u00d7 nullable \u00d7 with/without default\" and verification says \"Round-trip holds for every ColumnType, nullable and not, with and without defaults\"; the added test builds 9 columns total with a mix of nullable/default states and asserts `ddl.contains(expected)`.",
+      "suggested_fix": "Generate cases covering each ColumnType in all required nullability/default combinations, parse the returned DDL back into the spec model, and assert semantic equivalence to the original generated spec."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-postgres/src/provisioner.rs",
+      "line": 405,
+      "claim": "Composite primary key column order is lost because the query records only boolean PK membership and the renderer emits PK columns in table column order.",
+      "evidence": "The adapter selects `COALESCE(a.attnum = ANY(i.indkey), false)` and stores only `is_pk`; `synthesize_create_table` then builds `pk` by iterating `info.columns` in column order and joining names, so a table defined with `PRIMARY KEY (b, a)` on columns `(a, b)` is synthesized as `PRIMARY KEY (a, b)`.",
+      "suggested_fix": "Fetch primary-key ordinal position from `pg_index.indkey` using `unnest(i.indkey) WITH ORDINALITY`, carry it in `DdlColumn` or separate PK metadata, and render the PK list ordered by that ordinal."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-app/src/provision/ddl.rs",
+      "line": 374,
+      "claim": "The synthesized DDL does not quote identifiers, so valid existing tables or columns with quoted, reserved-word, mixed-case, or punctuation-containing identifiers render as invalid or different SQL.",
+      "evidence": "`synthesize_create_table` formats identifiers directly with `format!(\"  {} {}\", col.name, col.sql_type)` and `format!(\"CREATE TABLE {table} ...\")`; acceptance requires synthesis for an existing table, while only path `schema`/`table` are validated in the route and catalog column names are used unescaped.",
+      "suggested_fix": "Render table and column identifiers with a Postgres identifier-quoting helper that doubles embedded quotes, or explicitly constrain and reject all non-safe catalog column identifiers before rendering."
+    }
+  ]
+}

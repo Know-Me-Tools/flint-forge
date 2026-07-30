@@ -212,12 +212,23 @@ async fn rest_router_extracts_schema_and_table_without_path_captures() {
     };
 
     let pool = PgPool::connect(&url).await.expect("connect");
+    // p17-c006 boundary run — first time this test ever executed against a
+    // live Postgres (main-health-2026-07-29.md: "never been observed passing
+    // against real Postgres … reasoned from the handler signatures"). That
+    // first run exposed a fixture gap unrelated to what the test checks:
+    // `PgRest` executes as `SET LOCAL ROLE authenticated`, and the fixture
+    // never granted that role anything, so every request 500'd on
+    // `permission denied` before path extraction was even exercised.
     sqlx::raw_sql(
         "DROP SCHEMA IF EXISTS restrouter_it CASCADE; \
          CREATE SCHEMA restrouter_it; \
          CREATE TABLE restrouter_it.widget (id serial PRIMARY KEY, status text); \
          CREATE FUNCTION restrouter_it.echo_one() RETURNS TABLE(val int, val2 int) \
-             LANGUAGE sql AS $$ SELECT 1, 2 $$;",
+             LANGUAGE sql AS $$ SELECT 1, 2 $$; \
+         GRANT USAGE ON SCHEMA restrouter_it TO authenticated; \
+         GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA restrouter_it TO authenticated; \
+         GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA restrouter_it TO authenticated; \
+         GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA restrouter_it TO authenticated;",
     )
     .execute(&pool)
     .await

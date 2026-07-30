@@ -35,10 +35,15 @@ pub async fn table_ddl(
     // Fail closed on injection-shaped path segments before touching the
     // database (they are bound, not interpolated — this is defense in depth
     // and produces a clearer 400 than a no-row lookup would).
-    if schema.contains('.') || !is_safe_identifier(&schema) || table.contains('.')
+    if schema.contains('.')
+        || !is_safe_identifier(&schema)
+        || table.contains('.')
         || !is_safe_identifier(&table)
     {
-        return error_response(StatusCode::BAD_REQUEST, "invalid schema or table identifier");
+        return error_response(
+            StatusCode::BAD_REQUEST,
+            "invalid schema or table identifier",
+        );
     }
 
     let ns = Namespace(schema.clone());
@@ -47,7 +52,10 @@ pub async fn table_ddl(
         Ok(None) => return error_response(StatusCode::NOT_FOUND, "unknown table"),
         Err(e) => {
             tracing::error!(namespace = %ns, error = %e, "ddl-info query failed");
-            return error_response(StatusCode::INTERNAL_SERVER_ERROR, "ddl introspection failed");
+            return error_response(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "ddl introspection failed",
+            );
         }
     };
 

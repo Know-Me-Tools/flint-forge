@@ -24,6 +24,17 @@ use crate::BackendError;
 /// owner (FFS-001 D3).
 #[async_trait]
 pub trait SchemaProvisioner: Send + Sync {
+    /// Whether the namespace's schema exists at all. The provisioner role
+    /// can NEVER create schemas (it deliberately lacks database-level
+    /// CREATE, FFS-001 D3) — the operator creates and grants them (runbook
+    /// §14) — so the routes refuse early when the schema is absent instead
+    /// of emitting DDL that must fail with 42501.
+    ///
+    /// # Errors
+    ///
+    /// [`BackendError::Query`] with SQLSTATE context on query failure.
+    async fn schema_exists(&self, ns: &Namespace) -> Result<bool, BackendError>;
+
     /// Live table/column/RLS state for one namespace, as the generator's
     /// diff input.
     ///
@@ -31,8 +42,7 @@ pub trait SchemaProvisioner: Send + Sync {
     ///
     /// [`BackendError::Query`] carrying SQLSTATE context only — never a
     /// rendered statement.
-    async fn introspect_namespace(&self, ns: &Namespace)
-        -> Result<Vec<TableMeta>, BackendError>;
+    async fn introspect_namespace(&self, ns: &Namespace) -> Result<Vec<TableMeta>, BackendError>;
 
     /// Persist a `planned` ledger row (the durable plan store, FFS-001
     /// D-P1). One `flint_schema` row; no user-schema writes.

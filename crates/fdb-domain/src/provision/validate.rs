@@ -278,7 +278,10 @@ fn is_numeric_literal(expr: &str) -> bool {
 }
 
 fn is_simple_string_literal(expr: &str) -> bool {
-    let Some(inner) = expr.strip_prefix('\'').and_then(|rest| rest.strip_suffix('\'')) else {
+    let Some(inner) = expr
+        .strip_prefix('\'')
+        .and_then(|rest| rest.strip_suffix('\''))
+    else {
         return false;
     };
     // No quotes of any kind inside, no backslashes, no control characters:
@@ -326,7 +329,13 @@ mod tests {
 
     #[test]
     fn refuses_reserved_namespaces_before_anything_else() {
-        for ns in ["public", "information_schema", "flint_meta", "pg_catalog", "flint_"] {
+        for ns in [
+            "public",
+            "information_schema",
+            "flint_meta",
+            "pg_catalog",
+            "flint_",
+        ] {
             let spec = spec_with(ns, vec![minimal_table("t")]);
             assert_eq!(
                 validate_spec(&spec),
@@ -360,7 +369,10 @@ mod tests {
     fn refuses_dotted_namespace_smuggling() {
         // is_safe_identifier accepts `a.b`; the namespace rule must not.
         let spec = spec_with("a.b", vec![minimal_table("t")]);
-        assert_eq!(validate_spec(&spec), Err(SpecError::BadNamespace("a.b".into())));
+        assert_eq!(
+            validate_spec(&spec),
+            Err(SpecError::BadNamespace("a.b".into()))
+        );
     }
 
     #[test]
@@ -374,7 +386,10 @@ mod tests {
             default: None,
         });
         let spec = spec_with("ok_ns", vec![t]);
-        assert_eq!(validate_spec(&spec), Err(SpecError::TenantIdReserved("t".into())));
+        assert_eq!(
+            validate_spec(&spec),
+            Err(SpecError::TenantIdReserved("t".into()))
+        );
     }
 
     #[test]
@@ -396,7 +411,15 @@ mod tests {
 
     #[test]
     fn default_allowlist_holds() {
-        for ok in ["now()", "gen_random_uuid()", "'{}'", "'abc'", "0", "-3.5", "true"] {
+        for ok in [
+            "now()",
+            "gen_random_uuid()",
+            "'{}'",
+            "'abc'",
+            "0",
+            "-3.5",
+            "true",
+        ] {
             assert!(default_is_allowed(ok), "{ok} should be allowed");
         }
         for bad in [
@@ -423,7 +446,10 @@ mod tests {
             unique: false,
         });
         let spec = spec_with("ok_ns", vec![t.clone()]);
-        assert!(validate_spec(&spec).is_ok(), "tenant_id is implicit on scoped tables");
+        assert!(
+            validate_spec(&spec).is_ok(),
+            "tenant_id is implicit on scoped tables"
+        );
 
         t.indexes.push(IndexSpec {
             name: "t_bad_idx".into(),

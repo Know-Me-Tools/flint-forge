@@ -241,11 +241,16 @@ async fn patch_set_against_bool_and_int4_columns() {
         "active = {}",
         mutation_placeholder(1, &bind, hints.get("active"))
     );
-    assert_eq!(set_sql, "active = $1::boolean");
+    // p17-c006 boundary run — first live execution of this test. The
+    // expected strings predated filters.rs's deliberate `$n::text::<type>`
+    // double cast (documented at `mutation_placeholder`: a bare `$n::boolean`
+    // makes the driver type-check the bound String against BOOL and fail
+    // client-side). The implementation is right; the expectation was stale.
+    assert_eq!(set_sql, "active = $1::text::boolean");
 
     let tree = parse_filter_tree(&params(&[("id", "eq.10")])).expect("parse");
     let wc = render_where_with_hints(&tree, 2, &hints).expect("render");
-    assert_eq!(wc.sql, "WHERE id = $2::integer");
+    assert_eq!(wc.sql, "WHERE id = $2::text::integer");
 
     let sql = format!("UPDATE {schema}.orders SET {set_sql} {}", wc.sql);
     // SAFETY: `schema` is a hardcoded literal; `set_sql`/`wc.sql` are

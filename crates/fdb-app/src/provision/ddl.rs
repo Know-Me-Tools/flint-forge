@@ -1,8 +1,8 @@
 //! The pure DDL generator (FFS-001 §8 tasks 1.3–1.5).
 //!
 //! `generate(spec, live)` validates the spec, diffs it against the live
-//! namespace, and emits additive-only DDL (FFS-001 D6): `CREATE SCHEMA IF NOT
-//! EXISTS`, `CREATE TABLE`, `ADD COLUMN IF NOT EXISTS` (nullable-or-defaulted
+//! namespace, and emits additive-only DDL (FFS-001 D6): `CREATE TABLE`,
+//! `ADD COLUMN IF NOT EXISTS` (nullable-or-defaulted
 //! only), `CREATE INDEX IF NOT EXISTS`, and — for tenant-scoped tables — the
 //! fixed RLS block (FFS-001 D5): `tenant_id`, ENABLE+FORCE, four policies,
 //! tenant index, grant. No destructive statement kind exists in this module.
@@ -94,15 +94,14 @@ pub fn generate(spec: &SchemaSpec, live: &[TableMeta]) -> Result<Plan, PlanError
     let mut statements: Vec<String> = Vec::new();
     let mut operations: Vec<Operation> = Vec::new();
 
-    let schema_exists = live.iter().any(|t| t.schema == ns.as_str());
-    operations.push(Operation {
-        kind: OperationKind::CreateSchema,
-        target: ns.as_str().to_owned(),
-        exists: schema_exists,
-    });
-    if !schema_exists {
-        statements.push(format!("CREATE SCHEMA IF NOT EXISTS {ns};"));
-    }
+    // No CREATE SCHEMA is ever emitted: the provisioner role deliberately
+    // lacks database-level CREATE (D3), so schema creation belongs to the
+    // operator (runbook §14) and the routes refuse before generation when
+    // the schema is absent. FFS-001 §4.2's `create_schema` operation example
+    // contradicts the spec's own §10 operator flow and loses — even
+    // `CREATE SCHEMA IF NOT EXISTS` on an EXISTING schema fails with 42501
+    // for a role without database CREATE (found by the p17c006 boundary
+    // run, ledger rows pln_c531…/pln_c2f0…).
 
     for table in &spec.tables {
         let live_table = live
@@ -172,7 +171,10 @@ fn emit_create_table(
     if !pk.is_empty() {
         lines.push(format!("    PRIMARY KEY ({})", pk.join(", ")));
     }
-    statements.push(format!("CREATE TABLE {ns}.{t} (\n{}\n);", lines.join(",\n")));
+    statements.push(format!(
+        "CREATE TABLE {ns}.{t} (\n{}\n);",
+        lines.join(",\n")
+    ));
     operations.push(Operation {
         kind: OperationKind::CreateTable,
         target: format!("{ns}.{t}"),
@@ -193,7 +195,15 @@ fn emit_create_table(
         emit_tenant_block(ns, t, statements, operations);
     }
     for idx in &table.indexes {
-        emit_index(ns, t, &idx.name, &idx.columns, idx.unique, statements, operations);
+        emit_index(
+            ns,
+            t,
+            &idx.name,
+            &idx.columns,
+            idx.unique,
+            statements,
+            operations,
+        );
     }
 }
 
@@ -283,7 +293,15 @@ fn emit_table_diff(
     // re-emit with IF NOT EXISTS guards. Harmless on replay; a genuinely new
     // index gets created.
     for idx in &table.indexes {
-        emit_index(ns, t, &idx.name, &idx.columns, idx.unique, statements, operations);
+        emit_index(
+            ns,
+            t,
+            &idx.name,
+            &idx.columns,
+            idx.unique,
+            statements,
+            operations,
+        );
     }
     Ok(())
 }
@@ -400,7 +418,11 @@ pub fn synthesize_create_table(table: &str, info: &fdb_domain::provision::TableD
         let cols: Vec<String> = pk.iter().map(|(_, name)| quote_ident(name)).collect();
         lines.push(format!("  PRIMARY KEY ({})", cols.join(", ")));
     }
-    format!("CREATE TABLE {} (\n{}\n);", quote_ident(table), lines.join(",\n"))
+    format!(
+        "CREATE TABLE {} (\n{}\n);",
+        quote_ident(table),
+        lines.join(",\n")
+    )
 }
 
 fn emit_index(

@@ -6,6 +6,11 @@
 //! `tower::ServiceExt::oneshot`. No mocks on the path under test.
 
 #![allow(clippy::expect_used)]
+// Shared by multiple test binaries (schema_routes, phase_boundary_e2e); each
+// compiles its own copy and uses a different subset of the helpers, so
+// per-binary dead-code analysis would flag whichever half the other binary
+// uses. Standard tests/support-module concession.
+#![allow(dead_code)]
 
 use std::sync::Arc;
 
@@ -105,7 +110,11 @@ impl TestEnv {
         Some(env)
     }
 
-    fn router_with(&self, provisioner: Option<Arc<dyn fdb_ports::SchemaProvisioner>>, namespaces: &[&str]) -> Router {
+    fn router_with(
+        &self,
+        provisioner: Option<Arc<dyn fdb_ports::SchemaProvisioner>>,
+        namespaces: &[&str],
+    ) -> Router {
         let state = SchemaApiState {
             provisioner,
             namespaces: Arc::new(namespaces.iter().map(|s| (*s).to_owned()).collect()),

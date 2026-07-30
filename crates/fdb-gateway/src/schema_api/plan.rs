@@ -45,6 +45,20 @@ pub async fn plan(
     if let Err(resp) = require_allowlisted(&state, spec.namespace.as_str()) {
         return *resp;
     }
+    match provisioner.schema_exists(&spec.namespace).await {
+        Ok(true) => {}
+        Ok(false) => {
+            return error_response(
+                StatusCode::CONFLICT,
+                "namespace schema does not exist; the operator must create it and \
+                 grant CREATE to flint_provisioner (runbook §14)",
+            );
+        }
+        Err(e) => {
+            tracing::error!(namespace = %spec.namespace, error = %e, "schema existence check failed");
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, "introspection failed");
+        }
+    }
 
     let live = match provisioner.introspect_namespace(&spec.namespace).await {
         Ok(live) => live,
@@ -91,7 +105,10 @@ pub async fn plan(
         }
         Err(e) => {
             tracing::error!(error = %e, "plan store lookup failed");
-            return error_response(StatusCode::INTERNAL_SERVER_ERROR, "plan store lookup failed");
+            return error_response(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "plan store lookup failed",
+            );
         }
     };
 

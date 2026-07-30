@@ -26,8 +26,7 @@ use super::ddl::PlanError;
 /// structurally impossible for these types, but surfaced rather than
 /// panicked on (no `expect` in library crates).
 pub fn plan_hash(spec: &SchemaSpec, ddl: &str) -> Result<PlanHash, PlanError> {
-    let canonical =
-        serde_json::to_vec(spec).map_err(|e| PlanError::Canonicalize(e.to_string()))?;
+    let canonical = serde_json::to_vec(spec).map_err(|e| PlanError::Canonicalize(e.to_string()))?;
     let mut hasher = Sha256::new();
     hasher.update(&canonical);
     hasher.update([0u8]);

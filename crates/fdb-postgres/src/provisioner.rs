@@ -39,9 +39,7 @@ pub struct PgProvisioner {
 
 /// Map a `tokio_postgres::Error` to the port error, exposing SQLSTATE only.
 fn sqlstate_only(op: &str, e: &tokio_postgres::Error) -> BackendError {
-    let code = e
-        .as_db_error()
-        .map_or("none", |db| db.code().code());
+    let code = e.as_db_error().map_or("none", |db| db.code().code());
     BackendError::Query(format!("provision {op} failed (SQLSTATE {code})"))
 }
 
@@ -117,10 +115,20 @@ impl PgProvisioner {
 #[async_trait]
 impl SchemaProvisioner for PgProvisioner {
     #[instrument(skip_all, fields(namespace = %ns))]
-    async fn introspect_namespace(
-        &self,
-        ns: &Namespace,
-    ) -> Result<Vec<TableMeta>, BackendError> {
+    async fn schema_exists(&self, ns: &Namespace) -> Result<bool, BackendError> {
+        let conn = self.conn().await?;
+        let row = conn
+            .query_one(
+                "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = $1)",
+                &[&ns.as_str()],
+            )
+            .await
+            .map_err(|e| sqlstate_only("schema-exists", &e))?;
+        Ok(row.get(0))
+    }
+
+    #[instrument(skip_all, fields(namespace = %ns))]
+    async fn introspect_namespace(&self, ns: &Namespace) -> Result<Vec<TableMeta>, BackendError> {
         let conn = self.conn().await?;
         // pg_catalog is world-readable: no flint_meta grant is needed for the
         // provisioner role, and the query is bound, never interpolated.
@@ -278,7 +286,8 @@ impl SchemaProvisioner for PgProvisioner {
         let mut ledger_rows: u64 = 0;
         let result: Result<(), tokio_postgres::Error> = async {
             conn.batch_execute("BEGIN").await?;
-            conn.batch_execute("SET LOCAL ROLE flint_provisioner").await?;
+            conn.batch_execute("SET LOCAL ROLE flint_provisioner")
+                .await?;
             conn.batch_execute(&plan.ddl).await?;
             // Constrained to the exact planned row: status must still be
             // `planned` (a failed row must never flip to applied) and the

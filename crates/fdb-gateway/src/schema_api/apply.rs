@@ -62,7 +62,10 @@ pub async fn apply(
         Ok(None) => return error_response(StatusCode::NOT_FOUND, "unknown planHash"),
         Err(e) => {
             tracing::error!(error = %e, "plan store lookup failed");
-            return error_response(StatusCode::INTERNAL_SERVER_ERROR, "plan store lookup failed");
+            return error_response(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "plan store lookup failed",
+            );
         }
     };
 
@@ -72,6 +75,20 @@ pub async fn apply(
     // operator has since withdrawn.
     if let Err(resp) = require_allowlisted(&state, stored.spec.namespace.as_str()) {
         return *resp;
+    }
+    match provisioner.schema_exists(&stored.spec.namespace).await {
+        Ok(true) => {}
+        Ok(false) => {
+            return error_response(
+                StatusCode::CONFLICT,
+                "namespace schema does not exist; the operator must create it and \
+                 grant CREATE to flint_provisioner (runbook §14)",
+            );
+        }
+        Err(e) => {
+            tracing::error!(namespace = %stored.spec.namespace, error = %e, "schema existence check failed");
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, "introspection failed");
+        }
     }
 
     let version_before = i64::try_from(state.state_manager.current().version).ok();
@@ -103,7 +120,10 @@ pub async fn apply(
     }
     // Drift guard: re-plan the stored spec against the live schema and
     // compare the recomputed hash with the requested one.
-    let live = match provisioner.introspect_namespace(&stored.spec.namespace).await {
+    let live = match provisioner
+        .introspect_namespace(&stored.spec.namespace)
+        .await
+    {
         Ok(live) => live,
         Err(e) => {
             tracing::error!(namespace = %stored.spec.namespace, error = %e, "introspection failed");
@@ -112,15 +132,15 @@ pub async fn apply(
     };
     let regenerated = match generate(&stored.spec, &live) {
         Ok(plan) => plan,
-        Err(e) => return error_response(StatusCode::CONFLICT, &format!(
-            "plan no longer generates against the live schema: {e}"
-        )),
+        Err(e) => {
+            return error_response(
+                StatusCode::CONFLICT,
+                &format!("plan no longer generates against the live schema: {e}"),
+            )
+        }
     };
     if regenerated.hash != request.plan_hash {
-        return error_response(
-            StatusCode::CONFLICT,
-            "plan no longer matches live schema",
-        );
+        return error_response(StatusCode::CONFLICT, "plan no longer matches live schema");
     }
 
     let validated = ValidatedPlan {
@@ -147,7 +167,10 @@ pub async fn apply(
     let refreshed = version_after > version_before;
     if refreshed && !applied.already_applied {
         if let Some(after) = version_after {
-            if let Err(e) = provisioner.record_version_after(&stored.plan_id, after).await {
+            if let Err(e) = provisioner
+                .record_version_after(&stored.plan_id, after)
+                .await
+            {
                 tracing::warn!(plan_id = %stored.plan_id, error = %e, "version_after not recorded");
             }
         }

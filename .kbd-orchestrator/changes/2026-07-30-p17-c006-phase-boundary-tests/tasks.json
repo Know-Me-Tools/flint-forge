@@ -2,15 +2,45 @@
   "backend": "native-kbd",
   "change": "p17-c006-phase-boundary-tests",
   "tasks": [
-    { "id": "t1", "title": "Coverage-gate reconciliation (BEFORE any run)", "done": false,
-      "detail": "Read ci config for the 90% changed-crate gate (p16-c009); determine whether DATABASE_URL-gated tests count. Either wire a Postgres-service CI job so they do, or write the documented concession in verification.md. Decision recorded either way." },
-    { "id": "t2", "title": "Two-tenant RLS isolation e2e", "done": false,
-      "detail": "Adapt crates/fdb-gateway/tests/rest_rls_isolation.rs harness: /plan + /apply a tenantScoped table with the real service_role key, insert row as tenant-A JWT, SELECT as tenant-B JWT -> zero rows; also tenant-B INSERT with mismatched tenant_id -> policy violation." },
-    { "id": "t3", "title": "Key-rotation revocation e2e", "done": false,
-      "detail": "Scripted: snapshot current key, re-run generate-keys.mjs into a scratch dir served as FLINT_GATE_JWKS_URL, assert old service_role key -> 401 (kid no longer in JWKS). May run as an ignored/manual test with transcript recorded in verification.md if CI cannot host the rotation." },
-    { "id": "t4", "title": "OpenAPI hot-swap assertion", "done": false,
-      "detail": "After /apply, GET /openapi.json (same process, no restart) contains the provisioned table's paths/schema. Cite handlers.rs:36-38 mechanism in the test comment." },
-    { "id": "t5", "title": "Phase-boundary suite run -> green (record runs)", "done": false,
-      "detail": "cargo test --workspace (+ gated tests with DATABASE_URL + keys) + cargo clippy --workspace -- -D warnings. Drive failures to green. Record run count, dates, and failure->fix notes in progress.json and verification.md (Base Rule #18)." }
+    {
+      "id": "t1",
+      "title": "Coverage-gate reconciliation (BEFORE any run)",
+      "done": true,
+      "detail": "Read ci config for the 90% changed-crate gate (p16-c009); determine whether DATABASE_URL-gated tests count. Either wire a Postgres-service CI job so they do, or write the documented concession in verification.md. Decision recorded either way.",
+      "doneAt": "2026-07-30T18:28:48Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t2",
+      "title": "Two-tenant RLS isolation e2e",
+      "done": true,
+      "detail": "Adapt crates/fdb-gateway/tests/rest_rls_isolation.rs harness: /plan + /apply a tenantScoped table with the real service_role key, insert row as tenant-A JWT, SELECT as tenant-B JWT -> zero rows; also tenant-B INSERT with mismatched tenant_id -> policy violation.",
+      "doneAt": "2026-07-30T18:28:48Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t3",
+      "title": "Key-rotation revocation e2e",
+      "done": true,
+      "detail": "Scripted: snapshot current key, re-run generate-keys.mjs into a scratch dir served as FLINT_GATE_JWKS_URL, assert old service_role key -> 401 (kid no longer in JWKS). May run as an ignored/manual test with transcript recorded in verification.md if CI cannot host the rotation.",
+      "doneAt": "2026-07-30T18:28:48Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t4",
+      "title": "OpenAPI hot-swap assertion",
+      "done": true,
+      "detail": "After /apply, GET /openapi.json (same process, no restart) contains the provisioned table's paths/schema. Cite handlers.rs:36-38 mechanism in the test comment.",
+      "doneAt": "2026-07-30T18:28:48Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t5",
+      "title": "Phase-boundary suite run -> green (record runs)",
+      "done": true,
+      "detail": "cargo test --workspace (+ gated tests with DATABASE_URL + keys) + cargo clippy --workspace -- -D warnings. Drive failures to green. Record run count, dates, and failure->fix notes in progress.json and verification.md (Base Rule #18).",
+      "doneAt": "2026-07-30T19:40:34Z",
+      "doneBy": "claude-code"
+    }
   ]
 }

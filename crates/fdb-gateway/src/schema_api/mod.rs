@@ -117,10 +117,7 @@ pub(crate) fn subject_of(ctx: &RlsContext) -> String {
 /// Reserved-then-allowlist namespace gate (FFS-001 D4): the reserved refusal
 /// is unconditional and cheap — it runs before any database access, and the
 /// deeper spec validation repeats it defense-in-depth inside `generate`.
-pub(crate) fn require_allowlisted(
-    state: &SchemaApiState,
-    ns: &str,
-) -> Result<(), Box<Response>> {
+pub(crate) fn require_allowlisted(state: &SchemaApiState, ns: &str) -> Result<(), Box<Response>> {
     let reserved = ns == "public"
         || ns == "information_schema"
         || ns.starts_with("flint_")

@@ -40,9 +40,7 @@ async fn service_role_key_lands_service_role_and_anon_lands_anon() {
         env_nonempty("FLINT_GATE_JWKS_URL"),
         env_nonempty("FLINT_SERVICE_ROLE_KEY"),
     ) else {
-        eprintln!(
-            "skipping auth proof: FLINT_GATE_JWKS_URL / FLINT_SERVICE_ROLE_KEY not set"
-        );
+        eprintln!("skipping auth proof: FLINT_GATE_JWKS_URL / FLINT_SERVICE_ROLE_KEY not set");
         return;
     };
 
@@ -58,8 +56,14 @@ async fn service_role_key_lands_service_role_and_anon_lands_anon() {
         eprintln!("skipping auth proof: FLINT_GATE_ISSUER / FLINT_GATE_AUDIENCE not set");
         return;
     };
-    assert_eq!(issuer, "flint-forge", "FLINT_GATE_ISSUER must match the minted keys");
-    assert_eq!(audience, "flint-forge", "FLINT_GATE_AUDIENCE must match the minted keys");
+    assert_eq!(
+        issuer, "flint-forge",
+        "FLINT_GATE_ISSUER must match the minted keys"
+    );
+    assert_eq!(
+        audience, "flint-forge",
+        "FLINT_GATE_AUDIENCE must match the minted keys"
+    );
 
     let ctx = fdb_auth::rls_from_bearer(&service_key)
         .await
@@ -69,7 +73,10 @@ async fn service_role_key_lands_service_role_and_anon_lands_anon() {
     let claims: serde_json::Value =
         serde_json::from_str(&ctx.claims_json).expect("claims_json parses");
     assert!(
-        claims.get("sub").and_then(serde_json::Value::as_str).is_some(),
+        claims
+            .get("sub")
+            .and_then(serde_json::Value::as_str)
+            .is_some(),
         "service_role claims must carry a sub for ledger attribution"
     );
 
@@ -100,7 +107,10 @@ async fn migration_0015_is_idempotent() {
     });
 
     let sql = include_str!("../../../migrations/0015_flint_schema_provisioning.sql");
-    client.batch_execute(sql).await.expect("first apply of 0015");
+    client
+        .batch_execute(sql)
+        .await
+        .expect("first apply of 0015");
     client
         .batch_execute(sql)
         .await

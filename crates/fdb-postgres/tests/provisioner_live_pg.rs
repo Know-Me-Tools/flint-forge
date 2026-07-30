@@ -21,8 +21,8 @@
 
 #![allow(clippy::expect_used)]
 
-use fdb_domain::provision::{Namespace, PlanHash, PlanId, PlannedRecord, ValidatedPlan};
 use fdb_domain::provision::{ColumnSpec, ColumnType, SchemaSpec, TableSpec};
+use fdb_domain::provision::{Namespace, PlanHash, PlanId, PlannedRecord, ValidatedPlan};
 use fdb_ports::SchemaProvisioner;
 use fdb_postgres::PgProvisioner;
 use tokio_postgres::NoTls;
@@ -84,7 +84,13 @@ fn minimal_spec(ns: &str, table: &str) -> SchemaSpec {
     }
 }
 
-fn planned(ns: &str, table: &str, plan_id: &str, hash: &str, ddl: &str) -> (PlannedRecord, ValidatedPlan) {
+fn planned(
+    ns: &str,
+    table: &str,
+    plan_id: &str,
+    hash: &str,
+    ddl: &str,
+) -> (PlannedRecord, ValidatedPlan) {
     let record = PlannedRecord {
         plan_id: PlanId(plan_id.into()),
         hash: PlanHash(hash.into()),
@@ -115,6 +121,62 @@ async fn reset_fixture(client: &tokio_postgres::Client, ns: &str, plan_ids: &[&s
             .await
             .expect("clear fixture ledger row");
     }
+}
+
+/// Scenario 2 of the gate: a failing statement mid-plan leaves no partial
+/// table and a `failed` ledger row carrying a SQLSTATE (never the statement).
+async fn assert_failed_apply_rolls_back(
+    provisioner: &PgProvisioner,
+    fresh: &tokio_postgres::Client,
+    ns: &str,
+) {
+    let (record, validated) = planned(
+        ns,
+        "t_fail",
+        "pln_it_fail",
+        "sha256:it-fail",
+        &format!("CREATE TABLE {ns}.t_fail (id text PRIMARY KEY);\nSELECT 1/0;"),
+    );
+    provisioner
+        .persist_planned(&record)
+        .await
+        .expect("persist planned");
+    let err = provisioner
+        .apply(&validated, "it-subject", None)
+        .await
+        .expect_err("division by zero must fail the apply");
+    let msg = format!("{err}");
+    assert!(
+        msg.contains("SQLSTATE 22012"),
+        "error must carry SQLSTATE only, got: {msg}"
+    );
+    assert!(
+        !msg.contains("CREATE TABLE"),
+        "error must never echo the statement"
+    );
+
+    let partial: bool = fresh
+        .query_one(
+            &format!("SELECT to_regclass('{ns}.t_fail') IS NOT NULL"),
+            &[],
+        )
+        .await
+        .expect("partial query")
+        .get(0);
+    assert!(!partial, "failed apply must leave no partial table");
+
+    let (status, error_code): (String, Option<String>) = {
+        let row = fresh
+            .query_one(
+                "SELECT status, error_code FROM flint_schema.provision_ledger WHERE plan_id = 'pln_it_fail'",
+                &[],
+            )
+            .await
+            .expect("failed ledger row");
+        (row.get(0), row.get(1))
+    };
+    assert_eq!(status, "failed");
+    assert_eq!(error_code.as_deref(), Some("22012"));
 }
 
 #[tokio::test]
@@ -148,7 +210,10 @@ async fn apply_commits_visible_on_fresh_connection_and_rolls_back_on_failure() {
         "sha256:it-ok",
         &format!("CREATE TABLE {ns}.t_ok (id text PRIMARY KEY);"),
     );
-    provisioner.persist_planned(&record).await.expect("persist planned");
+    provisioner
+        .persist_planned(&record)
+        .await
+        .expect("persist planned");
     let applied = provisioner
         .apply(&validated, "it-subject", Some(1))
         .await
@@ -161,7 +226,10 @@ async fn apply_commits_visible_on_fresh_connection_and_rolls_back_on_failure() {
         .await
         .expect("fresh visibility query")
         .get(0);
-    assert!(visible, "D7 regression: table must exist on a fresh connection after apply");
+    assert!(
+        visible,
+        "D7 regression: table must exist on a fresh connection after apply"
+    );
 
     let (status, applied_by): (String, Option<String>) = {
         let row = fresh
@@ -181,47 +249,12 @@ async fn apply_commits_visible_on_fresh_connection_and_rolls_back_on_failure() {
         .apply(&validated, "it-subject", Some(1))
         .await
         .expect("replay apply");
-    assert!(replay.already_applied, "same-hash replay must report alreadyApplied");
-
-    // 2. Rollback: valid statement then a failing one → no partial table,
-    //    failed ledger row with a SQLSTATE and never the statement text.
-    let (record, validated) = planned(
-        ns,
-        "t_fail",
-        "pln_it_fail",
-        "sha256:it-fail",
-        &format!(
-            "CREATE TABLE {ns}.t_fail (id text PRIMARY KEY);\nSELECT 1/0;"
-        ),
+    assert!(
+        replay.already_applied,
+        "same-hash replay must report alreadyApplied"
     );
-    provisioner.persist_planned(&record).await.expect("persist planned");
-    let err = provisioner
-        .apply(&validated, "it-subject", None)
-        .await
-        .expect_err("division by zero must fail the apply");
-    let msg = format!("{err}");
-    assert!(msg.contains("SQLSTATE 22012"), "error must carry SQLSTATE only, got: {msg}");
-    assert!(!msg.contains("CREATE TABLE"), "error must never echo the statement");
 
-    let partial: bool = fresh
-        .query_one(&format!("SELECT to_regclass('{ns}.t_fail') IS NOT NULL"), &[])
-        .await
-        .expect("partial query")
-        .get(0);
-    assert!(!partial, "failed apply must leave no partial table");
-
-    let (status, error_code): (String, Option<String>) = {
-        let row = fresh
-            .query_one(
-                "SELECT status, error_code FROM flint_schema.provision_ledger WHERE plan_id = 'pln_it_fail'",
-                &[],
-            )
-            .await
-            .expect("failed ledger row");
-        (row.get(0), row.get(1))
-    };
-    assert_eq!(status, "failed");
-    assert_eq!(error_code.as_deref(), Some("22012"));
+    assert_failed_apply_rolls_back(&provisioner, &fresh, ns).await;
 
     reset_fixture(&client, ns, &["pln_it_ok", "pln_it_fail"]).await;
 }
@@ -267,7 +300,10 @@ async fn apply_without_planned_row_is_refused_and_rolled_back() {
         "error must name the missing precondition: {err}"
     );
     let orphaned: bool = client
-        .query_one(&format!("SELECT to_regclass('{ns}.t_orphan') IS NOT NULL"), &[])
+        .query_one(
+            &format!("SELECT to_regclass('{ns}.t_orphan') IS NOT NULL"),
+            &[],
+        )
         .await
         .expect("orphan query")
         .get(0);
@@ -304,7 +340,10 @@ async fn provisioner_cannot_create_outside_granted_namespaces() {
         "sha256:it-deny",
         &format!("CREATE TABLE {ns}.t_deny (id text PRIMARY KEY);"),
     );
-    provisioner.persist_planned(&record).await.expect("persist planned");
+    provisioner
+        .persist_planned(&record)
+        .await
+        .expect("persist planned");
     let err = provisioner
         .apply(&validated, "it-subject", None)
         .await
