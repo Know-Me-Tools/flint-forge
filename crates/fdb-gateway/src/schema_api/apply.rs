@@ -33,7 +33,11 @@ const RESTART_NOTE: &str = "REST routes for new tables are mounted at startup; O
      tools, GraphQL subscriptions and the A2UI catalog are live now.";
 
 /// Handler for `POST /schema/v1/apply`.
-#[allow(clippy::too_many_lines)] // one linear request flow; splitting would obscure the state machine
+// Justified pedantic concession: the handler is one linear request state
+// machine (gate -> load -> status branches -> drift guard -> apply ->
+// respond); splitting it into helpers would scatter the order-sensitive
+// checks this route exists to enforce.
+#[allow(clippy::too_many_lines)]
 pub async fn apply(
     State(state): State<SchemaApiState>,
     headers: HeaderMap,
@@ -62,6 +66,14 @@ pub async fn apply(
         }
     };
 
+    // Current-configuration gate FIRST (before any status branch): the
+    // allowlist may have shrunk since plan time, and even the informational
+    // alreadyApplied response should not be served for a namespace the
+    // operator has since withdrawn.
+    if let Err(resp) = require_allowlisted(&state, stored.spec.namespace.as_str()) {
+        return *resp;
+    }
+
     let version_before = i64::try_from(state.state_manager.current().version).ok();
 
     if stored.status == "applied" {
@@ -89,12 +101,6 @@ pub async fn apply(
     if now_epoch() - stored.created_at_epoch >= PLAN_TTL_SECS {
         return error_response(StatusCode::GONE, "plan expired; re-plan and review again");
     }
-    if let Err(resp) = require_allowlisted(&state, stored.spec.namespace.as_str()) {
-        // The allowlist may have shrunk since plan time; apply must honor the
-        // operator's *current* configuration.
-        return *resp;
-    }
-
     // Drift guard: re-plan the stored spec against the live schema and
     // compare the recomputed hash with the requested one.
     let live = match provisioner.introspect_namespace(&stored.spec.namespace).await {

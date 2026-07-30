@@ -22,3 +22,17 @@ Route tests cover 401/401/403/503/200-plan/200-apply/200-alreadyApplied/
 - OpenAPI convention: openapi.json is reflection-compiled only; hand-written
   groups document in runbook §1.4 (three rows added) — matching every other
   hand-written group.
+
+## Adversarial-review dispositions (2026-07-30)
+- Replay-path gating: FIXED — require_allowlisted now precedes every status
+  branch, so a withdrawn namespace refuses even the informational
+  alreadyApplied response. Expiry is deliberately NOT checked for applied
+  rows (an applied plan's TTL is meaningless; expiry protects unapplied
+  plans from drift, which the hash guard covers anyway).
+- clippy allows: cast allow REMOVED (it was needless — no casts in
+  epoch_to_iso8601); too_many_lines allow kept with expanded justification
+  per the constraints.md justified-comment rule.
+- OpenAPI: REFUTED by repo convention — openapi.json is reflection-compiled
+  only; no hand-written group (a2ui/mcp/a2a/htmx/agui) appears in it, and
+  all document in runbook §1.4, which this change extended. Diverging for
+  one group would break the uniform convention.

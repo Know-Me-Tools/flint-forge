@@ -148,7 +148,6 @@ pub(crate) fn now_epoch() -> i64 {
 
 /// Render a Unix timestamp as `YYYY-MM-DDTHH:MM:SSZ` without a date-time
 /// dependency (Howard Hinnant's `civil_from_days` algorithm).
-#[allow(clippy::cast_possible_truncation)]
 pub(crate) fn epoch_to_iso8601(epoch: i64) -> String {
     let days = epoch.div_euclid(86_400);
     let secs_of_day = epoch.rem_euclid(86_400);
