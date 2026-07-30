@@ -7,8 +7,10 @@
 
 pub mod plan;
 pub mod spec;
+pub mod store;
 pub mod validate;
 
 pub use plan::{Operation, OperationKind, Plan, PlanHash, PlanId};
 pub use spec::{ColumnSpec, ColumnType, IndexSpec, Namespace, SchemaSpec, TableSpec};
+pub use store::{AppliedPlan, LedgerSummary, PlannedRecord, StoredPlan, ValidatedPlan};
 pub use validate::{validate_spec, SpecError};

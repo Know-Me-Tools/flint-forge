@@ -1,0 +1,18 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "Cargo.lock",
+      "line": 1868,
+      "claim": "The diff changes the lockfile dependency graph without the corresponding manifest change, so the dependency edge is not reproducible from the submitted source.",
+      "evidence": "The only code-related hunk adds `\"sha2 0.10.9\",` to a package dependency list in `Cargo.lock`, while the diff contains no matching `Cargo.toml` change for any crate or `[workspace.dependencies]` entry.",
+      "suggested_fix": "Add the intended `sha2` dependency to the appropriate crate manifest, preferably via an existing `[workspace.dependencies]` entry if present, or remove the lockfile-only edit."
+    }
+  ]
+}
