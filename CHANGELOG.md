@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Schema Provisioning API** (`/schema/v1`, FFS-001, p17 — PR #31): plan/apply/
+  status endpoints plus `CREATE TABLE` synthesis for existing tables. A
+  `service_role` JWT declares tables via a typed JSON spec (closed type enum —
+  no endpoint accepts SQL); Forge generates tenant-scoped DDL (`tenant_id`,
+  ENABLE+FORCE RLS, four fixed policies, tenant index, grants) and applies it
+  as a dedicated `flint_provisioner` Postgres role inside an operator
+  namespace allowlist (`FLINT_PROVISION_NAMESPACES`, default **off** — all
+  endpoints 503 until enabled; `PROVISIONER_DATABASE_URL` required). Plans
+  are content-hashed over spec + generated DDL (409 drift guard), idempotent
+  on replay, 24h expiry, and fully audited in `flint_schema.provision_ledger`
+  (migration `0015`; JWT `sub` + SQLSTATE only). Apply responses disclose
+  `restartRequired: true` — reflection surfaces (OpenAPI/MCP/GraphQL/A2UI)
+  update immediately, per-table REST routes mount at startup. Docs:
+  `docs/api/schema-provisioning.md`, `docs/FFS-001-SCHEMA-PROVISIONING.md`,
+  runbook §14.
+- **Key management guide** rewritten (`docs/ANON-SERVICE-ROLE-KEYS.md`):
+  creation via flint-gate's `generate-forge-keys.mjs`, JWKS serving, rotation
+  with the measured ~`FLINT_GATE_JWKS_TTL_SECS` revocation-latency window
+  (rotate AND restart for incident-grade revocation).
+
+### Changed
+- CI coverage gate (p16-c009) relocated from the no-database job into the
+  Postgres `integration` job so `DATABASE_URL`-gated tests count toward the
+  ≥90% changed-crate threshold.
+
 ### BREAKING
 - **authz**: Keto is now **opt-in**. `FLINT_AUTHZ_MODE` selects the
   authorization model: `rls` (the new default) enforces Postgres grants + RLS +

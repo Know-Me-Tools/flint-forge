@@ -17,6 +17,9 @@ This is the single source of truth for the **Flint Forge** platform — the data
 
 Detail level is "buildable": ports as trait signatures, SQL as DDL, edge interfaces as WIT, surfaces as route tables. Where a value is environment-dependent or version-sensitive, it is flagged in §8, not guessed.
 
+**Companion specifications** shipped after this RFC:
+[`FFS-001-SCHEMA-PROVISIONING.md`](FFS-001-SCHEMA-PROVISIONING.md) — the `/schema/v1` schema-provisioning API (p17): declarative, `service_role`-gated table provisioning with generated tenant RLS, extending Quarry beyond reflect-what-exists. API reference: [`api/schema-provisioning.md`](api/schema-provisioning.md).
+
 ---
 
 ## 1. Naming & System Map

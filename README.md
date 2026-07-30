@@ -44,6 +44,11 @@ A PostgREST-compatible REST surface plus a hybrid GraphQL surface over Postgres 
   closed — FRF does not yet expose the `WatchEntityType` RPC it depends on
 - **Router hot-swap** — REST/GraphQL routers rebuilt on schema change and swapped via
   `ArcSwap<Router<()>>`
+- **Schema provisioning** (`/schema/v1`, FFS-001) — a `service_role`-gated plan/apply
+  API that turns a typed JSON spec into generated, tenant-scoped DDL (RLS policies
+  generated, never caller-authored; no endpoint accepts SQL). Default off; executes as a
+  dedicated `flint_provisioner` role inside an operator allowlist. See
+  [`docs/api/schema-provisioning.md`](docs/api/schema-provisioning.md)
 
 Crates: `fdb-domain`, `fdb-ports`, `fdb-app`, `fdb-postgres`, `fdb-realtime`, `fdb-auth`,
 `fdb-reflection`, `fdb-gateway` (Axum composition root).

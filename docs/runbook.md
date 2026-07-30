@@ -1525,6 +1525,12 @@ dedicated `flint_provisioner` role (apply). **Default off** — with
 `FLINT_PROVISION_NAMESPACES` empty/unset every endpoint returns `503` and no
 DDL path exists.
 
+Full API reference with examples and best practices:
+[`docs/api/schema-provisioning.md`](api/schema-provisioning.md). Design
+rationale and as-built corrections:
+[`docs/FFS-001-SCHEMA-PROVISIONING.md`](FFS-001-SCHEMA-PROVISIONING.md).
+Key creation/rotation: [`docs/ANON-SERVICE-ROLE-KEYS.md`](ANON-SERVICE-ROLE-KEYS.md).
+
 ### Enable (once per deployment)
 
 ```bash

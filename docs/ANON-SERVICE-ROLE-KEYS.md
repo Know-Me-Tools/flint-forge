@@ -1,87 +1,179 @@
-# Flint Anon and Service Role Keys
+# Anon and Service-Role Keys — Creation, Management, and Use
 
 Flint follows the Supabase-style dual-key model:
 
-| Key | Variable | Safe in clients | Role | RLS |
+| Key | Variable | Safe in clients | JWT `role` claim | RLS |
 |---|---|---:|---|---|
 | Anon key | `FLINT_ANON_KEY` | Yes | `anon` | Applied |
-| Service role key | `FLINT_SERVICE_ROLE_KEY` | No | `service_role` | Bypassed |
+| Service role key | `FLINT_SERVICE_ROLE_KEY` | **No** | `service_role` | Bypassed (real `BYPASSRLS`, migration `0014`) |
 
-> **Reality check (p17-c001).** Two corrections to earlier revisions of this
-> document:
->
-> 1. **No production code in this repository reads `FLINT_ANON_KEY` or
->    `FLINT_SERVICE_ROLE_KEY` as configuration.** They are *client-held
->    credentials* — bearer tokens a caller presents in the `Authorization`
->    header — not Forge configuration. The only readers in the workspace are
->    environment-gated integration tests, which consume them *as* the
->    credentials under test (e.g.
->    `crates/fdb-gateway/tests/provisioning_prereqs.rs`).
-> 2. **`forge keygen init` does not exist.** `forge-cli` has no `keygen`
->    subcommand (the spec that proposed it, `FLINT_ANON_SERVICE_ROLE_KEYS_SPEC.md`
->    §3.1, was implemented elsewhere — see below). The working generator is
->    `sansaba-workspace/infra/scripts/generate-keys.mjs`, which emits RS256
->    keys with a `kid` header, `role: "anon"` / `role: "service_role"` claims,
->    `iss`/`aud` = `flint-forge`, a 10-year expiry, the public half as
->    `infra/keys/jwks.json` (serve it at `FLINT_GATE_JWKS_URL`), and both
->    tokens into a git-ignored `.env.keys`. Re-running it ROTATES: prior
->    tokens die once the served JWKS refreshes.
+Both are long-lived (10-year) RS256 JWTs carrying `role`, `sub`,
+`principal_type`, `iss`/`aud` = `flint-forge`, and a `kid` header. They are
+**client-held credentials** presented in the `Authorization` header — no code
+in this repository reads them as configuration (the only in-repo readers are
+environment-gated integration tests that use them *as* the credentials under
+test).
 
-Generate working keys (from the sansaba-workspace checkout):
+## Creating keys — the flint-gate minting utility
+
+Keys are minted by **`flint-gate`'s `scripts/generate-forge-keys.mjs`**
+(promoted from the Sansaba workspace per FFS-001 §11.6 so every Forge
+consumer uses one utility instead of copying key-minting code between repos —
+which is how private keys end up in the wrong repository).
 
 ```bash
-node infra/scripts/generate-keys.mjs
+cd flint-gate
+FLINT_PROJECT=acme FLINT_ENV=production node scripts/generate-forge-keys.mjs
 ```
 
-`FLINT_SERVICE_ROLE_KEY` bypasses Postgres row-level security through the
-`service_role` role (a real `BYPASSRLS` attribute since migration `0014`). It
-must stay server-side only. `FLINT_ANON_KEY` is publishable, but it is safe
-only when RLS policies are correct. Because both keys are 10-year, **expiry is
-not a security control — rotation is the revocation path.**
+Outputs (all git-ignored, private material `0600`):
 
-## Roles
+| File | Content | Handling |
+|---|---|---|
+| `keys/jwt-private.pem` | RS256 signing key | **NEVER commit. NEVER serve.** |
+| `keys/jwks.json` | Public half (JWKS with the `kid`) | Serve to verifiers — this is the file behind `FLINT_GATE_JWKS_URL` |
+| `.env.keys` | `FLINT_ANON_KEY`, `FLINT_SERVICE_ROLE_KEY`, plus the matching `FLINT_GATE_*` values | Distribute the anon key freely; the service key to trusted servers only |
 
-`ext-flint-auth` installs:
+Full utility documentation (flags, claims, JWKS serving options, examples):
+the **Forge Keys** page in flint-gate's Docusaurus docs
+(`flint-gate/docs/docs/forge-keys.md`).
 
-- `anon`
-- `authenticated`
-- `agent`
-- `service_role`
-- `authenticator`
+Why RS256 and not the HS256 that flint-gate's runtime defaults to: Forge's
+verifier (`forge-identity::verify_and_build`) is JWKS-only — it requires a
+`kid` header and accepts RS256/RS384/RS512/ES256/ES384. A shared secret has
+no public half to publish, so an HS256 token can never satisfy Forge's
+verification path.
 
-`authenticator` is the bridge role used by pooled database connections. The JWT
-claim `role` determines the request role, while helper functions read the same
-claim set through `request.jwt.claims`:
-
-- `auth.uid()`
-- `auth.role()`
-- `auth.tenant_id()`
-- `auth.agent_id()`
-- `auth.workflow_id()`
-- `auth.principal_type()`
-- `auth.is_service_role()`
-
-## Token Minting
-
-Development/local token minting remains available:
+## Wiring Forge to verify the keys
 
 ```bash
-forge token mint \
-  --secret "$FLINT_JWT_SECRET" \
-  --role agent \
-  --principal-type Agent \
-  --subject user-uuid \
-  --agent-id agent-uuid \
-  --workflow-id workflow-uuid \
-  --scope "read:documents mcp:tool:read"
+# Where the public JWKS is served (see "Serving the JWKS" below)
+FLINT_GATE_JWKS_URL=https://keys.example.com/jwks.json
+# Must equal the iss/aud the utility mints — both are `flint-forge`
+FLINT_GATE_ISSUER=flint-forge
+FLINT_GATE_AUDIENCE=flint-forge
+# Optional: production (default) fails closed when AUDIENCE is unset
+# FLINT_GATE_MODE=production
+# Optional: JWKS cache TTL — see "Rotation" for why you may want it lower
+# FLINT_GATE_JWKS_TTL_SECS=600
 ```
 
-Production signing authority belongs in `flint-gate`; `forge-cli` is the local
-initialization and operator wrapper.
+Every request's bearer is signature-verified against the JWKS (Postgres never
+verifies JWTs); the decoded `role` claim becomes the `SET LOCAL ROLE` for the
+request transaction, the full claim set lands in `request.jwt.claims` for RLS
+policies and the `auth.*` helpers, and the raw bearer is forwarded for
+outbound use by `flint_hooks`/`flint_llm` via `auth.bearer()`.
 
-> **Note:** `forge token mint` signs with HS256 using `FLINT_JWT_SECRET`.
-> `fdb-gateway`'s bearer verification (`forge-identity::verify_and_build`)
-> only accepts JWKS-verified RS256/RS384/RS512/ES256/ES384 tokens and never
-> reads `FLINT_JWT_SECRET`. A token minted this way will not authenticate
-> against `fdb-gateway` in any environment as the code stands today. See
-> [`docs/runbook.md §2.2`](runbook.md) for the real inbound-auth requirements.
+### Serving the JWKS
+
+Anything that serves the static `jwks.json` over HTTP works:
+
+```bash
+# Local development
+npx serve flint-gate/keys          # or: python3 -m http.server --directory flint-gate/keys 8917
+export FLINT_GATE_JWKS_URL=http://127.0.0.1:3000/jwks.json
+```
+
+In production, serve it from any static origin your gateways can reach
+(object storage behind a CDN is fine — it is public material). Keep the URL
+stable; rotation replaces the file's *contents*.
+
+## Using the keys
+
+**Anon key — publishable, RLS-gated.** Safe in browsers and mobile apps
+*only because* RLS policies constrain every row it can touch. It is not a
+secret; it is a scoped identity.
+
+```bash
+# Read via the reflected REST surface as the anon role
+curl -sS "$FORGE_URL/public/articles?status=eq.published" \
+  -H "Authorization: Bearer $FLINT_ANON_KEY"
+```
+
+**Service-role key — server-side only, bypasses all RLS.** Treat it like a
+database superuser password. Uses: backend jobs, admin tooling, Kiln's
+`/admin/functions` control plane, and the entire
+[Schema Provisioning API](api/schema-provisioning.md) (`/schema/v1`), which
+refuses any other role with `403`.
+
+```bash
+# Plan + apply a declared table (see the provisioning API docs for the full flow)
+curl -sS -X POST "$FORGE_URL/schema/v1/plan" \
+  -H "Authorization: Bearer $FLINT_SERVICE_ROLE_KEY" \
+  -H "content-type: application/json" -d @entities.spec.json
+```
+
+**End-user tokens are neither of these.** Per-user JWTs (real `sub`, tenant
+claims, short expiry) are minted by flint-gate's runtime minter on
+authentication flows and ride the same verification pipeline. The two
+long-lived keys are *application* credentials in the Supabase sense.
+
+## Rotation — the revocation path
+
+These keys carry no user data and a 10-year expiry, so **expiry is not a
+security control; rotation is.** Re-running the utility regenerates the
+keypair and both tokens, and rewrites `jwks.json` with a new `kid` — once
+the served JWKS is refreshed, tokens signed by the old key fail verification
+(`kid` no longer resolvable, refetch-on-unknown-kid confirms promptly).
+
+**Know the latency window.** Forge's JWKS cache is process-global with a
+`FLINT_GATE_JWKS_TTL_SECS` TTL (default 600s), so a rotated-out key keeps
+verifying on a warm gateway for up to that long after the JWKS changes. For
+incident-grade revocation:
+
+```bash
+# 1. Preserve the old token for the post-rotation verification test
+cp .env.keys .env.keys.pre-rotation
+# 2. Rotate
+FLINT_PROJECT=acme FLINT_ENV=production node scripts/generate-forge-keys.mjs
+# 3. Publish the new jwks.json to the FLINT_GATE_JWKS_URL origin
+# 4. RESTART every gateway (or run with a low FLINT_GATE_JWKS_TTL_SECS)
+# 5. Distribute the new keys to services; verify the old key is dead:
+FLINT_OLD_SERVICE_ROLE_KEY=$(source .env.keys.pre-rotation; echo $FLINT_SERVICE_ROLE_KEY) \
+  cargo test -p fdb-gateway --test phase_boundary_e2e rotated_out_service_role_key_is_refused
+```
+
+The rotation mechanics themselves are covered continuously by
+`crates/fdb-gateway/tests/rotation_revocation.rs`, which simulates a
+rotation against a scratch JWKS in-process.
+
+## Best practices
+
+- **Never** commit `jwt-private.pem` or `.env.keys`; never log a bearer; the
+  service key never reaches a browser, mobile app, or public repo.
+- The anon key is only as safe as your RLS. Provision tables
+  `tenantScoped: true` (the [provisioning API](api/schema-provisioning.md)
+  generates the policies) and remember: a table without RLS is not exposed
+  by Forge's reflection surfaces at all.
+- One key set per project × environment (`FLINT_PROJECT`/`FLINT_ENV` shape
+  the `kid` and `jti`), so a staging leak never touches production.
+- Rotate on any suspicion of exposure, on personnel changes with key access,
+  and on a calendar cadence of your choosing — and always follow a rotation
+  with gateway restarts (see the latency window above).
+- Keep the service key's standing power bounded: the provisioning API
+  additionally requires per-namespace operator grants to
+  `flint_provisioner` ([runbook §14](runbook.md)), so even a leaked service
+  key cannot create tables outside the allowlist.
+
+## Postgres roles behind the claims
+
+`ext-flint-auth` installs `anon`, `authenticated`, `agent`, `service_role`,
+and `authenticator` (the pooled-connection bridge role). The JWT `role`
+claim selects the request role via `SET LOCAL ROLE`; the same claim set is
+readable in SQL through `auth.uid()`, `auth.role()`, `auth.tenant_id()`,
+`auth.agent_id()`, `auth.workflow_id()`, `auth.principal_type()`, and
+`auth.is_service_role()`.
+
+## Relationship to flint-gate's runtime minter (and `forge token mint`)
+
+- **flint-gate's runtime JWT minter** (`flint_gate_core::auth::jwt_mint`)
+  issues short-TTL *session* tokens during auth flows, and Gate forwards
+  identity downstream via trusted `X-Flint-*` headers
+  (`docs/FLINT-KEYS.md` in flint-gate). That is a different mechanism from
+  the two long-lived keys, which are verified directly from the token's
+  `role` claim by `forge-identity`.
+- **`forge token mint`** (forge-cli) signs HS256 with `FLINT_JWT_SECRET` —
+  useful for components that accept it, but **it cannot authenticate against
+  `fdb-gateway`**, whose verification is JWKS/asymmetric-only and never
+  reads `FLINT_JWT_SECRET`. Use the flint-gate utility above for anything
+  that must pass Forge's bearer verification.
