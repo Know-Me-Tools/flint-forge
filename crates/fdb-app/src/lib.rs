@@ -4,6 +4,7 @@
 
 pub mod a2ui;
 pub mod graphql;
+pub mod provision;
 
 use fdb_domain::{ChangeEvent, RestQuery, SubscriptionSpec, TableMeta};
 use fdb_ports::{BackendError, ChangeStreamSource, GraphQlExecutor, RestExecutor, StreamError};

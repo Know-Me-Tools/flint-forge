@@ -5,6 +5,8 @@
 use forge_domain::Json;
 use serde::{Deserialize, Serialize};
 
+pub mod provision;
+
 /// Introspected shape of a single Postgres table or view, as returned by
 /// `SchemaProvider::introspect`.
 ///

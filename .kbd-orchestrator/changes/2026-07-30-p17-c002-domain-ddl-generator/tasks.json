@@ -2,19 +2,61 @@
   "backend": "native-kbd",
   "change": "p17-c002-domain-ddl-generator",
   "tasks": [
-    { "id": "t1", "title": "fdb-domain/src/provision/ types + newtypes + ColumnType", "done": false,
-      "detail": "Directory module (mod.rs + spec.rs/types split as needed). #[non_exhaustive] ColumnType (9 variants), #[repr(transparent)] PlanId/PlanHash/Namespace, serde with camelCase rename to match FFS-001 §4.2 JSON. Zero infra deps." },
-    { "id": "t2", "title": "Validation layer", "done": false,
-      "detail": "is_safe_identifier on every identifier; reserved-namespace refusal (flint_*, public, pg_*, information_schema) BEFORE allowlist concerns; tenant_id not caller-declarable when tenantScoped; default allowlist literals+now()+gen_random_uuid(); tenantScoped:false requires acknowledgeUnscoped:true." },
-    { "id": "t3", "title": "generate() core emission", "done": false,
-      "detail": "fdb-app/src/provision/ddl.rs — CREATE SCHEMA IF NOT EXISTS / CREATE TABLE / ADD COLUMN (nullable-or-defaulted only) / CREATE INDEX from caller IndexSpec (validate columns exist in spec) + generated tenant index. Additive-only: no DROP/RENAME/type-change emission paths exist at all." },
-    { "id": "t4", "title": "Tenant RLS template emission", "done": false,
-      "detail": "Verbatim FFS-001 §5: tenant_id text NOT NULL column injection, ENABLE+FORCE RLS, four policies ({t}_tenant_select/insert/update/delete against request.jwt.claims->>'tenant_id'), tenant index, GRANT SELECT,INSERT,UPDATE,DELETE TO authenticated. Caller cannot influence policy bodies." },
-    { "id": "t5", "title": "Diff vs live TableMeta -> operations + noop", "done": false,
-      "detail": "Consume live: &[TableMeta] (fdb-domain existing type); operations[] with kind/target/exists per §4.2 example; noop:true when live already satisfies spec; existing caller index diffs to no-op." },
-    { "id": "t6", "title": "Canonical serialization + sha256 planHash", "done": false,
-      "detail": "Stable field ordering (BTreeMap or explicit ordered struct serialization) — hash must be identical across JSON field reordering of the input. sha2 from workspace deps. PlanHash format \"sha256:<hex>\"." },
-    { "id": "t7", "title": "Unit test suite (written now, run at boundary)", "done": false,
-      "detail": "DDL snapshot tests (tenant-scoped, unscoped+acknowledged, unique/multi-column indexes, defaults); hash stability across reordering; noop detection; full injection corpus from FFS-001 §8 Phase 1 gate incl. index names/columns: \"; DROP TABLE\", quoted identifiers, unicode homoglyphs, -- comment terminators, nested $$." }
+    {
+      "id": "t1",
+      "title": "fdb-domain/src/provision/ types + newtypes + ColumnType",
+      "done": true,
+      "detail": "Directory module (mod.rs + spec.rs/types split as needed). #[non_exhaustive] ColumnType (9 variants), #[repr(transparent)] PlanId/PlanHash/Namespace, serde with camelCase rename to match FFS-001 §4.2 JSON. Zero infra deps.",
+      "doneAt": "2026-07-30T17:11:05Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t2",
+      "title": "Validation layer",
+      "done": true,
+      "detail": "is_safe_identifier on every identifier; reserved-namespace refusal (flint_*, public, pg_*, information_schema) BEFORE allowlist concerns; tenant_id not caller-declarable when tenantScoped; default allowlist literals+now()+gen_random_uuid(); tenantScoped:false requires acknowledgeUnscoped:true.",
+      "doneAt": "2026-07-30T17:11:05Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t3",
+      "title": "generate() core emission",
+      "done": true,
+      "detail": "fdb-app/src/provision/ddl.rs — CREATE SCHEMA IF NOT EXISTS / CREATE TABLE / ADD COLUMN (nullable-or-defaulted only) / CREATE INDEX from caller IndexSpec (validate columns exist in spec) + generated tenant index. Additive-only: no DROP/RENAME/type-change emission paths exist at all.",
+      "doneAt": "2026-07-30T17:11:05Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t4",
+      "title": "Tenant RLS template emission",
+      "done": true,
+      "detail": "Verbatim FFS-001 §5: tenant_id text NOT NULL column injection, ENABLE+FORCE RLS, four policies ({t}_tenant_select/insert/update/delete against request.jwt.claims->>'tenant_id'), tenant index, GRANT SELECT,INSERT,UPDATE,DELETE TO authenticated. Caller cannot influence policy bodies.",
+      "doneAt": "2026-07-30T17:11:05Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t5",
+      "title": "Diff vs live TableMeta -> operations + noop",
+      "done": true,
+      "detail": "Consume live: &[TableMeta] (fdb-domain existing type); operations[] with kind/target/exists per §4.2 example; noop:true when live already satisfies spec; existing caller index diffs to no-op.",
+      "doneAt": "2026-07-30T17:11:05Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t6",
+      "title": "Canonical serialization + sha256 planHash",
+      "done": true,
+      "detail": "Stable field ordering (BTreeMap or explicit ordered struct serialization) — hash must be identical across JSON field reordering of the input. sha2 from workspace deps. PlanHash format \"sha256:<hex>\".",
+      "doneAt": "2026-07-30T17:11:05Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t7",
+      "title": "Unit test suite (written now, run at boundary)",
+      "done": true,
+      "detail": "DDL snapshot tests (tenant-scoped, unscoped+acknowledged, unique/multi-column indexes, defaults); hash stability across reordering; noop detection; full injection corpus from FFS-001 §8 Phase 1 gate incl. index names/columns: \"; DROP TABLE\", quoted identifiers, unicode homoglyphs, -- comment terminators, nested $$.",
+      "doneAt": "2026-07-30T17:11:05Z",
+      "doneBy": "claude-code"
+    }
   ]
 }
