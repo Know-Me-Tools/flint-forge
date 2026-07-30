@@ -1,12 +1,8 @@
 POSITION REMINDER — read this as your FIRST tool call every turn
-Phase: p17-schema-provisioning
-Step: 35 of 35 (c001–c006 implementation-complete; c007 skipped-optional)
-Stage: execute complete → reflect
-Next command: /kbd-reflect p17-schema-provisioning
+Phase: p17-schema-provisioning — COMPLETE (reflection written)
+Step: 35 of 35 (6/6 required changes; c007 skipped-optional)
+Stage: phase_complete
+Next command: /kbd-next-phase (auto-seeds p18-sansaba-integration from reflection.md) or /kbd-new-phase <name>
 
-Boundary record: 6 test runs, final = 611 passed / 0 failed / 6 ignored
-(live flint-forge-pg:18 + real Sansaba keys). fmt/clippy pedantic clean.
-
-NOTE: KBD control plane returns 401 for this project's token (documented,
-deferred). All state here is projection-first; replay into the runtime
-after the operator reissues the token.
+NOTE: KBD control plane 401 (documented, deferred) — replay p17 records
+into the runtime after the operator reissues the token.
