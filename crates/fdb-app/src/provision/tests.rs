@@ -222,6 +222,43 @@ fn hash_is_stable_across_input_field_reordering() {
 }
 
 #[test]
+fn hash_treats_column_and_table_order_as_semantic() {
+    // Column order IS the CREATE TABLE column order, and table order is the
+    // execution order — both must be part of the hash, unlike JSON field
+    // order which must not be.
+    let two_cols = |first: &str, second: &str| SchemaSpec {
+        namespace: Namespace("acme_app".into()),
+        tables: vec![TableSpec {
+            name: "t".into(),
+            comment: None,
+            tenant_scoped: true,
+            acknowledge_unscoped: false,
+            columns: vec![
+                col(first, ColumnType::Text, true, false, None),
+                col(second, ColumnType::Text, true, false, None),
+            ],
+            indexes: vec![],
+            api_exposed: true,
+        }],
+    };
+    assert_ne!(
+        plan_hash(&two_cols("a", "b")).expect("hash ab"),
+        plan_hash(&two_cols("b", "a")).expect("hash ba"),
+        "column order is semantic and must change the hash"
+    );
+
+    let two_tables = |first: &str, second: &str| SchemaSpec {
+        namespace: Namespace("acme_app".into()),
+        tables: vec![tenant_table(first), tenant_table(second)],
+    };
+    assert_ne!(
+        plan_hash(&two_tables("t1", "t2")).expect("hash t1t2"),
+        plan_hash(&two_tables("t2", "t1")).expect("hash t2t1"),
+        "table order is semantic and must change the hash"
+    );
+}
+
+#[test]
 fn injection_corpus_fails_before_any_generation() {
     let cases: Vec<SchemaSpec> = vec![
         // "; DROP TABLE" in a table name

@@ -86,23 +86,28 @@ impl PgProvisioner {
             .map_err(|e| PgError::Checkout(e.to_string()).into())
     }
 
-    /// Best-effort `failed` ledger transition on its own connection, after
-    /// the apply transaction rolled back. SQLSTATE only.
-    async fn mark_failed(&self, plan_id: &PlanId, sqlstate: Option<&str>) {
+    /// `failed` ledger transition on its own connection, after the apply
+    /// transaction rolled back. Returns whether the transition persisted so
+    /// the caller can surface a lost audit record instead of hiding it.
+    async fn mark_failed(&self, plan_id: &PlanId, sqlstate: Option<&str>) -> bool {
         let Ok(conn) = self.conn().await else {
             tracing::warn!(plan_id = %plan_id, "could not record failed ledger row: no connection");
-            return;
+            return false;
         };
-        let result = conn
+        match conn
             .execute(
                 "UPDATE flint_schema.provision_ledger \
                  SET status = 'failed', error_code = $2 \
                  WHERE plan_id = $1 AND status = 'planned'",
                 &[&plan_id.as_str(), &sqlstate],
             )
-            .await;
-        if let Err(e) = result {
-            tracing::warn!(plan_id = %plan_id, error = %sqlstate_only("mark-failed", &e), "failed ledger transition did not persist");
+            .await
+        {
+            Ok(rows) => rows == 1,
+            Err(e) => {
+                tracing::warn!(plan_id = %plan_id, error = %sqlstate_only("mark-failed", &e), "failed ledger transition did not persist");
+                false
+            }
         }
     }
 }
@@ -185,21 +190,29 @@ impl SchemaProvisioner for PgProvisioner {
         let conn = self.conn().await?;
         let spec_json = serde_json::to_value(&record.spec)
             .map_err(|e| BackendError::Query(format!("provision spec serialize: {e}")))?;
-        conn.execute(
-            "INSERT INTO flint_schema.provision_ledger \
-             (plan_id, plan_hash, namespace, spec, generated_ddl, status) \
-             VALUES ($1, $2, $3, $4, $5, 'planned') \
-             ON CONFLICT (plan_id) DO NOTHING",
-            &[
-                &record.plan_id.as_str(),
-                &record.hash.as_str(),
-                &record.namespace.as_str(),
-                &spec_json,
-                &record.ddl,
-            ],
-        )
-        .await
-        .map_err(|e| sqlstate_only("persist-planned", &e))?;
+        let rows = conn
+            .execute(
+                "INSERT INTO flint_schema.provision_ledger \
+                 (plan_id, plan_hash, namespace, spec, generated_ddl, status) \
+                 VALUES ($1, $2, $3, $4, $5, 'planned') \
+                 ON CONFLICT (plan_id) DO NOTHING",
+                &[
+                    &record.plan_id.as_str(),
+                    &record.hash.as_str(),
+                    &record.namespace.as_str(),
+                    &spec_json,
+                    &record.ddl,
+                ],
+            )
+            .await
+            .map_err(|e| sqlstate_only("persist-planned", &e))?;
+        if rows == 0 {
+            // A silently-ignored conflict would let a later apply run against
+            // whatever the existing row stores instead of this plan.
+            return Err(BackendError::Query(
+                "provision persist-planned refused: plan_id already exists".into(),
+            ));
+        }
         Ok(())
     }
 
@@ -265,13 +278,22 @@ impl SchemaProvisioner for PgProvisioner {
             conn.batch_execute("BEGIN").await?;
             conn.batch_execute("SET LOCAL ROLE flint_provisioner").await?;
             conn.batch_execute(&plan.ddl).await?;
+            // Constrained to the exact planned row: status must still be
+            // `planned` (a failed row must never flip to applied) and the
+            // stored hash must match the plan being executed (a reused
+            // plan_id with different content must not be blessed).
             ledger_rows = conn
                 .execute(
                     "UPDATE flint_schema.provision_ledger \
                      SET status = 'applied', applied_by = $2, applied_at = now(), \
                          version_before = $3 \
-                     WHERE plan_id = $1",
-                    &[&plan.plan_id.as_str(), &applied_by, &version_before],
+                     WHERE plan_id = $1 AND status = 'planned' AND plan_hash = $4",
+                    &[
+                        &plan.plan_id.as_str(),
+                        &applied_by,
+                        &version_before,
+                        &plan.hash.as_str(),
+                    ],
                 )
                 .await?;
             if ledger_rows == 1 {
@@ -289,7 +311,8 @@ impl SchemaProvisioner for PgProvisioner {
                 let _ = conn.batch_execute("ROLLBACK").await;
                 Err(BackendError::Query(format!(
                     "provision apply refused: {ledger_rows} planned ledger rows matched \
-                     plan_id (persist_planned must precede apply)"
+                     plan_id+hash in status 'planned' (persist_planned must precede \
+                     apply, and the stored plan must match)"
                 )))
             }
             Err(e) => {
@@ -305,8 +328,17 @@ impl SchemaProvisioner for PgProvisioner {
                         already_applied: true,
                     });
                 }
-                self.mark_failed(&plan.plan_id, sqlstate.as_deref()).await;
-                Err(sqlstate_only("apply", &e))
+                let failed_recorded = self.mark_failed(&plan.plan_id, sqlstate.as_deref()).await;
+                let mut err = sqlstate_only("apply", &e);
+                if !failed_recorded {
+                    // Surface the audit gap instead of hiding it behind the
+                    // original failure: the operator must know the ledger row
+                    // still reads `planned`.
+                    if let BackendError::Query(msg) = &mut err {
+                        msg.push_str("; failed-ledger transition also did not persist");
+                    }
+                }
+                Err(err)
             }
         }
     }

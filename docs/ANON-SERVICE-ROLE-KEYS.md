@@ -10,10 +10,13 @@ Flint follows the Supabase-style dual-key model:
 > **Reality check (p17-c001).** Two corrections to earlier revisions of this
 > document:
 >
-> 1. **No code in this repository reads `FLINT_ANON_KEY` or
->    `FLINT_SERVICE_ROLE_KEY`.** They are *client-held credentials* — bearer
->    tokens a caller presents in the `Authorization` header — not Forge
->    configuration. Grep the workspace: zero readers.
+> 1. **No production code in this repository reads `FLINT_ANON_KEY` or
+>    `FLINT_SERVICE_ROLE_KEY` as configuration.** They are *client-held
+>    credentials* — bearer tokens a caller presents in the `Authorization`
+>    header — not Forge configuration. The only readers in the workspace are
+>    environment-gated integration tests, which consume them *as* the
+>    credentials under test (e.g.
+>    `crates/fdb-gateway/tests/provisioning_prereqs.rs`).
 > 2. **`forge keygen init` does not exist.** `forge-cli` has no `keygen`
 >    subcommand (the spec that proposed it, `FLINT_ANON_SERVICE_ROLE_KEYS_SPEC.md`
 >    §3.1, was implemented elsewhere — see below). The working generator is

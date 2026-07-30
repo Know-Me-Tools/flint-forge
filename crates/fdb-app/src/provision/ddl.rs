@@ -263,6 +263,15 @@ fn emit_table_diff(
         });
     }
 
+    // `rls_enabled` is the only RLS fact TableMeta carries: FORCE, the four
+    // policies, the grant, and the tenant index are not introspectable here.
+    // Using it as the satisfied-proxy is safe because every non-verifiable
+    // absence FAILS CLOSED: RLS enabled with a missing policy is default-deny
+    // (no rows visible, never a leak); a missing FORCE only matters to the
+    // table owner (flint_provisioner, which serves no query path); a missing
+    // grant denies `authenticated` outright. Broken-but-safe states surface
+    // as empty results and are repaired by re-planning after `enable_rls`
+    // drift (below) or via the migration path — they are never silent leaks.
     if table.tenant_scoped && !existing.rls_enabled {
         emit_tenant_block(ns, t, statements, operations);
     }

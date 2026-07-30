@@ -22,3 +22,15 @@ negative tests for every injection shape; clippy pedantic clean.
   IF NOT EXISTS guards (replay-safe); exact replay of an applied plan is
   caught by the ledger (alreadyApplied). Documented in ddl.rs module docs;
   the earlier spec sentence claiming index no-op is superseded by this note.
+
+## Adversarial-review dispositions (round 2, 2026-07-30)
+- RLS-block completeness on existing scoped tables: ACCEPTED with recorded
+  fail-closed analysis (ddl.rs): rls_enabled is the satisfied-proxy because
+  every non-verifiable absence (policy/FORCE/grant/tenant-index) fails
+  CLOSED — default-deny or denied grant — never a cross-tenant leak.
+- Injection corpus in one test: ACCEPTED — cases are individually labelled
+  inside the corpus test (expect_err names the case index); the earlier
+  verification phrasing "each shape its own test" is relaxed to "each shape
+  individually asserted and labelled".
+- Hash order coverage: FIXED — hash_treats_column_and_table_order_as_semantic
+  asserts column order AND table order change the hash.
