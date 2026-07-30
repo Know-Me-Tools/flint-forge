@@ -46,20 +46,20 @@ async fn service_role_key_lands_service_role_and_anon_lands_anon() {
         return;
     };
 
-    // The Sansaba key set mints iss/aud = "flint-forge" (FFS-001 §4.1). A
-    // deployment pointing this test at those keys with different expected
-    // values would fail verification below anyway; assert explicitly so the
-    // mismatch is named instead of surfacing as a generic Verification error.
-    assert_eq!(
-        env_nonempty("FLINT_GATE_ISSUER").as_deref(),
-        Some("flint-forge"),
-        "FLINT_GATE_ISSUER must be `flint-forge` to match the minted keys"
-    );
-    assert_eq!(
-        env_nonempty("FLINT_GATE_AUDIENCE").as_deref(),
-        Some("flint-forge"),
-        "FLINT_GATE_AUDIENCE must be `flint-forge` to match the minted keys"
-    );
+    // Absent issuer/audience are missing PREREQUISITES (verify_and_build
+    // cannot run without them) → skip, like every other gated test. Present
+    // but wrong values are a real misconfiguration against the Sansaba key
+    // set (which mints iss/aud = "flint-forge", FFS-001 §4.1) → fail loudly
+    // with the mismatch named, instead of a generic Verification error below.
+    let (Some(issuer), Some(audience)) = (
+        env_nonempty("FLINT_GATE_ISSUER"),
+        env_nonempty("FLINT_GATE_AUDIENCE"),
+    ) else {
+        eprintln!("skipping auth proof: FLINT_GATE_ISSUER / FLINT_GATE_AUDIENCE not set");
+        return;
+    };
+    assert_eq!(issuer, "flint-forge", "FLINT_GATE_ISSUER must match the minted keys");
+    assert_eq!(audience, "flint-forge", "FLINT_GATE_AUDIENCE must match the minted keys");
 
     let ctx = fdb_auth::rls_from_bearer(&service_key)
         .await

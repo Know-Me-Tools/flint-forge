@@ -229,7 +229,10 @@ impl SchemaProvisioner for PgProvisioner {
         }))
     }
 
-    #[instrument(skip_all, fields(plan_id = %plan.plan_id, namespace = %plan.namespace))]
+    #[instrument(
+        skip_all,
+        fields(plan_id = %plan.plan_id, namespace = %plan.namespace, role = "flint_provisioner")
+    )]
     async fn apply(
         &self,
         plan: &ValidatedPlan,
@@ -254,27 +257,41 @@ impl SchemaProvisioner for PgProvisioner {
 
         // One explicit transaction on one connection: BEGIN → SET LOCAL ROLE
         // (constant identifier) → generated DDL → ledger transition → COMMIT.
+        // The COMMIT is conditional on the ledger transition matching exactly
+        // one `planned` row: DDL must never land without its audit record
+        // (Base Rule #18), so a missing row rolls the whole apply back.
+        let mut ledger_rows: u64 = 0;
         let result: Result<(), tokio_postgres::Error> = async {
             conn.batch_execute("BEGIN").await?;
             conn.batch_execute("SET LOCAL ROLE flint_provisioner").await?;
             conn.batch_execute(&plan.ddl).await?;
-            conn.execute(
-                "UPDATE flint_schema.provision_ledger \
-                 SET status = 'applied', applied_by = $2, applied_at = now(), \
-                     version_before = $3 \
-                 WHERE plan_id = $1",
-                &[&plan.plan_id.as_str(), &applied_by, &version_before],
-            )
-            .await?;
-            conn.batch_execute("COMMIT").await?;
+            ledger_rows = conn
+                .execute(
+                    "UPDATE flint_schema.provision_ledger \
+                     SET status = 'applied', applied_by = $2, applied_at = now(), \
+                         version_before = $3 \
+                     WHERE plan_id = $1",
+                    &[&plan.plan_id.as_str(), &applied_by, &version_before],
+                )
+                .await?;
+            if ledger_rows == 1 {
+                conn.batch_execute("COMMIT").await?;
+            }
             Ok(())
         }
         .await;
 
         match result {
-            Ok(()) => Ok(AppliedPlan {
+            Ok(()) if ledger_rows == 1 => Ok(AppliedPlan {
                 already_applied: false,
             }),
+            Ok(()) => {
+                let _ = conn.batch_execute("ROLLBACK").await;
+                Err(BackendError::Query(format!(
+                    "provision apply refused: {ledger_rows} planned ledger rows matched \
+                     plan_id (persist_planned must precede apply)"
+                )))
+            }
             Err(e) => {
                 // Roll back whatever partial state the transaction holds; the
                 // failed-ledger transition then happens on a fresh implicit
@@ -292,6 +309,24 @@ impl SchemaProvisioner for PgProvisioner {
                 Err(sqlstate_only("apply", &e))
             }
         }
+    }
+
+    #[instrument(skip_all, fields(plan_id = %plan_id))]
+    async fn record_version_after(
+        &self,
+        plan_id: &PlanId,
+        version_after: i64,
+    ) -> Result<(), BackendError> {
+        let conn = self.conn().await?;
+        conn.execute(
+            "UPDATE flint_schema.provision_ledger \
+             SET version_after = $2 \
+             WHERE plan_id = $1 AND status = 'applied'",
+            &[&plan_id.as_str(), &version_after],
+        )
+        .await
+        .map_err(|e| sqlstate_only("record-version-after", &e))?;
+        Ok(())
     }
 
     #[instrument(skip_all)]

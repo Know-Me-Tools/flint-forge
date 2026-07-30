@@ -262,6 +262,77 @@ fn injection_corpus_fails_before_any_generation() {
 }
 
 #[test]
+fn type_drift_on_existing_column_is_refused_not_nooped() {
+    // Live `payload` is text; the spec says jsonb. Reporting "satisfied"
+    // would be a false noop — the generator must refuse toward migrations.
+    let live = [live_table(
+        "acme_app",
+        "watch",
+        &[("id", "text", false), ("payload", "text", false), ("tenant_id", "text", false)],
+        true,
+    )];
+    let err = generate(&spec("acme_app", vec![tenant_table("watch")]), &live)
+        .expect_err("type drift must refuse");
+    assert!(matches!(
+        err,
+        PlanError::ColumnDrift { ref column, .. } if column == "payload"
+    ));
+}
+
+#[test]
+fn nullability_drift_is_refused_both_directions() {
+    let live = [live_table(
+        "acme_app",
+        "watch",
+        &[("id", "text", true), ("payload", "jsonb", false), ("tenant_id", "text", false)],
+        true,
+    )];
+    // Spec id is NOT NULL; live id is nullable.
+    let err = generate(&spec("acme_app", vec![tenant_table("watch")]), &live)
+        .expect_err("nullability drift must refuse");
+    assert!(matches!(
+        err,
+        PlanError::ColumnDrift { ref column, .. } if column == "id"
+    ));
+}
+
+#[test]
+fn live_canonical_type_spellings_still_satisfy_the_spec() {
+    // format_type renders `timestamp with time zone`; that must not read as
+    // drift against a `timestamptz` spec column.
+    let mut t = tenant_table("watch");
+    t.columns.push(col("filed_at", ColumnType::Timestamptz, true, false, None));
+    let live = [live_table(
+        "acme_app",
+        "watch",
+        &[
+            ("id", "text", false),
+            ("payload", "jsonb", false),
+            ("filed_at", "timestamp with time zone", true),
+            ("tenant_id", "text", false),
+        ],
+        true,
+    )];
+    let plan = generate(&spec("acme_app", vec![t]), &live).expect("canonical spelling matches");
+    assert!(plan.noop, "canonical type spellings must not produce drift:\n{}", plan.ddl);
+}
+
+#[test]
+fn caller_index_may_not_shadow_the_generated_tenant_index() {
+    let mut t = tenant_table("watch");
+    t.indexes.push(IndexSpec {
+        name: "watch_tenant_idx".into(),
+        columns: vec!["id".into()],
+        unique: false,
+    });
+    let err = generate(&spec("acme_app", vec![t]), &[]).expect_err("reserved index name");
+    assert!(matches!(
+        err,
+        PlanError::Spec(SpecError::ReservedIndexName(ref n)) if n == "watch_tenant_idx"
+    ));
+}
+
+#[test]
 fn reserved_namespace_error_names_the_namespace() {
     let err = generate(&spec("pg_catalog", vec![tenant_table("t")]), &[]).expect_err("reserved");
     assert!(matches!(

@@ -67,6 +67,10 @@ pub enum SpecError {
         /// The missing column.
         column: String,
     },
+    /// A caller-declared index uses the name of the generated tenant index
+    /// (`{table}_tenant_idx`); `IF NOT EXISTS` would then silently skip one
+    /// of the two, so the collision is refused up front.
+    ReservedIndexName(String),
 }
 
 impl std::fmt::Display for SpecError {
@@ -98,6 +102,10 @@ impl std::fmt::Display for SpecError {
             Self::UnknownIndexColumn { index, column } => write!(
                 f,
                 "index `{index}` references undeclared column `{column}`"
+            ),
+            Self::ReservedIndexName(name) => write!(
+                f,
+                "index name `{name}` is reserved for the generated tenant index"
             ),
         }
     }
@@ -204,6 +212,9 @@ fn validate_table(table: &TableSpec, warnings: &mut Vec<String>) -> Result<(), S
                 kind: "index",
                 value: iname.to_owned(),
             });
+        }
+        if table.tenant_scoped && iname == format!("{name}_tenant_idx") {
+            return Err(SpecError::ReservedIndexName(iname.to_owned()));
         }
         index_names.push(iname);
         for icol in &idx.columns {

@@ -226,6 +226,56 @@ async fn apply_commits_visible_on_fresh_connection_and_rolls_back_on_failure() {
     reset_fixture(&client, ns, &["pln_it_ok", "pln_it_fail"]).await;
 }
 
+/// Audit invariant: apply WITHOUT a persisted planned row must refuse and
+/// roll the DDL back — committed DDL with no ledger record would be an
+/// unauditable change (Base Rule #18).
+#[tokio::test]
+async fn apply_without_planned_row_is_refused_and_rolled_back() {
+    let Some(url) = database_url() else {
+        eprintln!("skipping: DATABASE_URL not set");
+        return;
+    };
+    let client = admin(&url).await;
+    if !prereqs_present(&client).await {
+        eprintln!("skipping: migration 0015 artifacts absent");
+        return;
+    }
+
+    let ns = "p17c003_orphan";
+    reset_fixture(&client, ns, &["pln_it_orphan_never_persisted"]).await;
+    client
+        .batch_execute(&format!(
+            "CREATE SCHEMA {ns}; GRANT USAGE, CREATE ON SCHEMA {ns} TO flint_provisioner;"
+        ))
+        .await
+        .expect("create granted fixture schema");
+
+    let provisioner = PgProvisioner::from_url(&url).expect("pool");
+    let (_, orphan) = planned(
+        ns,
+        "t_orphan",
+        "pln_it_orphan_never_persisted",
+        "sha256:it-orphan",
+        &format!("CREATE TABLE {ns}.t_orphan (id text PRIMARY KEY);"),
+    );
+    let err = provisioner
+        .apply(&orphan, "it-subject", None)
+        .await
+        .expect_err("apply without a planned ledger row must refuse");
+    assert!(
+        format!("{err}").contains("persist_planned"),
+        "error must name the missing precondition: {err}"
+    );
+    let orphaned: bool = client
+        .query_one(&format!("SELECT to_regclass('{ns}.t_orphan') IS NOT NULL"), &[])
+        .await
+        .expect("orphan query")
+        .get(0);
+    assert!(!orphaned, "DDL must not survive without its audit record");
+
+    reset_fixture(&client, ns, &["pln_it_orphan_never_persisted"]).await;
+}
+
 #[tokio::test]
 async fn provisioner_cannot_create_outside_granted_namespaces() {
     let Some(url) = database_url() else {

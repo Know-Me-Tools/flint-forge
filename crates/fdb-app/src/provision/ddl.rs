@@ -44,6 +44,38 @@ pub enum PlanError {
     /// The spec could not be canonicalized for hashing.
     #[error("spec canonicalization failed: {0}")]
     Canonicalize(String),
+    /// An existing column differs from the spec in type or nullability.
+    /// Type changes are deferred out of v1 (FFS-001 D6) and silently
+    /// reporting the column as satisfied would be a false noop — so the plan
+    /// is refused instead, pointing at the reviewed migration path.
+    #[error(
+        "table `{table}`: column `{column}` differs from the live schema ({detail}); \
+         type/nullability changes are not provisionable in v1 — use the reviewed \
+         migration path"
+    )]
+    ColumnDrift {
+        /// The table containing the drifted column.
+        table: String,
+        /// The drifted column.
+        column: String,
+        /// What differs (spec vs live).
+        detail: String,
+    },
+}
+
+/// Does a live Postgres type name satisfy a spec [`ColumnType`]?
+/// `format_type` renders canonical spellings (`timestamp with time zone`),
+/// while cached introspection may carry short names — accept both.
+fn type_matches(spec_ty: ColumnType, live: &str) -> bool {
+    let live = live.trim();
+    match spec_ty {
+        ColumnType::Timestamptz => live == "timestamptz" || live == "timestamp with time zone",
+        ColumnType::Integer => live == "integer" || live == "int4",
+        ColumnType::Bigint => live == "bigint" || live == "int8",
+        ColumnType::Boolean => live == "boolean" || live == "bool",
+        ColumnType::Numeric => live == "numeric" || live.starts_with("numeric("),
+        _ => live == spec_ty.sql_name(),
+    }
 }
 
 /// Generate a [`Plan`] from a validated spec and the live namespace state.
@@ -188,8 +220,30 @@ fn emit_table_diff(
     }
 
     for col in desired {
-        let already = existing.columns.iter().any(|c| c.name == col.name);
-        if already {
+        if let Some(live_col) = existing.columns.iter().find(|c| c.name == col.name) {
+            // Present by name is not enough: a type or nullability mismatch
+            // must refuse, never silently count toward a noop.
+            if !type_matches(col.column_type, &live_col.sql_type) {
+                return Err(PlanError::ColumnDrift {
+                    table: t.clone(),
+                    column: col.name.clone(),
+                    detail: format!(
+                        "spec type `{}` vs live type `{}`",
+                        col.column_type.sql_name(),
+                        live_col.sql_type
+                    ),
+                });
+            }
+            if live_col.nullable != col.nullable {
+                return Err(PlanError::ColumnDrift {
+                    table: t.clone(),
+                    column: col.name.clone(),
+                    detail: format!(
+                        "spec nullable={} vs live nullable={}",
+                        col.nullable, live_col.nullable
+                    ),
+                });
+            }
             continue;
         }
         if !col.nullable && col.default.is_none() {

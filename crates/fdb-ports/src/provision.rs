@@ -68,6 +68,20 @@ pub trait SchemaProvisioner: Send + Sync {
         version_before: Option<i64>,
     ) -> Result<AppliedPlan, BackendError>;
 
+    /// Stamp the reflection schema version observed after apply onto an
+    /// `applied` ledger row. Separate from [`SchemaProvisioner::apply`]
+    /// because the post-apply version is only observable once the (async)
+    /// reflection recompile lands — the gateway samples it and reports back.
+    ///
+    /// # Errors
+    ///
+    /// [`BackendError::Query`] with SQLSTATE context on update failure.
+    async fn record_version_after(
+        &self,
+        plan_id: &fdb_domain::provision::PlanId,
+        version_after: i64,
+    ) -> Result<(), BackendError>;
+
     /// The most recent `applied`/`failed` ledger row, for `/status`.
     ///
     /// # Errors
