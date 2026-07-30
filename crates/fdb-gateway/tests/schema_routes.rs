@@ -226,38 +226,57 @@ async fn plan_apply_replay_and_drift_full_cycle() {
     env.reset_namespace(ns).await;
 }
 
-/// p17-c005 gate: round-trip for every `ColumnType`, nullable and not, with
-/// and without defaults — provision through the real API, then synthesize
-/// back through `GET …/ddl` and assert each column re-renders with its
-/// canonical Postgres type, nullability, and default.
+/// p17-c005 gate: round-trip for EVERY `ColumnType` x nullable x
+/// with/without default — 36 columns provisioned through the real API, then
+/// synthesized back through `GET …/ddl`, asserting each column line renders
+/// quoted, with the canonical live type, correct nullability, and a DEFAULT
+/// clause exactly when one was declared.
+/// (spec type, canonical live spelling, a valid allowlisted default) for the
+/// round-trip matrix.
+const RT_TYPES: [(&str, &str, &str); 9] = [
+    ("text", "text", "'x'"),
+    ("integer", "integer", "0"),
+    ("bigint", "bigint", "0"),
+    ("numeric", "numeric", "-3.5"),
+    ("boolean", "boolean", "true"),
+    ("date", "date", "'2024-01-01'"),
+    ("timestamptz", "timestamp with time zone", "now()"),
+    ("uuid", "uuid", "gen_random_uuid()"),
+    ("jsonb", "jsonb", "'{}'"),
+];
+
+/// Spec with all 36 type x nullability x default combinations.
+fn rt_spec(ns: &str) -> String {
+    let mut columns = vec![
+        r#"{"name":"id","type":"text","nullable":false,"primaryKey":true}"#.to_owned(),
+    ];
+    for (ty, _, default) in &RT_TYPES {
+        let d = default.replace('"', "");
+        columns.push(format!(r#"{{"name":"c_{ty}_n","type":"{ty}","nullable":true}}"#));
+        columns.push(format!(r#"{{"name":"c_{ty}_nn","type":"{ty}","nullable":false}}"#));
+        columns.push(format!(r#"{{"name":"c_{ty}_nd","type":"{ty}","nullable":true,"default":"{d}"}}"#));
+        columns.push(format!(r#"{{"name":"c_{ty}_nnd","type":"{ty}","nullable":false,"default":"{d}"}}"#));
+    }
+    format!(
+        r#"{{"namespace":"{ns}","tables":[{{"name":"rt","tenantScoped":true,"columns":[{}]}}]}}"#,
+        columns.join(",")
+    )
+}
+
 #[tokio::test]
 async fn ddl_round_trip_covers_every_column_type() {
     let Some(env) = TestEnv::with_keys().await else { return };
     let ns = "p17c005_rt";
     env.reset_namespace(ns).await;
     let router = env.router_enabled(&[ns]);
+    let spec = rt_spec(ns);
 
-    // Every ColumnType appears at least once; a mix of nullability and
-    // defaults exercises all rendering branches.
-    let spec = format!(
-        r#"{{"namespace":"{ns}","tables":[{{"name":"rt","tenantScoped":true,"columns":[
-            {{"name":"id","type":"uuid","nullable":false,"primaryKey":true,"default":"gen_random_uuid()"}},
-            {{"name":"c_text","type":"text","nullable":false,"default":"'x'"}},
-            {{"name":"c_int","type":"integer","nullable":true}},
-            {{"name":"c_big","type":"bigint","nullable":false,"default":"0"}},
-            {{"name":"c_num","type":"numeric","nullable":true,"default":"-3.5"}},
-            {{"name":"c_bool","type":"boolean","nullable":false,"default":"true"}},
-            {{"name":"c_date","type":"date","nullable":true}},
-            {{"name":"c_ts","type":"timestamptz","nullable":false,"default":"now()"}},
-            {{"name":"c_json","type":"jsonb","nullable":true,"default":"'{{}}'"}}
-        ]}}]}}"#
-    );
     let response = router
         .clone()
         .oneshot(request("POST", "/schema/v1/plan", Some(&env.service_key), spec.as_bytes()))
         .await
         .expect("infallible");
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::OK, "plan must succeed");
     let hash = body_json(response).await["planHash"].as_str().expect("hash").to_owned();
     let response = router
         .clone()
@@ -287,24 +306,38 @@ async fn ddl_round_trip_covers_every_column_type() {
     assert_eq!(body["rlsForced"], true);
     let ddl = body["ddl"].as_str().expect("ddl").to_owned();
 
-    for expected in [
-        "id uuid NOT NULL DEFAULT gen_random_uuid()",
-        "c_text text NOT NULL DEFAULT 'x'::text",
-        "c_int integer",
-        "c_big bigint NOT NULL DEFAULT 0",
-        "c_num numeric DEFAULT '-3.5'::numeric",
-        "c_bool boolean NOT NULL DEFAULT true",
-        "c_date date",
-        "c_ts timestamp with time zone NOT NULL DEFAULT now()",
-        "c_json jsonb DEFAULT '{}'::jsonb",
-        "tenant_id text NOT NULL",
-        "PRIMARY KEY (id)",
-    ] {
-        assert!(
-            ddl.contains(expected),
-            "synthesized DDL must contain `{expected}`; got:\n{ddl}"
-        );
+    for (ty, live, _) in &RT_TYPES {
+        for (suffix, not_null, has_default) in [
+            ("n", false, false),
+            ("nn", true, false),
+            ("nd", false, true),
+            ("nnd", true, true),
+        ] {
+            let line = ddl
+                .lines()
+                .find(|l| l.trim_start().starts_with(&format!("\"c_{ty}_{suffix}\"")))
+                .unwrap_or_else(|| panic!("column c_{ty}_{suffix} missing from DDL:\n{ddl}"));
+            assert!(
+                line.contains(live),
+                "c_{ty}_{suffix}: expected live type `{live}` in `{line}`"
+            );
+            assert_eq!(
+                line.contains("NOT NULL"),
+                not_null,
+                "c_{ty}_{suffix}: NOT NULL mismatch in `{line}`"
+            );
+            assert_eq!(
+                line.contains("DEFAULT"),
+                has_default,
+                "c_{ty}_{suffix}: DEFAULT presence mismatch in `{line}`"
+            );
+        }
     }
+    // Stable function defaults round-trip verbatim; PK + tenant column render quoted.
+    assert!(ddl.contains("DEFAULT now()"));
+    assert!(ddl.contains("DEFAULT gen_random_uuid()"));
+    assert!(ddl.contains("\"tenant_id\" text NOT NULL"));
+    assert!(ddl.contains("PRIMARY KEY (\"id\")"));
 
     // Injection-shaped path segment fails BEFORE any query.
     let response = router

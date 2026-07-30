@@ -74,8 +74,10 @@ pub struct DdlColumn {
     pub nullable: bool,
     /// The default expression as Postgres renders it, if any.
     pub default: Option<String>,
-    /// Whether the column is part of the primary key.
-    pub is_pk: bool,
+    /// 1-based position of the column within the primary key, when it is
+    /// part of one — preserves composite-key order, which is NOT table
+    /// column order in general.
+    pub pk_ordinal: Option<i32>,
 }
 
 /// Everything needed to synthesize a `CREATE TABLE` string for one existing

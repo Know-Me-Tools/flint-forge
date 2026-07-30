@@ -18,3 +18,14 @@ defaults.
 - Round-trip realized as: provision all 9 ColumnTypes through the real API,
   GET …/ddl, assert every column re-renders with canonical type spelling,
   nullability, and default (ddl_round_trip_covers_every_column_type).
+
+## Adversarial-review dispositions (2026-07-30)
+- Round-trip coverage: FIXED — full 36-combination matrix (9 types x
+  nullable x with/without default), per-column line assertions on quoted
+  name, canonical live type, NOT NULL, and DEFAULT presence; stable function
+  defaults (now(), gen_random_uuid()) asserted verbatim.
+- Composite PK order: FIXED — pk_ordinal via array_position(indkey) and
+  renderer sorts by it (table column order is not key order).
+- Identifier quoting: FIXED — synthesized output quotes every identifier
+  (doubled-quote escaping); generated provisioning DDL keeps validated bare
+  identifiers by design.

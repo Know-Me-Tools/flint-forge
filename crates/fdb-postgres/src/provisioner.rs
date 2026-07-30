@@ -400,7 +400,7 @@ impl SchemaProvisioner for PgProvisioner {
                         format_type(a.atttypid, a.atttypmod),
                         NOT a.attnotnull,
                         pg_get_expr(d.adbin, d.adrelid),
-                        COALESCE(a.attnum = ANY(i.indkey), false)
+                        array_position(i.indkey::smallint[], a.attnum)::int
                  FROM pg_catalog.pg_class c
                  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
                  JOIN pg_catalog.pg_attribute a
@@ -424,7 +424,7 @@ impl SchemaProvisioner for PgProvisioner {
                     sql_type: row.get(1),
                     nullable: row.get(2),
                     default: row.get(3),
-                    is_pk: row.get(4),
+                    pk_ordinal: row.get(4),
                 })
                 .collect(),
             rls_enabled: flags.get(0),

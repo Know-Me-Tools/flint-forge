@@ -359,18 +359,27 @@ fn emit_tenant_block(
     });
 }
 
+/// Quote one identifier for synthesized output (doubled-quote escaping).
+/// Synthesis describes *existing* tables, which may carry mixed-case,
+/// reserved-word, or punctuation identifiers created out of band — unlike
+/// generated provisioning DDL, whose identifiers are pre-validated.
+fn quote_ident(ident: &str) -> String {
+    format!("\"{}\"", ident.replace('"', "\"\""))
+}
+
 /// Synthesize a `CREATE TABLE` string from live column rows (FFS-001 §4.4).
 ///
 /// Pure renderer over [`fdb_domain::provision::TableDdlInfo`]; the route
 /// layer fetches the rows through the port and attaches rls/schema-version
-/// facts around this text.
+/// facts around this text. Identifiers are quoted, and composite primary
+/// keys render in key order (`pk_ordinal`), not table column order.
 #[must_use]
 pub fn synthesize_create_table(table: &str, info: &fdb_domain::provision::TableDdlInfo) -> String {
     let mut lines: Vec<String> = info
         .columns
         .iter()
         .map(|col| {
-            let mut line = format!("  {} {}", col.name, col.sql_type);
+            let mut line = format!("  {} {}", quote_ident(&col.name), col.sql_type);
             if !col.nullable {
                 line.push_str(" NOT NULL");
             }
@@ -381,16 +390,17 @@ pub fn synthesize_create_table(table: &str, info: &fdb_domain::provision::TableD
             line
         })
         .collect();
-    let pk: Vec<&str> = info
+    let mut pk: Vec<(i32, &str)> = info
         .columns
         .iter()
-        .filter(|c| c.is_pk)
-        .map(|c| c.name.as_str())
+        .filter_map(|c| c.pk_ordinal.map(|ord| (ord, c.name.as_str())))
         .collect();
+    pk.sort_unstable_by_key(|(ord, _)| *ord);
     if !pk.is_empty() {
-        lines.push(format!("  PRIMARY KEY ({})", pk.join(", ")));
+        let cols: Vec<String> = pk.iter().map(|(_, name)| quote_ident(name)).collect();
+        lines.push(format!("  PRIMARY KEY ({})", cols.join(", ")));
     }
-    format!("CREATE TABLE {table} (\n{}\n);", lines.join(",\n"))
+    format!("CREATE TABLE {} (\n{}\n);", quote_ident(table), lines.join(",\n"))
 }
 
 fn emit_index(
