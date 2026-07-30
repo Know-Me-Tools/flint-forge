@@ -71,6 +71,8 @@ pub enum SpecError {
     /// (`{table}_tenant_idx`); `IF NOT EXISTS` would then silently skip one
     /// of the two, so the collision is refused up front.
     ReservedIndexName(String),
+    /// An index declares no columns — `CREATE INDEX … ()` is invalid SQL.
+    EmptyIndex(String),
 }
 
 impl std::fmt::Display for SpecError {
@@ -107,6 +109,7 @@ impl std::fmt::Display for SpecError {
                 f,
                 "index name `{name}` is reserved for the generated tenant index"
             ),
+            Self::EmptyIndex(name) => write!(f, "index `{name}` declares no columns"),
         }
     }
 }
@@ -215,6 +218,9 @@ fn validate_table(table: &TableSpec, warnings: &mut Vec<String>) -> Result<(), S
         }
         if table.tenant_scoped && iname == format!("{name}_tenant_idx") {
             return Err(SpecError::ReservedIndexName(iname.to_owned()));
+        }
+        if idx.columns.is_empty() {
+            return Err(SpecError::EmptyIndex(iname.to_owned()));
         }
         index_names.push(iname);
         for icol in &idx.columns {

@@ -89,7 +89,9 @@ impl PgProvisioner {
     /// `failed` ledger transition on its own connection, after the apply
     /// transaction rolled back. Returns whether the transition persisted so
     /// the caller can surface a lost audit record instead of hiding it.
-    async fn mark_failed(&self, plan_id: &PlanId, sqlstate: Option<&str>) -> bool {
+    /// Constrained by hash exactly like the `applied` transition: a reused
+    /// plan_id must never mark an unrelated stored plan as failed.
+    async fn mark_failed(&self, plan_id: &PlanId, hash: &PlanHash, sqlstate: Option<&str>) -> bool {
         let Ok(conn) = self.conn().await else {
             tracing::warn!(plan_id = %plan_id, "could not record failed ledger row: no connection");
             return false;
@@ -98,8 +100,8 @@ impl PgProvisioner {
             .execute(
                 "UPDATE flint_schema.provision_ledger \
                  SET status = 'failed', error_code = $2 \
-                 WHERE plan_id = $1 AND status = 'planned'",
-                &[&plan_id.as_str(), &sqlstate],
+                 WHERE plan_id = $1 AND status = 'planned' AND plan_hash = $3",
+                &[&plan_id.as_str(), &sqlstate, &hash.as_str()],
             )
             .await
         {
@@ -328,7 +330,9 @@ impl SchemaProvisioner for PgProvisioner {
                         already_applied: true,
                     });
                 }
-                let failed_recorded = self.mark_failed(&plan.plan_id, sqlstate.as_deref()).await;
+                let failed_recorded = self
+                    .mark_failed(&plan.plan_id, &plan.hash, sqlstate.as_deref())
+                    .await;
                 let mut err = sqlstate_only("apply", &e);
                 if !failed_recorded {
                     // Surface the audit gap instead of hiding it behind the
@@ -350,14 +354,20 @@ impl SchemaProvisioner for PgProvisioner {
         version_after: i64,
     ) -> Result<(), BackendError> {
         let conn = self.conn().await?;
-        conn.execute(
-            "UPDATE flint_schema.provision_ledger \
-             SET version_after = $2 \
-             WHERE plan_id = $1 AND status = 'applied'",
-            &[&plan_id.as_str(), &version_after],
-        )
-        .await
-        .map_err(|e| sqlstate_only("record-version-after", &e))?;
+        let rows = conn
+            .execute(
+                "UPDATE flint_schema.provision_ledger \
+                 SET version_after = $2 \
+                 WHERE plan_id = $1 AND status = 'applied'",
+                &[&plan_id.as_str(), &version_after],
+            )
+            .await
+            .map_err(|e| sqlstate_only("record-version-after", &e))?;
+        if rows != 1 {
+            return Err(BackendError::Query(format!(
+                "provision record-version-after matched {rows} applied ledger rows for plan_id"
+            )));
+        }
         Ok(())
     }
 
