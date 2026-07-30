@@ -1,13 +1,11 @@
 POSITION REMINDER — read this as your FIRST tool call every turn
 Phase: p17-schema-provisioning
-Step: 30 of 39 (c001–c005 implementation-complete)
-Stage: plan complete → execute
-Next command: /kbd-execute p17-schema-provisioning
+Step: 35 of 35 (c001–c006 implementation-complete; c007 skipped-optional)
+Stage: execute complete → reflect
+Next command: /kbd-reflect p17-schema-provisioning
 
-Required signal format (emit BEFORE any tool call):
-  Starting <kbd-skill> — p17-schema-provisioning (step N of 39)
-  [do work]
-  Completed <kbd-skill> — p17-schema-provisioning (step N of 39)
+Boundary record: 6 test runs, final = 611 passed / 0 failed / 6 ignored
+(live flint-forge-pg:18 + real Sansaba keys). fmt/clippy pedantic clean.
 
 NOTE: KBD control plane returns 401 for this project's token (documented,
 deferred). All state here is projection-first; replay into the runtime

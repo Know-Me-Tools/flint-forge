@@ -60,15 +60,19 @@ VERIFICATION REQUIREMENTS
 - QA gates per completed change: /refine-validate + /adversarial-review
   --mode diff (skip heuristics: <3 files or docs-only).
 
-PROGRESS LEDGER
+PROGRESS LEDGER (final, 2026-07-30)
 
-- [PENDING] p17-c001-prereqs-auth-migration — SELF
-- [PENDING] p17-c002-domain-ddl-generator — SELF
-- [PENDING] p17-c003-provisioner-port-adapter — SELF
-- [PENDING] p17-c004-gateway-schema-routes — SELF
-- [PENDING] p17-c005-ddl-reflection-endpoint — SELF
-- [PENDING] p17-c006-phase-boundary-tests — SELF
-- [PENDING] p17-c007-route-hotreload-delegate — SELF (OPTIONAL)
+- [DONE] p17-c001-prereqs-auth-migration — SELF (QA: 3 review rounds, dispositions in verification.md)
+- [DONE] p17-c002-domain-ddl-generator — SELF (QA: 3 rounds; drift/collision/empty-index hardening)
+- [DONE] p17-c003-provisioner-port-adapter — SELF (QA: 3 rounds; audit-invariant + hash-constrained transitions)
+- [DONE] p17-c004-gateway-schema-routes — SELF (QA: 2 rounds; 503-not-404 + allowlist-before-replay)
+- [DONE] p17-c005-ddl-reflection-endpoint — SELF (QA: 1 round; PK-order + quoting + 36-combo round-trip)
+- [DONE] p17-c006-phase-boundary-tests — SELF (6 recorded runs; final 611 passed / 0 failed / 6 ignored with live PG + real keys)
+- [SKIPPED-OPTIONAL] p17-c007-route-hotreload-delegate — per plan D-P7, no benchmark run; restartRequired:true stays the disclosed contract
+
+Archive note: change dirs deliberately NOT moved to changes/archive/ this
+session — kbd-reflect consumes the verification evidence in place; archive
+after reflection.
 
 OUTPUTS
 
