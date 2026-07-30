@@ -1570,6 +1570,13 @@ revocation is rotation. Re-running the script regenerates the keypair and
 invalidates all prior tokens once the served JWKS is refreshed
 (`forge-identity` refetches on unknown `kid`).
 
+**Revocation latency:** the JWKS cache is process-global with a
+`FLINT_GATE_JWKS_TTL_SECS` TTL (default 600s), so a rotated-out key keeps
+verifying on a warm gateway for up to that long after the served JWKS
+changes. For an incident-grade revocation, rotate AND restart the gateway
+(or run with a lower TTL). Measured by
+`crates/fdb-gateway/tests/rotation_revocation.rs`.
+
 ### Notes
 
 - Plans expire 24h after creation; apply refuses drifted plans with `409`.

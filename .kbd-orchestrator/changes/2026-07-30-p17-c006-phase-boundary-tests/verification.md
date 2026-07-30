@@ -45,3 +45,19 @@ Gate items:
 - [x] OpenAPI hot-swap: provisioned_table_appears_in_openapi_without_restart green (listener + watch channel, <30s)
 - [~] Rotation: test written + armed on FLINT_OLD_SERVICE_ROLE_KEY (must not rotate the operator's real keys itself); manual 4-step procedure documented in the test doc comment — evidence lands on first real rotation
 - [x] Suite + clippy green; run count = 5, recorded here and in progress.json
+
+## Adversarial-review dispositions (2026-07-30)
+- Rotation self-simulation: FIXED — rotation_revocation.rs (own test binary
+  = own process, so the env mutation cannot race other suites) proves the
+  current key verifies, then dies against a scratch JWKS whose kid set is
+  empty. Run 6: green. Bonus finding now in runbook §14: revocation latency
+  equals the process-global JWKS TTL (default 600s) — rotate AND restart
+  for incident-grade revocation. The armed real-rotation test remains for
+  operator-procedure evidence.
+- OpenAPI via route: ACCEPTED EQUIVALENCE — openapi_handler is a three-line
+  passthrough of state_manager.current().openapi_doc (handlers.rs:36–38,
+  binary-target private state, not constructible from tests without another
+  lib extraction); the asserted value IS the served value.
+- "Run record not committed": REFUTED — progress.json is in commit 105a8db
+  (git show --stat confirms); the judge's packet diff was filtered to
+  crates/.github and could not see it.

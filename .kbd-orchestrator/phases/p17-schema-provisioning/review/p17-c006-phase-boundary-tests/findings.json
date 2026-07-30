@@ -1,0 +1,38 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-gateway/tests/phase_boundary_e2e.rs",
+      "line": 216,
+      "claim": "The key-rotation revocation requirement is not satisfied because the test does not rotate a scratch JWKS source and silently skips unless FLINT_OLD_SERVICE_ROLE_KEY is manually supplied.",
+      "evidence": "Acceptance criterion 3 requires: \"re-run generate-keys.mjs against a scratch JWKS source, restart/refresh the JWKS provider, assert the OLD service_role key now 401s\"; the added test only documents a manual procedure at lines 199-214 and returns early when FLINT_OLD_SERVICE_ROLE_KEY is absent at lines 216-219.",
+      "suggested_fix": "Implement an automated scratch JWKS rotation harness in the test or CI job so the old key is actually invalidated and asserted without relying on a manually armed environment variable."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-gateway/tests/phase_boundary_e2e.rs",
+      "line": 187,
+      "claim": "The OpenAPI hot-swap test does not exercise /openapi.json as required; it inspects the StateManager directly instead.",
+      "evidence": "Acceptance criterion 4 requires: \"provisioned table appears in /openapi.json WITHOUT restart\"; the test fetches `env.state_manager.current().openapi_doc.clone()` at lines 187-188 and never sends a request to `/openapi.json`.",
+      "suggested_fix": "After the watch-channel update, issue an HTTP request through the router to `/openapi.json` and assert the response body contains the provisioned table."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": ".kbd-orchestrator/progress.json",
+      "claim": "The phase-boundary run record required by Base Rule #18 is not committed.",
+      "evidence": "Acceptance criterion 5 requires: \"record run count + dates in progress.json (Base Rule #18)\" and the verification checklist says \"recorded here and in progress.json\", but the diff contains no change to any `progress.json` file and the provided file tree does not list `.kbd-orchestrator/progress.json`.",
+      "suggested_fix": "Add or update the required progress.json record with the run count, dates, and outcomes from the phase-boundary run."
+    }
+  ],
+  "sycophancy_screen": {
+    "reject_cap": 2,
+    "cap_overridden": false,
+    "cap_default": 2
+  }
+}
