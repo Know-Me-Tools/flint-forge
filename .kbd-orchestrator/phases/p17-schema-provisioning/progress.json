@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "2",
+  "phase": "p17-schema-provisioning",
+  "parentPhase": null,
+  "childPhases": [],
+  "childPointer": null,
+  "assessment_complete": true,
+  "plan_complete": true,
+  "execute_complete": false,
+  "reflect_complete": false,
+  "implementation_total": 39,
+  "implementation_completed": 6,
+  "changes_total": 7,
+  "changes_completed": 0,
+  "completion": {
+    "primaryCounter": "implementation",
+    "implementation": {
+      "completed": 6,
+      "total": 39,
+      "status": "PENDING"
+    },
+    "evidence": {
+      "status": "NOT_TRACKED",
+      "summary": null,
+      "blockers": []
+    },
+    "certification": {
+      "status": "NOT_TRACKED",
+      "summary": null,
+      "blockers": []
+    },
+    "publication": {
+      "status": "NOT_TRACKED",
+      "summary": null,
+      "blockers": []
+    }
+  },
+  "completed_changes": [],
+  "active_change": "p17-c002-domain-ddl-generator",
+  "blocked_changes": [],
+  "changes": [
+    {
+      "id": "p17-c001-prereqs-auth-migration",
+      "status": "IMPLEMENTATION_COMPLETE",
+      "tasks_total": 6,
+      "dir": "changes/2026-07-30-p17-c001-prereqs-auth-migration"
+    },
+    {
+      "id": "p17-c002-domain-ddl-generator",
+      "status": "PENDING",
+      "tasks_total": 7,
+      "dir": "changes/2026-07-30-p17-c002-domain-ddl-generator"
+    },
+    {
+      "id": "p17-c003-provisioner-port-adapter",
+      "status": "PENDING",
+      "tasks_total": 7,
+      "dir": "changes/2026-07-30-p17-c003-provisioner-port-adapter"
+    },
+    {
+      "id": "p17-c004-gateway-schema-routes",
+      "status": "PENDING",
+      "tasks_total": 7,
+      "dir": "changes/2026-07-30-p17-c004-gateway-schema-routes"
+    },
+    {
+      "id": "p17-c005-ddl-reflection-endpoint",
+      "status": "PENDING",
+      "tasks_total": 3,
+      "dir": "changes/2026-07-30-p17-c005-ddl-reflection-endpoint"
+    },
+    {
+      "id": "p17-c006-phase-boundary-tests",
+      "status": "PENDING",
+      "tasks_total": 5,
+      "dir": "changes/2026-07-30-p17-c006-phase-boundary-tests"
+    },
+    {
+      "id": "p17-c007-route-hotreload-delegate",
+      "status": "PENDING",
+      "tasks_total": 4,
+      "dir": "changes/2026-07-30-p17-c007-route-hotreload-delegate",
+      "optional": true
+    }
+  ],
+  "last_updated": "2026-07-30T17:00:36Z",
+  "last_updated_by": "claude-fable-5 (kbd-plan)",
+  "sourceTool": "unknown",
+  "createdBy": "kbd-new-phase",
+  "updatedAt": "2026-07-30T17:00:36Z"
+}

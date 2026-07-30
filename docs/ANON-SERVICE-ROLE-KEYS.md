@@ -7,24 +7,34 @@ Flint follows the Supabase-style dual-key model:
 | Anon key | `FLINT_ANON_KEY` | Yes | `anon` | Applied |
 | Service role key | `FLINT_SERVICE_ROLE_KEY` | No | `service_role` | Bypassed |
 
-Generate local development keys:
+> **Reality check (p17-c001).** Two corrections to earlier revisions of this
+> document:
+>
+> 1. **No code in this repository reads `FLINT_ANON_KEY` or
+>    `FLINT_SERVICE_ROLE_KEY`.** They are *client-held credentials* — bearer
+>    tokens a caller presents in the `Authorization` header — not Forge
+>    configuration. Grep the workspace: zero readers.
+> 2. **`forge keygen init` does not exist.** `forge-cli` has no `keygen`
+>    subcommand (the spec that proposed it, `FLINT_ANON_SERVICE_ROLE_KEYS_SPEC.md`
+>    §3.1, was implemented elsewhere — see below). The working generator is
+>    `sansaba-workspace/infra/scripts/generate-keys.mjs`, which emits RS256
+>    keys with a `kid` header, `role: "anon"` / `role: "service_role"` claims,
+>    `iss`/`aud` = `flint-forge`, a 10-year expiry, the public half as
+>    `infra/keys/jwks.json` (serve it at `FLINT_GATE_JWKS_URL`), and both
+>    tokens into a git-ignored `.env.keys`. Re-running it ROTATES: prior
+>    tokens die once the served JWKS refreshes.
+
+Generate working keys (from the sansaba-workspace checkout):
 
 ```bash
-forge keygen init --project my-project --env development --format env
+node infra/scripts/generate-keys.mjs
 ```
 
-This emits:
-
-- `FLINT_JWT_SECRET`
-- `FLINT_JWT_ALGORITHM`
-- `FLINT_ANON_KEY`
-- `FLINT_SERVICE_ROLE_KEY`
-- `FLINT_PROJECT_ID`
-- `FLINT_ENV`
-
 `FLINT_SERVICE_ROLE_KEY` bypasses Postgres row-level security through the
-`service_role` role. It must stay server-side only. `FLINT_ANON_KEY` is
-publishable, but it is safe only when RLS policies are correct.
+`service_role` role (a real `BYPASSRLS` attribute since migration `0014`). It
+must stay server-side only. `FLINT_ANON_KEY` is publishable, but it is safe
+only when RLS policies are correct. Because both keys are 10-year, **expiry is
+not a security control — rotation is the revocation path.**
 
 ## Roles
 

@@ -1,0 +1,11 @@
+{
+  "stage": "assess",
+  "completedAt": "2026-07-30T16:32:01Z",
+  "outputs": [
+    "assessment.md"
+  ],
+  "nextStage": "plan",
+  "summaryForNext": "Deliverable is 100% greenfield: zero provisioning surface exists (no /schema routes, no SchemaProvisioner port, no flint_provisioner role, migration 0015 free); reusable building blocks are post-p16 hardened (verify_and_build + fail-closed audience, require_admin idiom in fke-server, is_safe_identifier, rest_rls_isolation.rs two-tenant test template, sha2/uuid workspace deps). Plan must decide up front: (1) how the 90% changed-crate coverage gate counts DATABASE_URL-gated integration tests for the adapter crate; (2) plan-store = ledger-backed status=planned (in-memory breaks the CI plan-then-apply story); (3) fdb-domain/src/provision/ and routes/schema/ module splits from the start (500-line BLOCK). Spec-citation corrections: state_manager.rs is in fdb-reflection not fdb-postgres; flint_meta.columns() is defined in ext-flint-meta/src/functions.rs and granted to authenticated+anon+service_role. Adversarial-review WARNINGs to carry: file/line claims in assessment are session-verified but not re-verifiable from the packet file tree alone; RS256 key material verified only by external filesystem listing (Sansaba checkout) — Phase 0 task 0.2 end-to-end auth check is mandatory, and the plan must explicitly verify FLINT_GATE_ISSUER/FLINT_GATE_AUDIENCE resolve to flint-forge to match the minted keys. KBD control plane still 401 (documented deferred) — stage records are projection-only.",
+  "skipped": false,
+  "skipReason": null
+}

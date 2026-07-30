@@ -1513,3 +1513,64 @@ Repo config, already set: `vars.AZURE_SSR_CLIENT_ID` / `AZURE_SSR_TENANT_ID`
 `SSR_JWT_SECRET` / `SSR_POSTGRES_PASSWORD`; the `production-ssr` GitHub
 Environment (no required reviewers yet — add them the same way `production`
 gates `main` if that approval step is wanted here too).
+
+## §14 — Schema Provisioning (FFS-001, p17)
+
+The `/schema/v1` API lets a `service_role` client declare tables via a typed
+JSON spec; Forge generates tenant-scoped DDL (plan) and executes it as the
+dedicated `flint_provisioner` role (apply). **Default off** — with
+`FLINT_PROVISION_NAMESPACES` empty/unset every endpoint returns `503` and no
+DDL path exists.
+
+### Enable (once per deployment)
+
+```bash
+# 1. Migrations run automatically at gateway startup; 0015 creates
+#    flint_schema.provision_ledger and the flint_provisioner NOLOGIN role.
+#    Creating the role grants NOTHING — the API is not self-enabling.
+
+# 2. Create each namespace and grant CREATE (per namespace, deliberate):
+psql "$DATABASE_URL" <<'SQL'
+CREATE SCHEMA IF NOT EXISTS sansaba_sourcing;
+GRANT USAGE, CREATE ON SCHEMA sansaba_sourcing TO flint_provisioner;
+GRANT USAGE ON SCHEMA sansaba_sourcing TO authenticated;
+SQL
+
+# 3. Provide a login path for the provisioner pool (a LOGIN role that is a
+#    member of flint_provisioner, so the pool can SET ROLE into it):
+psql "$DATABASE_URL" <<'SQL'
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'flint_provisioner_login') THEN
+    CREATE ROLE flint_provisioner_login LOGIN PASSWORD 'change-me';
+  END IF;
+END $$;
+GRANT flint_provisioner TO flint_provisioner_login;
+SQL
+
+# 4. Turn the API on and restart the gateway:
+export FLINT_PROVISION_NAMESPACES="sansaba_sourcing,sansaba_reports"
+export PROVISIONER_DATABASE_URL="postgres://flint_provisioner_login:…@postgres:5432/forge"
+```
+
+### Disable
+
+Unset `FLINT_PROVISION_NAMESPACES` and restart — routes return `503`, the
+provisioner pool is never built.
+
+### Credentials
+
+The caller credential is the RS256 `service_role` JWT minted by
+`sansaba-workspace/infra/scripts/generate-keys.mjs` (`iss`/`aud` =
+`flint-forge`, public half in `infra/keys/jwks.json` served at
+`FLINT_GATE_JWKS_URL`). The key is 10-year: **expiry is not a control** —
+revocation is rotation. Re-running the script regenerates the keypair and
+invalidates all prior tokens once the served JWKS is refreshed
+(`forge-identity` refetches on unknown `kid`).
+
+### Notes
+
+- Plans expire 24h after creation; apply refuses drifted plans with `409`.
+- New tables appear immediately in `/openapi.json`, MCP tools, GraphQL
+  subscriptions and the A2UI catalog; REST routes for them require a gateway
+  restart while `restartRequired: true` is reported by apply.
+- Audit trail: `flint_schema.provision_ledger` (JWT `sub` + SQLSTATE only).

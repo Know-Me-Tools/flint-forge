@@ -1,11 +1,11 @@
 {
   "name": "Flint Forge",
   "description": "Sovereign data and edge-compute plane of the Flint platform: Quarry (REST/GraphQL DB gateway), Anvil (pgrx extensions), and Kiln (WASM edge-function gateway).",
-  "active_phase": null,
+  "active_phase": "p17-schema-provisioning",
   "last_completed_phase": "p16-production-remediation",
-  "active_phase_note": "Reconciled 2026-07-29 against current-waypoint.json, which is authoritative here: this file had not been written since 2026-07-16 and still named p16-v1.0-release-closure as active. Both p16 phases have since completed and written reflections (release-closure 2026-07-16, 6/6 changes; production-remediation 2026-07-17, 9/9). The waypoint records production-remediation as status=completed with exactNextCommand=/kbd-new-phase, so no phase is in flight and active_phase is null. Note the two p16 phases were seeded in parallel from p15 rather than sequentially \u2014 production-remediation's goals.md cites p15, not release-closure, as its predecessor.",
+  "active_phase_note": "Set by kbd-new-phase 2026-07-30 (FFS-001 schema provisioning); previous stale value replaced per p17-remediation-plan bookkeeping note.",
   "change_backend": "native-kbd",
-  "change_backend_note": "Pinned 2026-07-09 (p16 decision-log D-002). openspec/ exists at root and the CLI (v1.4.1) works, so bare detection resolves to 'openspec' \u2014 but p16's six changes are specced natively under .kbd-orchestrator/changes/. Pinning prevents the plan/execute divergence that broke p15, where the phase was planned as OpenSpec, executed as native-tool, and /kbd-apply found no task surface. Verified: `kbd-apply list <change>` reads the native tasks.json correctly.",
+  "change_backend_note": "Pinned 2026-07-09 (p16 decision-log D-002). openspec/ exists at root and the CLI (v1.4.1) works, so bare detection resolves to 'openspec' — but p16's six changes are specced natively under .kbd-orchestrator/changes/. Pinning prevents the plan/execute divergence that broke p15, where the phase was planned as OpenSpec, executed as native-tool, and /kbd-apply found no task surface. Verified: `kbd-apply list <change>` reads the native tasks.json correctly.",
   "completed_phases": [
     "p0-workspace-foundation",
     "p1-anvil-meta-foundation",
@@ -69,5 +69,6 @@
   "superseded_phases": {
     "p5-flint-a2ui-registry": "Empty shell created by the 2026-07-29 KBD legacy-state migration: zero changes, a 3-line generated tasks.md, no reflection. The real phase is p5-a2ui-registry, which is complete. Closed as superseded; the directory is left in place rather than deleted so the migration record stays auditable."
   },
-  "phase_reconciliation_note": "Reconciled 2026-07-29. The KBD legacy-state migration seeded progress.json for pre-existing phases with PENDING defaults, so 41 of 143 changes read as incomplete even though the code had shipped (this is what produced the waypoint's 102/143). 38 were reconciled to DONE after verifying each deliverable is present in the tree and the workspace compiles clean (cargo check --workspace --all-targets, exit 0). Three were left PENDING because they are genuinely incomplete: p12-c001-k6-measure and p13-c001-k6-baselines-measure (perf/k6/*.js exist but the measurement runs were never performed) and p16-c006-selfhost-operator-guide (no operator guide on disk; p16 reflection already discloses this as a PARTIAL gate)."
+  "phase_reconciliation_note": "Reconciled 2026-07-29. The KBD legacy-state migration seeded progress.json for pre-existing phases with PENDING defaults, so 41 of 143 changes read as incomplete even though the code had shipped (this is what produced the waypoint's 102/143). 38 were reconciled to DONE after verifying each deliverable is present in the tree and the workspace compiles clean (cargo check --workspace --all-targets, exit 0). Three were left PENDING because they are genuinely incomplete: p12-c001-k6-measure and p13-c001-k6-baselines-measure (perf/k6/*.js exist but the measurement runs were never performed) and p16-c006-selfhost-operator-guide (no operator guide on disk; p16 reflection already discloses this as a PARTIAL gate).",
+  "updatedAt": "2026-07-30T14:05:52Z"
 }

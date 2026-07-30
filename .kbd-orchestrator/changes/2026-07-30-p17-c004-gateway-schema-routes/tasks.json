@@ -1,0 +1,20 @@
+{
+  "backend": "native-kbd",
+  "change": "p17-c004-gateway-schema-routes",
+  "tasks": [
+    { "id": "t1", "title": "require_provisioner helper", "done": false,
+      "detail": "Copy fke-server require_admin shape (admin.rs:19-49): extract bearer -> rls_from_bearer -> role check vs \"service_role\". Error bodies per FFS-001 §4.1. Lives in routes/schema/mod.rs or a shared auth module." },
+    { "id": "t2", "title": "routes/schema module split + plan handler", "done": false,
+      "detail": "routes/schema/{mod,plan,apply,status}.rs. plan.rs: typed deserialize -> validate -> introspect -> generate -> persist_planned (D-P1 upsert by hash) -> §4.2 response. Warnings include acknowledged-unscoped." },
+    { "id": "t3", "title": "apply handler with drift guard + sub attribution", "done": false,
+      "detail": "load_planned: 404/410; re-plan + hash compare: 409; provisioner.apply(applied_by = ctx JWT sub — never raw_bearer); alreadyApplied via ledger conflict; 500 + failed row SQLSTATE-only; restartRequired:true + restartNote verbatim-ish FFS-001 §4.3." },
+    { "id": "t4", "title": "status handler", "done": false,
+      "detail": "enabled = allowlist non-empty; namespaces = parsed allowlist; schemaVersion = state_manager.current() version; lastApply = latest applied|failed ledger row or null. No user-schema access." },
+    { "id": "t5", "title": "Always-mount + in-handler 503 gate + bootstrap merge", "done": false,
+      "detail": "Mount /schema/v1 group unconditionally in bootstrap.rs (MCP-group idiom .route×n -> .with_state -> .merge). Handlers return 503 when FLINT_PROVISION_NAMESPACES empty/unset. Gateway builds PgProvisioner only when enabled; state carries Option<> and handlers 503 on None." },
+    { "id": "t6", "title": "OpenAPI docs for the group", "done": false,
+      "detail": "Document the 5 operations (plan/apply/status here; ddl arrives in c005) in the gateway's OpenAPI surface, matching existing hand-written route documentation conventions." },
+    { "id": "t7", "title": "Route test matrix (written now, run at boundary)", "done": false,
+      "detail": "crates/fdb-gateway/tests/, gated on DATABASE_URL + real keys (skip-not-fail): 401 no header; 401 bad signature; 403 anon key; 503 disabled — assert 503 NOT 404; 200 plan; 200 apply; 200 alreadyApplied replay; 409 drift (mutate schema between plan and apply); 403 reserved namespace (flint_meta)." }
+  ]
+}

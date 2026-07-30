@@ -1,0 +1,31 @@
+{
+  "mode": "artifact",
+  "verdict": "PASS",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "WARNING",
+      "file": "assessment.md",
+      "claim": "The assessment makes many precise source-file and line-number claims that are not supported by the packet file tree.",
+      "evidence": "The artifact cites files such as `crates/fdb-gateway/src/bootstrap.rs`, `crates/fdb-domain/src/lib.rs`, `crates/ext-flint-meta/src/functions.rs`, and `crates/fdb-reflection/src/state_manager.rs`, but the provided `file_tree` lists only crate directories like `./crates/fdb-gateway` and does not include those source paths.",
+      "suggested_fix": "Either include an expanded file tree/source excerpts for the cited files or downgrade these claims to items the next stage must independently verify before planning."
+    },
+    {
+      "severity": "WARNING",
+      "file": "assessment.md",
+      "claim": "The assessment treats required RS256 key material as present based on an external absolute path outside the reviewed repository.",
+      "evidence": "The artifact says `Key material (Phase 0 dependency): PRESENT-EXTERNAL ... outside this repo \u2014 not verifiable from repo contents alone` and cites `/Users/gqadonis/Projects/sansaba/San Saba Automation/sansaba-workspace`, while the goal requires `Auth via existing RS256 keys from sansaba-workspace generate-keys.mjs`.",
+      "suggested_fix": "Mark the key-material state as UNKNOWN for this repo and require Phase 0 to verify the files and an end-to-end protected-route authentication flow in the implementation environment."
+    },
+    {
+      "severity": "WARNING",
+      "file": "assessment.md",
+      "claim": "The assessment does not evaluate the goal requirement that the RS256 issuer and audience are `flint-forge`.",
+      "evidence": "The goal states `Auth via existing RS256 keys from sansaba-workspace generate-keys.mjs (jwks.json, iss/aud=flint-forge)`, but the assessment only says `verify_and_build ... reads FLINT_GATE_JWKS_URL / FLINT_GATE_ISSUER / FLINT_GATE_AUDIENCE` and does not assess whether repo configuration or docs set issuer/audience to `flint-forge`.",
+      "suggested_fix": "Add a specific gap/status item for issuer and audience configuration, including whether `.env.example`, deployment manifests, or docs define `FLINT_GATE_ISSUER` and `FLINT_GATE_AUDIENCE` as `flint-forge`."
+    }
+  ]
+}

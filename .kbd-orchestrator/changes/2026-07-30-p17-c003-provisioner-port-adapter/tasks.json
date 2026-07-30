@@ -1,0 +1,20 @@
+{
+  "backend": "native-kbd",
+  "change": "p17-c003-provisioner-port-adapter",
+  "tasks": [
+    { "id": "t1", "title": "SchemaProvisioner trait in fdb-ports", "done": false,
+      "detail": "Per FFS-001 §7 sketch + plan-store methods (persist_planned/load_planned) per plan D-P1. async_trait, thiserror, #[non_exhaustive] error enum, # Errors docs. Sits beside SchemaProvider (introspects) — this one mutates." },
+    { "id": "t2", "title": "PgProvisioner with own pool from PROVISIONER_DATABASE_URL", "done": false,
+      "detail": "New module in fdb-postgres. Own deadpool config; connection role must be/SET ROLE flint_provisioner. Absent env var => constructor returns config error (feature is off; gateway won't build it when allowlist empty)." },
+    { "id": "t3", "title": "Explicit transaction discipline (D7)", "done": false,
+      "detail": "BEGIN -> statements -> COMMIT on the SAME connection; ROLLBACK on first error. Do NOT route through DatabaseBackend::acquire (conn.rs BEGIN-for-lifetime discards uncommitted writes on recycle)." },
+    { "id": "t4", "title": "Ledger writes with applied_by attribution", "done": false,
+      "detail": "planned (upsert by plan_hash) -> applied|failed. applied_by: &str param (JWT sub from gateway), applied_at now(), version_before/after from flint_meta schema version, error_code = SQLSTATE only. Partial unique index makes double-apply a conflict -> alreadyApplied signal." },
+    { "id": "t5", "title": "Error mapping: SQLSTATE only", "done": false,
+      "detail": "Map tokio-postgres errors to the port error carrying e.code() (SQLSTATE); NEVER the rendered statement (may embed operator identifiers) and never bind values." },
+    { "id": "t6", "title": "Tracing span at port boundary", "done": false,
+      "detail": "span fields: plan_id, namespace, role. Nothing else — no claims, no tenant ids, no bearer (constraints BLOCK)." },
+    { "id": "t7", "title": "Integration tests written (run at boundary)", "done": false,
+      "detail": "crates/fdb-postgres/tests/ DATABASE_URL-gated: (a) D7 — apply then open a FRESH connection and SELECT from the new table; (b) failed mid-plan statement -> no partial table, ledger failed row with SQLSTATE; (c) flint_provisioner cannot CREATE outside granted namespaces (insufficient_privilege)." }
+  ]
+}

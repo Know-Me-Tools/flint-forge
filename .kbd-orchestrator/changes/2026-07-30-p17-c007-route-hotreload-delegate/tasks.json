@@ -1,0 +1,14 @@
+{
+  "backend": "native-kbd",
+  "change": "p17-c007-route-hotreload-delegate",
+  "tasks": [
+    { "id": "t1", "title": "Catch-all delegate via tower::Service", "done": false,
+      "detail": "bootstrap.rs: fallback handler loading state_manager.current().router per unmatched request; ArcSwap::load + clone; delegate call. Mounted hand-written routes unchanged." },
+    { "id": "t2", "title": "Preserve require_rls on delegated path", "done": false,
+      "detail": "RLS layer applies identically to delegated requests; add a test asserting an unauthenticated delegated request is rejected exactly like a mounted one. Update mounts_reflection_router.rs deliberately." },
+    { "id": "t3", "title": "Benchmark against ship criterion", "done": false,
+      "detail": "p50/p99, >=1000 req each, mounted + delegated, before/after, same build/host. Ship iff mounted p99 regression <5% AND delegated overhead <1ms p99. Numbers into verification.md." },
+    { "id": "t4", "title": "Flip restartRequired OR close SKIPPED-with-evidence", "done": false,
+      "detail": "If benchmark holds: restartRequired:false + restartNote update + new-table-reachable-without-restart test. Else: keep true, record numbers, mark change skipped-with-evidence in progress.json." }
+  ]
+}

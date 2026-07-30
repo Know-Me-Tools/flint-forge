@@ -1,0 +1,54 @@
+{
+  "backend": "native-kbd",
+  "change": "p17-c001-prereqs-auth-migration",
+  "tasks": [
+    {
+      "id": "t1",
+      "title": "Write migrations/0015_flint_schema_provisioning.sql (FFS-001 §5 verbatim)",
+      "done": true,
+      "detail": "flint_schema + provision_ledger (RLS+FORCE, partial unique idx on plan_hash WHERE status='applied') + flint_provisioner NOLOGIN role (idempotent DO block) + grants. Header comments per §5: depends 0013/0014, idempotent, NOT self-enabling.",
+      "doneAt": "2026-07-30T17:00:36Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t2",
+      "title": "Migration idempotency verification",
+      "done": true,
+      "detail": "DATABASE_URL-gated test (or documented psql transcript in verification.md) proving 0015 applies cleanly twice against a scratch DB. sqlx::migrate! runs it at gateway startup — do not renumber existing files.",
+      "doneAt": "2026-07-30T17:00:36Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t3",
+      "title": ".env.example: FLINT_PROVISION_NAMESPACES + PROVISIONER_DATABASE_URL",
+      "done": true,
+      "detail": "Commented-out entries with default-off semantics documented (empty/unset => every /schema/v1 endpoint returns 503). Place near existing FLINT_GATE_* block (lines ~26-36).",
+      "doneAt": "2026-07-30T17:00:36Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t4",
+      "title": "Runbook section: Schema provisioning enable/disable/rotate",
+      "done": true,
+      "detail": "docs/runbook.md — new section per FFS-001 §10: psql namespace + GRANT CREATE/USAGE block, env exports, restart note, disable path, key rotation via re-running generate-keys.mjs (invalidates prior tokens).",
+      "doneAt": "2026-07-30T17:00:36Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t5",
+      "title": "Correct docs/ANON-SERVICE-ROLE-KEYS.md",
+      "done": true,
+      "detail": "State: no Forge code reads FLINT_SERVICE_ROLE_KEY as config (it is a client-held credential); forge token mint output is HS256 (line ~69 already notes this) and cannot pass verify_and_build; working key comes from sansaba-workspace generate-keys.mjs (RS256+kid, jwks.json, iss/aud flint-forge, 10-year expiry — rotation is the revocation path).",
+      "doneAt": "2026-07-30T17:00:36Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t6",
+      "title": "Auth-proof integration test with real keys",
+      "done": true,
+      "detail": "crates/fdb-gateway/tests/ — gated on DATABASE_URL + key env vars, skip-not-fail when absent: FLINT_SERVICE_ROLE_KEY authenticates a protected route, RlsContext.role == \"service_role\"; FLINT_ANON_KEY => role == \"anon\"; FLINT_GATE_ISSUER/AUDIENCE == \"flint-forge\". Never log the tokens (constraints BLOCK).",
+      "doneAt": "2026-07-30T17:00:36Z",
+      "doneBy": "claude-code"
+    }
+  ]
+}
