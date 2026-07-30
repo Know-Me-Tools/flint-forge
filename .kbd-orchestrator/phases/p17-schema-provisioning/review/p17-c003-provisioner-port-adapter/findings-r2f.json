@@ -1,0 +1,34 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-postgres/src/provisioner.rs",
+      "line": 246,
+      "claim": "The apply ledger transition can mark a non-planned or hash-mismatched ledger row as applied after executing DDL.",
+      "evidence": "The apply update is `WHERE plan_id = $1` only, while the acceptance criteria require `Ledger writes: planned \u2192 applied|failed` and D-P1 makes the ledger the durable plan store; the code does not require `status = 'planned'` or `plan_hash = plan.hash` before committing.",
+      "suggested_fix": "Change the transition to match the persisted plan exactly, e.g. `WHERE plan_id = $1 AND plan_hash = $4 AND status = 'planned'`, and treat zero rows as a rollback error before commit."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-postgres/src/provisioner.rs",
+      "line": 175,
+      "claim": "persist_planned silently ignores plan_id conflicts, allowing apply to proceed against an older stored plan without detecting the mismatch.",
+      "evidence": "The insert uses `ON CONFLICT (plan_id) DO NOTHING`; combined with apply's `WHERE plan_id = $1`, a caller can persist a different `PlannedRecord` with an existing plan_id, receive `Ok(())`, then apply DDL that is not the ledger's stored plan, violating the acceptance criterion that the ledger is the plan store.",
+      "suggested_fix": "Check the affected row count; on conflict, load the existing row and verify hash/spec/DDL match exactly, otherwise return a conflict error and do not allow apply."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-postgres/src/provisioner.rs",
+      "line": 97,
+      "claim": "Failed apply ledger transitions are best-effort and can be lost while apply still returns only the original SQLSTATE error.",
+      "evidence": "mark_failed returns `()` and swallows both connection checkout and update errors with `tracing::warn!`, but the acceptance criteria require `on any statement error: ROLLBACK, ledger row \u2192 status='failed' with SQLSTATE`.",
+      "suggested_fix": "Make `mark_failed` return `Result<(), BackendError>` and have apply surface a ledger-transition failure when the failed status cannot be persisted."
+    }
+  ]
+}

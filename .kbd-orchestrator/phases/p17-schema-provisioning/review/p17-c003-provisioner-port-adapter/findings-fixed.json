@@ -1,0 +1,42 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-ports/src/provision.rs",
+      "line": 58,
+      "claim": "The port API cannot satisfy the required version_after ledger write because apply only accepts version_before.",
+      "evidence": "Acceptance criteria require ledger writes to include \"applied_at, version_before/version_after (schema version from flint_meta)\", but SchemaProvisioner::apply is defined with only `version_before: Option<i64>` and no version_after parameter.",
+      "suggested_fix": "Add a version_after parameter or another mechanism to record it, and persist it in the adapter's applied ledger transition."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-postgres/src/provisioner.rs",
+      "line": 251,
+      "claim": "The applied ledger transition never writes version_after.",
+      "evidence": "The UPDATE in apply sets `status = 'applied'`, `applied_by`, `applied_at`, and `version_before = $3`, but the acceptance criteria require `version_before/version_after` to be written.",
+      "suggested_fix": "Set the ledger's version_after column during the applied transition after obtaining the post-apply schema version."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-postgres/src/provisioner.rs",
+      "line": 227,
+      "claim": "The port-boundary tracing span omits the required role field.",
+      "evidence": "Acceptance criteria require \"Tracing span at the port boundary: plan_id, namespace, role \u2014 NOTHING else\", but the apply span is `#[instrument(skip_all, fields(plan_id = %plan.plan_id, namespace = %plan.namespace))]` and contains no role field.",
+      "suggested_fix": "Include a constant role field such as `role = \"flint_provisioner\"` in the apply span, and ensure other port-boundary spans follow the required field set."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-postgres/src/provisioner.rs",
+      "line": 249,
+      "claim": "apply can commit DDL without proving a planned ledger row was transitioned to applied.",
+      "evidence": "Acceptance criteria require \"Ledger writes: planned \u2192 applied|failed\", but the UPDATE uses `WHERE plan_id = $1`, does not require `status = 'planned'`, and ignores the returned affected-row count before committing.",
+      "suggested_fix": "Use `WHERE plan_id = $1 AND status = 'planned'`, check that exactly one row was updated, and roll back/error if the planned row is missing or in an unexpected status."
+    }
+  ]
+}

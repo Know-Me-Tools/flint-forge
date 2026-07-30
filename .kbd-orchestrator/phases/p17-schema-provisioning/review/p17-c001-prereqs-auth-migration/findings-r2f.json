@@ -1,0 +1,18 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "docs/ANON-SERVICE-ROLE-KEYS.md",
+      "line": 13,
+      "claim": "The documentation now makes a false repository-wide claim that no code reads FLINT_ANON_KEY or FLINT_SERVICE_ROLE_KEY, while this same diff adds test code that reads both variables.",
+      "evidence": "docs/ANON-SERVICE-ROLE-KEYS.md adds: \u201cNo code in this repository reads `FLINT_ANON_KEY` or `FLINT_SERVICE_ROLE_KEY`\u2026 Grep the workspace: zero readers.\u201d; crates/fdb-gateway/tests/provisioning_prereqs.rs adds `env_nonempty(\"FLINT_SERVICE_ROLE_KEY\")` and `env_nonempty(\"FLINT_ANON_KEY\")`. Acceptance criterion 4 only required saying no Forge code reads `FLINT_SERVICE_ROLE_KEY` as config, not the stronger false \u201czero readers\u201d claim.",
+      "suggested_fix": "Change the documentation to the narrower required statement, e.g. \u201cForge runtime code does not read these as configuration; tests may consume them as externally supplied bearer tokens.\u201d"
+    }
+  ]
+}

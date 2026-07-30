@@ -1,0 +1,447 @@
+//! The pure DDL generator (FFS-001 §8 tasks 1.3–1.5).
+//!
+//! `generate(spec, live)` validates the spec, diffs it against the live
+//! namespace, and emits additive-only DDL (FFS-001 D6): `CREATE TABLE`,
+//! `ADD COLUMN IF NOT EXISTS` (nullable-or-defaulted
+//! only), `CREATE INDEX IF NOT EXISTS`, and — for tenant-scoped tables — the
+//! fixed RLS block (FFS-001 D5): `tenant_id`, ENABLE+FORCE, four policies,
+//! tenant index, grant. No destructive statement kind exists in this module.
+//!
+//! Diff limits, stated honestly: [`fdb_domain::TableMeta`] carries columns
+//! and `rls_enabled` but not indexes or policies, so on an *existing* table
+//! index/policy statements are re-emitted with idempotent guards instead of
+//! being diffed away — `noop` is therefore exact for tables and columns and
+//! conservative (may be `false` on an already-satisfied schema) when the spec
+//! declares indexes on pre-existing tables. Exact replay of an applied plan
+//! is caught earlier by the ledger (`alreadyApplied`), not here.
+
+use fdb_domain::provision::{
+    validate_spec, ColumnSpec, ColumnType, Namespace, Operation, OperationKind, Plan, SchemaSpec,
+    SpecError, TableSpec,
+};
+use fdb_domain::TableMeta;
+
+/// Generation failure: an invalid spec, a non-additive-safe change, or the
+/// (structurally impossible) canonicalization failure.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum PlanError {
+    /// The spec failed validation; see [`SpecError`].
+    #[error("invalid spec: {0}")]
+    Spec(#[from] SpecError),
+    /// Adding this column to an existing table is not additive-safe: it is
+    /// NOT NULL with no default, so existing rows could not satisfy it.
+    #[error(
+        "table `{table}`: adding non-nullable column `{column}` without a default \
+         is not additive-safe (FFS-001 D6)"
+    )]
+    UnsafeAddColumn {
+        /// The table gaining the column.
+        table: String,
+        /// The offending column.
+        column: String,
+    },
+    /// The spec could not be canonicalized for hashing.
+    #[error("spec canonicalization failed: {0}")]
+    Canonicalize(String),
+    /// An existing column differs from the spec in type or nullability.
+    /// Type changes are deferred out of v1 (FFS-001 D6) and silently
+    /// reporting the column as satisfied would be a false noop — so the plan
+    /// is refused instead, pointing at the reviewed migration path.
+    #[error(
+        "table `{table}`: column `{column}` differs from the live schema ({detail}); \
+         type/nullability changes are not provisionable in v1 — use the reviewed \
+         migration path"
+    )]
+    ColumnDrift {
+        /// The table containing the drifted column.
+        table: String,
+        /// The drifted column.
+        column: String,
+        /// What differs (spec vs live).
+        detail: String,
+    },
+}
+
+/// Does a live Postgres type name satisfy a spec [`ColumnType`]?
+/// `format_type` renders canonical spellings (`timestamp with time zone`),
+/// while cached introspection may carry short names — accept both.
+fn type_matches(spec_ty: ColumnType, live: &str) -> bool {
+    let live = live.trim();
+    match spec_ty {
+        ColumnType::Timestamptz => live == "timestamptz" || live == "timestamp with time zone",
+        ColumnType::Integer => live == "integer" || live == "int4",
+        ColumnType::Bigint => live == "bigint" || live == "int8",
+        ColumnType::Boolean => live == "boolean" || live == "bool",
+        ColumnType::Numeric => live == "numeric" || live.starts_with("numeric("),
+        _ => live == spec_ty.sql_name(),
+    }
+}
+
+/// Generate a [`Plan`] from a validated spec and the live namespace state.
+///
+/// Pure and deterministic: same inputs ⇒ same operations, DDL text, and hash.
+///
+/// # Errors
+///
+/// [`PlanError::Spec`] for any validation failure, [`PlanError::UnsafeAddColumn`]
+/// when an existing table would gain a NOT NULL column without a default, and
+/// [`PlanError::Canonicalize`] if hashing fails.
+pub fn generate(spec: &SchemaSpec, live: &[TableMeta]) -> Result<Plan, PlanError> {
+    let warnings = validate_spec(spec)?;
+    let ns = &spec.namespace;
+
+    let mut statements: Vec<String> = Vec::new();
+    let mut operations: Vec<Operation> = Vec::new();
+
+    // No CREATE SCHEMA is ever emitted: the provisioner role deliberately
+    // lacks database-level CREATE (D3), so schema creation belongs to the
+    // operator (runbook §14) and the routes refuse before generation when
+    // the schema is absent. FFS-001 §4.2's `create_schema` operation example
+    // contradicts the spec's own §10 operator flow and loses — even
+    // `CREATE SCHEMA IF NOT EXISTS` on an EXISTING schema fails with 42501
+    // for a role without database CREATE (found by the p17c006 boundary
+    // run, ledger rows pln_c531…/pln_c2f0…).
+
+    for table in &spec.tables {
+        let live_table = live
+            .iter()
+            .find(|t| t.schema == ns.as_str() && t.name == table.name);
+        match live_table {
+            None => emit_create_table(ns, table, &mut statements, &mut operations),
+            Some(existing) => {
+                emit_table_diff(ns, table, existing, &mut statements, &mut operations)?;
+            }
+        }
+    }
+
+    let noop = statements.is_empty();
+    let ddl = if noop {
+        String::new()
+    } else {
+        format!(
+            "-- generated by FFS-001 schema provisioning (p17); additive-only, replay-safe\n\n{}",
+            statements.join("\n\n")
+        )
+    };
+    // Hash covers spec AND generated DDL: the apply-time drift guard
+    // re-plans against the then-current live schema and compares (see
+    // `hash.rs` module docs for why a spec-only hash cannot detect drift).
+    let hash = super::hash::plan_hash(spec, &ddl)?;
+
+    Ok(Plan {
+        namespace: ns.clone(),
+        operations,
+        ddl,
+        warnings,
+        noop,
+        hash,
+    })
+}
+
+fn render_column(col: &ColumnSpec) -> String {
+    let mut out = format!("    {} {}", col.name, col.column_type.sql_name());
+    if !col.nullable {
+        out.push_str(" NOT NULL");
+    }
+    if let Some(default) = &col.default {
+        out.push_str(" DEFAULT ");
+        out.push_str(default);
+    }
+    out
+}
+
+fn emit_create_table(
+    ns: &Namespace,
+    table: &TableSpec,
+    statements: &mut Vec<String>,
+    operations: &mut Vec<Operation>,
+) {
+    let t = &table.name;
+    let mut lines: Vec<String> = table.columns.iter().map(render_column).collect();
+    if table.tenant_scoped {
+        lines.push("    tenant_id text NOT NULL".to_owned());
+    }
+    let pk: Vec<&str> = table
+        .columns
+        .iter()
+        .filter(|c| c.primary_key)
+        .map(|c| c.name.as_str())
+        .collect();
+    if !pk.is_empty() {
+        lines.push(format!("    PRIMARY KEY ({})", pk.join(", ")));
+    }
+    statements.push(format!(
+        "CREATE TABLE {ns}.{t} (\n{}\n);",
+        lines.join(",\n")
+    ));
+    operations.push(Operation {
+        kind: OperationKind::CreateTable,
+        target: format!("{ns}.{t}"),
+        exists: false,
+    });
+
+    if let Some(comment) = &table.comment {
+        let escaped = comment.replace('\'', "''");
+        statements.push(format!("COMMENT ON TABLE {ns}.{t} IS '{escaped}';"));
+        operations.push(Operation {
+            kind: OperationKind::Comment,
+            target: format!("{ns}.{t}"),
+            exists: false,
+        });
+    }
+
+    if table.tenant_scoped {
+        emit_tenant_block(ns, t, statements, operations);
+    }
+    for idx in &table.indexes {
+        emit_index(
+            ns,
+            t,
+            &idx.name,
+            &idx.columns,
+            idx.unique,
+            statements,
+            operations,
+        );
+    }
+}
+
+fn emit_table_diff(
+    ns: &Namespace,
+    table: &TableSpec,
+    existing: &TableMeta,
+    statements: &mut Vec<String>,
+    operations: &mut Vec<Operation>,
+) -> Result<(), PlanError> {
+    let t = &table.name;
+
+    // tenant_id is an implicit NOT-NULL-no-default column on scoped tables;
+    // modelling it this way makes "existing table newly declared scoped"
+    // fail the additive-safety check naturally instead of silently emitting
+    // a column existing rows cannot satisfy.
+    let tenant_col = ColumnSpec {
+        name: "tenant_id".to_owned(),
+        column_type: ColumnType::Text,
+        nullable: false,
+        primary_key: false,
+        default: None,
+    };
+    let mut desired: Vec<&ColumnSpec> = table.columns.iter().collect();
+    if table.tenant_scoped {
+        desired.push(&tenant_col);
+    }
+
+    for col in desired {
+        if let Some(live_col) = existing.columns.iter().find(|c| c.name == col.name) {
+            // Present by name is not enough: a type or nullability mismatch
+            // must refuse, never silently count toward a noop.
+            if !type_matches(col.column_type, &live_col.sql_type) {
+                return Err(PlanError::ColumnDrift {
+                    table: t.clone(),
+                    column: col.name.clone(),
+                    detail: format!(
+                        "spec type `{}` vs live type `{}`",
+                        col.column_type.sql_name(),
+                        live_col.sql_type
+                    ),
+                });
+            }
+            if live_col.nullable != col.nullable {
+                return Err(PlanError::ColumnDrift {
+                    table: t.clone(),
+                    column: col.name.clone(),
+                    detail: format!(
+                        "spec nullable={} vs live nullable={}",
+                        col.nullable, live_col.nullable
+                    ),
+                });
+            }
+            continue;
+        }
+        if !col.nullable && col.default.is_none() {
+            return Err(PlanError::UnsafeAddColumn {
+                table: t.clone(),
+                column: col.name.clone(),
+            });
+        }
+        statements.push(format!(
+            "ALTER TABLE {ns}.{t} ADD COLUMN IF NOT EXISTS{};",
+            render_column(col).replacen("    ", " ", 1)
+        ));
+        operations.push(Operation {
+            kind: OperationKind::AddColumn,
+            target: format!("{ns}.{t}.{}", col.name),
+            exists: false,
+        });
+    }
+
+    // `rls_enabled` is the only RLS fact TableMeta carries: FORCE, the four
+    // policies, the grant, and the tenant index are not introspectable here.
+    // Using it as the satisfied-proxy is safe because every non-verifiable
+    // absence FAILS CLOSED: RLS enabled with a missing policy is default-deny
+    // (no rows visible, never a leak); a missing FORCE only matters to the
+    // table owner (flint_provisioner, which serves no query path); a missing
+    // grant denies `authenticated` outright. Broken-but-safe states surface
+    // as empty results and are repaired by re-planning after `enable_rls`
+    // drift (below) or via the migration path — they are never silent leaks.
+    if table.tenant_scoped && !existing.rls_enabled {
+        emit_tenant_block(ns, t, statements, operations);
+    }
+
+    // Index existence is not introspectable from TableMeta (module docs):
+    // re-emit with IF NOT EXISTS guards. Harmless on replay; a genuinely new
+    // index gets created.
+    for idx in &table.indexes {
+        emit_index(
+            ns,
+            t,
+            &idx.name,
+            &idx.columns,
+            idx.unique,
+            statements,
+            operations,
+        );
+    }
+    Ok(())
+}
+
+/// The fixed tenant block (FFS-001 D5, template from §5): the caller cannot
+/// supply, override, or disable any statement in here.
+fn emit_tenant_block(
+    ns: &Namespace,
+    t: &str,
+    statements: &mut Vec<String>,
+    operations: &mut Vec<Operation>,
+) {
+    statements.push(format!("ALTER TABLE {ns}.{t} ENABLE ROW LEVEL SECURITY;"));
+    statements.push(format!("ALTER TABLE {ns}.{t} FORCE ROW LEVEL SECURITY;"));
+    operations.push(Operation {
+        kind: OperationKind::EnableRls,
+        target: format!("{ns}.{t}"),
+        exists: false,
+    });
+
+    let tenant_expr = "current_setting('request.jwt.claims', true)::json ->> 'tenant_id'";
+    let policies: [(&str, String); 4] = [
+        (
+            "select",
+            format!("FOR SELECT TO authenticated\n            USING (tenant_id = {tenant_expr})"),
+        ),
+        (
+            "insert",
+            format!(
+                "FOR INSERT TO authenticated\n            WITH CHECK (tenant_id = {tenant_expr})"
+            ),
+        ),
+        (
+            "update",
+            format!(
+                "FOR UPDATE TO authenticated\n            USING (tenant_id = {tenant_expr})\n            WITH CHECK (tenant_id = {tenant_expr})"
+            ),
+        ),
+        (
+            "delete",
+            format!("FOR DELETE TO authenticated\n            USING (tenant_id = {tenant_expr})"),
+        ),
+    ];
+    for (verb, body) in policies {
+        let policy = format!("{t}_tenant_{verb}");
+        statements.push(format!(
+            "DO $policy$\nBEGIN\n    IF NOT EXISTS (\n        SELECT 1 FROM pg_policies\n        WHERE schemaname = '{ns}' AND tablename = '{t}' AND policyname = '{policy}'\n    ) THEN\n        CREATE POLICY {policy} ON {ns}.{t} {body};\n    END IF;\nEND\n$policy$;"
+        ));
+        operations.push(Operation {
+            kind: OperationKind::CreatePolicy,
+            target: policy,
+            exists: false,
+        });
+    }
+
+    emit_index(
+        ns,
+        t,
+        &format!("{t}_tenant_idx"),
+        std::slice::from_ref(&"tenant_id".to_owned()),
+        false,
+        statements,
+        operations,
+    );
+
+    statements.push(format!(
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON {ns}.{t} TO authenticated;"
+    ));
+    operations.push(Operation {
+        kind: OperationKind::Grant,
+        target: "authenticated".to_owned(),
+        exists: false,
+    });
+}
+
+/// Quote one identifier for synthesized output (doubled-quote escaping).
+/// Synthesis describes *existing* tables, which may carry mixed-case,
+/// reserved-word, or punctuation identifiers created out of band — unlike
+/// generated provisioning DDL, whose identifiers are pre-validated.
+fn quote_ident(ident: &str) -> String {
+    format!("\"{}\"", ident.replace('"', "\"\""))
+}
+
+/// Synthesize a `CREATE TABLE` string from live column rows (FFS-001 §4.4).
+///
+/// Pure renderer over [`fdb_domain::provision::TableDdlInfo`]; the route
+/// layer fetches the rows through the port and attaches rls/schema-version
+/// facts around this text. Identifiers are quoted, and composite primary
+/// keys render in key order (`pk_ordinal`), not table column order.
+#[must_use]
+pub fn synthesize_create_table(table: &str, info: &fdb_domain::provision::TableDdlInfo) -> String {
+    let mut lines: Vec<String> = info
+        .columns
+        .iter()
+        .map(|col| {
+            let mut line = format!("  {} {}", quote_ident(&col.name), col.sql_type);
+            if !col.nullable {
+                line.push_str(" NOT NULL");
+            }
+            if let Some(default) = &col.default {
+                line.push_str(" DEFAULT ");
+                line.push_str(default);
+            }
+            line
+        })
+        .collect();
+    let mut pk: Vec<(i32, &str)> = info
+        .columns
+        .iter()
+        .filter_map(|c| c.pk_ordinal.map(|ord| (ord, c.name.as_str())))
+        .collect();
+    pk.sort_unstable_by_key(|(ord, _)| *ord);
+    if !pk.is_empty() {
+        let cols: Vec<String> = pk.iter().map(|(_, name)| quote_ident(name)).collect();
+        lines.push(format!("  PRIMARY KEY ({})", cols.join(", ")));
+    }
+    format!(
+        "CREATE TABLE {} (\n{}\n);",
+        quote_ident(table),
+        lines.join(",\n")
+    )
+}
+
+fn emit_index(
+    ns: &Namespace,
+    t: &str,
+    name: &str,
+    columns: &[String],
+    unique: bool,
+    statements: &mut Vec<String>,
+    operations: &mut Vec<Operation>,
+) {
+    let unique_kw = if unique { "UNIQUE " } else { "" };
+    statements.push(format!(
+        "CREATE {unique_kw}INDEX IF NOT EXISTS {name} ON {ns}.{t} ({});",
+        columns.join(", ")
+    ));
+    operations.push(Operation {
+        kind: OperationKind::CreateIndex,
+        target: name.to_owned(),
+        exists: false,
+    });
+}

@@ -1,10 +1,8 @@
 POSITION REMINDER — read this as your FIRST tool call every turn
-Phase: p16-production-remediation
-Step: 9 of 9
+Phase: p17-schema-provisioning — COMPLETE (reflection written)
+Step: 35 of 35 (6/6 required changes; c007 skipped-optional)
 Stage: phase_complete
-Next command: /kbd-new-phase <name> (or /kbd-next-phase to auto-seed from reflection.md)
+Next command: /kbd-next-phase (auto-seeds p18-sansaba-integration from reflection.md) or /kbd-new-phase <name>
 
-Required signal format (emit BEFORE any tool call):
-  Starting <kbd-skill> — p16-production-remediation (step 9 of 9)
-  [do work]
-  Completed <kbd-skill> — p16-production-remediation (step 9 of 9)
+NOTE: KBD control plane 401 (documented, deferred) — replay p17 records
+into the runtime after the operator reissues the token.

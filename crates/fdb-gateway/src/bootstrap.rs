@@ -12,7 +12,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use fdb_gateway::{a2ui_embedder, keto_sync};
+use fdb_gateway::{a2ui_embedder, keto_sync, schema_api};
 use fdb_postgres::{PgGraphQl, PgRest, PgVectorRpc};
 use fdb_reflection::MutationGates;
 use fdb_reflection::{ReflectionEngine, StateManager};
@@ -309,6 +309,47 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         .clone()
         .layer(axum::middleware::from_fn(rls_layer::require_rls));
 
+    // p17-c004: /schema/v1 provisioning group (FFS-001). Mounted
+    // UNCONDITIONALLY — the disabled-state contract is 503 from the handlers
+    // when FLINT_PROVISION_NAMESPACES is empty/unset (an unmounted route
+    // would 404 where §4.1 requires 503). The PgProvisioner pool is built
+    // only when the allowlist is non-empty; an allowlist without a
+    // PROVISIONER_DATABASE_URL is a fail-closed startup error rather than a
+    // half-enabled API.
+    let provision_namespaces: Vec<String> = std::env::var("FLINT_PROVISION_NAMESPACES")
+        .unwrap_or_default()
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .collect();
+    let provisioner: Option<std::sync::Arc<dyn fdb_ports::SchemaProvisioner>> =
+        if provision_namespaces.is_empty() {
+            None
+        } else {
+            let pg = fdb_postgres::PgProvisioner::from_env().map_err(|e| {
+                anyhow::anyhow!(
+                    "FLINT_PROVISION_NAMESPACES is set but the provisioner pool could not \
+                     be built: {e}"
+                )
+            })?;
+            Some(std::sync::Arc::new(pg))
+        };
+    let schema_state = schema_api::SchemaApiState {
+        provisioner,
+        namespaces: std::sync::Arc::new(provision_namespaces),
+        state_manager: Arc::clone(&state_manager),
+    };
+    let schema_router = Router::new()
+        .route("/schema/v1/plan", post(schema_api::plan::plan))
+        .route("/schema/v1/apply", post(schema_api::apply::apply))
+        .route("/schema/v1/status", get(schema_api::status::status))
+        .route(
+            "/schema/v1/tables/{schema}/{table}/ddl",
+            get(schema_api::ddl::table_ddl),
+        )
+        .with_state(schema_state);
+
     // Build the A2UI registry router. All routes require a valid JWT bearer.
     let a2ui_router = Router::new()
         .route("/a2ui/v1/components", get(routes::a2ui::list_components))
@@ -471,6 +512,7 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         .merge(a2a_router)
         .merge(htmx_router)
         .merge(agent_events_router)
+        .merge(schema_router)
         .with_state(gateway_state)
         .merge(reflection_router)
         // p9-c004: Prometheus metrics endpoint — no auth, no rate limit.

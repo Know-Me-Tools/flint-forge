@@ -1,0 +1,25 @@
+{
+  "status": "ok",
+  "gateway": "http://localhost:8181/v1",
+  "roles": {
+    "judge": {
+      "model": "kbd-judge",
+      "source": "/Users/gqadonis/.prometheus/kbd/models.toml"
+    },
+    "critic": {
+      "model": "kbd-critic",
+      "source": "/Users/gqadonis/.prometheus/kbd/models.toml"
+    },
+    "generator": {
+      "model": "kbd-frontier",
+      "source": "/Users/gqadonis/.prometheus/kbd/models.toml"
+    }
+  },
+  "providers_detected": [],
+  "classes_available": [],
+  "distinct_models": 2,
+  "config_path": "/Users/gqadonis/.config/liter-llm/liter-llm-proxy.toml",
+  "config_exists": true,
+  "config_defects": [],
+  "checked_at": "2026-07-30T16:22:09Z"
+}

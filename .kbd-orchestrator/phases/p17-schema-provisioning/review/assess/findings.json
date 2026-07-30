@@ -1,0 +1,38 @@
+{
+  "mode": "artifact",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "assessment.md",
+      "claim": "The constraint check falsely states there is no AGENTS.md, so downstream planning may ignore repository instructions that are present in the packet.",
+      "evidence": "Assessment says: \"AGENTS.md violations: NONE (no AGENTS.md; CLAUDE.md is the rules file\". The file_tree lists \"./AGENTS.md\".",
+      "suggested_fix": "Read and assess AGENTS.md, or remove the claim that it does not exist and mark its constraints as unknown until inspected."
+    },
+    {
+      "severity": "WARNING",
+      "file": "assessment.md",
+      "claim": "The migration filename cited as existing is wrong and contradicts the file tree.",
+      "evidence": "Assessment says: \"`0013_force_rls.sql` and `0014_service_role_bypassslot.sql` exist as claimed\". The file_tree lists \"./migrations/0014_service_role_bypassrls.sql\" and does not list \"0014_service_role_bypassslot.sql\".",
+      "suggested_fix": "Correct the filename to `migrations/0014_service_role_bypassrls.sql` wherever planning references it."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "assessment.md",
+      "claim": "The assessment marks external RS256 key material as DONE based on files outside the provided repository packet, making the auth dependency unverifiable.",
+      "evidence": "Assessment says: \"Key material (Phase 0 dependency): DONE (external, present) \u2014 `sansaba-workspace/infra/scripts/generate-keys.mjs`, `infra/keys/jwks.json`, `infra/keys/jwt-private.pem`, and `.env.keys` all exist in the Sansaba checkout at `/Users/gqadonis/Projects/sansaba/San Saba Automation/sansaba-workspace`\". The packet file_tree contains no `sansaba-workspace`, no `infra/keys/jwks.json`, no `jwt-private.pem`, and no `.env.keys`; prior_handoffs is null.",
+      "suggested_fix": "Do not mark this dependency DONE from outside-packet state; require a plan step to verify or generate the keys in the actual implementation environment."
+    },
+    {
+      "severity": "WARNING",
+      "file": "assessment.md",
+      "claim": "The assessment's module-split requirement for `fdb-domain` depends on an unsupported line-count and file-layout claim.",
+      "evidence": "Assessment says: \"`fdb-domain` is a single 326-line `lib.rs`\" and \"Adding the provisioning types in-place would cross the 500-line BLOCK constraint\". The file_tree only lists `./crates/fdb-domain` and does not list `crates/fdb-domain/src/lib.rs` or any line count.",
+      "suggested_fix": "Either cite inspected file evidence available to downstream reviewers or restate as a planning precaution: split modules to avoid the 500-line constraint, without relying on an unverifiable exact line count."
+    }
+  ]
+}

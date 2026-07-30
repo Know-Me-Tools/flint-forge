@@ -3,9 +3,11 @@
 #![deny(missing_docs)]
 
 pub mod keto;
+pub mod provision;
 
 use async_trait::async_trait;
 pub use keto::KetoCheck;
+pub use provision::SchemaProvisioner;
 
 use fdb_domain::{
     ChangeEvent, GraphQlRequest, RestQuery, RestResult, SchemaVersion, SubscriptionSpec, TableMeta,

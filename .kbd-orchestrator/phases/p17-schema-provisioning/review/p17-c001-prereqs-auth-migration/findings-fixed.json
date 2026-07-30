@@ -1,0 +1,34 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-gateway/tests/provisioning_prereqs.rs",
+      "line": 38,
+      "claim": "The auth-proof test fails instead of skipping when required issuer/audience env vars are absent.",
+      "evidence": "Acceptance criterion 5 says the test must \"skip (does not fail) when keys/env are absent\" and also assert `FLINT_GATE_ISSUER`/`FLINT_GATE_AUDIENCE`; the test only gates on `FLINT_GATE_JWKS_URL` and `FLINT_SERVICE_ROLE_KEY` at lines 38-45, then unconditionally asserts issuer/audience at lines 55-66.",
+      "suggested_fix": "Include `FLINT_GATE_ISSUER` and `FLINT_GATE_AUDIENCE` in the initial env-gated prerequisite check and return/skip when either is absent."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-gateway/tests/provisioning_prereqs.rs",
+      "line": 70,
+      "claim": "The auth-proof test does not authenticate a protected route as required; it only calls the auth helper directly.",
+      "evidence": "Acceptance criterion 5 requires \"the real Sansaba `service_role` key authenticates a protected route and lands `role = \\\"service_role\\\"` in `RlsContext`\"; the test invokes `fdb_auth::rls_from_bearer(&service_key)` directly at lines 70-72 and never exercises any gateway route.",
+      "suggested_fix": "Start the relevant fdb-gateway route/service in the integration test and send requests with `Authorization: Bearer <token>`, asserting the protected route accepts service_role and resolves the expected role."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "migrations/0015_flint_schema_provisioning.sql",
+      "line": 59,
+      "claim": "Migration 0015 is not verbatim from FFS-001 \u00a75 because it adds an extra all-access RLS policy for `flint_provisioner`.",
+      "evidence": "Acceptance criterion 1 requires `migrations/0015_flint_schema_provisioning.sql` be \"verbatim from FFS-001 \u00a75\" and lists schema/table/index/role/grants; the diff adds `CREATE POLICY provision_ledger_provisioner_all ... TO flint_provisioner USING (true) WITH CHECK (true)` at lines 59-63 with an in-file note calling it a \"Deviation from FFS-001 \u00a75\".",
+      "suggested_fix": "Either remove the policy to match the required FFS-001 \u00a75 migration verbatim, or update the acceptance criteria/spec to explicitly authorize this deviation before shipping it."
+    }
+  ]
+}

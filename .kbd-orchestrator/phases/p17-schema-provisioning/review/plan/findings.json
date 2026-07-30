@@ -1,0 +1,45 @@
+{
+  "mode": "artifact",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "plan.md",
+      "claim": "The required GET /schema/v1/status behavior is not planned beyond naming the route.",
+      "evidence": "Goals require: \"GET /schema/v1/status \u2014 enabled flag, namespaces, schemaVersion, lastApply\". The plan only lists \"`/schema/v1/{plan,apply,status}` routes\" under p17-c004, while the p17-c004 details specify `require_provisioner`, disabled gating, apply flow, OpenAPI, and route tests, but omit how status computes or returns enabled, namespaces, schemaVersion, and lastApply.",
+      "suggested_fix": "Add explicit p17-c004 tasks and acceptance tests for GET /schema/v1/status covering enabled=false/default-off, allowlisted namespaces, current schemaVersion, and lastApply sourced from the ledger."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "plan.md",
+      "claim": "User-declared CREATE INDEX support required by the goals is not covered by any planned generator or adapter work.",
+      "evidence": "Goals require additive-only v1 to include \"CREATE TABLE, ADD COLUMN (nullable/defaulted), CREATE INDEX, policies+grants\". p17-c002 says it will add `IndexSpec`, but the generator work is described as \"CREATE TABLE / ADD COLUMN (additive-only D6), tenant RLS emission...\" and only mentions \"tenant index\"; no change describes generating or applying user-declared CREATE INDEX operations.",
+      "suggested_fix": "Extend p17-c002 to generate deterministic CREATE INDEX operations from IndexSpec, p17-c003 to apply them transactionally/idempotently, and p17-c006 tests to cover index creation and replay."
+    },
+    {
+      "severity": "WARNING",
+      "file": "plan.md",
+      "claim": "The POST /schema/v1/plan endpoint behavior is underspecified, leaving the core planner API ambiguous.",
+      "evidence": "Goals require: \"POST /schema/v1/plan \u2014 pure planner: typed JSON spec in ..., generated DDL + diff + sha256 planHash out; nothing written\". p17-c004 names `/schema/v1/{plan,apply,status}` but its details only specify auth/disabled gating and \"Apply flow: load stored spec by planHash \u2192 re-plan \u2192 compare hash...\"; it does not define the plan route request/response, validation error mapping, whether/when the ledger-backed planned row is written, or how generated DDL/diff/planHash are returned.",
+      "suggested_fix": "Add explicit p17-c004 plan-route tasks: parse SchemaSpec, validate namespace/defaults, call the pure generator, persist or not persist according to the reconciled contract, return generated DDL/diff/planHash, and test success plus validation failures."
+    },
+    {
+      "severity": "WARNING",
+      "file": "plan.md",
+      "claim": "The plan does not reconcile a contract conflict between a 'pure planner' that writes nothing and the chosen ledger-backed planned-row store.",
+      "evidence": "Goals say POST /schema/v1/plan is a \"pure planner\" with \"nothing written\". The plan bakes in D-P1: \"Plan store is ledger-backed (`provision_ledger` rows with `status='planned'`...)\" and p17-c003 says \"insert `status='planned'` at plan-persist time\".",
+      "suggested_fix": "State explicitly whether 'nothing written' means no schema/DDL writes but audit ledger writes are allowed, or change the design so POST /plan remains side-effect-free and planned ledger rows are created only at apply time."
+    },
+    {
+      "severity": "SUGGESTION",
+      "file": "plan.md",
+      "claim": "The optional hot-reload benchmark acceptance criterion is not measurable.",
+      "evidence": "p17-c007 says \"Flip restartRequired only if the benchmark holds\" and \"confirm no regression on mounted routes\" but provides no latency/throughput threshold, workload, or acceptable regression percentage.",
+      "suggested_fix": "Define the benchmark command, request mix, sample size, and pass/fail threshold, e.g. p95 latency delta \u2264 N% on mounted routes and unmatched delegate overhead \u2264 N \u00b5s."
+    }
+  ]
+}

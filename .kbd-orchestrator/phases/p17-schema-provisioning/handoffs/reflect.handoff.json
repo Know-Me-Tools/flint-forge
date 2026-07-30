@@ -1,0 +1,11 @@
+{
+  "stage": "reflect",
+  "completedAt": "2026-07-30T22:39:23Z",
+  "outputs": [
+    "reflection.md"
+  ],
+  "nextStage": "assess",
+  "summaryForNext": "p17 shipped 6/6 required changes (c007 skipped-optional, benchmark-gated spec preserved); final boundary run 611/0/6 with live PG + real Sansaba keys. Four spec-vs-reality deltas were found and corrected (FORCE-RLS dead-letter in §5, impossible CREATE SCHEMA in §4.2, undetectable-drift spec-only hash, JWKS-TTL revocation window) — all recorded in reflection.md with corrective actions. Recommended next phase: p18-sansaba-integration (consume the API from Sansaba manifests / mini_app_record first; c007 benchmark; merge + CI + one real rotation + KBD record replay).",
+  "skipped": false,
+  "skipReason": null
+}

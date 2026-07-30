@@ -1,0 +1,41 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-gateway/src/schema_api/apply.rs",
+      "line": 62,
+      "claim": "Replaying an already-applied plan bypasses the required expiry and current allowlist checks.",
+      "evidence": "The handler returns 200 immediately when `stored.status == \"applied\"` at lines 62-79, before the expiry check at line 80 and `require_allowlisted` at line 84; acceptance criteria require apply to handle `410 expired` and `403 non-allowlisted namespace`.",
+      "suggested_fix": "Move the expiry and `require_allowlisted` checks before the `stored.status == \"applied\"` early return, or explicitly enforce them in the already-applied branch."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-gateway/src/schema_api/apply.rs",
+      "line": 31,
+      "claim": "A new `clippy::allow` suppresses a pedantic lint without the required scaffold-stage concession justification.",
+      "evidence": "`#[allow(clippy::too_many_lines)] // one linear request flow; splitting would obscure the state machine` suppresses `too_many_lines`, while the constraint says: `BLOCK introducing a clippy::allow attribute that suppresses a pedantic lint without an explicit justification comment explaining why it is a scaffold-stage concession.`",
+      "suggested_fix": "Split the handler to avoid the allow, or add the required explicit scaffold-stage concession justification if this suppression is intentionally temporary."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-gateway/src/schema_api/mod.rs",
+      "line": 137,
+      "claim": "A new `clippy::allow` suppresses a pedantic cast lint without the required scaffold-stage concession justification.",
+      "evidence": "`#[allow(clippy::cast_possible_truncation)]` appears above `epoch_to_iso8601`, while the constraint says: `BLOCK introducing a clippy::allow attribute that suppresses a pedantic lint without an explicit justification comment explaining why it is a scaffold-stage concession.`",
+      "suggested_fix": "Remove the suppression by using checked conversions or add the required explicit scaffold-stage concession justification."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "docs/runbook.md",
+      "claim": "The change does not add OpenAPI documentation for the `/schema/v1` group.",
+      "evidence": "Acceptance criteria require `OpenAPI documentation for the group` and verification evidence says `openapi.json contains /schema/v1 paths`; the diff only adds runbook rows in `docs/runbook.md` and contains no OpenAPI/openapi.json changes.",
+      "suggested_fix": "Add the `/schema/v1/plan`, `/schema/v1/apply`, and `/schema/v1/status` paths to the repository's OpenAPI generation/source so `openapi.json` renders them."
+    }
+  ]
+}

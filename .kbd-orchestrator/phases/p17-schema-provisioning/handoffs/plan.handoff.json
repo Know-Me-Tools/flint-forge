@@ -1,0 +1,11 @@
+{
+  "stage": "plan",
+  "completedAt": "2026-07-30T16:49:54Z",
+  "outputs": [
+    "plan.md"
+  ],
+  "nextStage": "execute",
+  "summaryForNext": "7 changes (39 tasks; c007 optional/benchmark-gated), native-kbd backend pinned. Rounds: c001+c002 parallel -> c003 -> c004 -> c005 -> c006 (single phase-boundary test run per AGENTS.md Integration-First) -> c007. First change: p17-c001-prereqs-auth-migration. Read plan.md UNRESOLVED REVIEW FINDINGS before executing: 503-not-404 disabled-state contract (always-mount, gate in handler), applied_by=JWT sub attribution, and the D-P1 purity reconciliation (POST /plan writes exactly one flint_schema ledger row, nothing user-visible) are binding; the openapi-hot-swap e2e is valid without c007 (handlers.rs:36-38). Adversarial review round 2 verdict BLOCK accepted at max-rounds with all findings dispositioned in plan.md.",
+  "skipped": false,
+  "skipReason": null
+}

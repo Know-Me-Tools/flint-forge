@@ -1,0 +1,38 @@
+{
+  "mode": "artifact",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "plan.md",
+      "claim": "The route mounting plan can make the required disabled-state response unreachable by returning 404 instead of 503 when provisioning is default-off.",
+      "evidence": "Goals require: \"Namespace allowlist FLINT_PROVISION_NAMESPACES, default-off => 503\" and \"GET /schema/v1/status \u2014 enabled flag...\". The plan says in c004: \"Mount in bootstrap.rs ... gated on the allowlist being non-empty\" while also claiming a \"503-when-disabled gate on empty `FLINT_PROVISION_NAMESPACES`.\" If the route group is not mounted when the allowlist is empty, handlers cannot return 503 or status.enabled=false.",
+      "suggested_fix": "Mount `/schema/v1/*` routes unconditionally; make handlers return 503 for disabled provisioning while allowing `/status` to report `enabled:false` as specified."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "plan.md",
+      "claim": "The phase-boundary tests require hot-swap OpenAPI behavior before the optional change that could implement it, contradicting the v1 restartRequired contract.",
+      "evidence": "Goals say: \"apply response discloses restartRequired:true (D8 route-mount gap); optional Phase 5 catch-all delegate flips it to false if benchmark holds.\" The ordered plan runs c006 before optional c007, but c006 requires: \"Also assert the provisioned table appears in /openapi.json after hot-swap (D8 premise).\" c007 is the optional \"route-hotreload-delegate\" that can flip `restartRequired` to false.",
+      "suggested_fix": "Move the `/openapi.json` hot-swap assertion into optional c007, or change c006 to assert `restartRequired:true` and no hot-swap requirement before restart."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "plan.md",
+      "claim": "No planned change covers persisting the caller subject in the audit ledger, which is an explicit goal.",
+      "evidence": "Goals require: \"Audit ledger migrations/0015: flint_schema.provision_ledger records planned/applied/failed with sub + SQLSTATE only.\" c003 only specifies \"ledger transitions planned\u2192applied|failed with SQLSTATE only\" and c004's plan/apply persistence says \"persist one `status='planned'` ledger row\" and \"adapter apply\" without mentioning storing `sub` from `require_provisioner`.",
+      "suggested_fix": "Add explicit subject extraction from the verified service_role JWT and pass it through the route/port/adapter boundary for planned, applied, and failed ledger rows; add tests asserting only `sub` and SQLSTATE are stored."
+    },
+    {
+      "severity": "WARNING",
+      "file": "plan.md",
+      "claim": "The plan intentionally writes a ledger row during `POST /plan`, contradicting the stated phase goal that planning writes nothing.",
+      "evidence": "Goals require: \"POST /schema/v1/plan \u2014 pure planner... generated DDL + diff + sha256 planHash out; nothing written.\" The plan's D-P1 says: \"It DOES write exactly one `provision_ledger` row (`status='planned'`)\" and c004 says plan flow will \"persist one `status='planned'` ledger row.\"",
+      "suggested_fix": "Either revise the goal/spec to define purity as no user-schema writes, or change the plan to avoid writes during `/plan` and provide another compliant mechanism for apply-by-planHash."
+    }
+  ]
+}

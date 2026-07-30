@@ -1,0 +1,26 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-app/Cargo.toml",
+      "line": 19,
+      "claim": "The change adds a new non-domain/non-ports dependency to fdb-app despite the acceptance constraint that fdb-app depends on domain+ports only.",
+      "evidence": "Diff adds `sha2 = { workspace = true }` to `crates/fdb-app/Cargo.toml`; acceptance criteria Constraints state: `Zero infra deps in fdb-domain (serde only); fdb-app depends on domain+ports only.`",
+      "suggested_fix": "Remove the new fdb-app dependency or update the design/acceptance criteria before adding hashing infrastructure to fdb-app."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-domain/src/provision/validate.rs",
+      "line": 204,
+      "claim": "Validation accepts an IndexSpec with an empty columns list, allowing the generator to emit invalid SQL.",
+      "evidence": "The index validation loop checks index name, duplicates, reserved tenant-index name, and each referenced column, but has no `idx.columns.is_empty()` rejection; `crates/fdb-app/src/provision/ddl.rs` later emits `CREATE {unique_kw}INDEX IF NOT EXISTS {name} ON {ns}.{t} ({});` using `columns.join(\", \")`, which becomes `CREATE INDEX ... ();` for an empty list.",
+      "suggested_fix": "Add a SpecError variant for empty index column lists and reject `idx.columns.is_empty()` before generation."
+    }
+  ]
+}

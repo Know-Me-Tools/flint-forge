@@ -1,0 +1,50 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-gateway/src/schema_api/apply.rs",
+      "line": 34,
+      "claim": "The new `clippy::allow(clippy::too_many_lines)` suppresses a pedantic lint without the required scaffold-stage justification.",
+      "evidence": "Constraint: \"BLOCK introducing a `clippy::allow` attribute that suppresses a `pedantic` lint without an explicit justification comment explaining why it is a scaffold-stage concession.\" Hunk adds `#[allow(clippy::too_many_lines)]` with a comment explaining handler structure, but not why this is a scaffold-stage concession.",
+      "suggested_fix": "Remove the allow by splitting the handler, or add an explicit scaffold-stage concession justification that satisfies the constraint."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-gateway/tests/schema_routes.rs",
+      "line": 20,
+      "claim": "The new test file suppresses `clippy::expect_used` without the required explicit scaffold-stage justification.",
+      "evidence": "Constraint: \"BLOCK introducing a `clippy::allow` attribute that suppresses a `pedantic` lint without an explicit justification comment explaining why it is a scaffold-stage concession.\" Hunk adds `#![allow(clippy::expect_used)]` with no justification comment.",
+      "suggested_fix": "Remove the crate-level allow or add an explicit scaffold-stage concession justification."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-gateway/tests/support/schema_routes_support.rs",
+      "line": 8,
+      "claim": "The new support module suppresses `clippy::expect_used` without the required explicit scaffold-stage justification.",
+      "evidence": "Constraint: \"BLOCK introducing a `clippy::allow` attribute that suppresses a `pedantic` lint without an explicit justification comment explaining why it is a scaffold-stage concession.\" Hunk adds `#![allow(clippy::expect_used)]` with no justification comment.",
+      "suggested_fix": "Remove the crate-level allow or add an explicit scaffold-stage concession justification."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-gateway/src/schema_api/apply.rs",
+      "line": 136,
+      "claim": "The DDL failure path returns 500 without ensuring the required failed ledger row is written.",
+      "evidence": "Acceptance criterion for `POST /schema/v1/apply`: \"500 + failed ledger row (SQLSTATE only) on DDL failure.\" The added error branch only does `return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());` after `provisioner.apply(...).await` fails, with no call to record a failed ledger outcome in this handler.",
+      "suggested_fix": "Add an explicit failure-recording call on apply errors, or make the `SchemaProvisioner::apply` contract guarantee failed-ledger recording and handle/report failures from that recording path."
+    },
+    {
+      "severity": "CRITICAL",
+      "file": "docs/runbook.md",
+      "line": 63,
+      "claim": "The change does not add the required OpenAPI documentation for the `/schema/v1` group.",
+      "evidence": "Acceptance criteria require \"OpenAPI documentation for the group\" and verification evidence says \"OpenAPI group renders (openapi.json contains /schema/v1 paths)\"; the diff only adds three runbook rows and does not modify any OpenAPI generation or OpenAPI output to include `/schema/v1` paths.",
+      "suggested_fix": "Add `/schema/v1/plan`, `/schema/v1/apply`, and `/schema/v1/status` to the repository's OpenAPI documentation/rendering path, or update the acceptance contract if runbook-only documentation is intentionally sufficient."
+    }
+  ]
+}

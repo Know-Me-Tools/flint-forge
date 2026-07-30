@@ -1,0 +1,12 @@
+{
+  "stage": "execute",
+  "completedAt": "2026-07-30T16:54:15Z",
+  "outputs": [
+    "execution.md",
+    "progress.json"
+  ],
+  "nextStage": "reflect",
+  "summaryForNext": "Backend: claude-code self-executing over the native-kbd tasks.json surface (control plane 401 => projection-first, typed registration deferred). Dispatch contract in execution.md; first pending change p17-c001-prereqs-auth-migration (Round 1, order-free with c002). This handoff is written at dispatch time per the stage contract; implementation completion is tracked in progress.json, not here.",
+  "skipped": false,
+  "skipReason": null
+}

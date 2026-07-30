@@ -1,0 +1,30 @@
+{
+  "backend": "native-kbd",
+  "change": "p17-c005-ddl-reflection-endpoint",
+  "tasks": [
+    {
+      "id": "t1",
+      "title": "CREATE TABLE synthesis from flint_meta.columns rows",
+      "done": true,
+      "detail": "Pure renderer in fdb-app/src/provision/ (column rows -> DDL string, pk/notnull/default handling); port method to fetch rows for (schema, table) with rls flags + schema version.",
+      "doneAt": "2026-07-30T18:12:44Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t2",
+      "title": "Route: GET /schema/v1/tables/{schema}/{table}/ddl",
+      "done": true,
+      "detail": "routes/schema/ddl.rs behind require_provisioner + 503 gate; validate path identifiers with is_safe_identifier BEFORE any query; 404 unknown table; §4.4 response shape {schema, table, ddl, rlsEnabled, rlsForced, schemaVersion}.",
+      "doneAt": "2026-07-30T18:12:44Z",
+      "doneBy": "claude-code"
+    },
+    {
+      "id": "t3",
+      "title": "Round-trip property test (written now, run at boundary)",
+      "done": true,
+      "detail": "For every ColumnType × nullable × default-present: generate(spec) -> apply -> GET ddl -> re-parse ≡ original spec. Gated on DATABASE_URL + keys; skip-not-fail.",
+      "doneAt": "2026-07-30T18:12:44Z",
+      "doneBy": "claude-code"
+    }
+  ]
+}

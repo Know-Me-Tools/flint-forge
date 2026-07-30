@@ -1,0 +1,34 @@
+{
+  "mode": "diff",
+  "verdict": "BLOCK",
+  "judge_model": "kbd-judge",
+  "producer_model": "claude-fable-5",
+  "isolation_mode": "rest-gateway:http://localhost:8181/v1",
+  "cross_model_check": "verified-distinct",
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "file": "crates/fdb-app/src/provision/ddl.rs",
+      "line": 263,
+      "claim": "Existing tenant-scoped tables with RLS enabled are treated as satisfied even though FORCE RLS, policies, grants, and the tenant index are not represented in TableMeta and may be missing.",
+      "evidence": "Acceptance criteria require the fixed tenant RLS block: \"four policies, ENABLE+FORCE, grant to authenticated\" and \"noop when satisfied\"; ddl.rs module docs also say index/policy statements are re-emitted conservatively, but emit_table_diff only calls emit_tenant_block when `table.tenant_scoped && !existing.rls_enabled`.",
+      "suggested_fix": "Re-emit the idempotent tenant block for every existing tenant-scoped table, or extend live metadata to track FORCE RLS, generated policies, grants, and tenant index before allowing noop."
+    },
+    {
+      "severity": "WARNING",
+      "file": "crates/fdb-app/src/provision/tests.rs",
+      "line": 216,
+      "claim": "The injection corpus is grouped into one test instead of being enumerated in separate test names for each injection shape.",
+      "evidence": "Verification requires \"Injection corpus enumerated in test names (each shape its own test)\", but the diff has a single `fn injection_corpus_fails_before_any_generation()` containing all cases.",
+      "suggested_fix": "Split the corpus into separate tests named for each shape, e.g. `rejects_drop_table_identifier`, `rejects_quoted_identifier`, `rejects_unicode_homoglyph`, `rejects_comment_terminator`, and `rejects_nested_dollar_quoting`."
+    },
+    {
+      "severity": "WARNING",
+      "file": "crates/fdb-app/src/provision/tests.rs",
+      "line": 189,
+      "claim": "The hash test does not cover table or column order even though the verification gate requires it.",
+      "evidence": "Verification requires \"Hash stability test covers field reordering AND table/column order\"; `hash_is_stable_across_input_field_reordering` only compares JSON field order and a column type semantic change.",
+      "suggested_fix": "Add assertions that reordering tables and reordering columns produce the intended hash behavior, matching the documented rule that table/column order is semantic."
+    }
+  ]
+}
