@@ -12,5 +12,7 @@ pub mod validate;
 
 pub use plan::{Operation, OperationKind, Plan, PlanHash, PlanId};
 pub use spec::{ColumnSpec, ColumnType, IndexSpec, Namespace, SchemaSpec, TableSpec};
-pub use store::{AppliedPlan, LedgerSummary, PlannedRecord, StoredPlan, ValidatedPlan};
+pub use store::{
+    AppliedPlan, DdlColumn, LedgerSummary, PlannedRecord, StoredPlan, TableDdlInfo, ValidatedPlan,
+};
 pub use validate::{validate_spec, SpecError};

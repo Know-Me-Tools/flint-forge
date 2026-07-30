@@ -1,6 +1,6 @@
 POSITION REMINDER — read this as your FIRST tool call every turn
 Phase: p17-schema-provisioning
-Step: 27 of 39 (c001–c004 implementation-complete)
+Step: 30 of 39 (c001–c005 implementation-complete)
 Stage: plan complete → execute
 Next command: /kbd-execute p17-schema-provisioning
 

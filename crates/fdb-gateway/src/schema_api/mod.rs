@@ -9,6 +9,7 @@
 //! Findings #1).
 
 pub mod apply;
+pub mod ddl;
 pub mod plan;
 pub mod status;
 

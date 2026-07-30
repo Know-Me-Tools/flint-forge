@@ -225,3 +225,98 @@ async fn plan_apply_replay_and_drift_full_cycle() {
 
     env.reset_namespace(ns).await;
 }
+
+/// p17-c005 gate: round-trip for every `ColumnType`, nullable and not, with
+/// and without defaults — provision through the real API, then synthesize
+/// back through `GET …/ddl` and assert each column re-renders with its
+/// canonical Postgres type, nullability, and default.
+#[tokio::test]
+async fn ddl_round_trip_covers_every_column_type() {
+    let Some(env) = TestEnv::with_keys().await else { return };
+    let ns = "p17c005_rt";
+    env.reset_namespace(ns).await;
+    let router = env.router_enabled(&[ns]);
+
+    // Every ColumnType appears at least once; a mix of nullability and
+    // defaults exercises all rendering branches.
+    let spec = format!(
+        r#"{{"namespace":"{ns}","tables":[{{"name":"rt","tenantScoped":true,"columns":[
+            {{"name":"id","type":"uuid","nullable":false,"primaryKey":true,"default":"gen_random_uuid()"}},
+            {{"name":"c_text","type":"text","nullable":false,"default":"'x'"}},
+            {{"name":"c_int","type":"integer","nullable":true}},
+            {{"name":"c_big","type":"bigint","nullable":false,"default":"0"}},
+            {{"name":"c_num","type":"numeric","nullable":true,"default":"-3.5"}},
+            {{"name":"c_bool","type":"boolean","nullable":false,"default":"true"}},
+            {{"name":"c_date","type":"date","nullable":true}},
+            {{"name":"c_ts","type":"timestamptz","nullable":false,"default":"now()"}},
+            {{"name":"c_json","type":"jsonb","nullable":true,"default":"'{{}}'"}}
+        ]}}]}}"#
+    );
+    let response = router
+        .clone()
+        .oneshot(request("POST", "/schema/v1/plan", Some(&env.service_key), spec.as_bytes()))
+        .await
+        .expect("infallible");
+    assert_eq!(response.status(), StatusCode::OK);
+    let hash = body_json(response).await["planHash"].as_str().expect("hash").to_owned();
+    let response = router
+        .clone()
+        .oneshot(request(
+            "POST",
+            "/schema/v1/apply",
+            Some(&env.service_key),
+            format!(r#"{{"planHash":"{hash}"}}"#).as_bytes(),
+        ))
+        .await
+        .expect("infallible");
+    assert_eq!(response.status(), StatusCode::OK, "apply must succeed");
+
+    let response = router
+        .clone()
+        .oneshot(request(
+            "GET",
+            &format!("/schema/v1/tables/{ns}/rt/ddl"),
+            Some(&env.service_key),
+            b"",
+        ))
+        .await
+        .expect("infallible");
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_json(response).await;
+    assert_eq!(body["rlsEnabled"], true);
+    assert_eq!(body["rlsForced"], true);
+    let ddl = body["ddl"].as_str().expect("ddl").to_owned();
+
+    for expected in [
+        "id uuid NOT NULL DEFAULT gen_random_uuid()",
+        "c_text text NOT NULL DEFAULT 'x'::text",
+        "c_int integer",
+        "c_big bigint NOT NULL DEFAULT 0",
+        "c_num numeric DEFAULT '-3.5'::numeric",
+        "c_bool boolean NOT NULL DEFAULT true",
+        "c_date date",
+        "c_ts timestamp with time zone NOT NULL DEFAULT now()",
+        "c_json jsonb DEFAULT '{}'::jsonb",
+        "tenant_id text NOT NULL",
+        "PRIMARY KEY (id)",
+    ] {
+        assert!(
+            ddl.contains(expected),
+            "synthesized DDL must contain `{expected}`; got:\n{ddl}"
+        );
+    }
+
+    // Injection-shaped path segment fails BEFORE any query.
+    let response = router
+        .oneshot(request(
+            "GET",
+            "/schema/v1/tables/p17c005_rt/evil%3B%20DROP%20TABLE%20x/ddl",
+            Some(&env.service_key),
+            b"",
+        ))
+        .await
+        .expect("infallible");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    env.reset_namespace(ns).await;
+}

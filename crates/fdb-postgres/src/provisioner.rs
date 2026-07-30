@@ -371,6 +371,67 @@ impl SchemaProvisioner for PgProvisioner {
         Ok(())
     }
 
+    #[instrument(skip_all, fields(namespace = %ns))]
+    async fn table_ddl_info(
+        &self,
+        ns: &Namespace,
+        table: &str,
+    ) -> Result<Option<fdb_domain::provision::TableDdlInfo>, BackendError> {
+        let conn = self.conn().await?;
+        // FFS-001 §4.4 names flint_meta.columns() as the source; the
+        // provisioner role deliberately has no flint_meta grant (D3), so this
+        // reads the same facts from world-readable pg_catalog — which is
+        // exactly what flint_meta caches. Bound parameters throughout.
+        let flags = conn
+            .query_opt(
+                "SELECT c.relrowsecurity, c.relforcerowsecurity
+                 FROM pg_catalog.pg_class c
+                 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                 WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind = 'r'",
+                &[&ns.as_str(), &table],
+            )
+            .await
+            .map_err(|e| sqlstate_only("ddl-info-flags", &e))?;
+        let Some(flags) = flags else { return Ok(None) };
+
+        let rows = conn
+            .query(
+                "SELECT a.attname::text,
+                        format_type(a.atttypid, a.atttypmod),
+                        NOT a.attnotnull,
+                        pg_get_expr(d.adbin, d.adrelid),
+                        COALESCE(a.attnum = ANY(i.indkey), false)
+                 FROM pg_catalog.pg_class c
+                 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                 JOIN pg_catalog.pg_attribute a
+                   ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+                 LEFT JOIN pg_catalog.pg_attrdef d
+                   ON d.adrelid = c.oid AND d.adnum = a.attnum
+                 LEFT JOIN pg_catalog.pg_index i
+                   ON i.indrelid = c.oid AND i.indisprimary
+                 WHERE n.nspname = $1 AND c.relname = $2
+                 ORDER BY a.attnum",
+                &[&ns.as_str(), &table],
+            )
+            .await
+            .map_err(|e| sqlstate_only("ddl-info-columns", &e))?;
+
+        Ok(Some(fdb_domain::provision::TableDdlInfo {
+            columns: rows
+                .into_iter()
+                .map(|row| fdb_domain::provision::DdlColumn {
+                    name: row.get(0),
+                    sql_type: row.get(1),
+                    nullable: row.get(2),
+                    default: row.get(3),
+                    is_pk: row.get(4),
+                })
+                .collect(),
+            rls_enabled: flags.get(0),
+            rls_forced: flags.get(1),
+        }))
+    }
+
     #[instrument(skip_all)]
     async fn last_apply(&self) -> Result<Option<LedgerSummary>, BackendError> {
         let conn = self.conn().await?;

@@ -1907,6 +1907,7 @@ dependencies = [
  "fdb-postgres",
  "fdb-realtime",
  "fdb-reflection",
+ "forge-domain",
  "forge-identity",
  "forge-policy",
  "futures",

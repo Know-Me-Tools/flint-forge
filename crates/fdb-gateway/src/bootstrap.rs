@@ -344,6 +344,10 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         .route("/schema/v1/plan", post(schema_api::plan::plan))
         .route("/schema/v1/apply", post(schema_api::apply::apply))
         .route("/schema/v1/status", get(schema_api::status::status))
+        .route(
+            "/schema/v1/tables/{schema}/{table}/ddl",
+            get(schema_api::ddl::table_ddl),
+        )
         .with_state(schema_state);
 
     // Build the A2UI registry router. All routes require a valid JWT bearer.

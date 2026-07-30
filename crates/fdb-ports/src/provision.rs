@@ -88,4 +88,17 @@ pub trait SchemaProvisioner: Send + Sync {
     ///
     /// [`BackendError::Query`] with SQLSTATE context on query failure.
     async fn last_apply(&self) -> Result<Option<LedgerSummary>, BackendError>;
+
+    /// Column rows + RLS flags for one table, for `CREATE TABLE` synthesis
+    /// (`GET /schema/v1/tables/{schema}/{table}/ddl`, FFS-001 §4.4).
+    /// `None` when the table does not exist.
+    ///
+    /// # Errors
+    ///
+    /// [`BackendError::Query`] with SQLSTATE context on query failure.
+    async fn table_ddl_info(
+        &self,
+        ns: &Namespace,
+        table: &str,
+    ) -> Result<Option<fdb_domain::provision::TableDdlInfo>, BackendError>;
 }

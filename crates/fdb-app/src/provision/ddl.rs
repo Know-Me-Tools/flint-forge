@@ -359,6 +359,40 @@ fn emit_tenant_block(
     });
 }
 
+/// Synthesize a `CREATE TABLE` string from live column rows (FFS-001 §4.4).
+///
+/// Pure renderer over [`fdb_domain::provision::TableDdlInfo`]; the route
+/// layer fetches the rows through the port and attaches rls/schema-version
+/// facts around this text.
+#[must_use]
+pub fn synthesize_create_table(table: &str, info: &fdb_domain::provision::TableDdlInfo) -> String {
+    let mut lines: Vec<String> = info
+        .columns
+        .iter()
+        .map(|col| {
+            let mut line = format!("  {} {}", col.name, col.sql_type);
+            if !col.nullable {
+                line.push_str(" NOT NULL");
+            }
+            if let Some(default) = &col.default {
+                line.push_str(" DEFAULT ");
+                line.push_str(default);
+            }
+            line
+        })
+        .collect();
+    let pk: Vec<&str> = info
+        .columns
+        .iter()
+        .filter(|c| c.is_pk)
+        .map(|c| c.name.as_str())
+        .collect();
+    if !pk.is_empty() {
+        lines.push(format!("  PRIMARY KEY ({})", pk.join(", ")));
+    }
+    format!("CREATE TABLE {table} (\n{}\n);", lines.join(",\n"))
+}
+
 fn emit_index(
     ns: &Namespace,
     t: &str,

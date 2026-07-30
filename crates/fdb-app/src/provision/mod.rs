@@ -13,5 +13,5 @@ pub mod hash;
 #[cfg(test)]
 mod tests;
 
-pub use ddl::{generate, PlanError};
+pub use ddl::{generate, synthesize_create_table, PlanError};
 pub use hash::plan_hash;

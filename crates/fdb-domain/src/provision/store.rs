@@ -62,6 +62,34 @@ pub struct StoredPlan {
     pub status: String,
 }
 
+/// One column row for `CREATE TABLE` synthesis (FFS-001 §4.4).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DdlColumn {
+    /// Column name.
+    pub name: String,
+    /// Live Postgres type name (canonical spelling, e.g. `timestamp with
+    /// time zone`).
+    pub sql_type: String,
+    /// Whether the column allows NULL.
+    pub nullable: bool,
+    /// The default expression as Postgres renders it, if any.
+    pub default: Option<String>,
+    /// Whether the column is part of the primary key.
+    pub is_pk: bool,
+}
+
+/// Everything needed to synthesize a `CREATE TABLE` string for one existing
+/// table (FFS-001 §4.4 response).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TableDdlInfo {
+    /// Columns in database order.
+    pub columns: Vec<DdlColumn>,
+    /// `pg_class.relrowsecurity`.
+    pub rls_enabled: bool,
+    /// `pg_class.relforcerowsecurity`.
+    pub rls_forced: bool,
+}
+
 /// Most recent apply outcome, for `GET /schema/v1/status`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LedgerSummary {
