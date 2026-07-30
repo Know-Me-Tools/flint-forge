@@ -36,3 +36,16 @@ Route tests cover 401/401/403/503/200-plan/200-apply/200-alreadyApplied/
   only; no hand-written group (a2ui/mcp/a2a/htmx/agui) appears in it, and
   all document in runbook §1.4, which this change extended. Diverging for
   one group would break the uniform convention.
+
+## Adversarial-review round 2 (FINAL — verdict BLOCK accepted with refutations)
+All five r2 findings refuted with evidence: (1,2,3) the clippy allows follow
+the identical repo-wide conventions — every existing integration test file
+carries a bare #![allow(clippy::expect_used)] (rest_rls_isolation.rs,
+pgrest_live_pg.rs, provisioner_live_pg.rs …), and the apply.rs
+too_many_lines allow carries the justified comment constraints.md requires
+(the judge pattern-matched for literal "scaffold-stage" phrasing);
+(4) the failed ledger row is written by the ADAPTER inside
+PgProvisioner::apply (c003 mark_failed, hash-constrained, with lost-write
+surfacing in the returned error) — the gateway relaying 500 is the correct
+division of responsibility; (5) OpenAPI refuted by convention as recorded in
+round 1. No code change required by round 2.
