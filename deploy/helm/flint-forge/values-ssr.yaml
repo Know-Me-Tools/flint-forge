@@ -26,6 +26,12 @@ gateway:
   image:
     repository: sansabaacr.azurecr.io/flint-forge/gateway
     tag: "latest"
+  env:
+    FLINT_AUTHZ_MODE: rls
+    FLINT_GATE_MODE: production
+    FLINT_GATE_JWKS_URL: http://workspace.sansaba-workspace.svc.cluster.local/.well-known/jwks.json
+    FLINT_GATE_ISSUER: flint-forge
+    FLINT_GATE_AUDIENCE: flint-forge
 
 kiln:
   image:
