@@ -57,11 +57,20 @@ spec:
           {{- end }}
           env:
             - name: POSTGRES_USER
-              value: {{ .Values.postgres.user | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "flint-forge.databaseSecretName" . }}
+                  key: username
             - name: POSTGRES_PASSWORD
-              value: {{ .Values.postgres.password | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "flint-forge.databaseSecretName" . }}
+                  key: password
             - name: POSTGRES_DB
-              value: {{ .Values.postgres.database | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "flint-forge.databaseSecretName" . }}
+                  key: database
             {{- if .Values.backup.enabled }}
             # No AZURE_CLIENT_ID/AZURE_TENANT_ID/AZURE_FEDERATED_TOKEN_FILE here —
             # the AKS workload-identity mutating webhook injects those automatically
