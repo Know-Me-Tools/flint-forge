@@ -159,16 +159,29 @@ jobs:
       - name: helm upgrade --install
         env:
           SHA: ${{ needs.build-and-push.outputs.sha }}
+          POSTGRES_PASSWORD: ${{ secrets.SSR_POSTGRES_PASSWORD }}
+          JWT_SECRET: ${{ secrets.SSR_JWT_SECRET }}
         run: |
+          set -euo pipefail
+          database_url="postgres://flint:${POSTGRES_PASSWORD}@flint-forge-postgres:5432/flint"
+          kubectl create secret generic flint-forge-runtime \
+            --namespace "${{ env.RELEASE_NAMESPACE }}" \
+            --from-literal=username=flint \
+            --from-literal=password="${POSTGRES_PASSWORD}" \
+            --from-literal=database=flint \
+            --from-literal=database-url="${database_url}" \
+            --from-literal=jwt-secret="${JWT_SECRET}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
           helm upgrade --install "${{ env.RELEASE_NAME }}" deploy/helm/flint-forge \
             --namespace "${{ env.RELEASE_NAMESPACE }}" \
             --create-namespace \
             -f deploy/helm/flint-forge/values-ssr.yaml \
             --set postgres.image.tag="${SHA}" \
-            --set postgres.password="${{ secrets.SSR_POSTGRES_PASSWORD }}" \
+            --set postgres.existingSecretName=flint-forge-runtime \
             --set gateway.image.tag="${SHA}" \
             --set kiln.image.tag="${SHA}" \
-            --set secrets.jwtSecret="${{ secrets.SSR_JWT_SECRET }}" \
+            --set secrets.existingSecretName=flint-forge-runtime \
             --wait --timeout 10m
 
       - name: Summary

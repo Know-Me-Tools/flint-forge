@@ -58,3 +58,10 @@ Database URL for app containers.
 {{- required "DATABASE_URL is required when postgres.enabled=false" .Values.externalDatabaseUrl }}
 {{- end }}
 {{- end }}
+
+{{/*
+Secret containing the database connection contract.
+*/}}
+{{- define "flint-forge.databaseSecretName" -}}
+{{- default (printf "%s-database" (include "flint-forge.fullname" .)) .Values.postgres.existingSecretName -}}
+{{- end }}

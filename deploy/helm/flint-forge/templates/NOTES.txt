@@ -11,3 +11,8 @@ Services:
 WARNING: the default JWT secret was generated from values.yaml. In production,
 create a secret out-of-band and set secrets.existingSecretName.
 {{ end }}
+{{ if not .Values.postgres.existingSecretName }}
+WARNING: the database credential was generated from Helm values. In production,
+create a Secret with username, password, database, and database-url keys, then set
+postgres.existingSecretName. This keeps credentials out of Helm release values.
+{{ end }}

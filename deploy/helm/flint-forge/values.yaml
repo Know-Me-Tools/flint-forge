@@ -12,12 +12,17 @@ imagePullSecrets: []
 # ------------------------------------------------------------------------------
 postgres:
   enabled: true
+  # Production operators should provision a Secret out-of-band and set this
+  # name. Required keys: username, password, database, and database-url.
+  existingSecretName: ""
   image:
     repository: prometheusags/flint-forge-pg
     tag: "18"
     pullPolicy: IfNotPresent
   replicas: 1
   user: flint
+  # Used only when existingSecretName is empty. Never pass production
+  # credentials through Helm values because Helm persists them in release data.
   password: flint
   database: flint
   storage:

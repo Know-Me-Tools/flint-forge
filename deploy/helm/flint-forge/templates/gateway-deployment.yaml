@@ -28,10 +28,12 @@ spec:
           ports:
             - containerPort: 8080
               name: http
-          envFrom:
-            - configMapRef:
-                name: {{ include "flint-forge.fullname" . }}-config
           env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "flint-forge.databaseSecretName" . }}
+                  key: database-url
             - name: FLINT_JWT_SECRET
               valueFrom:
                 secretKeyRef:
