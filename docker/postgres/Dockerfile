@@ -46,11 +46,21 @@ RUN git clone --branch "${PGVECTOR_REF}" --depth 1 https://github.com/pgvector/p
 # build to keep the image small and the build fast. Pin the release.
 # v1.5.11 has no pg18 asset (supabase published pg18 .deb starting at v1.5.12) —
 # pinned to the latest release with pg18 amd64/arm64 assets.
+#
+# dpkg -x + manual copy, NOT dpkg -i: the .deb drops its payload under
+# /var/lib/postgresql/{lib,extension} with symlinks into the PG dirs. pg18
+# declares VOLUME /var/lib/postgresql, so at runtime a mounted volume SHADOWS
+# the payload and every symlink dangles ("could not open extension control
+# file pg_graphql.control"). Copy the real files into the PG dirs instead.
 ARG PG_GRAPHQL_REF=v1.6.1
 RUN curl -fsSL -o /tmp/pg_graphql.deb \
       "https://github.com/supabase/pg_graphql/releases/download/${PG_GRAPHQL_REF}/pg_graphql-${PG_GRAPHQL_REF}-pg18-$(dpkg --print-architecture)-linux-gnu.deb" \
-    && dpkg -i /tmp/pg_graphql.deb \
-    && rm -f /tmp/pg_graphql.deb
+    && dpkg -x /tmp/pg_graphql.deb /tmp/pg_graphql \
+    && cp /tmp/pg_graphql/var/lib/postgresql/extension/pg_graphql.control \
+          /tmp/pg_graphql/var/lib/postgresql/extension/pg_graphql--*.sql \
+          /usr/share/postgresql/18/extension/ \
+    && cp /tmp/pg_graphql/usr/lib/postgresql/lib/pg_graphql.so /usr/lib/postgresql/18/lib/ \
+    && rm -rf /tmp/pg_graphql.deb /tmp/pg_graphql
 
 # Preload pg_graphql (it registers on CREATE EXTENSION; migrations issue that).
 # pgvector needs no preload. Health: the default postgres image already exposes 5432.
