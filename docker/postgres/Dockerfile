@@ -31,9 +31,13 @@ RUN apt-get update \
 # arguments, but PG18 changed its signature to take a `bool is_analyze` (fixed
 # upstream in 0.8.1+). Pinned to the latest 0.8.x.
 ARG PGVECTOR_REF=v0.8.5
+# OPTFLAGS="" is REQUIRED: pgvector's Makefile defaults to -march=native, which
+# bakes the CI runner's AVX-512 into vector.so — backends then die with SIGILL
+# (signal 4) on any node without AVX-512 (verified on LKE: CREATE EXTENSION ok,
+# first `<->` distance call kills the backend). Portable build runs anywhere.
 RUN git clone --branch "${PGVECTOR_REF}" --depth 1 https://github.com/pgvector/pgvector.git /tmp/pgvector \
     && cd /tmp/pgvector \
-    && make \
+    && make OPTFLAGS="" \
     && make install \
     && rm -rf /tmp/pgvector
 
