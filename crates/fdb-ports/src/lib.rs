@@ -21,6 +21,9 @@ use futures::stream::BoxStream;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum BackendError {
+    /// PostgreSQL rejected the operation through privileges or row-level security.
+    #[error("access denied")]
+    Denied,
     /// A pooled connection could not be checked out, or the RLS-context
     /// transaction setup (`BEGIN` / `SET LOCAL` / `set_config`) failed.
     #[error("connection")]

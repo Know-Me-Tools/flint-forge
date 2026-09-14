@@ -216,6 +216,28 @@ async fn assert_mutation_isolation(
 ) {
     let (status, _) = send(
         router,
+        "POST",
+        "/p16c001_it/orders",
+        tenant_a.clone(),
+        Some(json!({"id":"forbidden", "tenant_id":"tenant-b", "note":"denied"})),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "RLS denial is a permission response"
+    );
+    let count: i64 = setup
+        .query_one(
+            "SELECT count(*) FROM p16c001_it.orders WHERE id='forbidden'",
+            &[],
+        )
+        .await
+        .expect("verify denied write")
+        .get(0);
+    assert_eq!(count, 0, "denied insert must not persist");
+    let (status, _) = send(
+        router,
         "PATCH",
         "/p16c001_it/orders?tenant_id=eq.tenant-b",
         tenant_a.clone(),
