@@ -1,185 +1,244 @@
-//! A2UI component embedder — background task for the Flint A2UI Component Registry.
-//!
-//! Listens on the Postgres `a2ui_embed` channel for new component inserts, calls
-//! the in-database `llm.embed()` function via the privileged reflection pool, and
-//! writes the resulting `vector(1536)` into `flint_a2ui.embeddings`.
-//!
-//! On startup the task also backfills any components that lack an embedding row.
-//!
-//! # Security invariants
-//!
-//! - Runs as a **privileged Postgres role** (service account, not `authenticated`).
-//!   The pool used here MUST be configured with a superuser or service-role credential.
-//! - Component text (slug, description, prop names) is NOT PII, but is still treated
-//!   as internal catalog data and logged only at `debug` level.
-//! - If `llm.embed()` is unavailable (e.g. `ext-flint-llm` not installed), the task
-//!   logs a warning and continues; semantic search degrades gracefully to text search.
-//!
-//! # OQ-10 resolution
-//!
-//! The default model is `text-embedding-3-large`. If that model is unavailable via
-//! the liter-llm gateway, the task falls back to `text-embedding-3-small` (also
-//! 1536-d) automatically. If both fail, the component is left unembedded and will
-//! be retried on the next startup or insert.
+//! A2UI embedding generation and recovery, coordinated across gateway replicas.
 #![forbid(unsafe_code)]
+use sqlx::{Connection, PgConnection, PgPool};
+use std::{sync::Arc, time::Duration};
 
-use std::sync::Arc;
+const LOCK_ID: i64 = 0x4132_5549_454d_4244;
 
-use sqlx::PgPool;
-use tracing::instrument;
+/// Model shared by document backfill and semantic queries.
+pub fn embedding_model() -> String {
+    std::env::var("FLINT_A2UI_EMBED_MODEL").unwrap_or_else(|_| "text-embedding-3-small".into())
+}
 
-/// Spawn the A2UI embedder background task.
-///
-/// The task:
-/// 1. Runs an initial backfill for components without embeddings.
-/// 2. Opens a `PgListener` on the `a2ui_embed` channel.
-/// 3. Processes each notification by embedding the referenced component.
-///
-/// The task never panics; errors are logged and the loop continues.
+fn dimensions() -> Result<usize, sqlx::Error> {
+    let value = std::env::var("FLINT_A2UI_EMBED_DIMENSIONS").unwrap_or_else(|_| "1536".into());
+    value
+        .parse::<usize>()
+        .ok()
+        .filter(|n| *n > 0)
+        .ok_or_else(|| sqlx::Error::Protocol("invalid FLINT_A2UI_EMBED_DIMENSIONS".into()))
+}
+
+/// Listen before backfilling so inserts during startup are not missed.
+/// Periodic recovery also catches notifications lost during reconnection.
 pub fn spawn(pool: Arc<PgPool>) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        if let Err(e) = backfill_missing(&pool).await {
-            tracing::warn!(error = %e, "a2ui-embedder initial backfill failed");
-        }
-
-        let mut listener = match sqlx::postgres::PgListener::connect_with(&pool).await {
-            Ok(l) => l,
-            Err(e) => {
-                tracing::error!(error = %e, "a2ui-embedder failed to connect listener");
-                return;
-            }
-        };
-
-        if let Err(e) = listener.listen("a2ui_embed").await {
-            tracing::error!(error = %e, "a2ui-embedder failed to LISTEN a2ui_embed");
-            return;
-        }
-
-        tracing::info!("a2ui-embedder listening on a2ui_embed");
-
+        let mut warned = false;
         loop {
-            match listener.recv().await {
-                Ok(notification) => {
-                    let payload = notification.payload();
-                    tracing::debug!(payload, "a2ui_embed notification received");
-                    if let Ok(id) = uuid::Uuid::parse_str(payload) {
-                        if let Err(e) = embed_component(&pool, id).await {
-                            tracing::warn!(error = %e, component_id = %id, "a2ui-embedder failed to embed component");
-                        }
-                    } else {
-                        tracing::warn!(payload, "a2ui_embed notification payload is not a UUID");
+            let listener = sqlx::postgres::PgListener::connect_with(&pool).await;
+            let Ok(mut listener) = listener else {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                continue;
+            };
+            if listener.listen("a2ui_embed").await.is_err() {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                continue;
+            }
+            let mut interval = tokio::time::interval(Duration::from_secs(30));
+            loop {
+                let component = tokio::select! {
+                    _ = interval.tick() => None,
+                    event = listener.recv() => match event {
+                        Ok(event) => uuid::Uuid::parse_str(event.payload()).ok(),
+                        Err(_) => break,
                     }
-                }
-                Err(e) => {
-                    tracing::warn!(error = %e, "a2ui-embedder listener recv failed; reconnecting");
-                    // Best-effort reconnect. If reconnect fails, exit and let the
-                    // operator restart; otherwise continue listening.
-                    listener = match reconnect(&pool).await {
-                        Some(l) => l,
-                        None => return,
-                    };
+                };
+                match backfill(&pool, component).await {
+                    Ok(()) => {
+                        if warned {
+                            tracing::info!("a2ui-embedder recovered");
+                        }
+                        warned = false;
+                    }
+                    Err(error) => {
+                        if !warned {
+                            tracing::warn!(%error, "a2ui-embedder unavailable; retrying every 30 seconds");
+                        }
+                        warned = true;
+                    }
                 }
             }
         }
     })
 }
 
-/// Re-establish a listener connection and re-subscribe.
-async fn reconnect(pool: &PgPool) -> Option<sqlx::postgres::PgListener> {
-    let mut listener = match sqlx::postgres::PgListener::connect_with(pool).await {
-        Ok(l) => l,
-        Err(e) => {
-            tracing::error!(error = %e, "a2ui-embedder reconnect failed");
-            return None;
-        }
-    };
-    if let Err(e) = listener.listen("a2ui_embed").await {
-        tracing::error!(error = %e, "a2ui-embedder reconnect LISTEN failed");
-        return None;
-    }
-    Some(listener)
-}
-
-/// Embed all components that do not yet have an `aspect = 'description'` embedding.
+/// Backfill missing descriptions without duplicating work across replicas.
 ///
 /// # Errors
-///
-/// Returns `sqlx::Error` if the initial query listing unembedded components
-/// fails (e.g. pool exhaustion or a lost connection). Per-component embedding
-/// failures inside the backfill loop are logged and skipped rather than
-/// propagated, so a single bad component cannot abort the whole backfill.
-#[instrument(skip(pool))]
+/// Returns database, configuration, or provider failure after bounded retries.
 pub async fn backfill_missing(pool: &PgPool) -> Result<(), sqlx::Error> {
-    let rows: Vec<(uuid::Uuid,)> = sqlx::query_as(
-        "SELECT c.id
-         FROM flint_a2ui.components c
-         WHERE NOT EXISTS (
-             SELECT 1 FROM flint_a2ui.embeddings e
-             WHERE e.component_id = c.id AND e.aspect = 'description'
-         )",
+    backfill(pool, None).await
+}
+
+async fn backfill(pool: &PgPool, changed: Option<uuid::Uuid>) -> Result<(), sqlx::Error> {
+    // Dedicated connection holds a session lock across individual transactions.
+    // Explicit close releases the lock even when a database call fails.
+    let mut connection = pool.acquire().await?.detach();
+    let locked: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock($1)")
+        .bind(LOCK_ID)
+        .fetch_one(&mut connection)
+        .await?;
+    if !locked {
+        return Ok(());
+    }
+    let result = backfill_locked(&mut connection, changed).await;
+    let _unlock = sqlx::query("SELECT pg_advisory_unlock($1)")
+        .bind(LOCK_ID)
+        .execute(&mut connection)
+        .await;
+    result
+}
+
+async fn backfill_locked(
+    connection: &mut PgConnection,
+    changed: Option<uuid::Uuid>,
+) -> Result<(), sqlx::Error> {
+    let available: bool =
+        sqlx::query_scalar("SELECT to_regprocedure('llm.embed(text,text)') IS NOT NULL")
+            .fetch_one(&mut *connection)
+            .await?;
+    if !available {
+        return Err(sqlx::Error::Protocol(
+            "install the flint_llm extension: llm.embed(text,text) is missing".into(),
+        ));
+    }
+    let expected = dimensions()?;
+    let stored: i32 = sqlx::query_scalar("SELECT atttypmod FROM pg_attribute WHERE attrelid='flint_a2ui.embeddings'::regclass AND attname='embedding'")
+        .fetch_one(&mut *connection).await?;
+    if usize::try_from(stored).ok() != Some(expected) {
+        return Err(sqlx::Error::Protocol(
+            "catalog vector dimension and configured embedding dimension differ".into(),
+        ));
+    }
+    let model = embedding_model();
+    let ids: Vec<uuid::Uuid> = sqlx::query_scalar(
+        "SELECT c.id FROM flint_a2ui.components c WHERE c.id=$2 OR NOT EXISTS (
+         SELECT 1 FROM flint_a2ui.embeddings e WHERE e.component_id=c.id
+         AND e.aspect='description' AND e.model=$1) ORDER BY c.id",
     )
-    .fetch_all(pool)
+    .bind(&model)
+    .bind(changed)
+    .fetch_all(&mut *connection)
     .await?;
-
-    tracing::info!(count = rows.len(), "a2ui-embedder backfill starting");
-
-    for (id,) in rows {
-        if let Err(e) = embed_component(pool, id).await {
-            tracing::warn!(error = %e, component_id = %id, "a2ui-embedder backfill item failed");
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let total = ids.len();
+    let mut succeeded = 0;
+    let mut failed = 0;
+    for id in ids {
+        let mut attempts = 0;
+        loop {
+            match embed_component(connection, id, &model, expected).await {
+                Ok(()) => {
+                    succeeded += 1;
+                    break;
+                }
+                Err(error) if attempts < 2 && retryable(&error) => {
+                    tokio::time::sleep(Duration::from_secs(1 << attempts)).await;
+                    attempts += 1;
+                }
+                Err(error) => {
+                    failed += 1;
+                    tracing::warn!(%error, "a2ui-embedder component failed");
+                    // Shared dependency failure: stop the batch rather than
+                    // issuing the same failing provider request for every row.
+                    tracing::info!(
+                        succeeded,
+                        failed,
+                        remaining = total - succeeded,
+                        "a2ui-embedder backfill incomplete"
+                    );
+                    return Err(error);
+                }
+            }
         }
     }
-
-    tracing::info!("a2ui-embedder backfill complete");
+    tracing::info!(
+        succeeded,
+        failed,
+        remaining = 0,
+        "a2ui-embedder backfill complete"
+    );
     Ok(())
 }
 
-/// Fetch component text, generate an embedding, and insert it into
-/// `flint_a2ui.embeddings`.
-#[instrument(skip(pool), fields(component_id = %id))]
-async fn embed_component(pool: &PgPool, id: uuid::Uuid) -> Result<(), EmbedError> {
-    let row: ComponentTextRow = sqlx::query_as(
-        "SELECT slug, primitive_type, category, description, schema, usage_examples
-         FROM flint_a2ui.components
-         WHERE id = $1",
-    )
-    .bind(id)
-    .fetch_optional(pool)
-    .await?
-    .ok_or(EmbedError::ComponentNotFound(id))?;
-
-    let text = build_embedding_text(&row);
-    tracing::debug!(text_len = text.len(), "a2ui-embedder built embedding text");
-
-    let (embedding, model) = match generate_embedding(pool, &text, "text-embedding-3-large").await {
-        Ok(v) => (v, "text-embedding-3-large"),
-        Err(EmbedError::ModelUnavailable(_)) => {
-            tracing::info!(
-                "text-embedding-3-large unavailable; falling back to text-embedding-3-small"
-            );
-            (
-                generate_embedding(pool, &text, "text-embedding-3-small").await?,
-                "text-embedding-3-small",
-            )
+fn retryable(error: &sqlx::Error) -> bool {
+    match error {
+        sqlx::Error::Io(_) | sqlx::Error::PoolTimedOut => true,
+        sqlx::Error::Database(error) => {
+            let message = error.message();
+            message.contains("gateway error 429")
+                || message.contains("gateway error 5")
+                || message.contains("timed out")
+                || message.contains("HTTP request failed")
         }
-        Err(e) => return Err(e),
+        _ => false,
+    }
+}
+
+async fn embed_component(
+    connection: &mut PgConnection,
+    id: uuid::Uuid,
+    model: &str,
+    expected: usize,
+) -> Result<(), sqlx::Error> {
+    let mut tx = connection.begin().await?;
+    let row: Option<ComponentTextRow> = sqlx::query_as(
+        "SELECT slug, primitive_type, category, description, schema, usage_examples FROM flint_a2ui.components WHERE id=$1 FOR SHARE")
+        .bind(id).fetch_optional(&mut *tx).await?;
+    let Some(row) = row else {
+        return Ok(());
     };
-
-    sqlx::query(
-        "INSERT INTO flint_a2ui.embeddings
-             (component_id, embedding, entity_type, aspect, model)
-         VALUES ($1, $2::vector(1536), 'component', 'description', $3)
-         ON CONFLICT (component_id, entity_type, aspect)
-         DO UPDATE SET embedding = EXCLUDED.embedding,
-                       model = EXCLUDED.model,
-                       created_at = now()",
-    )
-    .bind(id)
-    .bind(vector_literal(&embedding))
-    .bind(model)
-    .execute(pool)
-    .await?;
-
+    let embedding =
+        generate_embedding(&mut tx, &build_embedding_text(&row), model, expected).await?;
+    sqlx::query("INSERT INTO flint_a2ui.embeddings(component_id,embedding,entity_type,aspect,model)
+        VALUES ($1,$2::vector,'component','description',$3)
+        ON CONFLICT (component_id,entity_type,aspect) DO UPDATE SET embedding=EXCLUDED.embedding, model=EXCLUDED.model, created_at=now()")
+        .bind(id).bind(embedding).bind(model).execute(&mut *tx).await?;
+    tx.commit().await?;
     Ok(())
+}
+
+/// Generate a query vector; failure leaves search on the text path.
+pub async fn query_embedding(pool: &PgPool, text: &str) -> Option<String> {
+    let mut connection = pool.acquire().await.ok()?;
+    if let Ok(vector) = generate_embedding(
+        &mut connection,
+        text,
+        &embedding_model(),
+        dimensions().ok()?,
+    )
+    .await
+    {
+        Some(vector)
+    } else {
+        tracing::debug!("semantic query unavailable; using text search");
+        None
+    }
+}
+
+async fn generate_embedding(
+    connection: &mut PgConnection,
+    text: &str,
+    model: &str,
+    expected: usize,
+) -> Result<String, sqlx::Error> {
+    let literal: Option<String> = sqlx::query_scalar("SELECT llm.embed($1,$2)::text")
+        .bind(text)
+        .bind(model)
+        .fetch_one(connection)
+        .await?;
+    let literal =
+        literal.ok_or_else(|| sqlx::Error::Protocol("embedding provider returned NULL".into()))?;
+    let vector = parse_vector_literal(&literal)
+        .map_err(|_| sqlx::Error::Protocol("invalid embedding vector".into()))?;
+    if vector.len() != expected || vector.iter().any(|v| !v.is_finite()) {
+        return Err(sqlx::Error::Protocol(
+            "embedding dimension mismatch or non-finite values".into(),
+        ));
+    }
+    Ok(vector_literal(&vector))
 }
 
 /// Row type for the component text used to build an embedding input.
@@ -220,24 +279,6 @@ fn build_embedding_text(row: &ComponentTextRow) -> String {
     parts.join(" ")
 }
 
-/// Call the in-database `llm.embed(text, model)` function and return a `Vec<f32>`.
-#[instrument(skip(pool))]
-async fn generate_embedding(
-    pool: &PgPool,
-    text: &str,
-    model: &str,
-) -> Result<Vec<f32>, EmbedError> {
-    let vector_literal: Option<String> = sqlx::query_scalar("SELECT llm.embed($1, $2)::text")
-        .bind(text)
-        .bind(model)
-        .fetch_optional(pool)
-        .await?;
-
-    let vector_literal =
-        vector_literal.ok_or_else(|| EmbedError::ModelUnavailable(model.to_string()))?;
-    parse_vector_literal(&vector_literal)
-}
-
 /// Format a `Vec<f32>` as a Postgres `vector` literal string.
 fn vector_literal(v: &[f32]) -> String {
     let joined = v
@@ -249,40 +290,27 @@ fn vector_literal(v: &[f32]) -> String {
 }
 
 /// Parse a Postgres `vector` text representation such as `[0.1, -0.2, ...]`.
-fn parse_vector_literal(s: &str) -> Result<Vec<f32>, EmbedError> {
+fn parse_vector_literal(s: &str) -> Result<Vec<f32>, VectorError> {
     let trimmed = s.trim();
     let inner = trimmed
         .strip_prefix('[')
         .and_then(|s| s.strip_suffix(']'))
-        .ok_or_else(|| EmbedError::VectorParse(s.to_string()))?;
+        .ok_or(VectorError)?;
 
     if inner.trim().is_empty() {
-        return Err(EmbedError::VectorParse(s.to_string()));
+        return Err(VectorError);
     }
 
     inner
         .split(',')
         .map(|part| part.trim().parse::<f32>())
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| EmbedError::VectorParse(s.to_string()))
+        .map_err(|_| VectorError)
 }
 
-/// Errors that can occur while embedding a component.
 #[derive(Debug, thiserror::Error)]
-enum EmbedError {
-    #[error("database error: {0}")]
-    Sqlx(#[from] sqlx::Error),
-
-    #[error("component not found: {0}")]
-    ComponentNotFound(uuid::Uuid),
-
-    #[error("embedding model unavailable: {0}")]
-    ModelUnavailable(String),
-
-    #[error("failed to parse vector literal: {0}")]
-    VectorParse(String),
-}
-
+#[error("invalid embedding vector")]
+struct VectorError;
 // ─── unit tests ──────────────────────────────────────────────────────────────
 
 #[cfg(test)]

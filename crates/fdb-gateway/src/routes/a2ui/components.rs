@@ -17,7 +17,7 @@ use serde_json::{json, Value};
 use sqlx::{types::Json as SqlxJson, FromRow};
 use uuid::Uuid;
 
-use super::helpers::{claims_json, internal_error};
+use super::helpers::{internal_error, transaction};
 use super::A2uiState;
 
 /// Query parameters for `GET /a2ui/v1/components`.
@@ -95,12 +95,7 @@ struct SearchResultRow {
     score: f64,
 }
 
-/// `GET /a2ui/v1/components`
-///
-/// Returns permission-filtered components for the caller. If `app_id` is
-/// provided, app-specific components are included when the caller has a role
-/// assignment in that application. Base components are always included.
-#[tracing::instrument(skip(state, who, query), fields(subject = ?who.role))]
+/// List catalog components under the caller's RLS identity.
 pub async fn list_components(
     State(state): State<A2uiState>,
     Extension(who): Extension<RlsContext>,
@@ -109,35 +104,27 @@ pub async fn list_components(
     list_components_value(&state.pool, &who, &query).await
 }
 
-/// Inner logic shared with the MCP tool so both surfaces stay in sync.
+/// Shared by REST and MCP.
 pub async fn list_components_value(
     pool: &sqlx::PgPool,
     who: &RlsContext,
     query: &ListComponentsQuery,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let claims = claims_json(who);
-
-    let mut components: Vec<ComponentRow> = sqlx::query_as(
-        "SELECT id, slug, category, primitive_type, schema, description
-         FROM flint_a2ui.resolve_components($1, $2)",
+    let mut tx = transaction(pool, who).await?;
+    let components: Vec<ComponentRow> = sqlx::query_as(
+        "SELECT id, slug, category, primitive_type, schema, description FROM flint_a2ui.components
+         WHERE (is_base OR application_id IS NULL OR application_id = $1)
+         AND ($2::text IS NULL OR category = $2) ORDER BY category, slug",
     )
     .bind(query.app_id)
-    .bind(claims)
-    .fetch_all(pool)
+    .bind(&query.category)
+    .fetch_all(&mut *tx)
     .await
     .map_err(internal_error)?;
-
-    if let Some(cat) = &query.category {
-        components.retain(|c| &c.category == cat);
-    }
-
-    Ok(Json(json!({ "components": components })))
+    Ok(Json(json!({"components": components})))
 }
 
-/// `GET /a2ui/v1/components/{slug}`
-///
-/// Returns a single component by slug. The caller must be able to see it
-/// through `resolve_components` (base components or app-scoped + role).
+/// Fetch one visible component, or return 404.
 pub async fn get_component(
     State(state): State<A2uiState>,
     Extension(who): Extension<RlsContext>,
@@ -146,49 +133,28 @@ pub async fn get_component(
     get_component_value(&state.pool, &who, &slug).await
 }
 
-/// Inner logic shared with the MCP tool.
+/// Shared by REST and MCP.
 pub async fn get_component_value(
     pool: &sqlx::PgPool,
     who: &RlsContext,
     slug: &str,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let claims = claims_json(who);
-
+    let mut tx = transaction(pool, who).await?;
     let component: Option<ComponentDetailRow> = sqlx::query_as(
-        "SELECT c.id, c.slug, c.category, c.primitive_type, c.schema,
-                c.description, c.renderers, c.react_pkg, c.flutter_pkg, c.htmx_template
-         FROM flint_a2ui.components c
-         WHERE c.slug = $1
-           AND (
-               c.is_base = true
-               OR c.application_id IS NULL
-               OR c.application_id IN (
-                   SELECT DISTINCT ra.application_id
-                   FROM flint_a2ui.role_assignments ra
-                   WHERE ra.user_id = ($2->'flint'->>'user_id')::text
-               )
-           )",
+        "SELECT id, slug, category, primitive_type, schema, description, renderers,
+         react_pkg, flutter_pkg, htmx_template FROM flint_a2ui.components WHERE slug = $1",
     )
     .bind(slug)
-    .bind(claims)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *tx)
     .await
     .map_err(internal_error)?;
-
-    match component {
-        Some(c) => Ok(Json(json!({ "component": c }))),
-        None => Err((
-            StatusCode::NOT_FOUND,
-            Json(json!({"error": "component not found"})),
-        )),
-    }
+    component.map(|c| Json(json!({"component": c}))).ok_or((
+        StatusCode::NOT_FOUND,
+        Json(json!({"error":"component not found"})),
+    ))
 }
 
-/// `POST /a2ui/v1/components/search`
-///
-/// Hybrid text + semantic search. When `llm.embed()` is available the query is
-/// embedded and `flint_a2ui.hybrid_search()` is used. Otherwise we fall back to
-/// a pure full-text search over slug + description.
+/// Search the catalog; provider outages fall back to full-text search.
 pub async fn search_components(
     State(state): State<A2uiState>,
     Extension(who): Extension<RlsContext>,
@@ -197,111 +163,61 @@ pub async fn search_components(
     search_components_value(&state.pool, &who, &body).await
 }
 
-/// Full-text fallback for component search when embeddings are unavailable.
-async fn full_text_search(
-    pool: &sqlx::PgPool,
-    _who: &RlsContext,
-    body: &SearchComponentsBody,
-    claims: &Value,
-) -> Result<Vec<SearchResultRow>, (StatusCode, Json<Value>)> {
-    sqlx::query_as(
-        "SELECT c.id, c.slug, c.category, c.primitive_type,
-                ts_rank(
-                    to_tsvector('english', COALESCE(c.description, '') || ' ' || c.slug),
-                    plainto_tsquery('english', $1)
-                )::double precision AS score
-         FROM flint_a2ui.components c
-         WHERE (
-             c.is_base = true
-             OR c.application_id IS NULL
-             OR c.application_id = $3
-             OR c.application_id IN (
-                 SELECT DISTINCT ra.application_id
-                 FROM flint_a2ui.role_assignments ra
-                 WHERE ra.user_id = ($4->'flint'->>'user_id')::text
-             )
-         )
-         AND to_tsvector('english', COALESCE(c.description, '') || ' ' || c.slug)
-             @@ plainto_tsquery('english', $1)
-         ORDER BY score DESC
-         LIMIT $2",
-    )
-    .bind(&body.query)
-    .bind(body.limit)
-    .bind(body.app_id)
-    .bind(claims)
-    .fetch_all(pool)
-    .await
-    .map_err(internal_error)
-}
-
-/// Inner logic shared with the MCP tool.
+/// Shared by REST and MCP. Embed separately so a provider SQL error cannot
+/// abort the subsequent RLS search transaction.
 pub async fn search_components_value(
     pool: &sqlx::PgPool,
     who: &RlsContext,
     body: &SearchComponentsBody,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let claims = claims_json(who);
-
-    // Prefer hybrid search if an embedding can be generated.
-    let hybrid_results: Result<Vec<SearchResultRow>, _> = sqlx::query_as(
-        "SELECT c.id, c.slug, c.category, c.primitive_type, hs.score
-         FROM flint_a2ui.hybrid_search($1, llm.embed($1), $2) hs
-         JOIN flint_a2ui.components c ON c.id = hs.component_id
-         WHERE c.is_base = true
-            OR c.application_id IS NULL
-            OR c.application_id = $3
-            OR c.application_id IN (
-                SELECT DISTINCT ra.application_id
-                FROM flint_a2ui.role_assignments ra
-                WHERE ra.user_id = ($4->'flint'->>'user_id')::text
-            )
-         ORDER BY hs.score DESC
-         LIMIT $2",
-    )
-    .bind(&body.query)
-    .bind(body.limit)
-    .bind(body.app_id)
-    .bind(claims.clone())
-    .fetch_all(pool)
-    .await;
-
-    // Fall back to full-text search when hybrid is unavailable or returns no
-    // results (e.g., the embeddings table is not yet populated).
-    let results = match hybrid_results {
-        Ok(rows) if !rows.is_empty() => rows,
-        Ok(_) => {
-            tracing::debug!("hybrid search returned no results; falling back to full-text search");
-            full_text_search(pool, who, body, &claims).await?
-        }
-        Err(e) => {
-            tracing::warn!(error = %e, "hybrid search failed; falling back to full-text search");
-            full_text_search(pool, who, body, &claims).await?
-        }
-    };
-
-    Ok(Json(json!({ "results": results })))
+    if !(1..=100).contains(&body.limit) || body.query.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"query is required; limit must be 1..100"})),
+        ));
+    }
+    let vector = fdb_gateway::a2ui_embedder::query_embedding(pool, &body.query).await;
+    let mut tx = transaction(pool, who).await?;
+    let mut results: Vec<SearchResultRow> = Vec::new();
+    if let Some(vector) = vector {
+        // Visibility is filtered BEFORE ranking and LIMIT, including MCP calls.
+        results = sqlx::query_as(
+            "SELECT c.id, c.slug, c.category, c.primitive_type,
+              (0.7 * (1 - (e.embedding <=> $1::vector)) + 0.3 * ts_rank(
+                to_tsvector('english', COALESCE(c.description,'') || ' ' || c.slug),
+                plainto_tsquery('english', $2)))::double precision AS score
+             FROM flint_a2ui.components c JOIN flint_a2ui.embeddings e ON e.component_id=c.id
+             WHERE e.aspect='description' AND e.model=$5
+               AND ($3::uuid IS NULL OR c.is_base OR c.application_id IS NULL OR c.application_id=$3)
+             ORDER BY score DESC LIMIT $4")
+            .bind(vector).bind(&body.query).bind(body.app_id).bind(body.limit)
+            .bind(fdb_gateway::a2ui_embedder::embedding_model()).fetch_all(&mut *tx).await.map_err(internal_error)?;
+    }
+    if results.is_empty() {
+        results = sqlx::query_as(
+            "SELECT id, slug, category, primitive_type, ts_rank(
+                to_tsvector('english', COALESCE(description,'') || ' ' || slug),
+                plainto_tsquery('english', $1))::double precision AS score
+             FROM flint_a2ui.components
+             WHERE ($2::uuid IS NULL OR is_base OR application_id IS NULL OR application_id=$2)
+               AND to_tsvector('english', COALESCE(description,'') || ' ' || slug) @@ plainto_tsquery('english', $1)
+             ORDER BY score DESC LIMIT $3")
+            .bind(&body.query).bind(body.app_id).bind(body.limit).fetch_all(&mut *tx).await.map_err(internal_error)?;
+    }
+    Ok(Json(json!({"results": results})))
 }
 
-/// `GET /a2ui/v1/components/bindings/{schema}/{table}`
-///
-/// Returns auto-generated (and any manual) bindings for a table.
+/// Return visible bindings for a table.
 pub async fn get_bindings(
     State(state): State<A2uiState>,
-    Path((table_schema, table_name)): Path<(String, String)>,
-) -> impl IntoResponse {
+    Extension(who): Extension<RlsContext>,
+    Path((schema, table)): Path<(String, String)>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let mut tx = transaction(&state.pool, &who).await?;
     let bindings: Vec<BindingRow> = sqlx::query_as(
         "SELECT b.id, b.table_schema, b.table_name, b.binding_type, b.auto_generated, b.config,
-                c.slug, c.primitive_type
-         FROM flint_a2ui.bindings b
-         JOIN flint_a2ui.components c ON c.id = b.component_id
-         WHERE b.table_schema = $1 AND b.table_name = $2",
-    )
-    .bind(&table_schema)
-    .bind(&table_name)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(internal_error)?;
-
-    Ok::<_, (StatusCode, Json<Value>)>(Json(json!({ "bindings": bindings })))
+                c.slug, c.primitive_type FROM flint_a2ui.bindings b
+         JOIN flint_a2ui.components c ON c.id=b.component_id WHERE b.table_schema=$1 AND b.table_name=$2")
+        .bind(schema).bind(table).fetch_all(&mut *tx).await.map_err(internal_error)?;
+    Ok(Json(json!({"bindings":bindings})))
 }

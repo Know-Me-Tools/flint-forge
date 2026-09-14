@@ -1,0 +1,39 @@
+{
+  "phase": "know-me-a2ui-repair",
+  "status": "implementing",
+  "testRunCount": 5,
+  "repositories": [
+    "flint-forge",
+    "flint-core-infra",
+    "liter-llm"
+  ],
+  "decisions": [
+    "Token Plan qwen3.8-max for chat; no paid chat fallback",
+    "regular DashScope tongyi-embedding-vision-plus for embeddings",
+    "user requested compatible-mode/v1 endpoint; verify model compatibility before adapter changes",
+    "preserve database volume and existing user changes",
+    "User confirmed native DashScope upstream behind OpenAI-compatible liter-llm; live probe returned 1152 finite dimensions"
+  ],
+  "updatedAt": "2026-09-14T00:14:55.836161+00:00",
+  "validation": {
+    "compile": "gateway/reflection and standalone flint_llm cargo check passed",
+    "rls": "Live schema copied to isolated flint_a2ui_repair_test; migrations 0016/0017 applied; SQL isolation/admin/escalation tests passed on second run (fixed test vector dimensions)",
+    "clippy": "cargo clippy -p fdb-gateway -p fdb-reflection -- -D warnings passed",
+    "dedicatedApi": "6 existing A2UI tests and 1 added isolation test passed against isolated database",
+    "infra": "Kustomize rendered; validate.sh passed with kubeconform/yamllint unavailable"
+  },
+  "externalEffects": [
+    "Created liter-llm-providers Secret with separate provider keys",
+    "Created liter-llm-service Secret with service-token/master-key",
+    "Registered internal credential SHA-256 digest in flintgate.public.api_keys",
+    "Created isolated flint_a2ui_repair_test database; live catalog schema/data untouched"
+  ],
+  "pending": [
+    "Resolve user endpoint/model conflict: compatible-mode rejected tongyi-embedding-vision-plus",
+    "Embedding adapter/model configuration and dimension migration",
+    "Fresh/legacy Ember package installation tests",
+    "Provider, two-replica backfill, generic API authorization integration tests",
+    "Required full phase lint/schema validation",
+    "Image build/pin and ordered deployment; 55 embeddings and live RLS verification"
+  ]
+}
