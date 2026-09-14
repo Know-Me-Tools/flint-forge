@@ -11,6 +11,10 @@ BEGIN
   IF version IS NOT NULL AND version <> '0.0.0' THEN
     RAISE EXCEPTION 'Unsupported flint_llm version: %',version;
   END IF;
+  IF version IS NULL AND to_regclass('llm.jobs') IS NULL THEN
+    CREATE EXTENSION flint_llm VERSION '0.1.0';
+    RETURN;
+  END IF;
   IF version IS NULL THEN
     CREATE EXTENSION flint_llm VERSION '0.0.0';
   END IF;
