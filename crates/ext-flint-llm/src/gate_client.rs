@@ -55,6 +55,8 @@ pub struct GateClient {
     client: reqwest::Client,
     base_url: String,
     service_token: SecretString,
+    openai: bool,
+    embedding_dimensions: Option<usize>,
 }
 
 impl GateClient {
@@ -74,19 +76,44 @@ impl GateClient {
 
         let client = reqwest::Client::builder()
             .default_headers(headers)
+            .timeout(std::time::Duration::from_secs(60))
             .build()?;
 
+        let openai = match std::env::var("FLINT_LLM_PROTOCOL").as_deref() {
+            Ok("openai") => true,
+            Ok("legacy") | Err(_) => false,
+            Ok(_) => {
+                return Err(LlmError::Config(
+                    "FLINT_LLM_PROTOCOL must be openai or legacy".into(),
+                ))
+            }
+        };
+        let embedding_dimensions = std::env::var("FLINT_LLM_EMBED_DIMENSIONS")
+            .ok()
+            .map(|value| {
+                value
+                    .parse::<usize>()
+                    .ok()
+                    .filter(|n| *n > 0)
+                    .ok_or_else(|| {
+                        LlmError::Config("FLINT_LLM_EMBED_DIMENSIONS must be positive".into())
+                    })
+            })
+            .transpose()?;
         Ok(Self {
+            embedding_dimensions,
             client,
             base_url,
             service_token,
+            openai,
         })
     }
 
     /// Resolve a model name, mapping `"default"` to the embedding default.
     fn resolve_embed_model(model: Option<&str>) -> String {
         match model {
-            None | Some("default") | Some("") => DEFAULT_EMBED_MODEL.to_string(),
+            None | Some("default") | Some("") => std::env::var("FLINT_LLM_EMBED_MODEL")
+                .unwrap_or_else(|_| DEFAULT_EMBED_MODEL.to_string()),
             Some(m) => m.to_string(),
         }
     }
@@ -94,7 +121,8 @@ impl GateClient {
     /// Resolve a model name, mapping `"default"` to the completion default.
     fn resolve_complete_model(model: Option<&str>) -> String {
         match model {
-            None | Some("default") | Some("") => DEFAULT_COMPLETE_MODEL.to_string(),
+            None | Some("default") | Some("") => std::env::var("FLINT_LLM_CHAT_MODEL")
+                .unwrap_or_else(|_| DEFAULT_COMPLETE_MODEL.to_string()),
             Some(m) => m.to_string(),
         }
     }
@@ -108,6 +136,13 @@ impl GateClient {
             HeaderValue::from_str(&bearer)
                 .map_err(|e| LlmError::Config(format!("bad auth header: {e}")))?,
         );
+        if self.openai {
+            headers.insert(
+                "X-API-Key",
+                HeaderValue::from_str(self.service_token.expose_secret())
+                    .map_err(|_| LlmError::Config("invalid service token header".into()))?,
+            );
+        }
         if let Some(origin) = origin_jwt {
             headers.insert(
                 "X-Forge-Origin-JWT",
@@ -131,7 +166,12 @@ impl GateClient {
             input: input.to_string(),
             model: Some(Self::resolve_embed_model(model)),
         };
-        let url = format!("{}/v1/llm/embed", self.base_url);
+        let path = if self.openai {
+            "/v1/embeddings"
+        } else {
+            "/v1/llm/embed"
+        };
+        let url = format!("{}{path}", self.base_url);
         let resp = self
             .client
             .post(&url)
@@ -142,14 +182,40 @@ impl GateClient {
 
         let status = resp.status();
         if status.is_success() {
-            let body: EmbedResponse = resp
-                .json()
-                .await
-                .map_err(|e| LlmError::BadResponse(format!("embed response malformed: {e}")))?;
-            Ok(body.embedding)
+            let embedding = if self.openai {
+                let body: OpenAiEmbeddings = resp.json().await.map_err(|_| {
+                    LlmError::BadResponse("malformed OpenAI embedding response".into())
+                })?;
+                if body.data.len() != 1 || body.data[0].index != 0 {
+                    return Err(LlmError::BadResponse(
+                        "expected one embedding at index zero".into(),
+                    ));
+                }
+                body.data
+                    .into_iter()
+                    .next()
+                    .map(|v| v.embedding)
+                    .unwrap_or_default()
+            } else {
+                resp.json::<EmbedResponse>().await?.embedding
+            };
+            if embedding.is_empty() || embedding.iter().any(|v| !v.is_finite()) {
+                return Err(LlmError::BadResponse(
+                    "empty or non-finite embedding".into(),
+                ));
+            }
+            if self
+                .embedding_dimensions
+                .is_some_and(|expected| embedding.len() != expected)
+            {
+                return Err(LlmError::BadResponse("embedding dimension mismatch".into()));
+            }
+            Ok(embedding)
         } else {
-            let body = resp.text().await.unwrap_or_default();
-            Err(LlmError::from_response(status.as_u16(), body))
+            Err(LlmError::from_response(
+                status.as_u16(),
+                "model gateway rejected request".into(),
+            ))
         }
     }
 
@@ -169,27 +235,84 @@ impl GateClient {
             model: Some(Self::resolve_complete_model(model)),
             options: options.cloned(),
         };
-        let url = format!("{}/v1/llm/complete", self.base_url);
+        let path = if self.openai {
+            "/v1/chat/completions"
+        } else {
+            "/v1/llm/complete"
+        };
+        let url = format!("{}{path}", self.base_url);
+        let body = if self.openai {
+            let mut body = match options {
+                Some(serde_json::Value::Object(map)) => map.clone(),
+                None => serde_json::Map::new(),
+                _ => {
+                    return Err(LlmError::Config(
+                        "completion options must be an object".into(),
+                    ))
+                }
+            };
+            body.insert("model".into(), serde_json::json!(req.model));
+            body.insert(
+                "messages".into(),
+                serde_json::json!([{"role":"user", "content":prompt}]),
+            );
+            body.insert("stream".into(), serde_json::json!(false));
+            serde_json::Value::Object(body)
+        } else {
+            serde_json::to_value(&req)
+                .map_err(|_| LlmError::Config("invalid completion request".into()))?
+        };
         let resp = self
             .client
             .post(&url)
             .headers(self.auth_headers(origin_jwt)?)
-            .json(&req)
+            .json(&body)
             .send()
             .await?;
 
         let status = resp.status();
         if status.is_success() {
-            let body: CompleteResponse = resp
-                .json()
-                .await
-                .map_err(|e| LlmError::BadResponse(format!("complete response malformed: {e}")))?;
-            Ok(body.content)
+            if self.openai {
+                let body: OpenAiCompletion = resp.json().await.map_err(|_| {
+                    LlmError::BadResponse("malformed OpenAI completion response".into())
+                })?;
+                body.choices
+                    .into_iter()
+                    .next()
+                    .and_then(|c| c.message.content)
+                    .ok_or_else(|| LlmError::BadResponse("missing completion content".into()))
+            } else {
+                Ok(resp.json::<CompleteResponse>().await?.content)
+            }
         } else {
-            let body = resp.text().await.unwrap_or_default();
-            Err(LlmError::from_response(status.as_u16(), body))
+            Err(LlmError::from_response(
+                status.as_u16(),
+                "model gateway rejected request".into(),
+            ))
         }
     }
+}
+
+#[derive(Deserialize)]
+struct OpenAiEmbeddings {
+    data: Vec<OpenAiEmbedding>,
+}
+#[derive(Deserialize)]
+struct OpenAiEmbedding {
+    index: usize,
+    embedding: Vec<f32>,
+}
+#[derive(Deserialize)]
+struct OpenAiCompletion {
+    choices: Vec<OpenAiChoice>,
+}
+#[derive(Deserialize)]
+struct OpenAiChoice {
+    message: OpenAiMessage,
+}
+#[derive(Deserialize)]
+struct OpenAiMessage {
+    content: Option<String>,
 }
 
 #[cfg(test)]

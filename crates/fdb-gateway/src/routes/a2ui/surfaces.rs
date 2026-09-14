@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use super::helpers::claims_json;
+use super::helpers::{claims_json, transaction};
 use super::A2uiState;
 
 /// JSON body for `POST /a2ui/v1/surfaces/assemble`.
@@ -48,6 +48,7 @@ pub async fn assemble_surface_value(
     who: &RlsContext,
     body: &AssembleSurfaceBody,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let mut tx = transaction(pool, who).await?;
     let ctx = AssemblyContext {
         event_type: body.event_type.clone(),
         event_payload: body.event_context.clone(),
@@ -57,7 +58,7 @@ pub async fn assemble_surface_value(
     };
 
     let assembler = A2uiAssembler::new(pool.clone());
-    match assembler.assemble(&ctx).await {
+    match assembler.assemble_on(&mut tx, &ctx).await {
         Ok(surface) => Ok(Json(surface.to_json())),
         Err(err) => Err(assembler_error(err)),
     }

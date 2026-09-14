@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use serde_json::{json, Value};
-use sqlx::PgPool;
+use sqlx::{PgConnection, PgPool};
 use uuid::Uuid;
 
 use super::error::{A2uiPublisher, AssemblerError};
@@ -45,10 +45,25 @@ impl A2uiAssembler {
     /// binding exists; or an error from `publisher.publish` if a publisher
     /// is attached and publishing fails.
     pub async fn assemble(&self, ctx: &AssemblyContext) -> Result<A2uiSurface, AssemblerError> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("SELECT set_config('role', 'authenticated', true), set_config('request.jwt.claims', $1, true), set_config('app.jwt_claims', $1, true)")
+            .bind(ctx.jwt_claims.to_string()).execute(&mut *tx).await?;
+        self.assemble_on(&mut tx, ctx).await
+    }
+
+    /// Assemble using an existing request transaction with verified RLS context.
+    ///
+    /// # Errors
+    /// Returns database, missing-binding, or invalid-configuration errors.
+    pub async fn assemble_on(
+        &self,
+        connection: &mut PgConnection,
+        ctx: &AssemblyContext,
+    ) -> Result<A2uiSurface, AssemblerError> {
         let surface_id = ctx.surface_id.unwrap_or_else(Uuid::new_v4);
         let catalog_id = catalog_id_for(ctx);
 
-        let (primitive_type, props) = self.resolve_component(ctx).await?;
+        let (primitive_type, props) = self.resolve_component(connection, ctx).await?;
 
         let mut messages = vec![
             A2uiMessage {
@@ -111,23 +126,25 @@ impl A2uiAssembler {
     /// Pick the component primitive and props for this context.
     async fn resolve_component(
         &self,
+        connection: &mut PgConnection,
         ctx: &AssemblyContext,
     ) -> Result<(String, Value), AssemblerError> {
         // 1. Try assembly rules first.
         if let Some(app_id) = ctx.application_id {
-            if let Some((primitive_type, props)) = self.try_rules(ctx, app_id).await? {
+            if let Some((primitive_type, props)) = self.try_rules(connection, ctx, app_id).await? {
                 return Ok((primitive_type, props));
             }
         }
 
         // 2. Fall back to default table binding.
-        self.default_binding(ctx).await
+        self.default_binding(connection, ctx).await
     }
 
     /// Query `flint_a2ui.assembly_rules` and return the first matching rule's
     /// configured component, or `None` if no rule matches.
     async fn try_rules(
         &self,
+        connection: &mut PgConnection,
         ctx: &AssemblyContext,
         app_id: Uuid,
     ) -> Result<Option<(String, Value)>, AssemblerError> {
@@ -139,13 +156,14 @@ impl A2uiAssembler {
         )
         .bind(app_id)
         .bind(&ctx.event_type)
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *connection)
         .await?;
 
         for rule in rules {
             if matches_filter(&ctx.event_payload, &rule.event_filter.0) {
                 let config = &rule.assembly_config.0;
-                let (primitive_type, mut props) = self.resolve_from_config(config).await?;
+                let (primitive_type, mut props) =
+                    self.resolve_from_config(connection, config).await?;
 
                 // Merge any props declared directly in the assembly config.
                 if let Some(configured_props) = config.get("props").and_then(Value::as_object) {
@@ -164,7 +182,11 @@ impl A2uiAssembler {
     }
 
     /// Resolve a component from an explicit assembly config object.
-    async fn resolve_from_config(&self, config: &Value) -> Result<(String, Value), AssemblerError> {
+    async fn resolve_from_config(
+        &self,
+        connection: &mut PgConnection,
+        config: &Value,
+    ) -> Result<(String, Value), AssemblerError> {
         let slug = config
             .get("component_slug")
             .or_else(|| config.get("component"))
@@ -181,7 +203,7 @@ impl A2uiAssembler {
              WHERE slug = $1",
         )
         .bind(slug)
-        .fetch_optional(&self.pool)
+        .fetch_optional(&mut *connection)
         .await?
         .ok_or_else(|| AssemblerError::InvalidConfig(format!("component not found: {slug}")))?;
 
@@ -195,6 +217,7 @@ impl A2uiAssembler {
     /// event payload.
     async fn default_binding(
         &self,
+        connection: &mut PgConnection,
         ctx: &AssemblyContext,
     ) -> Result<(String, Value), AssemblerError> {
         let (schema, table) = data_source(ctx)?;
@@ -216,7 +239,7 @@ impl A2uiAssembler {
         )
         .bind(&schema)
         .bind(&table)
-        .fetch_optional(&self.pool)
+        .fetch_optional(&mut *connection)
         .await?;
 
         let Some(binding) = binding else {

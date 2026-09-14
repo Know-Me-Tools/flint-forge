@@ -14,7 +14,7 @@ pub mod templates;
 pub mod worker;
 pub mod writeback;
 
-extension_sql_file!("../sql/flint_llm.sql", name = "flint_llm_schema");
+extension_sql_file!("../sql/flint_llm.sql", name = "flint_llm_schema", finalize);
 
 /// Surface 1 (sync) — read/explicit path only. Runs liter-llm on a dedicated runtime thread;
 /// backend blocks under statement_timeout + CHECK_FOR_INTERRUPTS. Never default in a write trigger.

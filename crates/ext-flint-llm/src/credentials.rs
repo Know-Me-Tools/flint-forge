@@ -19,6 +19,17 @@ const DEV_ENV_VAR: &str = "FLINT_LLM_SERVICE_TOKEN";
 /// 2. Development fallback: read `FLINT_LLM_SERVICE_TOKEN` from the postmaster
 ///    environment. This path is intentionally not available in release builds.
 pub fn resolve_service_token() -> Result<SecretString> {
+    // Explicit projected Secret file is a supported production source. Fail
+    // closed when configured but unreadable; never fall through to another key.
+    if let Ok(path) = std::env::var("FLINT_LLM_SERVICE_TOKEN_FILE") {
+        let token = std::fs::read_to_string(path)
+            .map_err(|_| LlmError::Credential("cannot read service token file".into()))?;
+        let token = token.trim();
+        if token.is_empty() {
+            return Err(LlmError::Credential("service token file is empty".into()));
+        }
+        return Ok(SecretString::from(token.to_owned()));
+    }
     if let Some(token) = resolve_from_vault()? {
         return Ok(token);
     }

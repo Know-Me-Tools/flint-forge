@@ -124,6 +124,7 @@ pub(super) async fn handle_insert(
             Some(row) => insert_response(&row, &schema, &table),
             None => internal_error(),
         },
+        Err(fdb_ports::BackendError::Denied) => forbidden(),
         Err(e) => {
             tracing::error!(error = %e, "handle_insert query error");
             internal_error()
@@ -195,6 +196,7 @@ pub(super) async fn handle_update(
     match state.executor.execute_raw(&sql, binds, &rls).await {
         Ok(rows) if rows.is_empty() => StatusCode::NO_CONTENT.into_response(),
         Ok(rows) => rows_response(&rows),
+        Err(fdb_ports::BackendError::Denied) => forbidden(),
         Err(e) => {
             tracing::error!(error = %e, "handle_update query error");
             internal_error()
@@ -242,6 +244,7 @@ pub(super) async fn handle_delete(
         .await
     {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(fdb_ports::BackendError::Denied) => forbidden(),
         Err(e) => {
             tracing::error!(error = %e, "handle_delete query error");
             internal_error()

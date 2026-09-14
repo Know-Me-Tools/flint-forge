@@ -543,7 +543,7 @@ pub(crate) async fn run() -> anyhow::Result<()> {
     let app = if rest_rps > 0 {
         tracing::info!(rps = rest_rps, burst, "per-IP rate limiting enabled");
         let governor_conf = GovernorConfigBuilder::default()
-            .per_second(rest_rps)
+            .period(rate_limit_period(rest_rps))
             .burst_size(burst)
             .finish()
             .expect("GovernorConfig: burst and period must be non-zero");
@@ -594,4 +594,9 @@ pub(crate) async fn run() -> anyhow::Result<()> {
     .map_err(|e| anyhow::anyhow!("serve: {e}"))?;
 
     Ok(())
+}
+
+/// Convert requests per second to the replenishment interval Governor expects.
+pub(crate) fn rate_limit_period(requests_per_second: u64) -> std::time::Duration {
+    std::time::Duration::from_nanos((1_000_000_000 / requests_per_second.max(1)).max(1))
 }

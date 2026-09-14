@@ -6,11 +6,13 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse, Json},
+    Extension,
 };
+use forge_identity::RlsContext;
 use serde_json::{json, Value};
 use sqlx::types::Json as SqlxJson;
 
-use super::helpers::internal_error;
+use super::helpers::{internal_error, transaction};
 use super::A2uiState;
 
 /// `GET /a2ui/v1/catalog/{*catalog_id}`
@@ -19,8 +21,10 @@ use super::A2uiState;
 /// CopilotKit's `<CopilotKit a2ui={{ catalog }}>` prop.
 pub async fn get_catalog(
     State(state): State<A2uiState>,
+    Extension(who): Extension<RlsContext>,
     Path(catalog_id): Path<String>,
 ) -> impl IntoResponse {
+    let mut tx = transaction(&state.pool, &who).await?;
     // catalog_id is expected as "slug/version" or "slug".
     let (slug, version) = catalog_id.split_once('/').map_or_else(
         || (catalog_id.clone(), "1.0.0".to_string()),
@@ -35,7 +39,7 @@ pub async fn get_catalog(
          ORDER BY c.category, c.primitive_type",
     )
     .bind(&slug)
-    .fetch_all(&state.pool)
+    .fetch_all(&mut *tx)
     .await
     .map_err(internal_error)?;
 

@@ -1,8 +1,8 @@
 //! A2UI Registry REST API routes.
 //!
 //! All routes under `/a2ui/v1/*` are protected by JWT authentication via the
-//! `require_rls` middleware. They use a privileged `PgPool` from
-//! `GatewayState` to call SECURITY DEFINER functions and read catalog data.
+//! `require_rls` middleware. They open role-scoped transactions from `GatewayState` so RLS checks use
+//! the verified request identity for every catalog query.
 //!
 //! # Endpoints
 //!

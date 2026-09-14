@@ -198,3 +198,53 @@ async fn test_get_design_system_tokens_not_found() {
         .expect("req");
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn dedicated_routes_enforce_application_isolation() {
+    let Some((pool, state)) = connect().await else {
+        return;
+    };
+    let app_id = Uuid::new_v4();
+    let owner = Uuid::new_v4();
+    let component = Uuid::new_v4();
+    let slug = format!("isolation-{component}");
+    sqlx::query(
+        "INSERT INTO flint_a2ui.applications(id,slug,name,owner_id) VALUES($1,$2,'Isolation',$3)",
+    )
+    .bind(app_id)
+    .bind(&slug)
+    .bind(owner)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO flint_a2ui.components(id,slug,category,primitive_type,schema,application_id) VALUES($1,$2,'input','TextField','{}',$3)")
+        .bind(component).bind(&slug).bind(app_id).execute(&pool).await.unwrap();
+    let stranger = a2ui_app(state.clone(), "unrelated-user");
+    for uri in [
+        format!("/a2ui/v1/components/{slug}"),
+        format!("/a2ui/v1/applications/{app_id}"),
+    ] {
+        let response = stranger
+            .clone()
+            .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+    let owner_app = a2ui_app(state, &owner.to_string());
+    let response = owner_app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/a2ui/v1/components/{slug}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    sqlx::query("DELETE FROM flint_a2ui.applications WHERE id=$1")
+        .bind(app_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+}

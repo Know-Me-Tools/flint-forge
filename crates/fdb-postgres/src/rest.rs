@@ -124,7 +124,7 @@ impl SqlExecutor for PgRest {
     /// Returns `BackendError` when acquiring the RLS-scoped connection fails,
     /// the checked-out connection is not a `PgConn`, or `sql` fails to
     /// execute (syntax error, constraint violation, RLS denial, etc.).
-    #[instrument(skip(self, rls, params), fields(role = %rls.role), err)]
+    #[instrument(skip(self, rls, params), fields(role = %rls.role))]
     async fn execute_raw(
         &self,
         sql: &str,
@@ -158,11 +158,28 @@ impl PgRest {
         let binds: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
             owned.iter().map(RestBind::as_to_sql).collect();
 
-        let rows = pg_conn
-            .inner
-            .query(sql, &binds)
-            .await
-            .map_err(|e| BackendError::Query(format!("bound query: {e}")))?;
+        let rows = match pg_conn.inner.query(sql, &binds).await {
+            Ok(rows) => rows,
+            Err(error) => {
+                // Deadpool's fast recycler does not reset failed transactions.
+                // Finish the denied/failed request before returning its connection,
+                // so the next caller does not inherit SQLSTATE 25P02.
+                pg_conn
+                    .inner
+                    .batch_execute("ROLLBACK")
+                    .await
+                    .map_err(|_| BackendError::Connection)?;
+                return Err(
+                    if error.code()
+                        == Some(&tokio_postgres::error::SqlState::INSUFFICIENT_PRIVILEGE)
+                    {
+                        BackendError::Denied
+                    } else {
+                        BackendError::Query(format!("bound query: {error}"))
+                    },
+                );
+            }
+        };
 
         // Commit the RLS transaction `acquire` opened. Without this every
         // INSERT/UPDATE/DELETE routed through here is rolled back when the

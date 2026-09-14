@@ -50,6 +50,25 @@ mod rate_limit_tests {
         assert!(config.is_some(), "expected Some(GovernorConfig), got None");
     }
 
+    /// The configured sustained rate must replenish within milliseconds, not
+    /// hold clients for 100 seconds after the initial burst.
+    #[tokio::test]
+    async fn configured_hundred_rps_replenishes_after_burst() {
+        let config = GovernorConfigBuilder::default()
+            .period(crate::bootstrap::rate_limit_period(100))
+            .burst_size(1)
+            .finish()
+            .expect("config");
+        let app = Router::new()
+            .route("/ping", get(|| async { "pong" }))
+            .layer(GovernorLayer::new(config));
+        for _ in 0..3 {
+            let response = app.clone().oneshot(make_request("/ping")).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    }
+
     /// Config with burst = 0 must return None (zero is invalid per tower_governor docs).
     #[test]
     fn governor_config_rejects_zero_burst() {
