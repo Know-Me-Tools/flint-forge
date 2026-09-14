@@ -17,7 +17,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends pkg-config libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 # Cache dependencies first; only invalidated when Cargo.lock changes.
-RUN cargo chef cook --release --recipe-path recipe.json
+RUN cargo chef cook --release --package fdb-gateway --recipe-path recipe.json
 COPY . .
 RUN cargo build --release -p fdb-gateway
 

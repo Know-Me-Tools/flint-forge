@@ -7,6 +7,8 @@ DO $$ BEGIN
       USING ERRCODE='55000';
   END IF;
 END $$;
+ALTER TABLE flint_a2ui.embeddings ADD CONSTRAINT embeddings_component_entity_aspect_key
+  UNIQUE (component_id,entity_type,aspect);
 DROP INDEX flint_a2ui.idx_embeddings_hnsw;
 ALTER TABLE flint_a2ui.embeddings ALTER COLUMN embedding TYPE vector(1152);
 ALTER TABLE flint_a2ui.embeddings ALTER COLUMN model SET DEFAULT 'tongyi-embedding-vision-plus';

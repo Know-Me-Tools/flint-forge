@@ -112,9 +112,9 @@ async fn backfill_locked(
     }
     let model = embedding_model();
     let ids: Vec<uuid::Uuid> = sqlx::query_scalar(
-        "SELECT c.id FROM flint_a2ui.components c WHERE c.id=$2 OR NOT EXISTS (
+        "SELECT c.id FROM flint_a2ui.components c WHERE NOT EXISTS (
          SELECT 1 FROM flint_a2ui.embeddings e WHERE e.component_id=c.id
-         AND e.aspect='description' AND e.model=$1) ORDER BY c.id",
+         AND e.aspect='description' AND e.model=$1) ORDER BY (c.id=$2) DESC NULLS LAST, c.id",
     )
     .bind(&model)
     .bind(changed)
