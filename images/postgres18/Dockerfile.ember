@@ -23,5 +23,14 @@ RUN touch /out/usr/share/postgresql/18/extension/flint_llm--0.0.0.sql \
         > /out/usr/share/postgresql/18/extension/flint_llm--0.0.0--0.1.0.sql
 
 FROM ghcr.io/prometheus-ags/flint-forge-postgres18@sha256:719bbde1a21188ffeca9b76171a8e11da6ebe3e17fd819334ba6341914d64bc0
+# The baseline package links control/SQL files into /var/lib/postgresql,
+# which the data volume shadows. Materialize them outside the mounted path.
+RUN mkdir -p /tmp/graphql-extension \
+ && cp -L /usr/share/postgresql/18/extension/pg_graphql.control \
+          /usr/share/postgresql/18/extension/pg_graphql--*.sql /tmp/graphql-extension/ \
+ && rm /usr/share/postgresql/18/extension/pg_graphql.control \
+       /usr/share/postgresql/18/extension/pg_graphql--*.sql \
+ && cp /tmp/graphql-extension/* /usr/share/postgresql/18/extension/ \
+ && rm -rf /tmp/graphql-extension
 COPY --from=ember /out/ /
 COPY images/postgres18/upgrade/ /opt/flint/upgrade/
