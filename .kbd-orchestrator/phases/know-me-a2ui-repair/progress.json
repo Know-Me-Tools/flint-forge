@@ -1,39 +1,94 @@
 {
   "phase": "know-me-a2ui-repair",
-  "status": "implementing",
-  "testRunCount": 5,
+  "status": "complete",
+  "testRunCount": 34,
   "repositories": [
     "flint-forge",
     "flint-core-infra",
-    "liter-llm"
+    "liter-llm",
+    "flint-gate (isolated checkout)"
   ],
   "decisions": [
     "Token Plan qwen3.8-max for chat; no paid chat fallback",
     "regular DashScope tongyi-embedding-vision-plus for embeddings",
     "user requested compatible-mode/v1 endpoint; verify model compatibility before adapter changes",
     "preserve database volume and existing user changes",
-    "User confirmed native DashScope upstream behind OpenAI-compatible liter-llm; live probe returned 1152 finite dimensions"
+    "User confirmed native DashScope upstream behind OpenAI-compatible liter-llm; live probe returned 1152 finite dimensions",
+    "Gate site Host matching includes port; configured exact internal DNS:4456 domains",
+    "Ember requires shared_preload_libraries=pg_graphql,flint_llm",
+    "Legacy extension adoption retains existing table/schema ACLs; direct fresh CREATE EXTENSION uses installation grants",
+    "Gate EC JWKS lacked RFC coordinates; isolated Gate fix publishes P-256/P-384 x/y/crv without changing verifier policy"
   ],
-  "updatedAt": "2026-09-14T00:14:55.836161+00:00",
+  "updatedAt": "2026-09-14T01:55:33.334658+00:00",
   "validation": {
     "compile": "gateway/reflection and standalone flint_llm cargo check passed",
     "rls": "Live schema copied to isolated flint_a2ui_repair_test; migrations 0016/0017 applied; SQL isolation/admin/escalation tests passed on second run (fixed test vector dimensions)",
-    "clippy": "cargo clippy -p fdb-gateway -p fdb-reflection -- -D warnings passed",
+    "clippy": "Full cargo clippy --workspace -- -D warnings passed after final backend fixes",
     "dedicatedApi": "6 existing A2UI tests and 1 added isolation test passed against isolated database",
-    "infra": "Kustomize rendered; validate.sh passed with kubeconform/yamllint unavailable"
+    "infra": "Strict manifest validation passed for final image pins: 26 resources valid, 5 CRDs skipped; existing line-length warnings only",
+    "provider": "Native DashScope returned 1152 finite values; Token Plan qwen3.8-max chat succeeded",
+    "adapter": "4 HTTP integration tests passed including response ordering, request validation, cardinality, provider recovery",
+    "backfill": "Two-replica backfill and notification integration passed: exactly 55 initial calls and one regeneration",
+    "ember": "Exact packaged extension passed fresh and legacy installation plus authenticated SQL embed/chat integration; standalone cargo check passed",
+    "providerRoutes": "Both real model calls passed through authenticated Gate and liter-llm",
+    "emberImage": "Exact image 135267ea passed fresh extension, mounted credential SQL chat/embed, full bootstrap/migrations, nonempty refusal and legacy OID/ACL/view preservation/idempotency",
+    "gate": "7 key-publication tests passed, including signed ES256 identity verification. Strict Gate lint exposed existing useless_asref and too_many_arguments; scoped lint with only those exclusions passed.",
+    "liveBackfill": "Final snapshot: 55 components, 55 distinct component embeddings, model tongyi-embedding-vision-plus, all 1152 dimensions, zero non-finite values",
+    "liveRls": "All 11 A2UI tables enabled+forced RLS; reported eight unrestricted tables fixed; RLS metric zero on both final replicas",
+    "api": "Final image passed generic/dedicated anonymous denial, member isolation, administrator writes, owner membership management, escalation denial and semantic search on both Quarry replicas",
+    "rateLimit": "Regression passed for 100 RPS replenishment; previously interpreted as 100 seconds between tokens",
+    "cedar": "Catalog-only mutation policy parse/scope test passed; unrelated resources and actions remain denied",
+    "connectionRecovery": "HTTP RLS integration passed: denied insert returns 403, writes nothing, and subsequent pooled requests succeed",
+    "migrations": "SQLx versions 16,17,18,19 all successful; flint_llm 0.1.0 installed"
   },
   "externalEffects": [
     "Created liter-llm-providers Secret with separate provider keys",
     "Created liter-llm-service Secret with service-token/master-key",
     "Registered internal credential SHA-256 digest in flintgate.public.api_keys",
-    "Created isolated flint_a2ui_repair_test database; live catalog schema/data untouched"
+    "Created isolated flint_a2ui_repair_test database; live catalog schema/data untouched",
+    "Deployed healthy liter-llm image sha256:7894cee074bbf36302ab442d90c65b238ae46e5600f82ee0c5432e45dfea587c",
+    "Restarted Gate replicas to load authenticated internal routes; both healthy",
+    "Created/deleted isolated ephemeral Postgres pods for package tests; production PG unchanged",
+    "Built and pinned liter, Quarry and initial Ember images; corrected Ember and Gate builds running",
+    "Deployed Gate standard EC JWKS image sha256:680dceb024be95b643fa091e0b71f5f07ee6f21d68c4b62d3f260b47625716e7; both model routes and anonymous denial reverified",
+    "Upgraded production Postgres retaining PVC; adopted flint_llm 0.1.0 and verified SQL embed",
+    "Applied SQLx migrations 16-18; completed all 55 embeddings",
+    "Seeded scoped Cedar mutation policy (versioned in 0019, migrator bookkeeping pending next Quarry image)",
+    "Retained existing completed bootstrap Jobs after Kubernetes rejected immutable template updates; rollout script corrected",
+    "Final Quarry image deployed, migration 19 successfully recorded, both replicas ready and independently verified",
+    "Deleted isolated flint_a2ui_repair_test database after confirming no connections; stopped five repair port-forwards; ephemeral test pods and API fixtures removed",
+    "Preserved prior image digests in infrastructure KBD state and original production PVC identity"
   ],
-  "pending": [
-    "Resolve user endpoint/model conflict: compatible-mode rejected tongyi-embedding-vision-plus",
-    "Embedding adapter/model configuration and dimension migration",
-    "Fresh/legacy Ember package installation tests",
-    "Provider, two-replica backfill, generic API authorization integration tests",
-    "Required full phase lint/schema validation",
-    "Image build/pin and ordered deployment; 55 embeddings and live RLS verification"
+  "pending": [],
+  "testRunCountNote": "Includes two final per-replica authenticated API verification runs after the 32 recorded phase-boundary and failure-recovery runs.",
+  "deployment": {
+    "context": "know-me",
+    "namespace": "flint-core",
+    "quarryReadyReplicas": 2,
+    "gateReadyReplicas": 2,
+    "literReadyReplicas": 1,
+    "volume": {
+      "pvc": "data-postgres-0",
+      "uid": "514dd83b-045b-41cb-a9a0-2db245aade99",
+      "pv": "pvc-514dd83b045b41cb",
+      "preserved": true
+    },
+    "images": {
+      "liter-llm": "ghcr.io/prometheus-ags/liter-llm@sha256:7894cee074bbf36302ab442d90c65b238ae46e5600f82ee0c5432e45dfea587c",
+      "postgres": "ghcr.io/prometheus-ags/flint-forge-postgres18@sha256:135267ea90dacc2f1ce39070a35383b7bbe17ba1ae72832f34413983550e08d2",
+      "flint-gate": "ghcr.io/prometheus-ags/flint-gate@sha256:680dceb024be95b643fa091e0b71f5f07ee6f21d68c4b62d3f260b47625716e7",
+      "forge-quarry": "ghcr.io/prometheus-ags/flint-forge-gateway@sha256:76eb8addb11930ae998cd9c557275ff5a0564a0c24d12632ba14a029baa7b296"
+    },
+    "quarrySource": "3fbf52eeeb715f7f9bb25745c2c8a3bfcc3c1535",
+    "imageWorkflowRuns": {
+      "liter": 34793457239,
+      "postgres": 34795169035,
+      "gate": 34794497675,
+      "quarry": 34796539004
+    }
+  },
+  "limitations": [
+    "Gate strict lint has two pre-existing findings outside this change: useless_asref in authz/schema.rs and too_many_arguments in stream/websocket.rs. Scoped lint passed with only these exclusions. Forge full workspace strict clippy passed.",
+    "Provider failure/recovery and text fallback were validated in isolated integration tests; no production provider outage was forced."
   ]
 }
