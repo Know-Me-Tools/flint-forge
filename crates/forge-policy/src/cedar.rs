@@ -257,6 +257,35 @@ mod tests {
     const DENY_ALL: &str = "forbid(principal, action, resource);";
 
     #[tokio::test]
+    async fn a2ui_migration_permits_only_catalog_mutation_capabilities() {
+        let migration = include_str!("../../../migrations/0019_a2ui_cedar_mutation_capability.sql");
+        let text = migration.split("$policy$").nth(1).expect("policy body");
+        let mut set = PolicySet::new();
+        set.add(Policy::parse(Some(PolicyId::new("catalog")), text).expect("valid policy"))
+            .expect("add policy");
+        let engine = CedarPolicyEngine::from_policies(set);
+        let who = rls_for("catalog-test-user");
+        for action in ["insert", "update", "delete"] {
+            assert_eq!(
+                engine
+                    .check(&who, &req(action, "flint_a2ui.design_systems"))
+                    .await,
+                Decision::Allow
+            );
+            assert_eq!(
+                engine.check(&who, &req(action, "public.accounts")).await,
+                Decision::Deny
+            );
+        }
+        assert_eq!(
+            engine
+                .check(&who, &req("admin", "flint_a2ui.design_systems"))
+                .await,
+            Decision::Deny
+        );
+    }
+
+    #[tokio::test]
     async fn allow_when_policy_permits() {
         let mut set = PolicySet::new();
         set.add(
