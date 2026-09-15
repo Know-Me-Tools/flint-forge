@@ -22,6 +22,45 @@ RUN touch /out/usr/share/postgresql/18/extension/flint_llm--0.0.0.sql \
         /out/usr/share/postgresql/18/extension/flint_llm--0.1.0.sql \
         > /out/usr/share/postgresql/18/extension/flint_llm--0.0.0--0.1.0.sql
 
+# ─────────────────────────── Stage: pg_net (C, from source) ──────────────────────────────
+# Webhook delivery (flint.process_webhook_outbox → net.http_post) requires pg_net.
+# Pinned tag for reproducibility; v0.20.x supports PostgreSQL 18.
+FROM rust:1.96-bookworm AS pgnet
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      postgresql-common gnupg ca-certificates git make gcc libcurl4-openssl-dev \
+ && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends postgresql-server-dev-18 \
+ && apt-get install -y -f --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
+ARG PG_NET_VERSION=v0.20.5
+RUN git clone --depth 1 --branch "$PG_NET_VERSION" https://github.com/supabase/pg_net /src/pg_net
+WORKDIR /src/pg_net
+RUN make && make install DESTDIR=/out
+
+# ──────────────────────────────── Stage: pg_cron (C, from source) ────────────────────────
+# Drives the webhook outbox processor, outbox GC, and flint_meta cache refresh.
+FROM rust:1.96-bookworm AS pgcron
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      postgresql-common gnupg ca-certificates git make gcc \
+ && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends postgresql-server-dev-18 \
+ && apt-get install -y -f --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
+ARG PG_CRON_VERSION=v1.6.8
+RUN git clone --depth 1 --branch "$PG_CRON_VERSION" https://github.com/citusdata/pg_cron /src/pg_cron
+WORKDIR /src/pg_cron
+# pg_cron's Makefile hardcodes `SHLIB_LINK = $(libpq) -lintl`, but glibc provides
+# intl internally and ships no `libintl.so` link target on Debian bookworm (any
+# arch), so `-lintl` fails at link time. Strip the spurious flag.
+RUN sed -i 's/^SHLIB_LINK = $(libpq) -lintl/SHLIB_LINK = $(libpq)/' Makefile
+RUN make PG_CONFIG=$(which pg_config) && make install DESTDIR=/out PG_CONFIG=$(which pg_config)
+
 FROM ghcr.io/prometheus-ags/flint-forge-postgres18@sha256:719bbde1a21188ffeca9b76171a8e11da6ebe3e17fd819334ba6341914d64bc0
 # The baseline package links control/SQL files into /var/lib/postgresql,
 # which the data volume shadows. Materialize them outside the mounted path.
@@ -32,5 +71,11 @@ RUN mkdir -p /tmp/graphql-extension \
        /usr/share/postgresql/18/extension/pg_graphql--*.sql \
  && cp /tmp/graphql-extension/* /usr/share/postgresql/18/extension/ \
  && rm -rf /tmp/graphql-extension
+# pg_net links against libcurl at runtime.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libcurl4 ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 COPY --from=ember /out/ /
+COPY --from=pgnet /out/ /
+COPY --from=pgcron /out/ /
 COPY images/postgres18/upgrade/ /opt/flint/upgrade/
