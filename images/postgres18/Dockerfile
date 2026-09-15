@@ -75,7 +75,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends postgresql-server-dev-18 \
  && apt-get install -y -f --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
-RUN git clone --depth 1 https://github.com/supabase/pg_net /src/pg_net
+ARG PG_NET_VERSION=v0.20.5
+RUN git clone --depth 1 --branch "$PG_NET_VERSION" https://github.com/supabase/pg_net /src/pg_net
 WORKDIR /src/pg_net
 RUN make && make install DESTDIR=/out
 
@@ -92,7 +93,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends postgresql-server-dev-18 \
  && apt-get install -y -f --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
-RUN git clone --depth 1 https://github.com/citusdata/pg_cron /src/pg_cron
+ARG PG_CRON_VERSION=v1.6.8
+RUN git clone --depth 1 --branch "$PG_CRON_VERSION" https://github.com/citusdata/pg_cron /src/pg_cron
 WORKDIR /src/pg_cron
 # pg_cron's Makefile hardcodes `SHLIB_LINK = $(libpq) -lintl`, but glibc provides
 # intl internally and ships no `libintl.so` link target on Debian bookworm (any
