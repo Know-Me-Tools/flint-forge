@@ -48,11 +48,18 @@ which override the image `CMD` entirely — keep them in sync):
 ```
 shared_preload_libraries=pg_graphql,flint_llm,pg_net,pg_cron
 cron.database_name=flint
+pg_net.database_name=flint
 wal_level=logical
 ```
 
 Forgetting a preload: `CREATE EXTENSION pg_net/pg_cron/flint_llm` errors
 out, and `CREATE EXTENSION pg_graphql` fails without its hooks preloaded.
+
+**pg_net database binding:** the preloaded pg_net worker connects to exactly
+one database — `pg_net.database_name` (default `postgres`). If the extension
+and its queue live in `flint` but the GUC is unset, the worker idles against
+`postgres` and queued requests are never consumed. `pg_net.username` is left
+unset so the worker connects as the bootstrap superuser.
 
 ### First boot (fresh volume)
 

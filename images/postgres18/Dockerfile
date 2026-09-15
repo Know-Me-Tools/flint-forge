@@ -154,4 +154,4 @@ RUN chmod +x /usr/local/bin/backup-loop.sh
 # pg_net, pg_cron and flint_llm register background workers → must be preloaded.
 # Production (docker-compose.prod.yml) overrides `command:` to additionally set
 # archive_mode/archive_command for wal-g continuous WAL archiving.
-CMD ["postgres", "-c", "wal_level=logical", "-c", "shared_preload_libraries=pg_net,pg_cron,flint_llm", "-c", "cron.database_name=flint"]
+CMD ["postgres", "-c", "wal_level=logical", "-c", "shared_preload_libraries=pg_net,pg_cron,flint_llm", "-c", "cron.database_name=flint", "-c", "pg_net.database_name=flint"]
