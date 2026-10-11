@@ -1,0 +1,49 @@
+{
+  "directory": "/Users/gqadonis/Projects/prometheus/flint-forge/.agent-team/staging/team-r2/claude",
+  "files": [
+    ".claude/agents/forge-lead.md",
+    "plugins/flint-forge/agents/forge-lead.md",
+    ".claude/agents/forge-postgres18.md",
+    "plugins/flint-forge/agents/forge-postgres18.md",
+    ".claude/agents/forge-security.md",
+    "plugins/flint-forge/agents/forge-security.md",
+    ".claude/agents/forge-quarry-api.md",
+    "plugins/flint-forge/agents/forge-quarry-api.md",
+    ".claude/agents/forge-metadata.md",
+    "plugins/flint-forge/agents/forge-metadata.md",
+    ".claude/agents/forge-realtime.md",
+    "plugins/flint-forge/agents/forge-realtime.md",
+    ".claude/agents/forge-kiln.md",
+    "plugins/flint-forge/agents/forge-kiln.md",
+    ".claude/agents/forge-ember.md",
+    "plugins/flint-forge/agents/forge-ember.md",
+    ".claude/agents/forge-sdk.md",
+    "plugins/flint-forge/agents/forge-sdk.md",
+    ".claude/agents/forge-release.md",
+    "plugins/flint-forge/agents/forge-release.md",
+    ".claude/agents/forge-reviewer.md",
+    "plugins/flint-forge/agents/forge-reviewer.md",
+    "plugins/flint-forge/.claude-plugin/plugin.json",
+    ".claude-plugin/marketplace.json",
+    "export-receipt.json",
+    "team-export.json"
+  ],
+  "verification": {
+    "level": "source-verified",
+    "source": "https://code.claude.com/docs/en/sub-agents",
+    "version": "documentation inspected 2026-09-24",
+    "live": "unverified"
+  },
+  "diagnostics": [
+    "Source-verified serialization only; installed native validation and live execution are unverified.",
+    "Only explicit model IDs are translated. Resolve tier, skill, capability and price policies with agent-team-models before native invocation.",
+    "These are native subagents; installing them does not create an experimental Claude agent team or enable that feature.",
+    "Role overrides are preserved without native schema certification. Skill IDs refer to separately installed skills; prompt mentions do not install or authorize them."
+  ],
+  "instructions": [
+    "Review staged artifacts before installation. Export grants no execution or registration authority.",
+    "Choose project .claude/agents or the staged local marketplace/plugin. Do not install both copies. Settings options are a proposed project .claude/settings.json."
+  ],
+  "finalDirectory": "docs/agent-teams/flint-forge/exports/claude",
+  "regenerationReason": "Add PostgreSQL evidence ownership and correct BossFang origin provenance"
+}

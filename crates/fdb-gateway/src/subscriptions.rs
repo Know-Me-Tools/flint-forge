@@ -30,11 +30,9 @@ use crate::GatewayState;
 ///
 /// Composes a [`Quarry`] from `PgRest` (RLS re-query), `PgGraphQl` (required by the
 /// constructor; unused on this path), and a `ChangeStreamSource` — by default
-/// `ListenChangeSource` (Postgres LISTEN/NOTIFY, real events). `FabricChangeSource`
-/// (FRF gRPC) remains available via `FLINT_CHANGE_SOURCE=fabric` but fails closed
-/// (`StreamError::Unavailable`) pending OQ-FRF-1 (FRF's `WatchEntityType` RPC
-/// hasn't landed) — see `p16-c004`. Keto is threaded so the subscribe-time
-/// coarse check runs inside whichever source is selected.
+/// `ListenChangeSource` (Postgres LISTEN/NOTIFY, real events). The opt-in
+/// `FabricChangeSource` consumes Fabric's authorized, resumable v2 stream. Keto
+/// is threaded so the subscribe-time coarse check runs inside either source.
 ///
 /// The returned factory, given a table's spec/meta and the subscriber's `RlsContext`,
 /// yields the RLS-filtered, GraphQL-projected event stream. `spec.tenant` is filled
@@ -65,10 +63,9 @@ pub(crate) async fn build_subscription_factory(
 
     // Select the change-stream backend. Default `listen` (in-process Postgres
     // LISTEN/NOTIFY — real events, no external dependency). `FLINT_CHANGE_SOURCE=fabric`
-    // opts into the FRF gRPC adapter, which fails closed (StreamError::Unavailable)
-    // pending OQ-FRF-1 (FRF's WatchEntityType RPC hasn't landed) — opt in only
-    // once that RPC is confirmed available upstream. The default-vs-opt-in
-    // decision itself is unit-tested in `realtime_source`.
+    // opts into the FRF gRPC adapter. LISTEN remains the rollout default until
+    // the Fabric parity receipt is accepted. The choice is unit-tested in
+    // `realtime_source`.
     let change_source_env = std::env::var("FLINT_CHANGE_SOURCE").ok();
     let change_source: Arc<dyn fdb_ports::ChangeStreamSource> =
         match resolve_change_source(change_source_env.as_deref()) {
@@ -89,7 +86,9 @@ pub(crate) async fn build_subscription_factory(
             ChangeSourceKind::Fabric => {
                 let frf_cfg = FrfConfig {
                     endpoint: std::env::var("FRF_ENDPOINT")
-                        .unwrap_or_else(|_| "http://frf:50051".into()),
+                        .unwrap_or_else(|_| "http://frf:9090".into()),
+                    projection: std::env::var("FRF_ENTITY_PROJECTION")
+                        .unwrap_or_else(|_| "default".into()),
                 };
                 Arc::new(
                     FabricChangeSource::new(frf_cfg, realtime_keto_cfg)

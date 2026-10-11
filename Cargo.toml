@@ -43,12 +43,11 @@ tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
 bytes = "1"
 async-graphql = { version = "7", features = ["dynamic-schema"] }
 async-graphql-axum = "7"
-# p16-c009: tonic 0.13+ depends on axum ^0.8 / tower ^0.5, matching our own
-# workspace pins (axum 0.8, tower via tower-http/tower_governor) and eliminating
-# axum/axum-core/tower/matchit duplicate-version entries that tonic 0.12's
-# axum ^0.7 / tower ^0.4.7 pins used to cause. fdb-realtime only uses
-# `tonic::transport::Channel` (client-side gRPC), an API unchanged across 0.12-0.13.
-tonic = { version = "0.13", features = ["transport"] }
+# c011: match the generated `frf-proto` WatchEntityType client. Tonic 0.14 keeps
+# the workspace on axum 0.8 / tower 0.5 and lets Forge consume the exact client
+# surface compiled and accepted by Fabric c010.
+tonic = { version = "0.14", features = ["transport"] }
+prost = "0.14"
 pgvector = { version = "0.4", features = ["postgres", "sqlx"] }
 cedar-policy = "4"
 wiremock = "0.6"

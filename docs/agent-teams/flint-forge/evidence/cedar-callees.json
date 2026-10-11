@@ -1,0 +1,307 @@
+{
+  "schema": "compass.query/1",
+  "operation": "callees",
+  "results": [],
+  "nodes": [
+    {
+      "id": "sha256:014333334e1018b57f4cda410054d6a84be9d251ae979ec6be1194b13d210ee9",
+      "kind": "method",
+      "roles": [],
+      "name": ".subject()",
+      "qualifiedName": "forge_identity::RlsContext::subject",
+      "language": "rust",
+      "framework": null,
+      "source": {
+        "file": "crates/forge-identity/src/lib.rs",
+        "startByte": 2788,
+        "endByte": 2953,
+        "startLine": 66,
+        "startColumn": 4,
+        "endLine": 70,
+        "endColumn": 5
+      },
+      "details": {
+        "type": "symbol",
+        "data": {
+          "signature": "pub fn subject(&self) -> Option<SubjectId>",
+          "signatureDigest": "6fbd04e1b2d2a0c703a7a7dbb2d7004eae9cb1ce85a79000fa96869244b1bbf0",
+          "implementationDigest": "f4904a31930318ebfe1e24a5bd3b2869a7888a5ccbb1f410e8a74c174f48db29",
+          "sourceDigest": "3829f576c6208c9922179c621d474865069743c66b07abd1d1aab83ea3e9e43d"
+        }
+      },
+      "evidence": [
+        {
+          "layer": "structural_graph",
+          "origin": "ast",
+          "extractor": "compass.languages.rust.universal",
+          "confidence": "exact",
+          "anchor": {
+            "file": "crates/forge-identity/src/lib.rs",
+            "startByte": 2795,
+            "endByte": 2802,
+            "startLine": 66,
+            "startColumn": 11,
+            "endLine": 66,
+            "endColumn": 18
+          },
+          "rule": null,
+          "wiringSite": null,
+          "resolution": "exact"
+        }
+      ]
+    },
+    {
+      "id": "sha256:1708b8364f973d39aa2d53027f9f54af2700ba3671f02e886ecccd69b4d7b383",
+      "kind": "method",
+      "roles": [],
+      "name": ".evaluate()",
+      "qualifiedName": "forge_policy::cedar::CedarPolicyEngine::evaluate",
+      "language": "rust",
+      "framework": null,
+      "source": {
+        "file": "crates/forge-policy/src/cedar.rs",
+        "startByte": 6660,
+        "endByte": 7835,
+        "startLine": 161,
+        "startColumn": 4,
+        "endLine": 194,
+        "endColumn": 5
+      },
+      "details": {
+        "type": "symbol",
+        "data": {
+          "signature": "fn evaluate(&self, who: &RlsContext, req: &Request) -> Decision",
+          "signatureDigest": "ee7bafed8a7227c9a4d6ea0c9df929e1a4ed73b324f02494d0bb3f0f02db7e03",
+          "implementationDigest": "f70b20cc3d6c6014f5fb596d63926900c2903608d965ddd0119de66f8ecd3546",
+          "sourceDigest": "1509fb42539966d27e1c52317a103d53ead5e508308668fd1aa008d0d7c98bea"
+        }
+      },
+      "evidence": [
+        {
+          "layer": "structural_graph",
+          "origin": "ast",
+          "extractor": "compass.languages.rust.universal",
+          "confidence": "exact",
+          "anchor": {
+            "file": "crates/forge-policy/src/cedar.rs",
+            "startByte": 6663,
+            "endByte": 6671,
+            "startLine": 161,
+            "startColumn": 7,
+            "endLine": 161,
+            "endColumn": 15
+          },
+          "rule": null,
+          "wiringSite": null,
+          "resolution": "exact"
+        }
+      ]
+    },
+    {
+      "id": "sha256:1f64cc13887af7a3c685048c38f6c507e21de8aaf4aef255cdf9282041167281",
+      "kind": "function",
+      "roles": [],
+      "name": "build_entity_uid()",
+      "qualifiedName": "forge_policy::cedar::build_entity_uid",
+      "language": "rust",
+      "framework": null,
+      "source": {
+        "file": "crates/forge-policy/src/cedar.rs",
+        "startByte": 7977,
+        "endByte": 8189,
+        "startLine": 199,
+        "startColumn": 0,
+        "endLine": 203,
+        "endColumn": 1
+      },
+      "details": {
+        "type": "symbol",
+        "data": {
+          "signature": "fn build_entity_uid(type_name: &str, id: &str) -> Option<EntityUid>",
+          "signatureDigest": "d5c4661f4654d0eee69b209dcc52e174215d8d9c2096ecf3f0c984b44637e60c",
+          "implementationDigest": "96fef5c0c6d624d5020aada78269ef2a18e951632c6631e4ff961adaeca5ccd4",
+          "sourceDigest": "d672d52d9fbfa05428c67101c9e7f5df4b6316820aa89b775b6c48b3fa00c2e5"
+        }
+      },
+      "evidence": [
+        {
+          "layer": "structural_graph",
+          "origin": "ast",
+          "extractor": "compass.languages.rust.universal",
+          "confidence": "exact",
+          "anchor": {
+            "file": "crates/forge-policy/src/cedar.rs",
+            "startByte": 7980,
+            "endByte": 7996,
+            "startLine": 199,
+            "startColumn": 3,
+            "endLine": 199,
+            "endColumn": 19
+          },
+          "rule": null,
+          "wiringSite": null,
+          "resolution": "exact"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "sha256:03d20619e8997650af9e510f8e08f18f5661b4ee3a5ddb76385c816639f7b06c",
+      "source": "sha256:1708b8364f973d39aa2d53027f9f54af2700ba3671f02e886ecccd69b4d7b383",
+      "target": "sha256:1f64cc13887af7a3c685048c38f6c507e21de8aaf4aef255cdf9282041167281",
+      "kind": "calls",
+      "relationshipSite": {
+        "file": "crates/forge-policy/src/cedar.rs",
+        "startByte": 7145,
+        "endByte": 7161,
+        "startLine": 172,
+        "startColumn": 33,
+        "endLine": 172,
+        "endColumn": 49
+      },
+      "details": null,
+      "evidence": [
+        {
+          "layer": "structural_graph",
+          "origin": "ast",
+          "extractor": "compass.resolve.rust.universal",
+          "confidence": "exact",
+          "anchor": {
+            "file": "crates/forge-policy/src/cedar.rs",
+            "startByte": 7145,
+            "endByte": 7161,
+            "startLine": 172,
+            "startColumn": 33,
+            "endLine": 172,
+            "endColumn": 49
+          },
+          "rule": "universal-call-exact-lexical-declaration",
+          "wiringSite": null,
+          "resolution": "exact"
+        }
+      ]
+    },
+    {
+      "id": "sha256:37923c28053088884f991ec7d60c4cd959421687df0deea46216dd98eb7f0733",
+      "source": "sha256:1708b8364f973d39aa2d53027f9f54af2700ba3671f02e886ecccd69b4d7b383",
+      "target": "sha256:1f64cc13887af7a3c685048c38f6c507e21de8aaf4aef255cdf9282041167281",
+      "kind": "calls",
+      "relationshipSite": {
+        "file": "crates/forge-policy/src/cedar.rs",
+        "startByte": 6898,
+        "endByte": 6914,
+        "startLine": 166,
+        "startColumn": 34,
+        "endLine": 166,
+        "endColumn": 50
+      },
+      "details": null,
+      "evidence": [
+        {
+          "layer": "structural_graph",
+          "origin": "ast",
+          "extractor": "compass.resolve.rust.universal",
+          "confidence": "exact",
+          "anchor": {
+            "file": "crates/forge-policy/src/cedar.rs",
+            "startByte": 6898,
+            "endByte": 6914,
+            "startLine": 166,
+            "startColumn": 34,
+            "endLine": 166,
+            "endColumn": 50
+          },
+          "rule": "universal-call-exact-lexical-declaration",
+          "wiringSite": null,
+          "resolution": "exact"
+        }
+      ]
+    },
+    {
+      "id": "sha256:6ce16d18a62f3e48ccaf60a1d4f06cbfde4dcc0e0b4a9b34769147acaabce2f2",
+      "source": "sha256:1708b8364f973d39aa2d53027f9f54af2700ba3671f02e886ecccd69b4d7b383",
+      "target": "sha256:1f64cc13887af7a3c685048c38f6c507e21de8aaf4aef255cdf9282041167281",
+      "kind": "calls",
+      "relationshipSite": {
+        "file": "crates/forge-policy/src/cedar.rs",
+        "startByte": 7019,
+        "endByte": 7035,
+        "startLine": 169,
+        "startColumn": 31,
+        "endLine": 169,
+        "endColumn": 47
+      },
+      "details": null,
+      "evidence": [
+        {
+          "layer": "structural_graph",
+          "origin": "ast",
+          "extractor": "compass.resolve.rust.universal",
+          "confidence": "exact",
+          "anchor": {
+            "file": "crates/forge-policy/src/cedar.rs",
+            "startByte": 7019,
+            "endByte": 7035,
+            "startLine": 169,
+            "startColumn": 31,
+            "endLine": 169,
+            "endColumn": 47
+          },
+          "rule": "universal-call-exact-lexical-declaration",
+          "wiringSite": null,
+          "resolution": "exact"
+        }
+      ]
+    },
+    {
+      "id": "sha256:8852794b61e078d3b3dde035e9872ebcfc14e9c46856417f102f3c90b8f72caf",
+      "source": "sha256:1708b8364f973d39aa2d53027f9f54af2700ba3671f02e886ecccd69b4d7b383",
+      "target": "sha256:014333334e1018b57f4cda410054d6a84be9d251ae979ec6be1194b13d210ee9",
+      "kind": "calls",
+      "relationshipSite": {
+        "file": "crates/forge-policy/src/cedar.rs",
+        "startByte": 6756,
+        "endByte": 6767,
+        "startLine": 162,
+        "startColumn": 30,
+        "endLine": 162,
+        "endColumn": 41
+      },
+      "details": null,
+      "evidence": [
+        {
+          "layer": "structural_graph",
+          "origin": "ast",
+          "extractor": "compass.resolve.rust.universal",
+          "confidence": "exact",
+          "anchor": {
+            "file": "crates/forge-policy/src/cedar.rs",
+            "startByte": 6756,
+            "endByte": 6767,
+            "startLine": 162,
+            "startColumn": 30,
+            "endLine": 162,
+            "endColumn": 41
+          },
+          "rule": "universal-call-member-binding",
+          "wiringSite": null,
+          "resolution": "exact"
+        }
+      ]
+    }
+  ],
+  "files": [],
+  "paths": [],
+  "diagnostics": [],
+  "limits": {
+    "maxDepth": 8,
+    "maxNodes": 500,
+    "maxEdges": 1000,
+    "maxPaths": 100,
+    "maxCandidates": 64,
+    "maxSourceBytes": 1048576,
+    "maxResponseBytes": 8388608
+  },
+  "truncated": false
+}

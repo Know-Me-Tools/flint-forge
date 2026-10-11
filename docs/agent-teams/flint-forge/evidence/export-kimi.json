@@ -1,0 +1,48 @@
+{
+  "directory": "/Users/gqadonis/Projects/prometheus/flint-forge/.agent-team/staging/team-r2/kimi",
+  "files": [
+    ".kimi-code/agents/forge-lead.md",
+    "plugins/flint-forge/agents/forge-lead.md",
+    ".kimi-code/agents/forge-postgres18.md",
+    "plugins/flint-forge/agents/forge-postgres18.md",
+    ".kimi-code/agents/forge-security.md",
+    "plugins/flint-forge/agents/forge-security.md",
+    ".kimi-code/agents/forge-quarry-api.md",
+    "plugins/flint-forge/agents/forge-quarry-api.md",
+    ".kimi-code/agents/forge-metadata.md",
+    "plugins/flint-forge/agents/forge-metadata.md",
+    ".kimi-code/agents/forge-realtime.md",
+    "plugins/flint-forge/agents/forge-realtime.md",
+    ".kimi-code/agents/forge-kiln.md",
+    "plugins/flint-forge/agents/forge-kiln.md",
+    ".kimi-code/agents/forge-ember.md",
+    "plugins/flint-forge/agents/forge-ember.md",
+    ".kimi-code/agents/forge-sdk.md",
+    "plugins/flint-forge/agents/forge-sdk.md",
+    ".kimi-code/agents/forge-release.md",
+    "plugins/flint-forge/agents/forge-release.md",
+    ".kimi-code/agents/forge-reviewer.md",
+    "plugins/flint-forge/agents/forge-reviewer.md",
+    "plugins/flint-forge/kimi.plugin.json",
+    "marketplace.json",
+    "export-receipt.json",
+    "team-export.json"
+  ],
+  "verification": {
+    "level": "source-verified",
+    "source": "https://github.com/MoonshotAI/kimi-code/blob/main/docs/en/customization/agents.md",
+    "version": "main documentation inspected 2026-09-24",
+    "live": "unverified"
+  },
+  "diagnostics": [
+    "Source-verified serialization only; installed native validation and live execution are unverified.",
+    "Only explicit model IDs are translated. Resolve tier, skill, capability and price policies with agent-team-models before native invocation.",
+    "Role overrides are preserved without native schema certification. Skill IDs refer to separately installed skills; prompt mentions do not install or authorize them."
+  ],
+  "instructions": [
+    "Review staged artifacts before installation. Export grants no execution or registration authority.",
+    "Choose project .kimi-code/agents or the staged Kimi v2 marketplace/plugin. Literal ${base_prompt} in supplied prompts remains unchanged."
+  ],
+  "finalDirectory": "docs/agent-teams/flint-forge/exports/kimi",
+  "regenerationReason": "Add PostgreSQL evidence ownership and correct BossFang origin provenance"
+}

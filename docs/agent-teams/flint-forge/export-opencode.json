@@ -1,0 +1,5 @@
+{
+  "state": ".agent-team/flint-forge/state.json",
+  "target": "opencode",
+  "out": "docs/agent-teams/flint-forge/exports/opencode"
+}

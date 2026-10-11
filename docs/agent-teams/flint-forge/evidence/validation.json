@@ -1,0 +1,147 @@
+{
+  "checkedAt": "2026-09-25T04:55:29.865Z",
+  "sourceHead": "ed7201851bb4feb068518912316b75cb869add14",
+  "roles": 11,
+  "skills": 8,
+  "skillValidation": [
+    {
+      "id": "forge-delivery",
+      "exitCode": 0,
+      "output": "Skill is valid!"
+    },
+    {
+      "id": "forge-fabric-events",
+      "exitCode": 0,
+      "output": "Skill is valid!"
+    },
+    {
+      "id": "forge-postgres18-security",
+      "exitCode": 0,
+      "output": "Skill is valid!"
+    },
+    {
+      "id": "supabase-postgres-best-practices",
+      "exitCode": 0,
+      "output": "Skill is valid!"
+    },
+    {
+      "id": "forge-api-compat",
+      "exitCode": 0,
+      "output": "Skill is valid!"
+    },
+    {
+      "id": "forge-metadata-contracts",
+      "exitCode": 0,
+      "output": "Skill is valid!"
+    },
+    {
+      "id": "forge-wasm-ember",
+      "exitCode": 0,
+      "output": "Skill is valid!"
+    },
+    {
+      "id": "forge-client-contracts",
+      "exitCode": 0,
+      "output": "Skill is valid!"
+    }
+  ],
+  "ownership": {
+    "trackedFileOverlaps": [],
+    "crateCoverage": {
+      "ext-flint-auth": "forge-postgres18",
+      "ext-flint-hooks": "forge-realtime",
+      "ext-flint-llm": "forge-ember",
+      "ext-flint-meta": "forge-metadata",
+      "ext-flint-vault": "forge-postgres18",
+      "fdb-app": "forge-quarry-api",
+      "fdb-auth": "forge-security",
+      "fdb-domain": "forge-lead",
+      "fdb-gateway": "forge-quarry-api",
+      "fdb-ports": "forge-lead",
+      "fdb-postgres": "forge-postgres18",
+      "fdb-query": "forge-quarry-api",
+      "fdb-realtime": "forge-realtime",
+      "fdb-reflection": "forge-metadata",
+      "fke-domain": "forge-lead",
+      "fke-ports": "forge-lead",
+      "fke-registry": "forge-kiln",
+      "fke-runtime": "forge-kiln",
+      "fke-server": "forge-kiln",
+      "fke-sign-cosign": "forge-kiln",
+      "fke-sign-did": "forge-kiln",
+      "fke-store-fs": "forge-kiln",
+      "fke-store-ipfs": "forge-kiln",
+      "fke-store-oci": "forge-kiln",
+      "fke-store-s3": "forge-kiln",
+      "flint-skill": "forge-ember",
+      "forge-cli": "forge-sdk",
+      "forge-domain": "forge-lead",
+      "forge-identity": "forge-security",
+      "forge-policy": "forge-security"
+    }
+  },
+  "exports": {
+    "codex": {
+      "files": 12,
+      "hashesValid": true,
+      "nativeExecution": "not-invoked"
+    },
+    "claude": {
+      "files": 25,
+      "hashesValid": true,
+      "nativeExecution": "not-invoked"
+    },
+    "copilot": {
+      "files": 12,
+      "hashesValid": true,
+      "nativeExecution": "not-invoked"
+    },
+    "kimi": {
+      "files": 25,
+      "hashesValid": true,
+      "nativeExecution": "not-invoked"
+    },
+    "minimax": {
+      "files": 12,
+      "hashesValid": true,
+      "nativeExecution": "not-invoked"
+    },
+    "opencode": {
+      "files": 12,
+      "hashesValid": true,
+      "nativeExecution": "not-invoked",
+      "nativeLoader": "All 11 recognized by installed CLI; models not invoked"
+    },
+    "deepseek": {
+      "files": 13,
+      "hashesValid": true,
+      "nativeExecution": "not-invoked"
+    },
+    "uar": {
+      "files": 13,
+      "hashesValid": true,
+      "nativeExecution": "not-invoked"
+    },
+    "bossfang": {
+      "files": 27,
+      "hashesValid": true,
+      "nativeExecution": "not-invoked"
+    }
+  },
+  "projectAgents": 55,
+  "skillLinks": 40,
+  "miniMaxProfileAgents": 11,
+  "portableManifestEqualsState": true,
+  "applicationCodeChanges": [],
+  "liveAgentRuns": 0,
+  "remoteRegistrations": 0,
+  "validationCorrection": "Initial one-off checker used iterator.next on fs.globSync, which returns an array. Corrected indexing; no product or agent definition defect.",
+  "limitations": [
+    "Native execution not invoked",
+    "OpenCode loader checked; other artifact formats/source contracts checked without live runtime loading",
+    "MiniMax adapter snapshot predates installed CLI; profile needs native setup/loading",
+    "Prices unknown; availability declared/configured, not inference-probed",
+    "DeepSeek CLI absent; service endpoint/auth/tools/skills not configured",
+    "KBD conflict documented, not rewritten"
+  ]
+}

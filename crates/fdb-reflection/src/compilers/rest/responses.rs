@@ -97,6 +97,16 @@ pub(super) fn bad_request(msg: &str) -> axum::response::Response {
     (StatusCode::BAD_REQUEST, Json(json!({ "error": msg }))).into_response()
 }
 
+/// `409 Conflict` for a mutation that collides with an existing unique value.
+/// Database and constraint names remain server-side.
+pub(super) fn constraint_conflict() -> axum::response::Response {
+    (
+        StatusCode::CONFLICT,
+        Json(json!({ "error": "mutation conflicts with existing data" })),
+    )
+        .into_response()
+}
+
 /// `500 Internal Server Error` with a generic body (never leaks DB detail).
 pub(super) fn internal_error() -> axum::response::Response {
     (

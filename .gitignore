@@ -67,3 +67,11 @@ Thumbs.db
 perf/results/*.json
 azure.json
 azure-roles.json
+
+# Project-local Compass graph, caches, and verification receipts
+/compass-out/
+/.compass/cache/
+/.compass/*.log
+
+# Local team ledger and isolated MiniMax profile (may contain sessions/auth)
+/.agent-team/

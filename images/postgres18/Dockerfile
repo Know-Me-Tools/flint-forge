@@ -128,9 +128,23 @@ COPY --from=anvil /out/ /
 COPY --from=pgnet /out/ /
 COPY --from=pgcron /out/ /
 
-# Third-party extensions not yet in PGDG for Postgres 18 (e.g., pg_graphql) are
-# intentionally deferred until a reliable PG18 package/source is available.
-# See docs/postgres-extensions.md for the tracking list.
+# --- pg_graphql (Rust/pgrx extension) ---
+# No longer deferred: supabase/pg_graphql v1.6.2 (released 2026-08-26) ships prebuilt
+# PG18 .deb assets for amd64 and arm64, so there is a reliable PG18 package. Pinned by
+# RELEASE VERSION, not a git SHA — the release is the reproducible artifact.
+#
+# The .deb lays files out under /var/lib/postgresql and /usr/lib/postgresql rather than
+# the paths `dpkg -i` would install into on this image, so extract and copy the real
+# files into the PG18 directories instead of installing the package.
+ARG PG_GRAPHQL_VERSION=v1.6.2
+RUN curl -fsSL -o /tmp/pg_graphql.deb \
+      "https://github.com/supabase/pg_graphql/releases/download/${PG_GRAPHQL_VERSION}/pg_graphql-${PG_GRAPHQL_VERSION}-pg18-$(dpkg --print-architecture)-linux-gnu.deb" \
+ && dpkg -x /tmp/pg_graphql.deb /tmp/pg_graphql \
+ && cp /tmp/pg_graphql/var/lib/postgresql/extension/pg_graphql.control \
+       /tmp/pg_graphql/var/lib/postgresql/extension/pg_graphql--*.sql \
+       /usr/share/postgresql/18/extension/ \
+ && cp /tmp/pg_graphql/usr/lib/postgresql/lib/pg_graphql.so /usr/lib/postgresql/18/lib/ \
+ && rm -rf /tmp/pg_graphql.deb /tmp/pg_graphql
 
 # First-boot: create extensions, grant permissions, and assert the data plane is complete.
 COPY images/postgres18/init/01-extensions.sql      /docker-entrypoint-initdb.d/01-extensions.sql

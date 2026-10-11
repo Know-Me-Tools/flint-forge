@@ -1,0 +1,205 @@
+{
+  "method": "Firecrawl web search; primary technical sources preferred; results include screened candidates, not blanket endorsements",
+  "sources": [
+    {
+      "url": "https://supabase.com/blog/realtime-row-level-security-in-postgresql",
+      "title": "Realtime Postgres RLS now available on Supabase",
+      "searchId": "01a0d6da-c345-74ab-8db9-613843700735"
+    },
+    {
+      "url": "https://news.ycombinator.com/item?id=29404222",
+      "title": "Realtime Postgres Row Level Security - Hacker News",
+      "searchId": "01a0d6da-c345-74ab-8db9-613843700735"
+    },
+    {
+      "url": "https://supabase.com/docs/guides/getting-started/architecture",
+      "title": "Architecture | Supabase Docs",
+      "searchId": "01a0d6da-c345-74ab-8db9-613843700735"
+    },
+    {
+      "url": "https://supabase.com/docs/guides/database/postgres/row-level-security",
+      "title": "Row Level Security | Supabase Docs",
+      "searchId": "01a0d6da-c345-74ab-8db9-613843700735"
+    },
+    {
+      "url": "https://supabase-supabase.mintlify.app/concepts/database",
+      "title": "Database - Supabase Documentation",
+      "searchId": "01a0d6da-c345-74ab-8db9-613843700735"
+    },
+    {
+      "url": "https://www.skills.sh/sebas-aikon-intelligence/antigravity-awesome-skills",
+      "title": "sebas-aikon-intelligence/antigravity ...",
+      "searchId": "01a0d6da-c361-7087-9dad-5289012cf2b5"
+    },
+    {
+      "url": "https://www.skills.sh/neversight/learn-skills.dev",
+      "title": "neversight/learn-skills.dev — Agent skills - The Agent Skills Directory",
+      "searchId": "01a0d6da-c361-7087-9dad-5289012cf2b5"
+    },
+    {
+      "url": "https://www.skills.sh/secondsky/claude-skills",
+      "title": "secondsky/claude-skills — Agent skills - The Agent Skills Directory",
+      "searchId": "01a0d6da-c361-7087-9dad-5289012cf2b5"
+    },
+    {
+      "url": "https://www.skills.sh/agentskillexchange/skills",
+      "title": "agentskillexchange/skills — Agent skills - The Agent Skills Directory",
+      "searchId": "01a0d6da-c361-7087-9dad-5289012cf2b5"
+    },
+    {
+      "url": "https://github.com/supabase/agent-skills",
+      "title": "Agent Skills to help developers using AI agents with Supabase - GitHub",
+      "searchId": "01a0d6db-4be3-721c-a7f4-9255a904d73d"
+    },
+    {
+      "url": "https://github.com/supabase/agent-skills/issues/50",
+      "title": "supabase-postgres-best-practices: SKILL.md missing rule index ...",
+      "searchId": "01a0d6db-4be3-721c-a7f4-9255a904d73d"
+    },
+    {
+      "url": "https://github.com/supabase/agent-skills/blob/main/skills/supabase-postgres-best-practices/references/_sections.md",
+      "title": "supabase/agent-skills - GitHub",
+      "searchId": "01a0d6db-4be3-721c-a7f4-9255a904d73d"
+    },
+    {
+      "url": "https://github.com/supabase/agent-skills/issues/83",
+      "title": "Multiple correctness issues in supabase-postgres-best-practices ...",
+      "searchId": "01a0d6db-4be3-721c-a7f4-9255a904d73d"
+    },
+    {
+      "url": "https://github.com/supabase/postgres-meta",
+      "title": "supabase/postgres-meta - GitHub",
+      "searchId": "01a0d6db-4bf9-7169-98a1-7f8a8f215777"
+    },
+    {
+      "url": "https://docs.postgrest.org/en/v12/references/api/schemas.html",
+      "title": "Schemas — PostgREST 12.2 documentation",
+      "searchId": "01a0d6db-4c12-740c-a130-f54f7c806c40"
+    },
+    {
+      "url": "https://docs.postgrest.org/en/latest/references/api/schemas.html",
+      "title": "Schemas — PostgREST devel documentation",
+      "searchId": "01a0d6db-4c12-740c-a130-f54f7c806c40"
+    },
+    {
+      "url": "https://postgrest.org/en/v10/api.html",
+      "title": "Tables and Views — PostgREST 10.2 documentation",
+      "searchId": "01a0d6db-4c12-740c-a130-f54f7c806c40"
+    },
+    {
+      "url": "https://postgrest.org/en/v11/references/api/tables_views.html",
+      "title": "Tables and Views — PostgREST 11.2 documentation",
+      "searchId": "01a0d6db-4c12-740c-a130-f54f7c806c40"
+    },
+    {
+      "url": "https://supabase.com/docs/guides/graphql/security",
+      "title": "Security | Supabase Docs",
+      "searchId": "01a0d6db-4bcc-73de-a800-c0037be99241"
+    },
+    {
+      "url": "https://supabase.com/docs/guides/database/database-advisors?lint=0026_pg_graphql_anon_table_exposed",
+      "title": "Advisors | Supabase Docs",
+      "searchId": "01a0d6db-4bcc-73de-a800-c0037be99241"
+    },
+    {
+      "url": "https://supabase.com/docs/guides/database/extensions/pg_graphql",
+      "title": "pg_graphql: GraphQL for Postgres | Supabase Docs",
+      "searchId": "01a0d6db-4bcc-73de-a800-c0037be99241"
+    },
+    {
+      "url": "https://supabase.com/docs/guides/graphql",
+      "title": "GraphQL | Supabase Docs",
+      "searchId": "01a0d6db-4bcc-73de-a800-c0037be99241"
+    },
+    {
+      "url": "https://www.skills.sh/supabase/agent-skills/supabase-postgres-best-practices",
+      "title": "supabase-postgres-best-practices - The Agent Skills Directory",
+      "searchId": "01a0d6db-d1b3-75df-a5bb-f1d775672377"
+    },
+    {
+      "url": "https://github.com/graphql-hive/graphql-inspector",
+      "title": "graphql-hive/graphql-inspector: 🕵️‍♀️ Validate schema, get ... - GitHub",
+      "searchId": "01a0d6db-d1a6-74dd-a60f-e2bf68754fba"
+    },
+    {
+      "url": "https://github.com/aks-builds/quality-skills/blob/main/skills/graphql-testing/SKILL.md",
+      "title": "quality-skills/skills/graphql-testing/SKILL.md at main · aks-builds ...",
+      "searchId": "01a0d6db-d1a6-74dd-a60f-e2bf68754fba"
+    },
+    {
+      "url": "https://github.com/ramboz/jig/blob/main/skills/contracts/SKILL.md",
+      "title": "jig/skills/contracts/SKILL.md at main · ramboz/jig · GitHub",
+      "searchId": "01a0d6db-d1a6-74dd-a60f-e2bf68754fba"
+    },
+    {
+      "url": "https://code.claude.com/docs/en/sub-agents",
+      "title": "Create custom subagents - Claude Code Docs",
+      "searchId": "01a0d6dc-6524-71a8-ae72-5cce5b447857"
+    },
+    {
+      "url": "https://opencode.ai/docs/agents/",
+      "title": "Agents - OpenCode",
+      "searchId": "01a0d6dc-64eb-725d-950a-f6758d65650a"
+    },
+    {
+      "url": "https://github.com/MiniMax-AI/minimax-code",
+      "title": "An open-source coding agent for your terminal, powered by MiniMax.",
+      "searchId": "01a0d6dc-6505-75c4-9a16-d54dd81a08ba"
+    },
+    {
+      "url": "https://github.com/MiniMax-AI/minimax-code/blob/main/README_ZH.md",
+      "title": "minimax-code/README_ZH.md at main - GitHub",
+      "searchId": "01a0d6dc-6505-75c4-9a16-d54dd81a08ba"
+    },
+    {
+      "url": "https://github.com/deepseek-ai/deepseek-harness/discussions/6805",
+      "title": "[experimental-agent-team] Fork-provider subagents ... - GitHub",
+      "searchId": "01a0d6dd-5572-73c8-952e-6c25c6102bcc"
+    },
+    {
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-08-18-experimental-agent-teams-packages.md",
+      "title": "Agent Note: Publish Agent Teams under experimental package names",
+      "searchId": "01a0d6dd-5572-73c8-952e-6c25c6102bcc"
+    },
+    {
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/agent-team/src/types.ts",
+      "title": "deepseek-ai/deepseek-harness - agent-team - GitHub",
+      "searchId": "01a0d6dd-5572-73c8-952e-6c25c6102bcc"
+    },
+    {
+      "url": "https://moonshotai.github.io/kimi-code/en/customization/agents",
+      "title": "Agents and Sub-Agents | Kimi Code CLI Docs - Moonshot AI",
+      "searchId": "01a0d6dd-57a6-73ba-96a0-f815903ad809"
+    },
+    {
+      "url": "https://moonshotai.github.io/kimi-code/en/customization/skills",
+      "title": "Agent Skills | Kimi Code CLI Docs",
+      "searchId": "01a0d6dd-57a6-73ba-96a0-f815903ad809"
+    },
+    {
+      "url": "https://moonshotai.github.io/kimi-code/zh/customization/agents",
+      "title": "Agent 与subagent | Kimi Code CLI 文档 - Moonshot AI",
+      "searchId": "01a0d6dd-57a6-73ba-96a0-f815903ad809"
+    },
+    {
+      "url": "https://docs.github.com/copilot/how-tos/agents/copilot-coding-agent/best-practices-for-using-copilot-to-work-on-tasks",
+      "title": "Best practices for using GitHub Copilot to work on tasks",
+      "searchId": "01a0d6dd-5541-7307-b304-2772110a3d82"
+    },
+    {
+      "url": "https://docs.github.com/copilot/concepts/agents/enterprise-management",
+      "title": "Agent management for enterprises - GitHub Docs",
+      "searchId": "01a0d6dd-5541-7307-b304-2772110a3d82"
+    },
+    {
+      "url": "https://agentskills.io/specification",
+      "title": "Specification - Agent Skills",
+      "searchId": "01a0d6dd-5552-732a-9013-7b9d8572f276"
+    },
+    {
+      "url": "https://agentskills.io/home",
+      "title": "Agent Skills Overview - Agent Skills",
+      "searchId": "01a0d6dd-5552-732a-9013-7b9d8572f276"
+    }
+  ]
+}

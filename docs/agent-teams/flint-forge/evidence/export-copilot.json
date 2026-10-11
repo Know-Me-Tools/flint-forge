@@ -1,0 +1,36 @@
+{
+  "directory": "/Users/gqadonis/Projects/prometheus/flint-forge/.agent-team/staging/team-r2/copilot",
+  "files": [
+    ".github/agents/forge-lead.agent.md",
+    ".github/agents/forge-postgres18.agent.md",
+    ".github/agents/forge-security.agent.md",
+    ".github/agents/forge-quarry-api.agent.md",
+    ".github/agents/forge-metadata.agent.md",
+    ".github/agents/forge-realtime.agent.md",
+    ".github/agents/forge-kiln.agent.md",
+    ".github/agents/forge-ember.agent.md",
+    ".github/agents/forge-sdk.agent.md",
+    ".github/agents/forge-release.agent.md",
+    ".github/agents/forge-reviewer.agent.md",
+    "export-receipt.json",
+    "team-export.json"
+  ],
+  "verification": {
+    "level": "source-verified",
+    "source": "https://docs.github.com/en/copilot/reference/custom-agents-configuration",
+    "version": "documentation inspected 2026-09-24",
+    "live": "unverified"
+  },
+  "diagnostics": [
+    "Source-verified serialization only; installed native validation and live execution are unverified.",
+    "Only explicit model IDs are translated. Resolve tier, skill, capability and price policies with agent-team-models before native invocation.",
+    "No Copilot agent marketplace mapping was verified; this export uses native agent files.",
+    "Role overrides are preserved without native schema certification. Skill IDs refer to separately installed skills; prompt mentions do not install or authorize them."
+  ],
+  "instructions": [
+    "Review staged artifacts before installation. Export grants no execution or registration authority.",
+    "Review .github/agents/*.agent.md; native CLI /agent or --agent selects a custom role. Fleet is a separate native execution mechanism."
+  ],
+  "finalDirectory": "docs/agent-teams/flint-forge/exports/copilot",
+  "regenerationReason": "Add PostgreSQL evidence ownership and correct BossFang origin provenance"
+}

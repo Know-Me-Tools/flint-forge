@@ -1,0 +1,558 @@
+{
+  "graphReport": "compass-out/verification/verification.json",
+  "graphSha256": "6f255761b99ddc58301c7d8794afdd0e73ec8863b4bd89d7d6baab4c6e9f2d39",
+  "sourceCommit": "ed7201851bb4feb068518912316b75cb869add14",
+  "nodes": 3213,
+  "edges": 7338,
+  "prefixCallCounts": {
+    "fdb_reflection::": 275,
+    "flint_llm::": 74,
+    "forge_policy::cedar::CedarPolicyEngine::evaluate": 4,
+    "fdb_realtime::": 21,
+    "forge_identity::verify_and_build": 5,
+    "fke_server::main": 6,
+    "flint_vault::": 10,
+    "<fdb_postgres::backend::PgBackend": 5,
+    "fdb_gateway::main": 1,
+    "<fdb_postgres::graphql::PgGraphQl": 1
+  },
+  "representativeCalls": [
+    {
+      "from": "fdb_reflection::compilers::rest::list::tests::unsafe_relation_in_embed_path_is_rejected",
+      "to": "fdb_reflection::compilers::rest::list::tests::embed_model",
+      "site": {
+        "file": "crates/fdb-reflection/src/compilers/rest/list.rs",
+        "startByte": 16275,
+        "endByte": 16286,
+        "startLine": 415,
+        "startColumn": 16,
+        "endLine": 415,
+        "endColumn": 27
+      }
+    },
+    {
+      "from": "fdb_reflection::engine::ReflectionEngine::reflect",
+      "to": "fdb_reflection::engine::ReflectionEngine::fetch_tables",
+      "site": {
+        "file": "crates/fdb-reflection/src/engine.rs",
+        "startByte": 1448,
+        "endByte": 1465,
+        "startLine": 41,
+        "startColumn": 25,
+        "endLine": 41,
+        "endColumn": 42
+      }
+    },
+    {
+      "from": "flint_llm::governor::Governor::new",
+      "to": "flint_llm::governor::TokenBucket::new",
+      "site": {
+        "file": "crates/ext-flint-llm/src/governor.rs",
+        "startByte": 3183,
+        "endByte": 3199,
+        "startLine": 104,
+        "startColumn": 17,
+        "endLine": 104,
+        "endColumn": 33
+      }
+    },
+    {
+      "from": "fdb_reflection::compilers::rest::mutations::handle_insert",
+      "to": "fdb_reflection::compilers::rest::idempotency::idempotency_context",
+      "site": {
+        "file": "crates/fdb-reflection/src/compilers/rest/mutations.rs",
+        "startByte": 4744,
+        "endByte": 4763,
+        "startLine": 130,
+        "startColumn": 14,
+        "endLine": 130,
+        "endColumn": 33
+      }
+    },
+    {
+      "from": "forge_policy::cedar::CedarPolicyEngine::evaluate",
+      "to": "forge_policy::cedar::build_entity_uid",
+      "site": {
+        "file": "crates/forge-policy/src/cedar.rs",
+        "startByte": 7145,
+        "endByte": 7161,
+        "startLine": 172,
+        "startColumn": 33,
+        "endLine": 172,
+        "endColumn": 49
+      }
+    },
+    {
+      "from": "fdb_reflection::compilers::openapi::tests::test_openapi_version_is_3_1_0",
+      "to": "fdb_reflection::compilers::openapi::tests::minimal_model",
+      "site": {
+        "file": "crates/fdb-reflection/src/compilers/openapi.rs",
+        "startByte": 11877,
+        "endByte": 11890,
+        "startLine": 338,
+        "startColumn": 44,
+        "endLine": 338,
+        "endColumn": 57
+      }
+    },
+    {
+      "from": "fdb_reflection::compilers::graphql::tests::compile_skips_non_rls_tables",
+      "to": "fdb_reflection::compilers::graphql::GraphQlCompiler::compile",
+      "site": {
+        "file": "crates/fdb-reflection/src/compilers/graphql.rs",
+        "startByte": 13895,
+        "endByte": 13919,
+        "startLine": 363,
+        "startColumn": 21,
+        "endLine": 363,
+        "endColumn": 45
+      }
+    },
+    {
+      "from": "fdb_realtime::fabric::FabricChangeSource::keto_check",
+      "to": "fdb_realtime::keto_check_via_http",
+      "site": {
+        "file": "crates/fdb-realtime/src/fabric/mod.rs",
+        "startByte": 2276,
+        "endByte": 2295,
+        "startLine": 72,
+        "startColumn": 8,
+        "endLine": 72,
+        "endColumn": 27
+      }
+    },
+    {
+      "from": "flint_llm::sync::_complete",
+      "to": "flint_llm::sync::build_runtime",
+      "site": {
+        "file": "crates/ext-flint-llm/src/sync.rs",
+        "startByte": 5033,
+        "endByte": 5046,
+        "startLine": 138,
+        "startColumn": 17,
+        "endLine": 138,
+        "endColumn": 30
+      }
+    },
+    {
+      "from": "flint_llm::governor::Governor::try_acquire",
+      "to": "flint_llm::governor::Governor::cost_tokens",
+      "site": {
+        "file": "crates/ext-flint-llm/src/governor.rs",
+        "startByte": 4662,
+        "endByte": 4679,
+        "startLine": 141,
+        "startColumn": 19,
+        "endLine": 141,
+        "endColumn": 36
+      }
+    },
+    {
+      "from": "forge_identity::verify_and_build",
+      "to": "forge_identity::jwks::refetch_on_unknown_kid",
+      "site": {
+        "file": "crates/forge-identity/src/lib.rs",
+        "startByte": 7467,
+        "endByte": 7489,
+        "startLine": 160,
+        "startColumn": 28,
+        "endLine": 160,
+        "endColumn": 50
+      }
+    },
+    {
+      "from": "flint_llm::sync::_complete",
+      "to": "flint_llm::sync::run_with_timeout",
+      "site": {
+        "file": "crates/ext-flint-llm/src/sync.rs",
+        "startByte": 4980,
+        "endByte": 4996,
+        "startLine": 137,
+        "startColumn": 4,
+        "endLine": 137,
+        "endColumn": 20
+      }
+    },
+    {
+      "from": "flint_llm::governor::Governor::try_acquire",
+      "to": "flint_llm::governor::TokenBucket::try_acquire",
+      "site": {
+        "file": "crates/ext-flint-llm/src/governor.rs",
+        "startByte": 4735,
+        "endByte": 4756,
+        "startLine": 143,
+        "startColumn": 12,
+        "endLine": 143,
+        "endColumn": 33
+      }
+    },
+    {
+      "from": "fke_server::main",
+      "to": "fke_runtime::EdgeRuntime::new",
+      "site": {
+        "file": "crates/fke-server/src/main.rs",
+        "startByte": 2965,
+        "endByte": 2981,
+        "startLine": 79,
+        "startColumn": 27,
+        "endLine": 79,
+        "endColumn": 43
+      }
+    },
+    {
+      "from": "flint_vault::_vault_decrypt",
+      "to": "flint_vault::working_cipher",
+      "site": {
+        "file": "crates/ext-flint-vault/src/lib.rs",
+        "startByte": 9089,
+        "endByte": 9103,
+        "startLine": 223,
+        "startColumn": 17,
+        "endLine": 223,
+        "endColumn": 31
+      }
+    },
+    {
+      "from": "fdb_realtime::fabric::map::map_response",
+      "to": "fdb_realtime::fabric::map::map_mutation",
+      "site": {
+        "file": "crates/fdb-realtime/src/fabric/map.rs",
+        "startByte": 1247,
+        "endByte": 1259,
+        "startLine": 38,
+        "startColumn": 12,
+        "endLine": 38,
+        "endColumn": 24
+      }
+    },
+    {
+      "from": "<fdb_postgres::backend::PgBackend as fdb_ports::DatabaseBackend>::query_json",
+      "to": "<fdb_postgres::backend::PgBackend as fdb_ports::DatabaseBackend>::acquire",
+      "site": {
+        "file": "crates/fdb-postgres/src/backend.rs",
+        "startByte": 6219,
+        "endByte": 6231,
+        "startLine": 148,
+        "startColumn": 19,
+        "endLine": 148,
+        "endColumn": 31
+      }
+    },
+    {
+      "from": "fdb_gateway::main",
+      "to": "fdb_gateway::bootstrap::run",
+      "site": {
+        "file": "crates/fdb-gateway/src/main.rs",
+        "startByte": 2039,
+        "endByte": 2053,
+        "startLine": 55,
+        "startColumn": 4,
+        "endLine": 55,
+        "endColumn": 18
+      }
+    },
+    {
+      "from": "forge_identity::verify_and_build",
+      "to": "forge_identity::decoding_key_for",
+      "site": {
+        "file": "crates/forge-identity/src/lib.rs",
+        "startByte": 7521,
+        "endByte": 7537,
+        "startLine": 161,
+        "startColumn": 12,
+        "endLine": 161,
+        "endColumn": 28
+      }
+    },
+    {
+      "from": "flint_vault::load_dek",
+      "to": "flint_vault::run_unwrap",
+      "site": {
+        "file": "crates/ext-flint-vault/src/lib.rs",
+        "startByte": 5620,
+        "endByte": 5630,
+        "startLine": 124,
+        "startColumn": 27,
+        "endLine": 124,
+        "endColumn": 37
+      }
+    },
+    {
+      "from": "<fdb_postgres::graphql::PgGraphQl as fdb_ports::GraphQlExecutor>::execute",
+      "to": "fdb_postgres::conn::PgConn::from_conn",
+      "site": {
+        "file": "crates/fdb-postgres/src/graphql.rs",
+        "startByte": 2167,
+        "endByte": 2184,
+        "startLine": 60,
+        "startColumn": 22,
+        "endLine": 60,
+        "endColumn": 39
+      }
+    },
+    {
+      "from": "forge_policy::cedar::CedarPolicyEngine::evaluate",
+      "to": "forge_policy::cedar::build_entity_uid",
+      "site": {
+        "file": "crates/forge-policy/src/cedar.rs",
+        "startByte": 6898,
+        "endByte": 6914,
+        "startLine": 166,
+        "startColumn": 34,
+        "endLine": 166,
+        "endColumn": 50
+      }
+    },
+    {
+      "from": "fdb_realtime::fabric::FabricChangeSource::new",
+      "to": "fdb_realtime::fabric::safe_identifier",
+      "site": {
+        "file": "crates/fdb-realtime/src/fabric/mod.rs",
+        "startByte": 1588,
+        "endByte": 1603,
+        "startLine": 49,
+        "startColumn": 12,
+        "endLine": 49,
+        "endColumn": 27
+      }
+    },
+    {
+      "from": "<fdb_postgres::backend::PgBackend as fdb_ports::DatabaseBackend>::query_json",
+      "to": "fdb_postgres::backend::json_param_to_bind",
+      "site": {
+        "file": "crates/fdb-postgres/src/backend.rs",
+        "startByte": 6454,
+        "endByte": 6472,
+        "startLine": 152,
+        "startColumn": 64,
+        "endLine": 152,
+        "endColumn": 82
+      }
+    },
+    {
+      "from": "fdb_realtime::fabric::split_entity_type",
+      "to": "fdb_realtime::fabric::safe_identifier",
+      "site": {
+        "file": "crates/fdb-realtime/src/fabric/mod.rs",
+        "startByte": 6033,
+        "endByte": 6048,
+        "startLine": 174,
+        "startColumn": 58,
+        "endLine": 174,
+        "endColumn": 73
+      }
+    },
+    {
+      "from": "fdb_realtime::listen::validate::is_safe_entity",
+      "to": "fdb_realtime::listen::validate::is_safe_ident_segment",
+      "site": {
+        "file": "crates/fdb-realtime/src/listen/validate.rs",
+        "startByte": 499,
+        "endByte": 520,
+        "startLine": 9,
+        "startColumn": 37,
+        "endLine": 9,
+        "endColumn": 58
+      }
+    },
+    {
+      "from": "flint_vault::_vault_decrypt",
+      "to": "flint_vault::uuid_bytes",
+      "site": {
+        "file": "crates/ext-flint-vault/src/lib.rs",
+        "startByte": 9284,
+        "endByte": 9294,
+        "startLine": 229,
+        "startColumn": 21,
+        "endLine": 229,
+        "endColumn": 31
+      }
+    },
+    {
+      "from": "fke_server::main",
+      "to": "fke_sign_did::VerifierDid::new",
+      "site": {
+        "file": "crates/fke-server/src/main.rs",
+        "startByte": 3523,
+        "endByte": 3553,
+        "startLine": 94,
+        "startColumn": 31,
+        "endLine": 94,
+        "endColumn": 61
+      }
+    },
+    {
+      "from": "fke_server::main",
+      "to": "fke_registry::PgRegistry::new",
+      "site": {
+        "file": "crates/fke-server/src/main.rs",
+        "startByte": 3118,
+        "endByte": 3147,
+        "startLine": 81,
+        "startColumn": 28,
+        "endLine": 81,
+        "endColumn": 57
+      }
+    },
+    {
+      "from": "flint_vault::load_dek",
+      "to": "flint_vault::read_wrapped_dek",
+      "site": {
+        "file": "crates/ext-flint-vault/src/lib.rs",
+        "startByte": 5484,
+        "endByte": 5500,
+        "startLine": 122,
+        "startColumn": 40,
+        "endLine": 122,
+        "endColumn": 56
+      }
+    },
+    {
+      "from": "flint_vault::_PG_init",
+      "to": "flint_vault::dek",
+      "site": {
+        "file": "crates/ext-flint-vault/src/lib.rs",
+        "startByte": 10555,
+        "endByte": 10558,
+        "startLine": 259,
+        "startColumn": 16,
+        "endLine": 259,
+        "endColumn": 19
+      }
+    },
+    {
+      "from": "forge_policy::cedar::CedarPolicyEngine::evaluate",
+      "to": "forge_policy::cedar::build_entity_uid",
+      "site": {
+        "file": "crates/forge-policy/src/cedar.rs",
+        "startByte": 7019,
+        "endByte": 7035,
+        "startLine": 169,
+        "startColumn": 31,
+        "endLine": 169,
+        "endColumn": 47
+      }
+    },
+    {
+      "from": "forge_identity::verify_and_build",
+      "to": "forge_identity::jwks::get_jwks",
+      "site": {
+        "file": "crates/forge-identity/src/lib.rs",
+        "startByte": 7059,
+        "endByte": 7067,
+        "startLine": 153,
+        "startColumn": 15,
+        "endLine": 153,
+        "endColumn": 23
+      }
+    },
+    {
+      "from": "fke_server::main",
+      "to": "fke_server::kiln_bgw::spawn",
+      "site": {
+        "file": "crates/fke-server/src/main.rs",
+        "startByte": 3269,
+        "endByte": 3284,
+        "startLine": 84,
+        "startColumn": 20,
+        "endLine": 84,
+        "endColumn": 35
+      }
+    },
+    {
+      "from": "fke_server::main",
+      "to": "fke_registry::PgComponentStore::new",
+      "site": {
+        "file": "crates/fke-server/src/main.rs",
+        "startByte": 3052,
+        "endByte": 3073,
+        "startLine": 80,
+        "startColumn": 25,
+        "endLine": 80,
+        "endColumn": 46
+      }
+    },
+    {
+      "from": "forge_policy::cedar::CedarPolicyEngine::evaluate",
+      "to": "forge_identity::RlsContext::subject",
+      "site": {
+        "file": "crates/forge-policy/src/cedar.rs",
+        "startByte": 6756,
+        "endByte": 6767,
+        "startLine": 162,
+        "startColumn": 30,
+        "endLine": 162,
+        "endColumn": 41
+      }
+    },
+    {
+      "from": "<fdb_postgres::backend::PgBackend as fdb_ports::DatabaseBackend>::acquire",
+      "to": "fdb_postgres::conn::PgConn::new",
+      "site": {
+        "file": "crates/fdb-postgres/src/backend.rs",
+        "startByte": 4995,
+        "endByte": 5006,
+        "startLine": 119,
+        "startColumn": 25,
+        "endLine": 119,
+        "endColumn": 36
+      }
+    },
+    {
+      "from": "<fdb_postgres::backend::PgBackend as fdb_ports::DatabaseBackend>::acquire",
+      "to": "forge_domain::is_safe_identifier",
+      "site": {
+        "file": "crates/fdb-postgres/src/backend.rs",
+        "startByte": 3314,
+        "endByte": 3346,
+        "startLine": 86,
+        "startColumn": 12,
+        "endLine": 86,
+        "endColumn": 44
+      }
+    },
+    {
+      "from": "forge_identity::verify_and_build",
+      "to": "forge_identity::decoding_key_for",
+      "site": {
+        "file": "crates/forge-identity/src/lib.rs",
+        "startByte": 7116,
+        "endByte": 7132,
+        "startLine": 154,
+        "startColumn": 29,
+        "endLine": 154,
+        "endColumn": 45
+      }
+    },
+    {
+      "from": "forge_identity::verify_and_build",
+      "to": "forge_identity::gate_mode_is_production",
+      "site": {
+        "file": "crates/forge-identity/src/lib.rs",
+        "startByte": 6796,
+        "endByte": 6819,
+        "startLine": 146,
+        "startColumn": 29,
+        "endLine": 146,
+        "endColumn": 52
+      }
+    },
+    {
+      "from": "<fdb_postgres::backend::PgBackend as fdb_ports::DatabaseBackend>::query_json",
+      "to": "fdb_postgres::conn::PgConn::from_conn",
+      "site": {
+        "file": "crates/fdb-postgres/src/backend.rs",
+        "startByte": 6267,
+        "endByte": 6284,
+        "startLine": 149,
+        "startColumn": 22,
+        "endLine": 149,
+        "endColumn": 39
+      }
+    }
+  ],
+  "limits": [
+    "Not complete runtime reachability",
+    "SQL macro definitions and dynamic calls require source inspection"
+  ]
+}

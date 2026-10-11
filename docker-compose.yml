@@ -30,10 +30,13 @@ services:
       # using /run/secrets/postgres_password (mounted via docker-compose.prod.yml).
       DATABASE_URL: postgres://flint:flint@db:5432/flint
       FLINT_JWT_SECRET: ${FLINT_JWT_SECRET:-change-me-in-production}
-      # Postgres LISTEN/NOTIFY change source — pinned explicitly so quickstart
-      # subscriptions work regardless of the binary default ("fabric" requires
-      # a running FRF and fails closed until OQ-FRF-1 resolves).
-      FLINT_CHANGE_SOURCE: listen
+      # Keep LISTEN as the no-dependency default. Set FLINT_CHANGE_SOURCE=fabric
+      # to consume FRF WatchEntityType while retaining an explicit rollback.
+      FLINT_CHANGE_SOURCE: ${FLINT_CHANGE_SOURCE:-listen}
+      FRF_ENDPOINT: ${FRF_ENDPOINT:-http://host.docker.internal:9090}
+      FRF_ENTITY_PROJECTION: ${FRF_ENTITY_PROJECTION:-default}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8080:8080"
     depends_on:

@@ -14,8 +14,13 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends pkg-config libssl-dev \
+    && apt-get install -y --no-install-recommends \
+        libprotobuf-dev \
+        libssl-dev \
+        pkg-config \
+        protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
+ENV PROTOC_INCLUDE=/usr/include
 # Cache dependencies first; only invalidated when Cargo.lock changes.
 RUN cargo chef cook --release --package fdb-gateway --recipe-path recipe.json
 COPY . .
@@ -23,7 +28,7 @@ RUN cargo build --release -p fdb-gateway
 
 FROM debian:bookworm-slim AS runtime
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates libssl3 \
+    && apt-get install -y --no-install-recommends ca-certificates curl libssl3 \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/fdb-gateway /usr/local/bin/fdb-gateway
 # p11-c005: entrypoint reads /run/secrets/postgres_password and /run/secrets/jwt_secret

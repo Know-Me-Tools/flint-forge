@@ -1,0 +1,198 @@
+{
+  "originalSkills": [
+    "forge-delivery",
+    "forge-fabric-events",
+    "forge-postgres18-security",
+    "forge-api-compat",
+    "forge-metadata-contracts",
+    "forge-wasm-ember",
+    "forge-client-contracts"
+  ],
+  "upstreamSkill": {
+    "id": "supabase-postgres-best-practices",
+    "localVersion": "1.1.1",
+    "source": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices",
+    "repository": "https://github.com/supabase/agent-skills",
+    "listing": "https://www.skills.sh/supabase/agent-skills/supabase-postgres-best-practices",
+    "license": "MIT per installed SKILL.md; original author metadata retained",
+    "installation": "Existing local instruction-only SKILL.md/references; no downloaded package or executable",
+    "review": "Inspected entrypoint and RLS basics/performance references; Forge guardrail governs application; other references require just-in-time primary-source verification",
+    "files": [
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/SKILL.md",
+        "sha256": "ccd6e4596bd51cf344fe76c464867c541ccc16b6d90ae7a9db449fb17588613b",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/SKILL.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/_contributing.md",
+        "sha256": "bac63a98335a70c3fed45e4d5f930851d1ea18989bda01dc8969ca6ac7cd4539",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/_contributing.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/_sections.md",
+        "sha256": "c9e992612b422c7122de0b7542ebc2450db283edaab08cfe86c6d657fcccccd5",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/_sections.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/_template.md",
+        "sha256": "6299954250f212caabe339d752c3e5313a8e07d1a182a4e4b425baee91df1bd2",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/_template.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/advanced-full-text-search.md",
+        "sha256": "40c2606bbb4c4dce31308f201b24cc7f58c7df05b1d9c6856fe2b888d3b7cf28",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/advanced-full-text-search.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/advanced-jsonb-indexing.md",
+        "sha256": "24cacf6a8bc35901dd566d24502ce8e57f810a5c196b897e61d52726e521d106",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/advanced-jsonb-indexing.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/conn-idle-timeout.md",
+        "sha256": "630588902c00fcec59a5988cc5d042f76dcf2c923a535abfd8c47dca205eaed5",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/conn-idle-timeout.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/conn-limits.md",
+        "sha256": "11b2a67a7c7679cbbc5d807bbb17e69c98484a581d0c8b929c03408f412b81b2",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/conn-limits.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/conn-pooling.md",
+        "sha256": "88cf086bf98ba865d2e9d0579974e1366b14157619d6a93e7da77be91084e4a5",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/conn-pooling.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/conn-prepared-statements.md",
+        "sha256": "174e9332fe3dda5c99b2b00159fb1915ae36c00bab3a7882c14e73e4344e946e",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/conn-prepared-statements.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/data-batch-inserts.md",
+        "sha256": "531933b82d6a622d0fae29e0ea80be6fe5d78655adf2804c271ea84a1930de37",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/data-batch-inserts.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/data-n-plus-one.md",
+        "sha256": "21a44905e5b16a42741892ec34bb1bfef124d049b140a76934a9acd0f46f5fc2",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/data-n-plus-one.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/data-pagination.md",
+        "sha256": "73c9fa10a3d439bedea0e11b640bd25bf30dd50f0d9006cf85baf7c3151543fa",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/data-pagination.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/data-upsert.md",
+        "sha256": "2612af83b20a2701dde30ef1f8d7efd26b7e9eef84717226b8f038a2d2150ff7",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/data-upsert.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/lock-advisory.md",
+        "sha256": "c88d259dbf81c3771438f59a165f7eab8acd09999dd370bdf807521c73f35aab",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/lock-advisory.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/lock-deadlock-prevention.md",
+        "sha256": "09aee46f51d7178c8e55fe056cd5a94a64ba2c122fe418e6900cd99f297b2347",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/lock-deadlock-prevention.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/lock-short-transactions.md",
+        "sha256": "5aa7f61095916986d39644b446cdbcd2bacca7ef698a3bb50b3f82dd60207602",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/lock-short-transactions.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/lock-skip-locked.md",
+        "sha256": "6c45077f430f29cd9cd8f448c94d578e827e7bd023fcdaf717a756acb116fa4b",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/lock-skip-locked.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/monitor-explain-analyze.md",
+        "sha256": "4cb67ffbf8e57f2e5b380b0beb4242528b513723ce314a2c2ffcf083bd4203d7",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/monitor-explain-analyze.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/monitor-pg-stat-statements.md",
+        "sha256": "89dca99d4e894fcbdcac136be7ad9fbc03d1342904f065c1b198dc9cf495f098",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/monitor-pg-stat-statements.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/monitor-vacuum-analyze.md",
+        "sha256": "2892272011710eb49b3f185ec12f15ce9ce4c365792c672f6e2a9c90da426a1a",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/monitor-vacuum-analyze.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/query-composite-indexes.md",
+        "sha256": "73e42424e671f0266e74fdb220db3196790f69fb43e2b19c7b9483eb4971b554",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/query-composite-indexes.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/query-covering-indexes.md",
+        "sha256": "daf2a7f0477fb7357b62b5fb5b185b1995a77a186347e45cb780e25e7a7589b6",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/query-covering-indexes.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/query-index-types.md",
+        "sha256": "472a74f22c2df203bd0154999b3a5a0187cca2ab3d9a3978e305bb7c32f1a282",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/query-index-types.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/query-missing-indexes.md",
+        "sha256": "91ad8b0ff4365704b4830a7f077c6f140f7140fd5d3ce5cd0b92b160cf9e25f1",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/query-missing-indexes.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/query-partial-indexes.md",
+        "sha256": "6448982bc8558c6555284958edc331b29239c6a0130e6b4501dd6d4da607a6dd",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/query-partial-indexes.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/schema-constraints.md",
+        "sha256": "90e8efda3e9e81095e642911ad4aae2809d160f29414338fa997253238f510f8",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/schema-constraints.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/schema-data-types.md",
+        "sha256": "e01b58c14c7f3f65d8ead580b9a4fcf70b83baaab0f9a5f83c569c9fd113e8c8",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/schema-data-types.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/schema-foreign-key-indexes.md",
+        "sha256": "7587713d12a65a212365459b3d39e4717d8a79e4073b10bd62f1054d8192c0dd",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/schema-foreign-key-indexes.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/schema-lowercase-identifiers.md",
+        "sha256": "4bc80f70865f2390872591f326c8a6be6456a0aeb5a7e5a2475d7cd9d43059ab",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/schema-lowercase-identifiers.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/schema-partitioning.md",
+        "sha256": "541e13fbeaf4bb1485c9059d4c9417dbdb766cf16f4237cd63a04ada7ec45b90",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/schema-partitioning.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/schema-primary-keys.md",
+        "sha256": "3c8beabef82066f9a0838b926da0885117fd2d9a263aaf84cb5ca9e5f0d400e9",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/schema-primary-keys.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/security-privileges.md",
+        "sha256": "095909274a4fb43df785d7144cf674eeb40284d2d45628f14af4108737b93663",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/security-privileges.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/security-rls-basics.md",
+        "sha256": "e04dd1a3a382aafdaaa73fe9f7976352acdde6e90c2a2470d281b94d4f44b096",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/security-rls-basics.md"
+      },
+      {
+        "file": ".agents/skills/supabase-postgres-best-practices/references/security-rls-performance.md",
+        "sha256": "ee62c6e34468df8673d625291c1fcd7fb87041f122325eba224fc492cfe01bb3",
+        "sourceFile": "/Users/gqadonis/.TOOLS/skills/agents/supabase-postgres-best-practices/references/security-rls-performance.md"
+      }
+    ]
+  }
+}

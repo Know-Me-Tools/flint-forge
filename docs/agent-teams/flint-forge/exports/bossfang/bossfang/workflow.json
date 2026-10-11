@@ -1,0 +1,72 @@
+{
+  "name": "flint-forge",
+  "description": "Evolve the sovereign PostgreSQL 18, Quarry API, Anvil extension and Kiln edge platform with measured compatibility, tenant isolation and explicit ecosystem ownership.",
+  "steps": [
+    {
+      "name": "forge-lead",
+      "agent_name": "flint-forge-forge-lead",
+      "prompt": "{{input}}",
+      "depends_on": []
+    },
+    {
+      "name": "forge-postgres18",
+      "agent_name": "flint-forge-forge-postgres18",
+      "prompt": "{{input}}",
+      "depends_on": []
+    },
+    {
+      "name": "forge-security",
+      "agent_name": "flint-forge-forge-security",
+      "prompt": "{{input}}",
+      "depends_on": []
+    },
+    {
+      "name": "forge-quarry-api",
+      "agent_name": "flint-forge-forge-quarry-api",
+      "prompt": "{{input}}",
+      "depends_on": []
+    },
+    {
+      "name": "forge-metadata",
+      "agent_name": "flint-forge-forge-metadata",
+      "prompt": "{{input}}",
+      "depends_on": []
+    },
+    {
+      "name": "forge-realtime",
+      "agent_name": "flint-forge-forge-realtime",
+      "prompt": "{{input}}",
+      "depends_on": []
+    },
+    {
+      "name": "forge-kiln",
+      "agent_name": "flint-forge-forge-kiln",
+      "prompt": "{{input}}",
+      "depends_on": []
+    },
+    {
+      "name": "forge-ember",
+      "agent_name": "flint-forge-forge-ember",
+      "prompt": "{{input}}",
+      "depends_on": []
+    },
+    {
+      "name": "forge-sdk",
+      "agent_name": "flint-forge-forge-sdk",
+      "prompt": "{{input}}",
+      "depends_on": []
+    },
+    {
+      "name": "forge-release",
+      "agent_name": "flint-forge-forge-release",
+      "prompt": "{{input}}",
+      "depends_on": []
+    },
+    {
+      "name": "forge-reviewer",
+      "agent_name": "flint-forge-forge-reviewer",
+      "prompt": "{{input}}",
+      "depends_on": []
+    }
+  ]
+}

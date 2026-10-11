@@ -12,6 +12,7 @@ use std::sync::Arc;
 use fdb_ports::{KetoCheck, SqlExecutor};
 use forge_policy::Pep;
 
+mod idempotency;
 mod list;
 mod mutations;
 mod responses;
@@ -25,8 +26,8 @@ use crate::passes::endpoint_generation::{generate, EndpointKind};
 // implementations now live in sibling modules.
 use list::handle_list;
 use responses::{
-    bad_request, forbidden, insert_response, internal_error, json_bind, parse_filters,
-    rows_response, KETO_NAMESPACE,
+    bad_request, constraint_conflict, forbidden, insert_response, internal_error, json_bind,
+    parse_filters, rows_response, KETO_NAMESPACE,
 };
 
 /// Shared state threaded into every route handler.
@@ -128,11 +129,20 @@ impl RestCompiler {
                         &path,
                         post(move |State(state): State<RestState>,
                                    Extension(rls): Extension<RlsContext>,
+                                   headers: HeaderMap,
                                    Json(body): Json<Map<String, Value>>| {
                             let schema = schema.clone();
                             let name = name.clone();
                             async move {
-                                mutations::handle_insert(state, schema, name, rls, Json(body)).await
+                                mutations::handle_insert(
+                                    state,
+                                    schema,
+                                    name,
+                                    rls,
+                                    headers,
+                                    Json(body),
+                                )
+                                .await
                             }
                         }),
                     )
@@ -144,6 +154,7 @@ impl RestCompiler {
                         &path,
                         patch(move |State(state): State<RestState>,
                                     Extension(rls): Extension<RlsContext>,
+                                    headers: HeaderMap,
                                     Query(params): Query<HashMap<String, String>>,
                                     Json(body): Json<Map<String, Value>>| {
                             let schema = schema.clone();
@@ -154,6 +165,7 @@ impl RestCompiler {
                                     schema,
                                     name,
                                     rls,
+                                    headers,
                                     Query(params),
                                     Json(body),
                                 )
@@ -169,12 +181,20 @@ impl RestCompiler {
                         &path,
                         delete(move |State(state): State<RestState>,
                                      Extension(rls): Extension<RlsContext>,
+                                     headers: HeaderMap,
                                      Query(params): Query<HashMap<String, String>>| {
                             let schema = schema.clone();
                             let name = name.clone();
                             async move {
-                                mutations::handle_delete(state, schema, name, rls, Query(params))
-                                    .await
+                                mutations::handle_delete(
+                                    state,
+                                    schema,
+                                    name,
+                                    rls,
+                                    headers,
+                                    Query(params),
+                                )
+                                .await
                             }
                         }),
                     )

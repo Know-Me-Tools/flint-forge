@@ -83,6 +83,22 @@ pub struct ChangeEvent {
     pub record: Option<Json>,
     /// The row's data before the change (present for updates/deletes).
     pub old_record: Option<Json>,
+    /// Stable source event identity used by resumable consumers to deduplicate
+    /// at-least-once delivery. `None` for sources without durable identities.
+    pub event_id: Option<String>,
+    /// Opaque Fabric checkpoint after this event, encoded for a GraphQL client
+    /// to persist and pass back when reconnecting.
+    pub checkpoint: Option<String>,
+    /// Server-approved projected column names. When present, the RLS re-query
+    /// returns only this intersection with the reflected table shape.
+    pub projection: Option<Vec<String>>,
+    /// Whether the source already performed the object authorization required
+    /// to emit a key-only delete invalidation. Sources that cannot prove this
+    /// leave it false and delete events are dropped by the application layer.
+    pub delete_authorized: bool,
+    /// Whether the source payload was reduced to keys and requires the RLS
+    /// re-query to reconstruct the current projected row.
+    pub truncated: bool,
 }
 
 /// A parsed PostgREST-style REST query, ready for planning into SQL by
@@ -150,6 +166,10 @@ pub struct SubscriptionSpec {
     /// Optional JSON filter narrowing which changes are delivered
     /// (reserved for future predicate-pushdown; currently informational).
     pub filter: Option<Json>,
+    /// Opaque checkpoint returned by an earlier event. When present, a durable
+    /// source resumes strictly after it; sources without resume support reject
+    /// it instead of silently starting live.
+    pub checkpoint: Option<String>,
 }
 
 /// Monotonically increasing schema generation counter.

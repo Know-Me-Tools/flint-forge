@@ -1,0 +1,69 @@
+{
+  "target": "opencode",
+  "verification": {
+    "level": "source-verified",
+    "source": "https://opencode.ai/docs/agents/",
+    "version": "deployed singular agent schema inspected 2026-09-24",
+    "live": "unverified"
+  },
+  "diagnostics": [
+    "Source-verified serialization only; installed native validation and live execution are unverified.",
+    "Only explicit model IDs are translated. Resolve tier, skill, capability and price policies with agent-team-models before native invocation.",
+    "OpenCode JS/TS or npm plugins are separate from agent definitions; no agent marketplace manifest is invented.",
+    "Role overrides are preserved without native schema certification. Skill IDs refer to separately installed skills; prompt mentions do not install or authorize them."
+  ],
+  "instructions": [
+    "Review staged artifacts before installation. Export grants no execution or registration authority.",
+    "Review .opencode/agents/*.md and optional opencode.json. Native configuration uses singular agent and permission keys."
+  ],
+  "files": [
+    {
+      "file": ".opencode/agents/forge-lead.md",
+      "sha256": "faec2e54bee017360e3938c05e42f869837f3f5e2ce7c61bc773f79e2a0d04c1"
+    },
+    {
+      "file": ".opencode/agents/forge-postgres18.md",
+      "sha256": "842306cf3492c8f6ee09fea01c47ad8cfd4830c97c539ea4b8641332c601a418"
+    },
+    {
+      "file": ".opencode/agents/forge-security.md",
+      "sha256": "5ef3d1352e45077600d0687d32c07940f5a6834f7efd48d5cc3a3cea4693fd0e"
+    },
+    {
+      "file": ".opencode/agents/forge-quarry-api.md",
+      "sha256": "c2715a090e47c28dd28ba40e8fd016f24a16852be8ba1213e60f74d9a9c4838b"
+    },
+    {
+      "file": ".opencode/agents/forge-metadata.md",
+      "sha256": "2d5d315f3b2aeeacdee2de8bd7a7e265f6342ace9bf9895c43757204351ef6e8"
+    },
+    {
+      "file": ".opencode/agents/forge-realtime.md",
+      "sha256": "1d26a497475f34db38fb4ca3f9175320afb2838aadd95328cd65830aad011dcd"
+    },
+    {
+      "file": ".opencode/agents/forge-kiln.md",
+      "sha256": "056231e36a7672409fd6ba97ef5432f7fec14b6a2b14759493ae3cdfd9870bec"
+    },
+    {
+      "file": ".opencode/agents/forge-ember.md",
+      "sha256": "ddf62eeb8c1fb4cf78920eea7c5ee7017a2257a2a941d89d290b27254a01bca4"
+    },
+    {
+      "file": ".opencode/agents/forge-sdk.md",
+      "sha256": "77349e55896ee3b981d337ad586bdd76d5021568298adc9787462e47acf412ad"
+    },
+    {
+      "file": ".opencode/agents/forge-release.md",
+      "sha256": "036c82e0e4ee912a2bfd31a80db68a73a3f8312fd25a38288a8ec98fff0511d3"
+    },
+    {
+      "file": ".opencode/agents/forge-reviewer.md",
+      "sha256": "7148f057b7863447088ec10a9cb4b03bbf6e0ddf51788ccfc2760cf31c278544"
+    },
+    {
+      "file": "export-receipt.json",
+      "sha256": "34fbc2ae3ed08d551457fd0db558622d9e0b72215fda09ed577107a6b6c6e196"
+    }
+  ]
+}

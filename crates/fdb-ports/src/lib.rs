@@ -33,11 +33,27 @@ pub enum BackendError {
     /// identifier, etc.).
     #[error("query: {0}")]
     Query(String),
+    /// An idempotency key was already used for a different mutation.
+    #[error("idempotency conflict")]
+    IdempotencyConflict,
+    /// PostgreSQL rejected a mutation because it conflicts with an existing
+    /// unique value or primary key.
+    #[error("constraint conflict")]
+    ConstraintConflict,
     /// An adapter-internal failure not covered by the other variants (e.g. a
     /// mismatched connection type, or a downstream call such as
     /// `graphql.resolve()` erroring).
     #[error("internal: {0}")]
     Internal(String),
+}
+
+/// Stable identity and content fingerprint for a retry-safe mutation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IdempotencyContext {
+    /// Caller-generated key reused across every retry of one logical mutation.
+    pub mutation_id: String,
+    /// SHA-256 digest of the mutation target, filter, and body.
+    pub request_fingerprint: String,
 }
 
 /// Error surfaced by the [`ChangeStreamSource`] port.
@@ -53,6 +69,20 @@ pub enum StreamError {
     /// unreachable).
     #[error("authz denied")]
     Denied,
+    /// The source rejected a caller-provided resume checkpoint.
+    #[error("invalid resume checkpoint")]
+    InvalidCheckpoint,
+    /// Retained history cannot satisfy the checkpoint; the caller must obtain
+    /// a fresh state snapshot before resubscribing.
+    #[error("resnapshot required")]
+    ResnapshotRequired,
+    /// The subscriber fell behind the bounded source buffer and must reconnect
+    /// from its last committed checkpoint.
+    #[error("subscriber lagged")]
+    Lagged,
+    /// The source returned a malformed, incomplete or out-of-scope frame.
+    #[error("invalid change-stream data")]
+    InvalidData,
 }
 
 /// An acquired, RLS-scoped connection handle. The inner value is an opaque
@@ -170,6 +200,22 @@ pub trait SqlExecutor: Send + Sync {
         params: Vec<fdb_query::QueryParam>,
         rls: &RlsContext,
     ) -> Result<Vec<serde_json::Map<String, serde_json::Value>>, BackendError>;
+
+    /// Execute a mutation and persist its response atomically for retry replay.
+    ///
+    /// Implementations that support REST mutations must override this method.
+    /// The receipt and mutation must commit in the same transaction.
+    async fn execute_idempotent(
+        &self,
+        _sql: &str,
+        _params: Vec<fdb_query::QueryParam>,
+        _rls: &RlsContext,
+        _idempotency: &IdempotencyContext,
+    ) -> Result<Vec<serde_json::Map<String, serde_json::Value>>, BackendError> {
+        Err(BackendError::Internal(
+            "idempotent mutation execution is not supported".into(),
+        ))
+    }
 }
 
 /// Executes GraphQL query/mutation requests — the reversibility seam:

@@ -1,0 +1,76 @@
+{
+  "target": "uar",
+  "verification": {
+    "level": "source-verified",
+    "source": "https://github.com/Prometheus-AGS/universal-agent-runtime/blob/ba12845138104d3c8c3b8bca8bc7c5be24004e91/src/uar/domain/artifact.rs",
+    "version": "1.0.0 / ba12845138104d3c8c3b8bca8bc7c5be24004e91",
+    "live": "unverified"
+  },
+  "diagnostics": [
+    "Source-verified serialization only; installed native validation and live execution are unverified.",
+    "Only explicit model IDs are translated. Resolve tier, skill, capability and price policies with agent-team-models before native invocation.",
+    "UAR skill policy prefer is a preference, not an enforced skill allowlist. Blank provider/model use service defaults; model IDs are not split to guess a provider.",
+    "UAR has no verified persistent team registration API. POST /api/uar/runs requires {artifact:<full AgentArtifact>,input:<task>}; registration does not run it.",
+    "Native authentication and registration are unverified. UAR defaults to JWT-required; BossFang accepts Bearer or X-API-Key. Discovery success is not mutation authorization."
+  ],
+  "instructions": [
+    "Review staged artifacts before installation. Export grants no execution or registration authority.",
+    "Each uar/agents/*.json is a complete AgentArtifact body for POST /api/agents. UAR team native options supply artifact defaults, then role native overrides win.",
+    "Review native policy.tools.allow and tools.bundles before registration; generated defaults grant no explicit tool allowlist or bundles. Supply required native tool policy through team defaults or role overrides.",
+    "registration-plan.json is a local review plan, not a native API body. Supply an operator-approved base URL and credential reference; preserve each returned native ID/outcome because registration is not atomic."
+  ],
+  "files": [
+    {
+      "file": "uar/agents/forge-lead.json",
+      "sha256": "abe9c70aecfa6222963a8f12f8f524020dc20c792b214f9449e3e4a55eb4a24b"
+    },
+    {
+      "file": "uar/agents/forge-postgres18.json",
+      "sha256": "735c18b01a150d617a729790fd655ca6478aca96100a723a1bc65ba161a47a6a"
+    },
+    {
+      "file": "uar/agents/forge-security.json",
+      "sha256": "3a527f6bcde2ad0261558d1112bf263c9ef969068a15aef82c09a157eb6d7c92"
+    },
+    {
+      "file": "uar/agents/forge-quarry-api.json",
+      "sha256": "afc697a89df019686f6da371cabd07323a4dc735f6c9a673e425ba103ed2ac3a"
+    },
+    {
+      "file": "uar/agents/forge-metadata.json",
+      "sha256": "cbceb5d4b0078b6fc7efe233adc01a1307599af25e659c4aca7eec32b7762d55"
+    },
+    {
+      "file": "uar/agents/forge-realtime.json",
+      "sha256": "494747ae1209b8351e1fedd6819845e8f37b8d3d8a6677260a3dd66ca5e2c3fe"
+    },
+    {
+      "file": "uar/agents/forge-kiln.json",
+      "sha256": "602d5cc4258abc8001416bca88325e60aeb093890a8a3f72cbff2165154662c2"
+    },
+    {
+      "file": "uar/agents/forge-ember.json",
+      "sha256": "899141876a39d32694abe8aff7fc488ff192d1e9c9be69eb3f17b72c363defa2"
+    },
+    {
+      "file": "uar/agents/forge-sdk.json",
+      "sha256": "5db4652dc6619522572a7fb3cb00f432bfbf42d2837fd53ea08b9f876bbe5958"
+    },
+    {
+      "file": "uar/agents/forge-release.json",
+      "sha256": "95c2b2db0ef4e99251835386fe81f0a4a5ff73b62b2fd76c0a2a3ff3fa5c2167"
+    },
+    {
+      "file": "uar/agents/forge-reviewer.json",
+      "sha256": "71ca85d55a25e80ae73820ebb4d33112079a65b2f9510232325800d1923e4995"
+    },
+    {
+      "file": "uar/registration-plan.json",
+      "sha256": "6f5d4f29c21d30000c94483356237fada58416c861fbe7d631c750a8d2f73674"
+    },
+    {
+      "file": "export-receipt.json",
+      "sha256": "bf802428d0dc1366f7b53642fa5512bcf13c58f0e595a98298e0b0622f3d125e"
+    }
+  ]
+}

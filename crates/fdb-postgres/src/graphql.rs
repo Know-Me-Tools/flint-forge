@@ -47,10 +47,17 @@ impl GraphQlExecutor for PgGraphQl {
     /// Returns `BackendError` when: acquiring the RLS-scoped connection fails
     /// (pool checkout, the `BEGIN`, or any of the six `SET LOCAL`/`set_config`
     /// statements); the checked-out connection is not a `PgConn` (should not
-    /// happen — indicates a mismatched `DatabaseBackend` implementation);
+    /// happen — indicates a mismatched `DatabaseBackend` implementation); or
     /// `graphql.resolve(...)` itself errors in Postgres (invalid query,
-    /// permission denied under RLS, etc.); or the JSONB text `graphql.resolve`
-    /// returns fails to parse as JSON.
+    /// permission denied under RLS, etc.).
+    ///
+    /// # Panics
+    ///
+    /// Does not panic under normal operation. It DID before this fix: decoding
+    /// the `jsonb` result column via `row.get::<_, String>(0)` panics rather
+    /// than erroring on a type mismatch, and `jsonb` is not in `FromSql for
+    /// String`'s accepted OID set. Decoding as `serde_json::Value` directly
+    /// removes the mismatch.
     #[instrument(skip(self, rls), fields(role = %rls.role), err)]
     async fn execute(&self, req: GraphQlRequest, rls: &RlsContext) -> Result<Json, BackendError> {
         use fdb_ports::DatabaseBackend;
@@ -60,12 +67,21 @@ impl GraphQlExecutor for PgGraphQl {
         let pg_conn = PgConn::from_conn(&conn)
             .ok_or_else(|| BackendError::Internal("unexpected conn type in PgGraphQl".into()))?;
 
-        let variables_json = req.variables.to_string();
+        // Bound as `&serde_json::Value`, NOT `&req.variables.to_string()` (a `String`). The `::jsonb`
+        // cast right after `$2` makes Postgres describe that parameter's type as `jsonb` (verified:
+        // `parameter_types` on the prepared statement reads `{text,jsonb,text}`), and
+        // `postgres-types`'s `ToSql for String` only accepts `TEXT`/`VARCHAR`/`BPCHAR`/`NAME` — not
+        // `JSONB` — so the client rejects the bind before the query ever reaches the server, with
+        // `error serializing parameter 1`, no matter what the JSON content is. Every request through
+        // this path failed 100% of the time until this fix, unconditionally — the earlier `String`
+        // round-trip through `.to_string()` was itself the bug, not an equivalent alternate encoding.
+        // `serde_json::Value`'s `ToSql` impl (from `tokio-postgres`'s `with-serde_json-1` feature,
+        // already enabled workspace-wide) accepts `JSON`/`JSONB` directly.
         let row = pg_conn
             .inner
             .query_one(
                 r"SELECT graphql.resolve($1, $2::jsonb, $3)",
-                &[&req.query, &variables_json, &req.operation_name],
+                &[&req.query, &req.variables, &req.operation_name],
             )
             .await
             .map_err(|e| BackendError::Internal(format!("graphql.resolve: {e}")))?;
@@ -76,11 +92,12 @@ impl GraphQlExecutor for PgGraphQl {
         // returning a success payload. See `PgConn::commit`.
         pg_conn.commit().await?;
 
-        // pg_graphql returns JSONB. tokio-postgres can read it as a String
-        // (the text representation of JSONB), then we deserialize.
-        let raw: String = row.get(0);
-        let result: serde_json::Value = serde_json::from_str(&raw)
-            .map_err(|e| BackendError::Internal(format!("graphql.resolve json parse: {e}")))?;
+        // `graphql.resolve` returns `jsonb`. `row.get::<_, String>(0)` — as this line read before —
+        // uses `FromSql for String`, which only accepts TEXT-family OIDs and PANICS (not returns an
+        // Err) on a JSONB column, taking the whole worker thread down with it. This is the same class
+        // of bug as the `$2::jsonb` bind above, on the decode side: get it as `serde_json::Value`
+        // directly, whose `FromSql` impl (same `with-serde_json-1` feature) accepts JSON/JSONB.
+        let result: serde_json::Value = row.get(0);
         Ok(result)
     }
 }

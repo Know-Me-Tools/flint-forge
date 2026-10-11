@@ -1,0 +1,69 @@
+{
+  "target": "codex",
+  "verification": {
+    "level": "source-verified",
+    "source": "https://learn.chatgpt.com/docs/agent-configuration/subagents",
+    "version": "documentation inspected 2026-09-24",
+    "live": "unverified"
+  },
+  "diagnostics": [
+    "Source-verified serialization only; installed native validation and live execution are unverified.",
+    "Only explicit model IDs are translated. Resolve tier, skill, capability and price policies with agent-team-models before native invocation.",
+    "Standalone agent files are supported. A Codex plugin agents manifest field is not verified; no such field is emitted.",
+    "Role overrides are preserved without native schema certification. Skill IDs refer to separately installed skills; prompt mentions do not install or authorize them."
+  ],
+  "instructions": [
+    "Review staged artifacts before installation. Export grants no execution or registration authority.",
+    "Review and merge .codex/agents and optional .codex/config.toml into the project; config values are native Codex options."
+  ],
+  "files": [
+    {
+      "file": ".codex/agents/forge-lead.toml",
+      "sha256": "c8eaf53eb1264b003aa6bea57d1d97ebf8f0b4023ef5f1742e26cb8938f0d435"
+    },
+    {
+      "file": ".codex/agents/forge-postgres18.toml",
+      "sha256": "a75beb29af0427f9588e862884b9d44c4dfc0ff54920723aa735feb58ca0b167"
+    },
+    {
+      "file": ".codex/agents/forge-security.toml",
+      "sha256": "127e8493974d5173ee3881b26880590a591c9cf0e7268e2ef3a971b5f1f9901c"
+    },
+    {
+      "file": ".codex/agents/forge-quarry-api.toml",
+      "sha256": "71bde21af93f452f788240a52df668efa2a019122a47196bfc21ca58a5aff26e"
+    },
+    {
+      "file": ".codex/agents/forge-metadata.toml",
+      "sha256": "e1fa2685f0758ba701a7a01d076d4f84856ec953dde5846d33605a85e85abbbf"
+    },
+    {
+      "file": ".codex/agents/forge-realtime.toml",
+      "sha256": "cbd814d238a233bf169701af29e13b522cc44fda6805b557e4c478e6d86c8cde"
+    },
+    {
+      "file": ".codex/agents/forge-kiln.toml",
+      "sha256": "c28e85784be122f0e6adaca1a41001ad05d213f5a832770829a36f5f072b9453"
+    },
+    {
+      "file": ".codex/agents/forge-ember.toml",
+      "sha256": "9fb3bb7513cc328b0d75d1450b037e8e56c0fd6da9ae215879b176f674efcca7"
+    },
+    {
+      "file": ".codex/agents/forge-sdk.toml",
+      "sha256": "578a09123c4f5cd33f288cc9846b0d36944d5f7b4f8a00cc5f4e237464824117"
+    },
+    {
+      "file": ".codex/agents/forge-release.toml",
+      "sha256": "72b759a73cb1603aeb0e74473d139620961f8f8d6dfea7f7419b11414ceaf596"
+    },
+    {
+      "file": ".codex/agents/forge-reviewer.toml",
+      "sha256": "0c27fd7e91b408898a1d636830cab422b212edacfc1c9f786f3370115d929c28"
+    },
+    {
+      "file": "export-receipt.json",
+      "sha256": "dd437ff68254b711758eb325c882cf2157964bea79b8e206cbc26f228f10a911"
+    }
+  ]
+}

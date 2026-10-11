@@ -23,64 +23,68 @@ Rationale:
 - Pinning to an explicit SHA gives reproducible builds; a SHA bump is a deliberate review.
 - Alternative (PG17 sidecar) adds network topology complexity and loses RLS integration.
 
-### Pinned SHA
+### Pinned version (supersedes "Pinned SHA")
 
-At Phase 3 kickoff, the executor must:
-1. Check `https://github.com/supabase/pg_graphql/commits/master` for the latest commit.
-2. Test compile against PG18 locally: `cargo pgrx package --pg18`.
-3. Pin the passing SHA in the Dockerfile comment and in this document.
+**Pinned: `v1.6.2`** — a release version, not a git SHA.
 
-**Placeholder (update before first build):**
+supabase/pg_graphql **v1.6.2** was published 2026-08-26 with prebuilt PG18 assets for both
+architectures this image is built for:
+
 ```
-PINNED_PG_GRAPHQL_SHA=<to-be-set-at-p3-c001-coding-time>
+pg_graphql-v1.6.2-pg18-amd64-linux-gnu.deb
+pg_graphql-v1.6.2-pg18-arm64-linux-gnu.deb
 ```
 
-### Dockerfile Impact
+That removes the reason this document prescribed compiling from a git SHA with
+`cargo pgrx package --pg18`: there was no released PG18 build when it was written, and there is now.
+A release is a reproducible, checksummed artifact; a master SHA is a moving target that has to be
+re-validated on every rebuild. **Pin the release.**
 
-The `images/postgres18/Dockerfile` must add a `pg_graphql` builder stage:
+To move the pin, change `ARG PG_GRAPHQL_VERSION` in `images/postgres18/Dockerfile` and this line, and
+confirm the new tag publishes a `-pg18-` asset for amd64 **and** arm64 before merging.
+
+### Dockerfile impact — as built
+
+The `.deb` lays its files out under `/var/lib/postgresql` and `/usr/lib/postgresql`, which are not the
+paths `dpkg -i` installs into on this image, so the runtime stage extracts the package and copies the
+real files into the PG18 directories:
 
 ```dockerfile
-FROM rust:1.96-bookworm AS pg_graphql_build
-ARG PG_GRAPHQL_SHA=<pinned-sha>
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      postgresql-common gnupg ca-certificates git clang pkg-config libssl-dev \
- && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
- && apt-get install -y --no-install-recommends postgresql-server-dev-18 \
- && rm -rf /var/lib/apt/lists/*
-RUN cargo install cargo-pgrx --version 0.18.1 --locked
-RUN cargo pgrx init --pg18 "$(which pg_config)"
-RUN git clone https://github.com/supabase/pg_graphql /src/pg_graphql \
- && cd /src/pg_graphql \
- && git checkout ${PG_GRAPHQL_SHA}
-WORKDIR /src/pg_graphql
-RUN cargo pgrx package --pg-config "$(which pg_config)" --out-dir /out
+ARG PG_GRAPHQL_VERSION=v1.6.2
+RUN curl -fsSL -o /tmp/pg_graphql.deb \
+      "https://github.com/supabase/pg_graphql/releases/download/${PG_GRAPHQL_VERSION}/pg_graphql-${PG_GRAPHQL_VERSION}-pg18-$(dpkg --print-architecture)-linux-gnu.deb" \
+ && dpkg -x /tmp/pg_graphql.deb /tmp/pg_graphql \
+ && cp /tmp/pg_graphql/var/lib/postgresql/extension/pg_graphql.control \
+       /tmp/pg_graphql/var/lib/postgresql/extension/pg_graphql--*.sql \
+       /usr/share/postgresql/18/extension/ \
+ && cp /tmp/pg_graphql/usr/lib/postgresql/lib/pg_graphql.so /usr/lib/postgresql/18/lib/ \
+ && rm -rf /tmp/pg_graphql.deb /tmp/pg_graphql
 ```
 
-And in the runtime stage:
-```dockerfile
-COPY --from=pg_graphql_build /out/ /
-```
+**No `shared_preload_libraries` entry.** An earlier draft of this document listed
+`shared_preload_libraries=pg_net,pg_cron,pg_graphql`; pg_graphql registers on `CREATE EXTENSION`, which
+the init SQL issues, so preloading it is unnecessary. `pg_net`, `pg_cron` and `flint_llm` register
+background workers and do need it.
 
-And in the init SQL:
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_graphql CASCADE;
-```
+### Absence is now fatal, in two places
 
-And in the CMD:
-```
-shared_preload_libraries=pg_net,pg_cron,pg_graphql
-```
+`images/postgres18/init/01-extensions.sql` previously wrapped the create in a `DO $$ … EXCEPTION WHEN
+others THEN RAISE WARNING` block, so an image without the extension booted green and GraphQL was silently
+absent. GraphQL is a sync path, not an optional passthrough. The handler is removed, and
+`init-baseline/99-assert.sql` now also asserts `pg_graphql` is present alongside every other extension it
+already checked.
 
-### Accept Criteria for Phase 3 Kickoff
-- [ ] A passing PG18 build SHA is found (compile + `SELECT graphql.resolve(...)` works)
-- [ ] SHA documented in this file
-- [ ] Dockerfile updated with builder stage
-- [ ] `01-extensions.sql` creates pg_graphql
-- [ ] Boot assertion passes with pg_graphql in extension list
+### Accept criteria — met
 
-### Fallback
+- [x] A released PG18 build exists and is pinned by version (`v1.6.2`, 2026-08-26)
+- [x] Version documented in this file
+- [x] `images/postgres18/Dockerfile` installs it from the release `.deb`
+- [x] `01-extensions.sql` creates pg_graphql, and no longer tolerates its absence
+- [x] Boot assertion includes pg_graphql
 
-If no SHA compiles cleanly against PG18:
-- Report blocker immediately before any Phase 3 coding begins
-- Evaluate: PG17 sidecar (GraphQL on PG17, REST on PG18 via connection switch at gateway layer)
-- This fallback is significant scope change — escalate before proceeding
+### Note — `docker/postgres/Dockerfile` is unused
+
+That file already installed pg_graphql correctly (at v1.6.1) while the image everything actually builds
+did not. It has **no build reference** in any compose file or workflow; `images/postgres18/Dockerfile` is
+referenced by `docker-compose.yml`, `docker-compose.prod.yml` and four GitHub workflows. Raised separately
+— having two Postgres image definitions where the unused one is the more correct is its own defect.

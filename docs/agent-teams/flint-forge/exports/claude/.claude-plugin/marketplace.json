@@ -1,0 +1,13 @@
+{
+  "name": "flint-forge-marketplace",
+  "owner": {
+    "name": "flint-forge"
+  },
+  "plugins": [
+    {
+      "name": "flint-forge",
+      "source": "./plugins/flint-forge",
+      "description": "Evolve the sovereign PostgreSQL 18, Quarry API, Anvil extension and Kiln edge platform with measured compatibility, tenant isolation and explicit ecosystem ownership."
+    }
+  ]
+}

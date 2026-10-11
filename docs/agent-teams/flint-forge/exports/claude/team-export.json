@@ -1,0 +1,121 @@
+{
+  "target": "claude",
+  "verification": {
+    "level": "source-verified",
+    "source": "https://code.claude.com/docs/en/sub-agents",
+    "version": "documentation inspected 2026-09-24",
+    "live": "unverified"
+  },
+  "diagnostics": [
+    "Source-verified serialization only; installed native validation and live execution are unverified.",
+    "Only explicit model IDs are translated. Resolve tier, skill, capability and price policies with agent-team-models before native invocation.",
+    "These are native subagents; installing them does not create an experimental Claude agent team or enable that feature.",
+    "Role overrides are preserved without native schema certification. Skill IDs refer to separately installed skills; prompt mentions do not install or authorize them."
+  ],
+  "instructions": [
+    "Review staged artifacts before installation. Export grants no execution or registration authority.",
+    "Choose project .claude/agents or the staged local marketplace/plugin. Do not install both copies. Settings options are a proposed project .claude/settings.json."
+  ],
+  "files": [
+    {
+      "file": ".claude/agents/forge-lead.md",
+      "sha256": "b198c2684fe4801ca72e9346cfe048bb344903f6707828ac9f700f2123005d9c"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-lead.md",
+      "sha256": "b198c2684fe4801ca72e9346cfe048bb344903f6707828ac9f700f2123005d9c"
+    },
+    {
+      "file": ".claude/agents/forge-postgres18.md",
+      "sha256": "2a6bdbe26d4e1bf022fa28aa99eb590c9b930f1fb7f97c7d2e831b467ac15d6e"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-postgres18.md",
+      "sha256": "2a6bdbe26d4e1bf022fa28aa99eb590c9b930f1fb7f97c7d2e831b467ac15d6e"
+    },
+    {
+      "file": ".claude/agents/forge-security.md",
+      "sha256": "80fda19b7a7a6da7b213f388e5eb5ac721b6b609431f18fcd5a465da77ff3b6e"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-security.md",
+      "sha256": "80fda19b7a7a6da7b213f388e5eb5ac721b6b609431f18fcd5a465da77ff3b6e"
+    },
+    {
+      "file": ".claude/agents/forge-quarry-api.md",
+      "sha256": "222ea116243a169c8f67d532b31d4765dde5ce5cdf902c0f50028c0304a61d05"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-quarry-api.md",
+      "sha256": "222ea116243a169c8f67d532b31d4765dde5ce5cdf902c0f50028c0304a61d05"
+    },
+    {
+      "file": ".claude/agents/forge-metadata.md",
+      "sha256": "676c36111f19870cb564b448d409d087b0a0e528938c7139ac1faccaff485667"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-metadata.md",
+      "sha256": "676c36111f19870cb564b448d409d087b0a0e528938c7139ac1faccaff485667"
+    },
+    {
+      "file": ".claude/agents/forge-realtime.md",
+      "sha256": "4a3207cb26e010dd3d00a7377b93be451d50970a2d70db2267779c9d973bff6b"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-realtime.md",
+      "sha256": "4a3207cb26e010dd3d00a7377b93be451d50970a2d70db2267779c9d973bff6b"
+    },
+    {
+      "file": ".claude/agents/forge-kiln.md",
+      "sha256": "71d01d1acbbdd6e656b05dab545f7a1cfdfb70832e60e7c96a3d6f0105d25195"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-kiln.md",
+      "sha256": "71d01d1acbbdd6e656b05dab545f7a1cfdfb70832e60e7c96a3d6f0105d25195"
+    },
+    {
+      "file": ".claude/agents/forge-ember.md",
+      "sha256": "890a381ab060b8be3ecbefc8a1faad62c174a63e43c8198b9d7b46711067cfc0"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-ember.md",
+      "sha256": "890a381ab060b8be3ecbefc8a1faad62c174a63e43c8198b9d7b46711067cfc0"
+    },
+    {
+      "file": ".claude/agents/forge-sdk.md",
+      "sha256": "19e29a1bd33a1078109b68ffe9e765afbccec22f1624c52c96b83181a3ab8006"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-sdk.md",
+      "sha256": "19e29a1bd33a1078109b68ffe9e765afbccec22f1624c52c96b83181a3ab8006"
+    },
+    {
+      "file": ".claude/agents/forge-release.md",
+      "sha256": "fe21f48569a643e0ba160840aaea945204e2e3852e95556b60ab634859897b6c"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-release.md",
+      "sha256": "fe21f48569a643e0ba160840aaea945204e2e3852e95556b60ab634859897b6c"
+    },
+    {
+      "file": ".claude/agents/forge-reviewer.md",
+      "sha256": "bf62d20c8f29d95f1008e438730ff730bfcd62518b352d9975bf7e587ce65437"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-reviewer.md",
+      "sha256": "bf62d20c8f29d95f1008e438730ff730bfcd62518b352d9975bf7e587ce65437"
+    },
+    {
+      "file": "plugins/flint-forge/.claude-plugin/plugin.json",
+      "sha256": "67747d133f323f99f731f9da4af74b2c29feff366c77c26da83b073853f2fdf7"
+    },
+    {
+      "file": ".claude-plugin/marketplace.json",
+      "sha256": "dcc825d9a61a5b3dbc0f52aa36faccd137d06437636747cc1292fc963d7bb296"
+    },
+    {
+      "file": "export-receipt.json",
+      "sha256": "29e69a2bf224d2ce2a56c2983dc40da5e26047d3ce59d1b3e104e3496571a5f3"
+    }
+  ]
+}

@@ -307,6 +307,11 @@ async fn broadcast_lag_becomes_skip_not_terminate() {
             table: t.to_string(),
             record: None,
             old_record: None,
+            event_id: None,
+            checkpoint: None,
+            projection: None,
+            delete_authorized: false,
+            truncated: false,
         })
     };
     // Send more than capacity before the receiver reads → guaranteed lag.

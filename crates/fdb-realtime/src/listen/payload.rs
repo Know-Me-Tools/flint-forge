@@ -1,7 +1,6 @@
 use fdb_domain::{ChangeEvent, ChangeOp};
 
-/// Wire shape of a `flint_change` NOTIFY payload. `tenant`/`truncated` are consumed
-/// and dropped — they are not part of the domain `ChangeEvent`.
+/// Wire shape of a `flint_change` NOTIFY payload.
 #[derive(serde::Deserialize)]
 struct RawNotify {
     op: String,
@@ -14,7 +13,6 @@ struct RawNotify {
     #[serde(default)]
     old_record: Option<serde_json::Value>,
     #[serde(default)]
-    #[allow(dead_code)] // retained on the wire for operator debugging; not forwarded.
     truncated: bool,
 }
 
@@ -40,6 +38,11 @@ pub(super) fn parse_payload(raw: &str) -> Result<(Option<String>, ChangeEvent), 
         table: parsed.table,
         record: parsed.record,
         old_record: parsed.old_record,
+        event_id: None,
+        checkpoint: None,
+        projection: None,
+        delete_authorized: false,
+        truncated: parsed.truncated,
     };
     Ok((parsed.tenant, event))
 }

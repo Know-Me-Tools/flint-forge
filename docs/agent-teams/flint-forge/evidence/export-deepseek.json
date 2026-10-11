@@ -1,0 +1,37 @@
+{
+  "directory": "/Users/gqadonis/Projects/prometheus/flint-forge/.agent-team/staging/team-r2/deepseek",
+  "files": [
+    ".dsh/profiles/flint-forge-forge-lead/cordis.patch.yml",
+    ".dsh/profiles/flint-forge-forge-postgres18/cordis.patch.yml",
+    ".dsh/profiles/flint-forge-forge-security/cordis.patch.yml",
+    ".dsh/profiles/flint-forge-forge-quarry-api/cordis.patch.yml",
+    ".dsh/profiles/flint-forge-forge-metadata/cordis.patch.yml",
+    ".dsh/profiles/flint-forge-forge-realtime/cordis.patch.yml",
+    ".dsh/profiles/flint-forge-forge-kiln/cordis.patch.yml",
+    ".dsh/profiles/flint-forge-forge-ember/cordis.patch.yml",
+    ".dsh/profiles/flint-forge-forge-sdk/cordis.patch.yml",
+    ".dsh/profiles/flint-forge-forge-release/cordis.patch.yml",
+    ".dsh/profiles/flint-forge-forge-reviewer/cordis.patch.yml",
+    ".dsh/profiles/flint-forge-team/cordis.patch.yml",
+    "export-receipt.json",
+    "team-export.json"
+  ],
+  "verification": {
+    "level": "source-verified",
+    "source": "https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/experimental/agent-team",
+    "version": "master documentation inspected 2026-09-24; experimental",
+    "live": "unverified"
+  },
+  "diagnostics": [
+    "Source-verified serialization only; installed native validation and live execution are unverified.",
+    "Only explicit model IDs are translated. Resolve tier, skill, capability and price policies with agent-team-models before native invocation.",
+    "DeepSeek teams are experimental, require durable session storage, share one process/workspace, and provide no static per-member model setting. No package install, profile activation or team creation occurs on export.",
+    "Role overrides are preserved without native schema certification. Skill IDs refer to separately installed skills; prompt mentions do not install or authorize them."
+  ],
+  "instructions": [
+    "Review staged artifacts before installation. Export grants no execution or registration authority.",
+    "Review the role persona profiles and separate team composition profile before selecting them in DeepSeek. Team options configure the experimental agent-team service. The lead creates members at runtime using the portable role prompts; profiles do not pre-create a roster."
+  ],
+  "finalDirectory": "docs/agent-teams/flint-forge/exports/deepseek",
+  "regenerationReason": "Add PostgreSQL evidence ownership and correct BossFang origin provenance"
+}

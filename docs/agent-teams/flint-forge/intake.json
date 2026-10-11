@@ -1,0 +1,34 @@
+{
+  "id": "flint-forge",
+  "outcome": "Maintain and evolve Flint Forge as a PostgreSQL 18 data/API and edge-function platform with explicitly tested Supabase-compatible surfaces and governed fabric integrations.",
+  "complexity": "complex",
+  "areas": [
+    "code",
+    "security",
+    "docs"
+  ],
+  "deliverables": [
+    "Role-specific native agent definitions",
+    "Project-local inspected skills",
+    "Research and source/call-graph evidence",
+    "Ownership, verification and handoff contracts"
+  ],
+  "budget": "balanced",
+  "review": true,
+  "harness": "codex",
+  "scope": "project",
+  "ownership": {
+    "implementer": [
+      "crates/**"
+    ],
+    "security-reviewer": [
+      "docs/agent-teams/flint-forge/reviews/security/**"
+    ],
+    "documentation-specialist": [
+      "docs/agent-teams/flint-forge/operator/**"
+    ],
+    "reviewer": [
+      "docs/agent-teams/flint-forge/reviews/independent/**"
+    ]
+  }
+}

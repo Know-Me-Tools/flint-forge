@@ -47,6 +47,9 @@ impl ChangeStreamSource for ListenChangeSource {
         if !is_safe_entity(&spec.entity_type) || !is_safe_tenant(&spec.tenant) {
             return Err(StreamError::Denied);
         }
+        if spec.checkpoint.is_some() {
+            return Err(StreamError::InvalidCheckpoint);
+        }
 
         // Subscribe to the fan-out BEFORE the awaited Keto round-trip, so events
         // broadcast during the check are not missed (the miss window would
@@ -76,16 +79,15 @@ impl ChangeStreamSource for ListenChangeSource {
                                 None
                             }
                         }
-                        // Subscriber fell behind: skip the lagged window, do NOT
-                        // terminate the stream and do NOT surface an Err (a missed
-                        // event is a missed update, never a leaked row).
+                        // Never hide a loss window. The caller must reconnect;
+                        // LISTEN has no durable checkpoint from which to resume.
                         Err(BroadcastStreamRecvError::Lagged(n)) => {
                             tracing::warn!(
                                 skipped = n,
                                 entity_type = %want_entity,
                                 "listen broadcast lagged; subscriber skipped events"
                             );
-                            None
+                            Some(Err(StreamError::Lagged))
                         }
                     }
                 }

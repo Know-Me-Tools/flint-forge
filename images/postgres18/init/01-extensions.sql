@@ -12,14 +12,12 @@ CREATE EXTENSION IF NOT EXISTS "ext-flint-meta";   -- flint_meta schema cache
 CREATE EXTENSION IF NOT EXISTS "ext-flint-hooks";  -- flint.webhooks / outbox
 CREATE EXTENSION IF NOT EXISTS "flint_llm";        -- LLM async job queue
 
--- pg_graphql: provisional on PG18 (built from master; no released PG18 build yet).
--- Tolerate absence so the image still boots; GraphQL passthrough degrades, not the data plane.
-DO $$
-BEGIN
-  CREATE EXTENSION IF NOT EXISTS pg_graphql;
-EXCEPTION WHEN others THEN
-  RAISE WARNING 'pg_graphql unavailable (expected until supabase/pg_graphql v1.5.12 PG18 release): %', SQLERRM;
-END $$;
+-- pg_graphql: installed from the pinned v1.6.2 PG18 release .deb (see the Dockerfile).
+-- NOT tolerated when absent. The previous warning-only handler let the image boot green
+-- with GraphQL silently missing, so a stack that could not serve a single GraphQL query
+-- looked healthy. GraphQL is the client sync path, not an optional passthrough: if the
+-- extension is not there, first boot must fail here rather than at a customer's query.
+CREATE EXTENSION IF NOT EXISTS pg_graphql;
 
 -- pg_cron: scheduled jobs
 CREATE EXTENSION IF NOT EXISTS pg_cron;

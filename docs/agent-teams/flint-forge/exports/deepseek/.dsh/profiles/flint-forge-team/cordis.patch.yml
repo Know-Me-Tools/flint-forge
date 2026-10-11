@@ -1,0 +1,19 @@
+[
+  {
+    "insert": [
+      {
+        "id": "flint-forge-persistence",
+        "name": "@deepseek-ai/dsh-session-persistence-jsonl"
+      },
+      {
+        "id": "flint-forge-team",
+        "name": "@deepseek-ai/dsh-experimental-agent-team",
+        "config": {}
+      },
+      {
+        "id": "flint-forge-team-tools",
+        "name": "@deepseek-ai/dsh-experimental-tool-agent-team"
+      }
+    ]
+  }
+]

@@ -11,9 +11,10 @@
 use std::sync::Arc;
 
 use async_graphql::dynamic::{
-    Field, FieldFuture, Object, ResolverContext, Schema, Subscription, SubscriptionField,
-    SubscriptionFieldFuture, TypeRef,
+    Field, FieldFuture, InputValue, Object, ResolverContext, Schema, Subscription,
+    SubscriptionField, SubscriptionFieldFuture, TypeRef,
 };
+use async_graphql::{Name, Value};
 use fdb_domain::{SubscriptionSpec, TableMeta};
 use forge_identity::RlsContext;
 use futures::stream::{self, BoxStream, StreamExt};
@@ -101,17 +102,21 @@ impl GraphQlCompiler {
 
             // Per-column scalar fields plus the synthetic `_op` operation marker.
             let mut event_obj = Object::new(&event_type_name);
-            event_obj = event_obj.field(Field::new(
-                "_op",
-                TypeRef::named_nn(TypeRef::STRING),
-                |_| FieldFuture::new(async { Ok(None::<async_graphql::Value>) }),
+            event_obj =
+                event_obj.field(event_value_field("_op", TypeRef::named_nn(TypeRef::STRING)));
+            event_obj = event_obj.field(event_value_field(
+                "_eventId",
+                TypeRef::named(TypeRef::STRING),
+            ));
+            event_obj = event_obj.field(event_value_field(
+                "_checkpoint",
+                TypeRef::named(TypeRef::STRING),
             ));
             for col in &table.columns {
                 let col_name = col.name.clone();
-                event_obj = event_obj.field(Field::new(
-                    col_name,
+                event_obj = event_obj.field(event_value_field(
+                    &col_name,
                     TypeRef::named(TypeRef::STRING),
-                    |_| FieldFuture::new(async { Ok(None::<async_graphql::Value>) }),
                 ));
             }
 
@@ -125,11 +130,16 @@ impl GraphQlCompiler {
             let field_factory = factory.clone();
             let sub_field = SubscriptionField::new(
                 field_name,
-                TypeRef::named_nn_list_nn(&event_type_name),
+                TypeRef::named_nn(&event_type_name),
                 move |ctx: ResolverContext| {
-                    let spec = spec.clone();
+                    let mut spec = spec.clone();
                     let table_meta = table_meta.clone();
                     let field_factory = field_factory.clone();
+                    spec.checkpoint = ctx
+                        .args
+                        .get("checkpoint")
+                        .and_then(|value| value.string().ok())
+                        .map(str::to_owned);
                     // Resolve the subscriber's RlsContext synchronously from connection
                     // data BEFORE entering the async block, so a missing context fails
                     // closed with an error stream rather than an unfiltered one.
@@ -150,6 +160,10 @@ impl GraphQlCompiler {
                     })
                 },
             )
+            .argument(InputValue::new(
+                "checkpoint",
+                TypeRef::named(TypeRef::STRING),
+            ))
             .description(format!(
                 "Real-time changes for the `{}` table (RLS enforced per event).",
                 table.name
@@ -164,6 +178,19 @@ impl GraphQlCompiler {
             .finish()
             .map_err(|e| GraphQlCompileError::Build(e.0))
     }
+}
+
+fn event_value_field(name: &str, ty: TypeRef) -> Field {
+    let field_name = Name::new(name);
+    Field::new(name, ty, move |ctx| {
+        let field_name = field_name.clone();
+        FieldFuture::new(async move {
+            let Value::Object(values) = ctx.parent_value.try_to_value()? else {
+                return Ok(None::<Value>);
+            };
+            Ok(values.get(&field_name).cloned())
+        })
+    })
 }
 
 /// Qualified entity-type identifier for a table: `"<schema>.<name>"`.
@@ -182,6 +209,7 @@ fn table_subscription_spec(table: &Table) -> SubscriptionSpec {
         tenant: String::new(),
         entity_type: table_entity_type(table),
         filter: None,
+        checkpoint: None,
     }
 }
 

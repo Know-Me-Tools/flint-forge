@@ -1,0 +1,10 @@
+{
+  "version": "2",
+  "plugins": [
+    {
+      "id": "flint-forge",
+      "displayName": "flint-forge",
+      "source": "./plugins/flint-forge"
+    }
+  ]
+}

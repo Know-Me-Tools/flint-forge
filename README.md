@@ -40,8 +40,8 @@ A PostgREST-compatible REST surface plus a hybrid GraphQL surface over Postgres 
 - **GraphQL Subscription** — `async-graphql` over `graphql-transport-ws`, resolvers pull
   from a `ChangeStreamSource`. Default source is PostgreSQL LISTEN/NOTIFY
   (`FLINT_CHANGE_SOURCE=listen`, complete and working). The Flint Realtime Fabric gRPC
-  source (`FLINT_CHANGE_SOURCE=fabric`) is an opt-in alternative that currently fails
-  closed — FRF does not yet expose the `WatchEntityType` RPC it depends on
+  source (`FLINT_CHANGE_SOURCE=fabric`) consumes the authorized, resumable v2
+  `WatchEntityType` stream. LISTEN remains the local default and rollback source
 - **Router hot-swap** — REST/GraphQL routers rebuilt on schema change and swapped via
   `ArcSwap<Router<()>>`
 - **Schema provisioning** (`/schema/v1`, FFS-001) — a `service_role`-gated plan/apply
@@ -122,6 +122,13 @@ WAL bypasses RLS. For each change delivered by the `ChangeStreamSource` (LISTEN/
 default, or the fabric adapter when opted in), Quarry **re-queries the changed row as the
 subscriber** with full RLS context before delivering — non-negotiable protection against
 WAL-bypass data leaks.
+
+Fabric-backed subscription events include `_eventId` and `_checkpoint`. Reconnect by
+passing the last committed checkpoint to the generated table field, for example
+`ordersChanges(checkpoint: "...")`. Clients use `_eventId` for at-least-once
+deduplication. Recovery failures carry stable GraphQL extension codes including
+`INVALID_CHECKPOINT`, `RESNAPSHOT_REQUIRED`, `SUBSCRIBER_LAGGED`,
+`SOURCE_UNAVAILABLE`, and `RLS_REQUERY_FAILED`.
 
 ### External systems
 

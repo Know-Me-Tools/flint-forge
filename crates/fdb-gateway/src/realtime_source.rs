@@ -13,8 +13,7 @@
 pub enum ChangeSourceKind {
     /// Postgres LISTEN/NOTIFY — real events, no external dependency. The default.
     Listen,
-    /// FRF gRPC — fails closed (`StreamError::Unavailable`) pending OQ-FRF-1
-    /// (FRF's `WatchEntityType` RPC hasn't landed). Opt-in only.
+    /// FRF gRPC `WatchEntityType`. Opt-in until its rollout parity gate closes.
     Fabric,
 }
 
@@ -23,7 +22,7 @@ pub enum ChangeSourceKind {
 /// Defaults to [`ChangeSourceKind::Listen`] unless the value is exactly
 /// `"fabric"` — matching `main.rs`'s prior inline `!= Ok("fabric")` check, so
 /// any unset, empty, or unrecognized value stays on the working default rather
-/// than silently falling through to the empty-stream fabric adapter.
+/// than silently changing the deployment's stream backend.
 #[must_use]
 pub fn resolve_change_source(env_value: Option<&str>) -> ChangeSourceKind {
     if env_value == Some("fabric") {

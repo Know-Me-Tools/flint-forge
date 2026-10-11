@@ -1,5 +1,5 @@
-//! In-process `ChangeStreamSource` over Postgres `LISTEN`/`NOTIFY` — the OQ-FRF-1
-//! workaround for the missing FRF `WatchEntityType` gRPC RPC.
+//! In-process `ChangeStreamSource` over Postgres `LISTEN`/`NOTIFY` — the
+//! no-Fabric deployment path and explicit rollback source.
 //!
 //! This adapter has EXACTLY two jobs:
 //!

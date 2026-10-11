@@ -25,6 +25,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_net') THEN
     RAISE EXCEPTION 'flint boot assertion: pg_net missing';
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_graphql') THEN
+    RAISE EXCEPTION 'flint boot assertion: pg_graphql extension missing';
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
     RAISE EXCEPTION 'flint boot assertion: pg_cron missing';
   END IF;

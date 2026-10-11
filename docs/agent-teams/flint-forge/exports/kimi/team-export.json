@@ -1,0 +1,120 @@
+{
+  "target": "kimi",
+  "verification": {
+    "level": "source-verified",
+    "source": "https://github.com/MoonshotAI/kimi-code/blob/main/docs/en/customization/agents.md",
+    "version": "main documentation inspected 2026-09-24",
+    "live": "unverified"
+  },
+  "diagnostics": [
+    "Source-verified serialization only; installed native validation and live execution are unverified.",
+    "Only explicit model IDs are translated. Resolve tier, skill, capability and price policies with agent-team-models before native invocation.",
+    "Role overrides are preserved without native schema certification. Skill IDs refer to separately installed skills; prompt mentions do not install or authorize them."
+  ],
+  "instructions": [
+    "Review staged artifacts before installation. Export grants no execution or registration authority.",
+    "Choose project .kimi-code/agents or the staged Kimi v2 marketplace/plugin. Literal ${base_prompt} in supplied prompts remains unchanged."
+  ],
+  "files": [
+    {
+      "file": ".kimi-code/agents/forge-lead.md",
+      "sha256": "83e88fe496e723f6c1ae87c676310a21a0e2263b4fd0f9fbd30243959e2f512d"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-lead.md",
+      "sha256": "83e88fe496e723f6c1ae87c676310a21a0e2263b4fd0f9fbd30243959e2f512d"
+    },
+    {
+      "file": ".kimi-code/agents/forge-postgres18.md",
+      "sha256": "efd199c54e09744d196f9fd6d4169d38d90cfd73993573e33ea1ba0bb722436c"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-postgres18.md",
+      "sha256": "efd199c54e09744d196f9fd6d4169d38d90cfd73993573e33ea1ba0bb722436c"
+    },
+    {
+      "file": ".kimi-code/agents/forge-security.md",
+      "sha256": "273ba1ea3c997949615cf3ec9ba5ca30e6a9429c9f6f4d768ee16a94a08a690a"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-security.md",
+      "sha256": "273ba1ea3c997949615cf3ec9ba5ca30e6a9429c9f6f4d768ee16a94a08a690a"
+    },
+    {
+      "file": ".kimi-code/agents/forge-quarry-api.md",
+      "sha256": "60904f5495bb89e83ecb8818fa1a96d1ad4998c01cc89d95844ce254a7df81d5"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-quarry-api.md",
+      "sha256": "60904f5495bb89e83ecb8818fa1a96d1ad4998c01cc89d95844ce254a7df81d5"
+    },
+    {
+      "file": ".kimi-code/agents/forge-metadata.md",
+      "sha256": "4729d49868ece7c1bf6f4050f96958d7e682806681875db07dc605f254c3eee4"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-metadata.md",
+      "sha256": "4729d49868ece7c1bf6f4050f96958d7e682806681875db07dc605f254c3eee4"
+    },
+    {
+      "file": ".kimi-code/agents/forge-realtime.md",
+      "sha256": "d0c78fe713f6af5e6ec824a95f82197337990c7851d2e38035abfc7c6bbe5092"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-realtime.md",
+      "sha256": "d0c78fe713f6af5e6ec824a95f82197337990c7851d2e38035abfc7c6bbe5092"
+    },
+    {
+      "file": ".kimi-code/agents/forge-kiln.md",
+      "sha256": "cb636c8989b2a8be9e644e7238247df455574305c1c88a58db1f5c4789a226ea"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-kiln.md",
+      "sha256": "cb636c8989b2a8be9e644e7238247df455574305c1c88a58db1f5c4789a226ea"
+    },
+    {
+      "file": ".kimi-code/agents/forge-ember.md",
+      "sha256": "049ab1f5297e31c13b321f62f5f782740a6bc227842f8d63a1a0c9c319b478b2"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-ember.md",
+      "sha256": "049ab1f5297e31c13b321f62f5f782740a6bc227842f8d63a1a0c9c319b478b2"
+    },
+    {
+      "file": ".kimi-code/agents/forge-sdk.md",
+      "sha256": "110e3416cc49eef92666f5c272c0cfa292fe153e68f7bf51bb3af4a9375a1a1d"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-sdk.md",
+      "sha256": "110e3416cc49eef92666f5c272c0cfa292fe153e68f7bf51bb3af4a9375a1a1d"
+    },
+    {
+      "file": ".kimi-code/agents/forge-release.md",
+      "sha256": "07f1b25afbe3299e9dd975b04284ad0889352866ae697daebdb42821eeabf49d"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-release.md",
+      "sha256": "07f1b25afbe3299e9dd975b04284ad0889352866ae697daebdb42821eeabf49d"
+    },
+    {
+      "file": ".kimi-code/agents/forge-reviewer.md",
+      "sha256": "ecba12bcf27aaffbe1645d47934c8a0049fda78f4b0d9d640907bbe063aec4e8"
+    },
+    {
+      "file": "plugins/flint-forge/agents/forge-reviewer.md",
+      "sha256": "ecba12bcf27aaffbe1645d47934c8a0049fda78f4b0d9d640907bbe063aec4e8"
+    },
+    {
+      "file": "plugins/flint-forge/kimi.plugin.json",
+      "sha256": "3972ec748c13f748240e8cc563126f9ae9520e47a51bf82055ba008c6c050e2e"
+    },
+    {
+      "file": "marketplace.json",
+      "sha256": "915f7d2127bd2d4da45a25111e4353b06d655e18d9cafc3f371f4fc2ee5ae0d2"
+    },
+    {
+      "file": "export-receipt.json",
+      "sha256": "243bc227b510d251d7cd9f9787c2c133d51e4402d6fe75a5dad7d65f67e92065"
+    }
+  ]
+}

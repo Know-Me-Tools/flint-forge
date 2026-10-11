@@ -4,7 +4,12 @@
 //! Shared state (`RestState`) and response/SQL helpers live in the parent
 //! module and are re-used here via `super::`.
 
-use axum::{extract::Query, http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    extract::Query,
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+    Json,
+};
 use forge_domain::is_safe_identifier;
 use forge_identity::RlsContext;
 use forge_policy::{Decision, Request as PolicyRequest};
@@ -17,9 +22,10 @@ use crate::compilers::filters::{
     MutationBind,
 };
 
+use super::idempotency::{execute_mutation, idempotency_conflict, idempotency_context};
 use super::{
-    bad_request, forbidden, insert_response, internal_error, parse_filters, rows_response,
-    RestState, KETO_NAMESPACE,
+    bad_request, constraint_conflict, forbidden, insert_response, internal_error, parse_filters,
+    rows_response, RestState, KETO_NAMESPACE,
 };
 
 /// Run the mutation authorization gates for `<schema>.<table>` under `rls`.
@@ -76,6 +82,7 @@ pub(super) async fn handle_insert(
     schema: String,
     table: String,
     rls: RlsContext,
+    headers: HeaderMap,
     Json(body): Json<Map<String, Value>>,
 ) -> impl IntoResponse {
     if !is_safe_identifier(&schema) || !is_safe_identifier(&table) {
@@ -119,12 +126,19 @@ pub(super) async fn handle_insert(
 
     let params = binds.iter().map(MutationBind::to_query_param).collect();
 
-    match state.executor.execute_raw(&sql, params, &rls).await {
+    let idempotency =
+        match idempotency_context(&headers, "insert", &schema, &table, Some(&body), None) {
+            Ok(value) => value,
+            Err(response) => return response,
+        };
+    match execute_mutation(&state, &sql, params, &rls, idempotency.as_ref()).await {
         Ok(rows) => match rows.into_iter().next() {
             Some(row) => insert_response(&row, &schema, &table),
             None => internal_error(),
         },
         Err(fdb_ports::BackendError::Denied) => forbidden(),
+        Err(fdb_ports::BackendError::IdempotencyConflict) => idempotency_conflict(),
+        Err(fdb_ports::BackendError::ConstraintConflict) => constraint_conflict(),
         Err(e) => {
             tracing::error!(error = %e, "handle_insert query error");
             internal_error()
@@ -143,6 +157,7 @@ pub(super) async fn handle_update(
     schema: String,
     table: String,
     rls: RlsContext,
+    headers: HeaderMap,
     Query(params): Query<HashMap<String, String>>,
     Json(body): Json<Map<String, Value>>,
 ) -> impl IntoResponse {
@@ -193,10 +208,23 @@ pub(super) async fn handle_update(
 
     binds.extend(where_clause.binds);
 
-    match state.executor.execute_raw(&sql, binds, &rls).await {
+    let idempotency = match idempotency_context(
+        &headers,
+        "update",
+        &schema,
+        &table,
+        Some(&body),
+        Some(&params),
+    ) {
+        Ok(value) => value,
+        Err(response) => return response,
+    };
+    match execute_mutation(&state, &sql, binds, &rls, idempotency.as_ref()).await {
         Ok(rows) if rows.is_empty() => StatusCode::NO_CONTENT.into_response(),
         Ok(rows) => rows_response(&rows),
         Err(fdb_ports::BackendError::Denied) => forbidden(),
+        Err(fdb_ports::BackendError::IdempotencyConflict) => idempotency_conflict(),
+        Err(fdb_ports::BackendError::ConstraintConflict) => constraint_conflict(),
         Err(e) => {
             tracing::error!(error = %e, "handle_update query error");
             internal_error()
@@ -213,6 +241,7 @@ pub(super) async fn handle_delete(
     schema: String,
     table: String,
     rls: RlsContext,
+    headers: HeaderMap,
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
     if !is_safe_identifier(&schema) || !is_safe_identifier(&table) {
@@ -238,13 +267,16 @@ pub(super) async fn handle_delete(
         where_sql = where_clause.sql,
     );
 
-    match state
-        .executor
-        .execute_raw(&sql, where_clause.binds, &rls)
-        .await
-    {
+    let idempotency =
+        match idempotency_context(&headers, "delete", &schema, &table, None, Some(&params)) {
+            Ok(value) => value,
+            Err(response) => return response,
+        };
+    match execute_mutation(&state, &sql, where_clause.binds, &rls, idempotency.as_ref()).await {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(fdb_ports::BackendError::Denied) => forbidden(),
+        Err(fdb_ports::BackendError::IdempotencyConflict) => idempotency_conflict(),
+        Err(fdb_ports::BackendError::ConstraintConflict) => constraint_conflict(),
         Err(e) => {
             tracing::error!(error = %e, "handle_delete query error");
             internal_error()

@@ -8,6 +8,7 @@ mod graphql;
 mod handlers;
 mod policy_source;
 mod rls_layer;
+mod role_preflight;
 mod routes;
 mod subscriptions;
 mod telemetry;

@@ -1,0 +1,73 @@
+{
+  "target": "deepseek",
+  "verification": {
+    "level": "source-verified",
+    "source": "https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/experimental/agent-team",
+    "version": "master documentation inspected 2026-09-24; experimental",
+    "live": "unverified"
+  },
+  "diagnostics": [
+    "Source-verified serialization only; installed native validation and live execution are unverified.",
+    "Only explicit model IDs are translated. Resolve tier, skill, capability and price policies with agent-team-models before native invocation.",
+    "DeepSeek teams are experimental, require durable session storage, share one process/workspace, and provide no static per-member model setting. No package install, profile activation or team creation occurs on export.",
+    "Role overrides are preserved without native schema certification. Skill IDs refer to separately installed skills; prompt mentions do not install or authorize them."
+  ],
+  "instructions": [
+    "Review staged artifacts before installation. Export grants no execution or registration authority.",
+    "Review the role persona profiles and separate team composition profile before selecting them in DeepSeek. Team options configure the experimental agent-team service. The lead creates members at runtime using the portable role prompts; profiles do not pre-create a roster."
+  ],
+  "files": [
+    {
+      "file": ".dsh/profiles/flint-forge-forge-lead/cordis.patch.yml",
+      "sha256": "1e2020e9e207aa7020d276b555c57c2ae837211e315c3a280ba5a27785a9ec2d"
+    },
+    {
+      "file": ".dsh/profiles/flint-forge-forge-postgres18/cordis.patch.yml",
+      "sha256": "faca28c96fcaf84581bfcfe5c71ce688075110be30f475fdcbfa2d376076d370"
+    },
+    {
+      "file": ".dsh/profiles/flint-forge-forge-security/cordis.patch.yml",
+      "sha256": "62f7f5b1ccbe06db9d9960fdbbfb0eb5481eaeb9da1a71e3cd4a0a2f9498eb59"
+    },
+    {
+      "file": ".dsh/profiles/flint-forge-forge-quarry-api/cordis.patch.yml",
+      "sha256": "84bd387ae555badf7fa9aa52a37142c17f0303787059686812269f47f3f0c7fc"
+    },
+    {
+      "file": ".dsh/profiles/flint-forge-forge-metadata/cordis.patch.yml",
+      "sha256": "e756321597986c35703d2ade629b69803b85dfae35921c2a70f2cf29e5b4a3a4"
+    },
+    {
+      "file": ".dsh/profiles/flint-forge-forge-realtime/cordis.patch.yml",
+      "sha256": "ffdcc1d901c6c5aef0808f0ed109d16b56e15d923421214589ad1405730e3feb"
+    },
+    {
+      "file": ".dsh/profiles/flint-forge-forge-kiln/cordis.patch.yml",
+      "sha256": "c96a8346ecdfbbc235bc4c2d7a01fa2d005e8d8ec872c2b16d960bbb49c1ca11"
+    },
+    {
+      "file": ".dsh/profiles/flint-forge-forge-ember/cordis.patch.yml",
+      "sha256": "ef842e60dbdd2dfd13125c4c3eaf896ee8bfc282f916f660af5e45c36a5edd8e"
+    },
+    {
+      "file": ".dsh/profiles/flint-forge-forge-sdk/cordis.patch.yml",
+      "sha256": "711698c52281b442ebea54b46a62c70625c260b3807273ef5f29d4b06d4bf47a"
+    },
+    {
+      "file": ".dsh/profiles/flint-forge-forge-release/cordis.patch.yml",
+      "sha256": "5ccab3d548e8f7f583019f13339db621d58a8393265970a1cb8a4d3d0d3a48e4"
+    },
+    {
+      "file": ".dsh/profiles/flint-forge-forge-reviewer/cordis.patch.yml",
+      "sha256": "6324e52722f96d4dbef75fee7db399b3116a43dcc586281d854779efa0c06835"
+    },
+    {
+      "file": ".dsh/profiles/flint-forge-team/cordis.patch.yml",
+      "sha256": "a556712602ee57f26265513ec7c1bc28f7c401e89b729e07d89cecef24d2b73d"
+    },
+    {
+      "file": "export-receipt.json",
+      "sha256": "17336117aeaf383f13ec7d6b52fe4aefbd84fc2c470e32d9f45a75e4f0f3df21"
+    }
+  ]
+}

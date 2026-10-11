@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 use deadpool_postgres::Pool;
 use fdb_domain::{RestQuery, RestResult};
-use fdb_ports::{BackendError, RestExecutor, SqlExecutor};
+use fdb_ports::{BackendError, IdempotencyContext, RestExecutor, SqlExecutor};
 use forge_identity::RlsContext;
 use tracing::instrument;
 
@@ -100,8 +100,24 @@ impl RestExecutor for PgRest {
         let (sql, params) = plan
             .render()
             .map_err(|e| BackendError::Query(e.to_string()))?;
-
-        let rows = self.run_bound(&sql, params, rls).await?;
+        // Serialize the selected row in Postgres so native values such as UUID,
+        // numeric, date/time and arrays keep their JSON representation. Reading
+        // arbitrary projected columns through `tokio_postgres::Row` would require
+        // an exhaustive Rust decoder and previously turned UUID tenant keys into
+        // `null` on the subscription RLS re-query path.
+        let row_sql = format!("SELECT row_to_json(_forge_row) AS row FROM ({sql}) AS _forge_row");
+        let projected = self.run_bound(&row_sql, params, rls).await?;
+        let mut rows = Vec::with_capacity(projected.len());
+        for mut projected_row in projected {
+            match projected_row.remove("row") {
+                Some(serde_json::Value::Object(row)) => rows.push(row),
+                _ => {
+                    return Err(BackendError::Internal(
+                        "Postgres row projection did not return a JSON object".into(),
+                    ));
+                }
+            }
+        }
         let count = Some(rows.len() as u64);
         Ok(RestResult {
             rows: serde_json::Value::Array(
@@ -133,6 +149,88 @@ impl SqlExecutor for PgRest {
     ) -> Result<Vec<serde_json::Map<String, serde_json::Value>>, BackendError> {
         self.run_bound(sql, params, rls).await
     }
+
+    #[instrument(skip(self, rls, params, idempotency), fields(role = %rls.role))]
+    async fn execute_idempotent(
+        &self,
+        sql: &str,
+        params: Vec<fdb_query::QueryParam>,
+        rls: &RlsContext,
+        idempotency: &IdempotencyContext,
+    ) -> Result<Vec<serde_json::Map<String, serde_json::Value>>, BackendError> {
+        use fdb_ports::DatabaseBackend;
+
+        let subject = rls.subject().ok_or(BackendError::Denied)?.0;
+        let conn = self.backend.acquire(rls).await?;
+        let pg_conn = PgConn::from_conn(&conn)
+            .ok_or_else(|| BackendError::Internal("unexpected conn type in PgRest".into()))?;
+
+        let lock_key = format!("{subject}:{}", idempotency.mutation_id);
+        if let Err(error) = pg_conn
+            .inner
+            .query_one(
+                "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                &[&lock_key],
+            )
+            .await
+        {
+            rollback(pg_conn).await?;
+            return Err(map_query_error("idempotency lock", error));
+        }
+
+        let existing = match pg_conn
+            .inner
+            .query_opt(
+                "SELECT request_fingerprint, response FROM flint.mutation_receipts WHERE subject = $1 AND mutation_id = $2",
+                &[&subject, &idempotency.mutation_id],
+            )
+            .await
+        {
+            Ok(row) => row,
+            Err(error) => {
+                rollback(pg_conn).await?;
+                return Err(map_query_error("idempotency receipt lookup", error));
+            }
+        };
+
+        if let Some(row) = existing {
+            let fingerprint: String = row.get(0);
+            if fingerprint != idempotency.request_fingerprint {
+                rollback(pg_conn).await?;
+                return Err(BackendError::IdempotencyConflict);
+            }
+            let response: serde_json::Value = row.get(1);
+            let rows = serde_json::from_value(response).map_err(|error| {
+                BackendError::Internal(format!("invalid mutation receipt: {error}"))
+            })?;
+            pg_conn.commit().await?;
+            return Ok(rows);
+        }
+
+        let rows = match query_bound(pg_conn, sql, params).await {
+            Ok(rows) => rows,
+            Err(error) => {
+                rollback(pg_conn).await?;
+                return Err(error);
+            }
+        };
+        let response = serde_json::to_value(&rows).map_err(|error| {
+            BackendError::Internal(format!("serialize mutation receipt: {error}"))
+        })?;
+        if let Err(error) = pg_conn
+            .inner
+            .execute(
+                "INSERT INTO flint.mutation_receipts (subject, mutation_id, request_fingerprint, response) VALUES ($1, $2, $3, $4)",
+                &[&subject, &idempotency.mutation_id, &idempotency.request_fingerprint, &response],
+            )
+            .await
+        {
+            rollback(pg_conn).await?;
+            return Err(map_query_error("idempotency receipt insert", error));
+        }
+        pg_conn.commit().await?;
+        Ok(rows)
+    }
 }
 
 impl PgRest {
@@ -153,31 +251,11 @@ impl PgRest {
         let pg_conn = PgConn::from_conn(&conn)
             .ok_or_else(|| BackendError::Internal("unexpected conn type in PgRest".into()))?;
 
-        // Materialize owned bind values, then build the &(dyn ToSql + Sync) slice.
-        let owned: Vec<RestBind> = params.into_iter().map(RestBind::from_param).collect();
-        let binds: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            owned.iter().map(RestBind::as_to_sql).collect();
-
-        let rows = match pg_conn.inner.query(sql, &binds).await {
+        let rows = match query_bound(pg_conn, sql, params).await {
             Ok(rows) => rows,
             Err(error) => {
-                // Deadpool's fast recycler does not reset failed transactions.
-                // Finish the denied/failed request before returning its connection,
-                // so the next caller does not inherit SQLSTATE 25P02.
-                pg_conn
-                    .inner
-                    .batch_execute("ROLLBACK")
-                    .await
-                    .map_err(|_| BackendError::Connection)?;
-                return Err(
-                    if error.code()
-                        == Some(&tokio_postgres::error::SqlState::INSUFFICIENT_PRIVILEGE)
-                    {
-                        BackendError::Denied
-                    } else {
-                        BackendError::Query(format!("bound query: {error}"))
-                    },
-                );
+                rollback(pg_conn).await?;
+                return Err(error);
             }
         };
 
@@ -188,7 +266,41 @@ impl PgRest {
         // See `PgConn::commit`.
         pg_conn.commit().await?;
 
-        Ok(project_rows(&rows))
+        Ok(rows)
+    }
+}
+
+async fn query_bound(
+    pg_conn: &PgConn,
+    sql: &str,
+    params: Vec<fdb_query::QueryParam>,
+) -> Result<Vec<serde_json::Map<String, serde_json::Value>>, BackendError> {
+    let owned: Vec<RestBind> = params.into_iter().map(RestBind::from_param).collect();
+    let binds: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
+        owned.iter().map(RestBind::as_to_sql).collect();
+    pg_conn
+        .inner
+        .query(sql, &binds)
+        .await
+        .map(|rows| project_rows(&rows))
+        .map_err(|error| map_query_error("bound query", error))
+}
+
+async fn rollback(pg_conn: &PgConn) -> Result<(), BackendError> {
+    pg_conn
+        .inner
+        .batch_execute("ROLLBACK")
+        .await
+        .map_err(|_| BackendError::Connection)
+}
+
+fn map_query_error(context: &str, error: tokio_postgres::Error) -> BackendError {
+    if error.code() == Some(&tokio_postgres::error::SqlState::INSUFFICIENT_PRIVILEGE) {
+        BackendError::Denied
+    } else if error.code() == Some(&tokio_postgres::error::SqlState::UNIQUE_VIOLATION) {
+        BackendError::ConstraintConflict
+    } else {
+        BackendError::Query(format!("{context}: {error}"))
     }
 }
 

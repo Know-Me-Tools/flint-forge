@@ -180,6 +180,7 @@ async fn listen_change_source_watch_delivers_event() {
         tenant: String::new(),
         entity_type: "flint_listen_it2.doc".into(),
         filter: None,
+        checkpoint: None,
     };
     let mut stream = source.watch(spec, &who).await.expect("watch opens");
 
@@ -264,6 +265,7 @@ async fn listen_change_source_watch_skips_keto_when_not_configured() {
         tenant: String::new(),
         entity_type: "flint_listen_it3.doc".into(),
         filter: None,
+        checkpoint: None,
     };
 
     let stream = source.watch(spec, &who).await;

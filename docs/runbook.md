@@ -16,7 +16,7 @@
 | Kiln Server | `fke-server` | `flint-kiln` | **8090** | HTTP/JSON |
 | PostgreSQL | `db` | — | **5432** | Postgres wire protocol |
 | Keto (optional) | `keto` | — | 4466 | HTTP (relation checks) |
-| FRF gRPC (optional) | `frf` | — | 50051 | gRPC (change stream) |
+| FRF gRPC (optional) | `frf` | — | 9090 | gRPC (change stream) |
 
 ### 1.2 Port Table (host-facing)
 
@@ -36,7 +36,7 @@ fdb-gateway:8080
   ├── PostgreSQL:5432   (reflection pool, RLS pool, A2UI pool, Keto-sync pool)
   ├── fke-server:8090   (Kiln BGW drains webhook_outbox)
   ├── keto:4466         (relation-check — optional, degrades gracefully)
-  └── frf:50051         (realtime change stream — optional, falls back to LISTEN)
+  └── frf:9090          (realtime change stream — optional, falls back to LISTEN)
 
 fke-server:8090
   └── PostgreSQL:5432   (registry, component store, cedar_policies)
@@ -105,7 +105,7 @@ FLINT_GATE_AUDIENCE=
 # Optional — defaults shown
 RUST_LOG=info
 KETO_BASE_URL=http://keto:4466
-FRF_ENDPOINT=http://frf:50051
+FRF_ENDPOINT=http://frf:9090
 FLINT_CHANGE_SOURCE=listen          # "listen" = Postgres LISTEN/NOTIFY; "fabric" = FRF gRPC
 FLINT_LISTEN_CAPACITY=1024
 

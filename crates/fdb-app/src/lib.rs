@@ -84,8 +84,8 @@ impl Quarry {
     ///
     /// For each `ChangeEvent` from the underlying `ChangeStreamSource`, the
     /// changed row is re-queried through the `RestExecutor` under the
-    /// subscriber's RLS context. Events that do not survive the re-query
-    /// (zero rows returned) are silently dropped. This is non-negotiable:
+    /// subscriber's RLS context. The returned row replaces the untrusted source
+    /// payload, and events that do not survive the re-query are dropped. This is non-negotiable:
     /// WAL replication bypasses Postgres RLS, so the re-query is the
     /// authoritative visibility check.
     pub async fn subscribe_rls_filtered(
@@ -104,12 +104,29 @@ impl Quarry {
                 let table_meta = table_meta.clone();
                 async move {
                     match res {
-                        Ok(event) => match build_pk_filters(&event, &table_meta) {
+                        Ok(event) if !event_matches_table(&event, &table_meta) => {
+                            Some(Err(SubscriptionError::Stream(StreamError::InvalidData)))
+                        }
+                        Ok(event)
+                            if event.op == fdb_domain::ChangeOp::Delete
+                                && event.delete_authorized =>
+                        {
+                            authorized_delete(event, &table_meta).map(Ok)
+                        }
+                        Ok(mut event) => match build_pk_filters(&event, &table_meta) {
                             Some(filters) => {
+                                let select = match select_projection(&event, &table_meta) {
+                                    Some(select) => select,
+                                    None => {
+                                        return Some(Err(SubscriptionError::Stream(
+                                            StreamError::InvalidData,
+                                        )));
+                                    }
+                                };
                                 let query = RestQuery {
-                                    schema: event.schema.clone(),
-                                    table: event.table.clone(),
-                                    select: None,
+                                    schema: table_meta.schema.clone(),
+                                    table: table_meta.name.clone(),
+                                    select: Some(select),
                                     filters,
                                     order: None,
                                     limit: Some(1),
@@ -117,13 +134,17 @@ impl Quarry {
                                 };
                                 match rest.execute(query, &who).await {
                                     Ok(result) => match result.rows {
-                                        Json::Array(rows) if !rows.is_empty() => Some(Ok(event)),
+                                        Json::Array(mut rows) if !rows.is_empty() => {
+                                            event.record = Some(rows.remove(0));
+                                            event.old_record = None;
+                                            Some(Ok(event))
+                                        }
                                         _ => None,
                                     },
                                     Err(e) => Some(Err(SubscriptionError::Backend(e))),
                                 }
                             }
-                            None => None,
+                            None => Some(Err(SubscriptionError::Stream(StreamError::InvalidData))),
                         },
                         Err(e) => Some(Err(SubscriptionError::Stream(e))),
                     }
@@ -157,10 +178,27 @@ impl Quarry {
         Ok(stream
             .map(|res| match res {
                 Ok(event) => Ok(change_event_to_value(&event)),
-                Err(e) => Err(async_graphql::Error::new(e.to_string())),
+                Err(error) => Err(subscription_error_to_graphql(&error)),
             })
             .boxed())
     }
+}
+
+fn subscription_error_to_graphql(error: &SubscriptionError) -> async_graphql::Error {
+    use async_graphql::ErrorExtensions as _;
+
+    let code = match error {
+        SubscriptionError::Backend(_) => "RLS_REQUERY_FAILED",
+        SubscriptionError::Stream(StreamError::Unavailable) => "SOURCE_UNAVAILABLE",
+        SubscriptionError::Stream(StreamError::Denied) => "AUTHZ_DENIED",
+        SubscriptionError::Stream(StreamError::InvalidCheckpoint) => "INVALID_CHECKPOINT",
+        SubscriptionError::Stream(StreamError::ResnapshotRequired) => "RESNAPSHOT_REQUIRED",
+        SubscriptionError::Stream(StreamError::Lagged) => "SUBSCRIBER_LAGGED",
+        SubscriptionError::Stream(StreamError::InvalidData) => "INVALID_STREAM_DATA",
+        SubscriptionError::Stream(_) => "STREAM_FAILED",
+    };
+    async_graphql::Error::new(error.to_string())
+        .extend_with(|_, extensions| extensions.set("code", code))
 }
 
 /// Project a `ChangeEvent` into an `async_graphql::Value` object: the record's
@@ -173,16 +211,24 @@ fn change_event_to_value(event: &ChangeEvent) -> async_graphql::Value {
     let mut map: async_graphql::indexmap::IndexMap<Name, Value> =
         async_graphql::indexmap::IndexMap::new();
     map.insert(Name::new("_op"), Value::from(change_op_str(event.op)));
+    if let Some(event_id) = &event.event_id {
+        map.insert(Name::new("_eventId"), Value::from(event_id.clone()));
+    }
+    if let Some(checkpoint) = &event.checkpoint {
+        map.insert(Name::new("_checkpoint"), Value::from(checkpoint.clone()));
+    }
 
     let source = event.record.as_ref().or(event.old_record.as_ref());
     if let Some(Json::Object(obj)) = source {
         // Preserve a stable field order for deterministic output.
         let ordered: BTreeMap<&String, &Json> = obj.iter().collect();
         for (k, v) in ordered {
-            map.insert(
-                Name::new(k),
-                Value::from_json(v.clone()).unwrap_or(Value::Null),
-            );
+            let value = match v {
+                Json::Null => Value::Null,
+                Json::String(value) => Value::from(value.clone()),
+                other => Value::from(other.to_string()),
+            };
+            map.insert(Name::new(k), value);
         }
     }
     Value::Object(map)
@@ -201,7 +247,7 @@ fn change_op_str(op: fdb_domain::ChangeOp) -> &'static str {
     }
 }
 
-/// Extract primary-key equality filters from a change event's record.
+/// Extract primary-key equality filters from a change event's current or old image.
 ///
 /// Returns `None` when the record is missing, is not a JSON object, or is
 /// missing any primary-key column.
@@ -209,7 +255,10 @@ fn build_pk_filters(
     event: &ChangeEvent,
     table_meta: &TableMeta,
 ) -> Option<Vec<(String, String, String)>> {
-    let record = event.record.as_ref()?;
+    if table_meta.primary_key.is_empty() {
+        return None;
+    }
+    let record = event.record.as_ref().or(event.old_record.as_ref())?;
     let obj = record.as_object()?;
     table_meta
         .primary_key
@@ -219,6 +268,54 @@ fn build_pk_filters(
             Some((pk.clone(), "eq".to_string(), value))
         })
         .collect::<Option<Vec<_>>>()
+}
+
+fn event_matches_table(event: &ChangeEvent, table_meta: &TableMeta) -> bool {
+    event.schema == table_meta.schema && event.table == table_meta.name
+}
+
+fn select_projection(event: &ChangeEvent, table_meta: &TableMeta) -> Option<String> {
+    let reflected: std::collections::HashSet<&str> = table_meta
+        .columns
+        .iter()
+        .map(|column| column.name.as_str())
+        .collect();
+    let selected: Vec<&str> = match &event.projection {
+        Some(projection) => {
+            if projection.is_empty()
+                || projection
+                    .iter()
+                    .any(|column| !reflected.contains(column.as_str()))
+            {
+                return None;
+            }
+            projection.iter().map(String::as_str).collect()
+        }
+        None => table_meta
+            .columns
+            .iter()
+            .map(|column| column.name.as_str())
+            .collect(),
+    };
+    if selected.is_empty() {
+        None
+    } else {
+        Some(selected.join(","))
+    }
+}
+
+fn authorized_delete(mut event: ChangeEvent, table_meta: &TableMeta) -> Option<ChangeEvent> {
+    if table_meta.primary_key.is_empty() {
+        return None;
+    }
+    let old = event.old_record.as_ref()?.as_object()?;
+    let mut keys = serde_json::Map::new();
+    for primary_key in &table_meta.primary_key {
+        keys.insert(primary_key.clone(), old.get(primary_key)?.clone());
+    }
+    event.record = None;
+    event.old_record = Some(Json::Object(keys));
+    Some(event)
 }
 
 /// Convert a scalar JSON value into a REST filter value string.

@@ -1,0 +1,132 @@
+{
+  "target": "bossfang",
+  "verification": {
+    "level": "source-verified",
+    "source": "crates/librefang-types/src/agent.rs; crates/librefang-hands/src/lib.rs; crates/librefang-api/src/routes/workflows/workflow.rs",
+    "version": "2026.7.11 / c719a4d683e4d3fb42e436f812e0193f865c9d2c",
+    "live": "unverified"
+  },
+  "diagnostics": [
+    "Source-verified serialization only; installed native validation and live execution are unverified.",
+    "Only explicit model IDs are translated. Resolve tier, skill, capability and price policies with agent-team-models before native invocation.",
+    "Empty portable role skills emit skills_disabled=true; native skills=[] with skills_disabled=false means all. Agent MCP [] means none; [\"*\"] means all. Hand-level allowlists have their own native defaults.",
+    "BossFang team native options merge into HAND.toml; role overrides merge into each AgentManifest. Preserve local TOML because native GET returns a projection. Hand activation can start autonomous schedules.",
+    "Native authentication and registration are unverified. UAR defaults to JWT-required; BossFang accepts Bearer or X-API-Key. Discovery success is not mutation authorization."
+  ],
+  "instructions": [
+    "Review staged artifacts before installation. Export grants no execution or registration authority.",
+    "Choose standalone agent registrations plus workflow, or install the Hand. These are distinct native deployment paths; do not activate the Hand as a duplicate of the standalone workflow.",
+    "Optional native payloads: POST /api/hands/install with bossfang/hand-install.json; POST /api/workflows with bossfang/workflow.json after registering standalone agents. Hand activation and workflow run require separate authorization and are not performed.",
+    "registration-plan.json is a local review plan, not a native API body. Supply an operator-approved base URL and credential reference; preserve each returned native ID/outcome because registration is not atomic."
+  ],
+  "files": [
+    {
+      "file": "bossfang/agents/forge-lead/agent.toml",
+      "sha256": "644a2f8d5729306dc2e3a3c571a2e22e8581d7a803ed08c1ddd7891a7ce68723"
+    },
+    {
+      "file": "bossfang/registration/forge-lead.json",
+      "sha256": "9b743bd91c68133e49a8c573bfc020f942a877f7274dc9adfdbd282072c0abfe"
+    },
+    {
+      "file": "bossfang/agents/forge-postgres18/agent.toml",
+      "sha256": "7b03865f88d2c12dbff527e1790aef7d44fed20ac24bda064841c8dcb78e1b53"
+    },
+    {
+      "file": "bossfang/registration/forge-postgres18.json",
+      "sha256": "cf64f99363fa9eb949c9873584def531645d4eef5a6f2a38432baa47b22888a4"
+    },
+    {
+      "file": "bossfang/agents/forge-security/agent.toml",
+      "sha256": "93656dfff657b01f515dccafddfb54037f53a32c6701e6dfca8189c01a9cca10"
+    },
+    {
+      "file": "bossfang/registration/forge-security.json",
+      "sha256": "3f941ef428e09fd4261d8e85f8c7b2ddc50d2dfc78a43318d607342c0ec6e33d"
+    },
+    {
+      "file": "bossfang/agents/forge-quarry-api/agent.toml",
+      "sha256": "8feb1251e2f1232d2c16744b042a7b8eb3180136efbc98f00d84313edfc50c62"
+    },
+    {
+      "file": "bossfang/registration/forge-quarry-api.json",
+      "sha256": "4fb1fd41a4f7b0e939712b44a47e76aba5a0b98340c2ccd9cb2ec63ad1bfa91d"
+    },
+    {
+      "file": "bossfang/agents/forge-metadata/agent.toml",
+      "sha256": "06683e1d2ec5724de1caf01e8bfc89732394d36d87131f89cca3b33c0e526e8b"
+    },
+    {
+      "file": "bossfang/registration/forge-metadata.json",
+      "sha256": "72f946a88a94607265208f94abc98192c685157a5a9151ff643e6c7283c678e6"
+    },
+    {
+      "file": "bossfang/agents/forge-realtime/agent.toml",
+      "sha256": "be36db18e0f54e4a0210dc01d6dc13ee721099c9e662befb23e87b10b572f535"
+    },
+    {
+      "file": "bossfang/registration/forge-realtime.json",
+      "sha256": "2e5abe34ee4a8a2308ba7a1a60d587ca1739d636f38c1f594c8a6be429e3df65"
+    },
+    {
+      "file": "bossfang/agents/forge-kiln/agent.toml",
+      "sha256": "11ad74403f1a11e5f5a44d83d44d34b51c1fa3480c9a58b9513b1b1a8ceb615f"
+    },
+    {
+      "file": "bossfang/registration/forge-kiln.json",
+      "sha256": "1d2acb64d7825cbab611fd91907709ab5b5c9f96386a95dd91bb293e395fec34"
+    },
+    {
+      "file": "bossfang/agents/forge-ember/agent.toml",
+      "sha256": "8710c172fd5eed6de7c65e5015f8ba4be7dad6c4e894f17a32b9e745f7e7a29c"
+    },
+    {
+      "file": "bossfang/registration/forge-ember.json",
+      "sha256": "dcf6c336164d6004e763da5da95dbd3f033d28bc29494196c6483f10f61a32ab"
+    },
+    {
+      "file": "bossfang/agents/forge-sdk/agent.toml",
+      "sha256": "12dce5b90e1a692df6492a071defc78779faa7154fb5a05291af2c75dfdca4aa"
+    },
+    {
+      "file": "bossfang/registration/forge-sdk.json",
+      "sha256": "753f114befcc214755532220bca54b2f1617499ae926967d5056ddcda7f5b433"
+    },
+    {
+      "file": "bossfang/agents/forge-release/agent.toml",
+      "sha256": "cb37f80052c6ed980a7986843c5a74d431e712421db1c97ed1686a8d6628fdb3"
+    },
+    {
+      "file": "bossfang/registration/forge-release.json",
+      "sha256": "1d393c8581bb4670254e1b530d0e373e0b339cb30b7b907b54443b73cb3d7a1f"
+    },
+    {
+      "file": "bossfang/agents/forge-reviewer/agent.toml",
+      "sha256": "e1dc10c3709812d0e5181612619cc71356a1f652296d2eb7b78d2e113117f4ac"
+    },
+    {
+      "file": "bossfang/registration/forge-reviewer.json",
+      "sha256": "6374ead38ffddbc6cc34277117eaf4bf7147afa6e688754dfe1dc91b7632fb1a"
+    },
+    {
+      "file": "bossfang/hands/flint-forge/HAND.toml",
+      "sha256": "18196682f9701b34b00416da3803a981fa93fdeecd8cf35eb94a542560b4c7d9"
+    },
+    {
+      "file": "bossfang/hand-install.json",
+      "sha256": "7a3a5233fbe7c91e3fed7bd889ce07685b153719d95d94f912a1eefd9ded0bd4"
+    },
+    {
+      "file": "bossfang/workflow.json",
+      "sha256": "6570799846f45bd6e686c6eeb3bc1b5af0db0abdc896ddfae16140036ab3072b"
+    },
+    {
+      "file": "bossfang/registration-plan.json",
+      "sha256": "9313257179ab3c275f9c773cb287c03a40233a1a378b235128219aaf1db30c97"
+    },
+    {
+      "file": "export-receipt.json",
+      "sha256": "f668a3fe483c65f5e26b5c25875338e3e3b813300faf08f686ef673b763372a8"
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "format": "agent-team-export-plan",
+  "execution": "not-performed",
+  "requests": [
+    {
+      "method": "POST",
+      "route": "/api/agents",
+      "bodyFile": "bossfang/registration/forge-lead.json",
+      "role": "forge-lead"
+    },
+    {
+      "method": "POST",
+      "route": "/api/agents",
+      "bodyFile": "bossfang/registration/forge-postgres18.json",
+      "role": "forge-postgres18"
+    },
+    {
+      "method": "POST",
+      "route": "/api/agents",
+      "bodyFile": "bossfang/registration/forge-security.json",
+      "role": "forge-security"
+    },
+    {
+      "method": "POST",
+      "route": "/api/agents",
+      "bodyFile": "bossfang/registration/forge-quarry-api.json",
+      "role": "forge-quarry-api"
+    },
+    {
+      "method": "POST",
+      "route": "/api/agents",
+      "bodyFile": "bossfang/registration/forge-metadata.json",
+      "role": "forge-metadata"
+    },
+    {
+      "method": "POST",
+      "route": "/api/agents",
+      "bodyFile": "bossfang/registration/forge-realtime.json",
+      "role": "forge-realtime"
+    },
+    {
+      "method": "POST",
+      "route": "/api/agents",
+      "bodyFile": "bossfang/registration/forge-kiln.json",
+      "role": "forge-kiln"
+    },
+    {
+      "method": "POST",
+      "route": "/api/agents",
+      "bodyFile": "bossfang/registration/forge-ember.json",
+      "role": "forge-ember"
+    },
+    {
+      "method": "POST",
+      "route": "/api/agents",
+      "bodyFile": "bossfang/registration/forge-sdk.json",
+      "role": "forge-sdk"
+    },
+    {
+      "method": "POST",
+      "route": "/api/agents",
+      "bodyFile": "bossfang/registration/forge-release.json",
+      "role": "forge-release"
+    },
+    {
+      "method": "POST",
+      "route": "/api/agents",
+      "bodyFile": "bossfang/registration/forge-reviewer.json",
+      "role": "forge-reviewer"
+    }
+  ]
+}

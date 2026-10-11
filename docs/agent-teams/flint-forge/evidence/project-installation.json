@@ -1,0 +1,500 @@
+{
+  "installedAt": "2026-09-25T04:47:00.080Z",
+  "project": "/Users/gqadonis/Projects/prometheus/flint-forge",
+  "agents": [
+    {
+      "target": "codex",
+      "path": ".codex/agents/forge-ember.toml",
+      "sha256": "9fb3bb7513cc328b0d75d1450b037e8e56c0fd6da9ae215879b176f674efcca7"
+    },
+    {
+      "target": "codex",
+      "path": ".codex/agents/forge-kiln.toml",
+      "sha256": "c28e85784be122f0e6adaca1a41001ad05d213f5a832770829a36f5f072b9453"
+    },
+    {
+      "target": "codex",
+      "path": ".codex/agents/forge-lead.toml",
+      "sha256": "c8eaf53eb1264b003aa6bea57d1d97ebf8f0b4023ef5f1742e26cb8938f0d435"
+    },
+    {
+      "target": "codex",
+      "path": ".codex/agents/forge-metadata.toml",
+      "sha256": "e1fa2685f0758ba701a7a01d076d4f84856ec953dde5846d33605a85e85abbbf"
+    },
+    {
+      "target": "codex",
+      "path": ".codex/agents/forge-postgres18.toml",
+      "sha256": "a75beb29af0427f9588e862884b9d44c4dfc0ff54920723aa735feb58ca0b167"
+    },
+    {
+      "target": "codex",
+      "path": ".codex/agents/forge-quarry-api.toml",
+      "sha256": "71bde21af93f452f788240a52df668efa2a019122a47196bfc21ca58a5aff26e"
+    },
+    {
+      "target": "codex",
+      "path": ".codex/agents/forge-realtime.toml",
+      "sha256": "cbd814d238a233bf169701af29e13b522cc44fda6805b557e4c478e6d86c8cde"
+    },
+    {
+      "target": "codex",
+      "path": ".codex/agents/forge-release.toml",
+      "sha256": "72b759a73cb1603aeb0e74473d139620961f8f8d6dfea7f7419b11414ceaf596"
+    },
+    {
+      "target": "codex",
+      "path": ".codex/agents/forge-reviewer.toml",
+      "sha256": "0c27fd7e91b408898a1d636830cab422b212edacfc1c9f786f3370115d929c28"
+    },
+    {
+      "target": "codex",
+      "path": ".codex/agents/forge-sdk.toml",
+      "sha256": "578a09123c4f5cd33f288cc9846b0d36944d5f7b4f8a00cc5f4e237464824117"
+    },
+    {
+      "target": "codex",
+      "path": ".codex/agents/forge-security.toml",
+      "sha256": "127e8493974d5173ee3881b26880590a591c9cf0e7268e2ef3a971b5f1f9901c"
+    },
+    {
+      "target": "claude",
+      "path": ".claude/agents/forge-ember.md",
+      "sha256": "890a381ab060b8be3ecbefc8a1faad62c174a63e43c8198b9d7b46711067cfc0"
+    },
+    {
+      "target": "claude",
+      "path": ".claude/agents/forge-kiln.md",
+      "sha256": "71d01d1acbbdd6e656b05dab545f7a1cfdfb70832e60e7c96a3d6f0105d25195"
+    },
+    {
+      "target": "claude",
+      "path": ".claude/agents/forge-lead.md",
+      "sha256": "b198c2684fe4801ca72e9346cfe048bb344903f6707828ac9f700f2123005d9c"
+    },
+    {
+      "target": "claude",
+      "path": ".claude/agents/forge-metadata.md",
+      "sha256": "676c36111f19870cb564b448d409d087b0a0e528938c7139ac1faccaff485667"
+    },
+    {
+      "target": "claude",
+      "path": ".claude/agents/forge-postgres18.md",
+      "sha256": "2a6bdbe26d4e1bf022fa28aa99eb590c9b930f1fb7f97c7d2e831b467ac15d6e"
+    },
+    {
+      "target": "claude",
+      "path": ".claude/agents/forge-quarry-api.md",
+      "sha256": "222ea116243a169c8f67d532b31d4765dde5ce5cdf902c0f50028c0304a61d05"
+    },
+    {
+      "target": "claude",
+      "path": ".claude/agents/forge-realtime.md",
+      "sha256": "4a3207cb26e010dd3d00a7377b93be451d50970a2d70db2267779c9d973bff6b"
+    },
+    {
+      "target": "claude",
+      "path": ".claude/agents/forge-release.md",
+      "sha256": "fe21f48569a643e0ba160840aaea945204e2e3852e95556b60ab634859897b6c"
+    },
+    {
+      "target": "claude",
+      "path": ".claude/agents/forge-reviewer.md",
+      "sha256": "bf62d20c8f29d95f1008e438730ff730bfcd62518b352d9975bf7e587ce65437"
+    },
+    {
+      "target": "claude",
+      "path": ".claude/agents/forge-sdk.md",
+      "sha256": "19e29a1bd33a1078109b68ffe9e765afbccec22f1624c52c96b83181a3ab8006"
+    },
+    {
+      "target": "claude",
+      "path": ".claude/agents/forge-security.md",
+      "sha256": "80fda19b7a7a6da7b213f388e5eb5ac721b6b609431f18fcd5a465da77ff3b6e"
+    },
+    {
+      "target": "copilot",
+      "path": ".github/agents/forge-ember.agent.md",
+      "sha256": "d8d8ecb186bb89634c11d653ebd9867217769d967047b03cf9ed245263fba108"
+    },
+    {
+      "target": "copilot",
+      "path": ".github/agents/forge-kiln.agent.md",
+      "sha256": "6d1ecd1881958ebedee6eac02d8486597871b9735570569a7597a12d0c06670c"
+    },
+    {
+      "target": "copilot",
+      "path": ".github/agents/forge-lead.agent.md",
+      "sha256": "95733bf49041438f70d8088170a6164a75e6aa082b66c4c0bbbb248cc940507d"
+    },
+    {
+      "target": "copilot",
+      "path": ".github/agents/forge-metadata.agent.md",
+      "sha256": "22a97f2f2ff4559cabc85635952a1b61ece0883f60f03e599d3d44c40b599ac1"
+    },
+    {
+      "target": "copilot",
+      "path": ".github/agents/forge-postgres18.agent.md",
+      "sha256": "9a640cfe8f116356dc17fc548969bca6f8d04028260cd344d3443a18a0aa41ec"
+    },
+    {
+      "target": "copilot",
+      "path": ".github/agents/forge-quarry-api.agent.md",
+      "sha256": "50834e59faa03ce71dd4e9e746f0b2d8fede5e3b577ef34ab9e32474c2498cb9"
+    },
+    {
+      "target": "copilot",
+      "path": ".github/agents/forge-realtime.agent.md",
+      "sha256": "ff2cb0c7e0e7799ee6ea0b52bc73e4778922cb8e34d863275e323e1ec14b21dc"
+    },
+    {
+      "target": "copilot",
+      "path": ".github/agents/forge-release.agent.md",
+      "sha256": "3dee5e039f32252a060f5c5a29442b44cb27914d09a981b1c2820982f5ee410c"
+    },
+    {
+      "target": "copilot",
+      "path": ".github/agents/forge-reviewer.agent.md",
+      "sha256": "39daca92bc1f7844ed12fc8159a0e4f29d63fec1bf4a1b1d48d9b10d59b036aa"
+    },
+    {
+      "target": "copilot",
+      "path": ".github/agents/forge-sdk.agent.md",
+      "sha256": "fbeb36714b2411fc62694b27483687610eb6dc3b3ea2082eee2971d61c642075"
+    },
+    {
+      "target": "copilot",
+      "path": ".github/agents/forge-security.agent.md",
+      "sha256": "ca6d1b6eb73d07c35e6a488b5ff68d9c136d28d4492d14f3e297570932c38b6a"
+    },
+    {
+      "target": "kimi",
+      "path": ".kimi-code/agents/forge-ember.md",
+      "sha256": "049ab1f5297e31c13b321f62f5f782740a6bc227842f8d63a1a0c9c319b478b2"
+    },
+    {
+      "target": "kimi",
+      "path": ".kimi-code/agents/forge-kiln.md",
+      "sha256": "cb636c8989b2a8be9e644e7238247df455574305c1c88a58db1f5c4789a226ea"
+    },
+    {
+      "target": "kimi",
+      "path": ".kimi-code/agents/forge-lead.md",
+      "sha256": "83e88fe496e723f6c1ae87c676310a21a0e2263b4fd0f9fbd30243959e2f512d"
+    },
+    {
+      "target": "kimi",
+      "path": ".kimi-code/agents/forge-metadata.md",
+      "sha256": "4729d49868ece7c1bf6f4050f96958d7e682806681875db07dc605f254c3eee4"
+    },
+    {
+      "target": "kimi",
+      "path": ".kimi-code/agents/forge-postgres18.md",
+      "sha256": "efd199c54e09744d196f9fd6d4169d38d90cfd73993573e33ea1ba0bb722436c"
+    },
+    {
+      "target": "kimi",
+      "path": ".kimi-code/agents/forge-quarry-api.md",
+      "sha256": "60904f5495bb89e83ecb8818fa1a96d1ad4998c01cc89d95844ce254a7df81d5"
+    },
+    {
+      "target": "kimi",
+      "path": ".kimi-code/agents/forge-realtime.md",
+      "sha256": "d0c78fe713f6af5e6ec824a95f82197337990c7851d2e38035abfc7c6bbe5092"
+    },
+    {
+      "target": "kimi",
+      "path": ".kimi-code/agents/forge-release.md",
+      "sha256": "07f1b25afbe3299e9dd975b04284ad0889352866ae697daebdb42821eeabf49d"
+    },
+    {
+      "target": "kimi",
+      "path": ".kimi-code/agents/forge-reviewer.md",
+      "sha256": "ecba12bcf27aaffbe1645d47934c8a0049fda78f4b0d9d640907bbe063aec4e8"
+    },
+    {
+      "target": "kimi",
+      "path": ".kimi-code/agents/forge-sdk.md",
+      "sha256": "110e3416cc49eef92666f5c272c0cfa292fe153e68f7bf51bb3af4a9375a1a1d"
+    },
+    {
+      "target": "kimi",
+      "path": ".kimi-code/agents/forge-security.md",
+      "sha256": "273ba1ea3c997949615cf3ec9ba5ca30e6a9429c9f6f4d768ee16a94a08a690a"
+    },
+    {
+      "target": "opencode",
+      "path": ".opencode/agents/forge-ember.md",
+      "sha256": "ddf62eeb8c1fb4cf78920eea7c5ee7017a2257a2a941d89d290b27254a01bca4"
+    },
+    {
+      "target": "opencode",
+      "path": ".opencode/agents/forge-kiln.md",
+      "sha256": "056231e36a7672409fd6ba97ef5432f7fec14b6a2b14759493ae3cdfd9870bec"
+    },
+    {
+      "target": "opencode",
+      "path": ".opencode/agents/forge-lead.md",
+      "sha256": "faec2e54bee017360e3938c05e42f869837f3f5e2ce7c61bc773f79e2a0d04c1"
+    },
+    {
+      "target": "opencode",
+      "path": ".opencode/agents/forge-metadata.md",
+      "sha256": "2d5d315f3b2aeeacdee2de8bd7a7e265f6342ace9bf9895c43757204351ef6e8"
+    },
+    {
+      "target": "opencode",
+      "path": ".opencode/agents/forge-postgres18.md",
+      "sha256": "842306cf3492c8f6ee09fea01c47ad8cfd4830c97c539ea4b8641332c601a418"
+    },
+    {
+      "target": "opencode",
+      "path": ".opencode/agents/forge-quarry-api.md",
+      "sha256": "c2715a090e47c28dd28ba40e8fd016f24a16852be8ba1213e60f74d9a9c4838b"
+    },
+    {
+      "target": "opencode",
+      "path": ".opencode/agents/forge-realtime.md",
+      "sha256": "1d26a497475f34db38fb4ca3f9175320afb2838aadd95328cd65830aad011dcd"
+    },
+    {
+      "target": "opencode",
+      "path": ".opencode/agents/forge-release.md",
+      "sha256": "036c82e0e4ee912a2bfd31a80db68a73a3f8312fd25a38288a8ec98fff0511d3"
+    },
+    {
+      "target": "opencode",
+      "path": ".opencode/agents/forge-reviewer.md",
+      "sha256": "7148f057b7863447088ec10a9cb4b03bbf6e0ddf51788ccfc2760cf31c278544"
+    },
+    {
+      "target": "opencode",
+      "path": ".opencode/agents/forge-sdk.md",
+      "sha256": "77349e55896ee3b981d337ad586bdd76d5021568298adc9787462e47acf412ad"
+    },
+    {
+      "target": "opencode",
+      "path": ".opencode/agents/forge-security.md",
+      "sha256": "5ef3d1352e45077600d0687d32c07940f5a6834f7efd48d5cc3a3cea4693fd0e"
+    },
+    {
+      "path": ".codex/skills/forge-delivery",
+      "link": "../../.agents/skills/forge-delivery"
+    },
+    {
+      "path": ".codex/skills/forge-fabric-events",
+      "link": "../../.agents/skills/forge-fabric-events"
+    },
+    {
+      "path": ".codex/skills/forge-postgres18-security",
+      "link": "../../.agents/skills/forge-postgres18-security"
+    },
+    {
+      "path": ".codex/skills/supabase-postgres-best-practices",
+      "link": "../../.agents/skills/supabase-postgres-best-practices"
+    },
+    {
+      "path": ".codex/skills/forge-api-compat",
+      "link": "../../.agents/skills/forge-api-compat"
+    },
+    {
+      "path": ".codex/skills/forge-metadata-contracts",
+      "link": "../../.agents/skills/forge-metadata-contracts"
+    },
+    {
+      "path": ".codex/skills/forge-wasm-ember",
+      "link": "../../.agents/skills/forge-wasm-ember"
+    },
+    {
+      "path": ".codex/skills/forge-client-contracts",
+      "link": "../../.agents/skills/forge-client-contracts"
+    },
+    {
+      "path": ".claude/skills/forge-delivery",
+      "link": "../../.agents/skills/forge-delivery"
+    },
+    {
+      "path": ".claude/skills/forge-fabric-events",
+      "link": "../../.agents/skills/forge-fabric-events"
+    },
+    {
+      "path": ".claude/skills/forge-postgres18-security",
+      "link": "../../.agents/skills/forge-postgres18-security"
+    },
+    {
+      "path": ".claude/skills/supabase-postgres-best-practices",
+      "link": "../../.agents/skills/supabase-postgres-best-practices"
+    },
+    {
+      "path": ".claude/skills/forge-api-compat",
+      "link": "../../.agents/skills/forge-api-compat"
+    },
+    {
+      "path": ".claude/skills/forge-metadata-contracts",
+      "link": "../../.agents/skills/forge-metadata-contracts"
+    },
+    {
+      "path": ".claude/skills/forge-wasm-ember",
+      "link": "../../.agents/skills/forge-wasm-ember"
+    },
+    {
+      "path": ".claude/skills/forge-client-contracts",
+      "link": "../../.agents/skills/forge-client-contracts"
+    },
+    {
+      "path": ".github/skills/forge-delivery",
+      "link": "../../.agents/skills/forge-delivery"
+    },
+    {
+      "path": ".github/skills/forge-fabric-events",
+      "link": "../../.agents/skills/forge-fabric-events"
+    },
+    {
+      "path": ".github/skills/forge-postgres18-security",
+      "link": "../../.agents/skills/forge-postgres18-security"
+    },
+    {
+      "path": ".github/skills/supabase-postgres-best-practices",
+      "link": "../../.agents/skills/supabase-postgres-best-practices"
+    },
+    {
+      "path": ".github/skills/forge-api-compat",
+      "link": "../../.agents/skills/forge-api-compat"
+    },
+    {
+      "path": ".github/skills/forge-metadata-contracts",
+      "link": "../../.agents/skills/forge-metadata-contracts"
+    },
+    {
+      "path": ".github/skills/forge-wasm-ember",
+      "link": "../../.agents/skills/forge-wasm-ember"
+    },
+    {
+      "path": ".github/skills/forge-client-contracts",
+      "link": "../../.agents/skills/forge-client-contracts"
+    },
+    {
+      "path": ".kimi-code/skills/forge-delivery",
+      "link": "../../.agents/skills/forge-delivery"
+    },
+    {
+      "path": ".kimi-code/skills/forge-fabric-events",
+      "link": "../../.agents/skills/forge-fabric-events"
+    },
+    {
+      "path": ".kimi-code/skills/forge-postgres18-security",
+      "link": "../../.agents/skills/forge-postgres18-security"
+    },
+    {
+      "path": ".kimi-code/skills/supabase-postgres-best-practices",
+      "link": "../../.agents/skills/supabase-postgres-best-practices"
+    },
+    {
+      "path": ".kimi-code/skills/forge-api-compat",
+      "link": "../../.agents/skills/forge-api-compat"
+    },
+    {
+      "path": ".kimi-code/skills/forge-metadata-contracts",
+      "link": "../../.agents/skills/forge-metadata-contracts"
+    },
+    {
+      "path": ".kimi-code/skills/forge-wasm-ember",
+      "link": "../../.agents/skills/forge-wasm-ember"
+    },
+    {
+      "path": ".kimi-code/skills/forge-client-contracts",
+      "link": "../../.agents/skills/forge-client-contracts"
+    },
+    {
+      "path": ".opencode/skills/forge-delivery",
+      "link": "../../.agents/skills/forge-delivery"
+    },
+    {
+      "path": ".opencode/skills/forge-fabric-events",
+      "link": "../../.agents/skills/forge-fabric-events"
+    },
+    {
+      "path": ".opencode/skills/forge-postgres18-security",
+      "link": "../../.agents/skills/forge-postgres18-security"
+    },
+    {
+      "path": ".opencode/skills/supabase-postgres-best-practices",
+      "link": "../../.agents/skills/supabase-postgres-best-practices"
+    },
+    {
+      "path": ".opencode/skills/forge-api-compat",
+      "link": "../../.agents/skills/forge-api-compat"
+    },
+    {
+      "path": ".opencode/skills/forge-metadata-contracts",
+      "link": "../../.agents/skills/forge-metadata-contracts"
+    },
+    {
+      "path": ".opencode/skills/forge-wasm-ember",
+      "link": "../../.agents/skills/forge-wasm-ember"
+    },
+    {
+      "path": ".opencode/skills/forge-client-contracts",
+      "link": "../../.agents/skills/forge-client-contracts"
+    }
+  ],
+  "miniMax": {
+    "dataDirectory": "/Users/gqadonis/Projects/prometheus/flint-forge/.agent-team/minimax",
+    "roles": [
+      "forge-lead",
+      "forge-postgres18",
+      "forge-security",
+      "forge-quarry-api",
+      "forge-metadata",
+      "forge-realtime",
+      "forge-kiln",
+      "forge-ember",
+      "forge-sdk",
+      "forge-release",
+      "forge-reviewer"
+    ],
+    "status": "Definitions only; isolated profile has no copied credentials; native loading unverified"
+  },
+  "notActivated": [
+    "all agents",
+    "Claude/Kimi alternative plugins",
+    "DeepSeek profiles",
+    "UAR registration",
+    "BossFang registration/workflow/Hand"
+  ],
+  "skillHashes": [
+    {
+      "id": "forge-delivery",
+      "sha256": "dd72ac31dcc2cef174e01184aab97f4e82e3939848f5de7d8966be9da2fa4f4b"
+    },
+    {
+      "id": "forge-fabric-events",
+      "sha256": "8d65ffb199e2b7a8074b1c7402535da9e9b6b3db1e0531a66575b3bf54ed77b2"
+    },
+    {
+      "id": "forge-postgres18-security",
+      "sha256": "b5ac9c3631d74afdf649dbf32542b5916f442ec17550a58b4eadec4bbea54af6"
+    },
+    {
+      "id": "supabase-postgres-best-practices",
+      "sha256": "ccd6e4596bd51cf344fe76c464867c541ccc16b6d90ae7a9db449fb17588613b"
+    },
+    {
+      "id": "forge-api-compat",
+      "sha256": "2e71cf96f21b7ec43161197c0a3ff9d6924d1fd8eaacde89c12c0af4153a4aab"
+    },
+    {
+      "id": "forge-metadata-contracts",
+      "sha256": "330fdacaa19d82d66f33cd7de65e5f7d81ff000be694fb7e6f3a5c994532fb27"
+    },
+    {
+      "id": "forge-wasm-ember",
+      "sha256": "fbb5671d90a10797d69dedf8c3a631b81dbda235804929b60fb064719cf9f35e"
+    },
+    {
+      "id": "forge-client-contracts",
+      "sha256": "b551a001f184e6a20f8ec7fe000e5d838406b36fda75ffca7a454d1fa4137000"
+    }
+  ],
+  "updatedAt": "2026-09-25T04:52:43.812Z"
+}

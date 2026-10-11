@@ -4,7 +4,7 @@ use tracing::instrument;
 use crate::{
     compiled::{A2uiCatalog, A2uiCatalogEntry},
     error::ReflectionError,
-    model::{ArgMeta, Column, DatabaseModel, FnMeta, Table, ViewMeta},
+    model::{ArgMeta, Column, DatabaseModel, FnMeta, ForeignKey, Table, ViewMeta},
     passes,
 };
 
@@ -44,6 +44,8 @@ impl ReflectionEngine {
 
         for table in &mut tables {
             table.columns = self.fetch_columns(&table.schema, &table.name).await?;
+            table.pk = self.fetch_primary_key(&table.schema, &table.name).await?;
+            table.fk = self.fetch_foreign_keys(&table.schema, &table.name).await?;
         }
 
         let mut model = DatabaseModel {
@@ -138,6 +140,84 @@ impl ReflectionEngine {
                 pg_type,
                 nullable,
                 default,
+            })
+            .collect())
+    }
+
+    async fn fetch_primary_key(
+        &self,
+        schema: &str,
+        table: &str,
+    ) -> Result<Vec<String>, ReflectionError> {
+        let rows: Vec<(String,)> = sqlx::query_as(
+            "SELECT attribute.attname::text \
+             FROM pg_catalog.pg_index AS idx \
+             JOIN pg_catalog.pg_class AS relation \
+               ON relation.oid = idx.indrelid \
+             JOIN pg_catalog.pg_namespace AS namespace \
+               ON namespace.oid = relation.relnamespace \
+             JOIN LATERAL unnest(idx.indkey) WITH ORDINALITY \
+               AS key(attnum, position) ON true \
+             JOIN pg_catalog.pg_attribute AS attribute \
+               ON attribute.attrelid = relation.oid \
+              AND attribute.attnum = key.attnum \
+             WHERE namespace.nspname = $1 \
+               AND relation.relname = $2 \
+               AND idx.indisprimary \
+             ORDER BY key.position",
+        )
+        .bind(schema)
+        .bind(table)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows.into_iter().map(|(column,)| column).collect())
+    }
+
+    async fn fetch_foreign_keys(
+        &self,
+        schema: &str,
+        table: &str,
+    ) -> Result<Vec<ForeignKey>, ReflectionError> {
+        let rows: Vec<(String, String, String, String)> = sqlx::query_as(
+            "SELECT local_attribute.attname::text, \
+                    foreign_namespace.nspname::text, \
+                    foreign_relation.relname::text, \
+                    foreign_attribute.attname::text \
+             FROM pg_catalog.pg_constraint AS con \
+             JOIN pg_catalog.pg_class AS local_relation \
+               ON local_relation.oid = con.conrelid \
+             JOIN pg_catalog.pg_namespace AS local_namespace \
+               ON local_namespace.oid = local_relation.relnamespace \
+             JOIN pg_catalog.pg_class AS foreign_relation \
+               ON foreign_relation.oid = con.confrelid \
+             JOIN pg_catalog.pg_namespace AS foreign_namespace \
+               ON foreign_namespace.oid = foreign_relation.relnamespace \
+             JOIN LATERAL generate_subscripts(con.conkey, 1) \
+               AS key(position) ON true \
+             JOIN pg_catalog.pg_attribute AS local_attribute \
+               ON local_attribute.attrelid = local_relation.oid \
+              AND local_attribute.attnum = con.conkey[key.position] \
+             JOIN pg_catalog.pg_attribute AS foreign_attribute \
+               ON foreign_attribute.attrelid = foreign_relation.oid \
+              AND foreign_attribute.attnum = con.confkey[key.position] \
+             WHERE local_namespace.nspname = $1 \
+               AND local_relation.relname = $2 \
+               AND con.contype = 'f' \
+             ORDER BY con.oid, key.position",
+        )
+        .bind(schema)
+        .bind(table)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|(from_col, to_schema, to_table, to_col)| ForeignKey {
+                from_col,
+                to_schema,
+                to_table,
+                to_col,
             })
             .collect())
     }

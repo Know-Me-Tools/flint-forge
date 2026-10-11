@@ -1,0 +1,152 @@
+{
+  "schema": "compass.query/1",
+  "operation": "callees",
+  "results": [],
+  "nodes": [
+    {
+      "id": "sha256:81aed6b694777e0bc86d067542d3fa122dad19420af6a75c62c472cceee1093c",
+      "kind": "function",
+      "roles": [],
+      "name": "run()",
+      "qualifiedName": "fdb_gateway::bootstrap::run",
+      "language": "rust",
+      "framework": null,
+      "source": {
+        "file": "crates/fdb-gateway/src/bootstrap.rs",
+        "startByte": 1972,
+        "endByte": 26031,
+        "startLine": 45,
+        "startColumn": 0,
+        "endLine": 597,
+        "endColumn": 1
+      },
+      "details": {
+        "type": "symbol",
+        "data": {
+          "signature": "pub(crate) async fn run() -> anyhow::Result<()>",
+          "signatureDigest": "a01f491d358b927d3eb34bcd3023213f60f65b7ed9872e95d556b4a73283f108",
+          "implementationDigest": "ff23dac1bf87f8337848b5d0734ae1e45b95acad2e2c22f5d6917a1e4b51b870",
+          "sourceDigest": "becf0d39adec207ed491784dfe13eb61cb6718e084e1bcb0dd4dd5ca77d0098c"
+        }
+      },
+      "evidence": [
+        {
+          "layer": "structural_graph",
+          "origin": "ast",
+          "extractor": "compass.languages.rust.universal",
+          "confidence": "exact",
+          "anchor": {
+            "file": "crates/fdb-gateway/src/bootstrap.rs",
+            "startByte": 1992,
+            "endByte": 1995,
+            "startLine": 45,
+            "startColumn": 20,
+            "endLine": 45,
+            "endColumn": 23
+          },
+          "rule": null,
+          "wiringSite": null,
+          "resolution": "exact"
+        }
+      ]
+    },
+    {
+      "id": "sha256:d7ef4b0bdf0426219be44c6d1ea10df8a9bee14b750a98a0c23e6a52e13777fa",
+      "kind": "function",
+      "roles": [],
+      "name": "main()",
+      "qualifiedName": "fdb_gateway::main",
+      "language": "rust",
+      "framework": null,
+      "source": {
+        "file": "crates/fdb-gateway/src/main.rs",
+        "startByte": 1750,
+        "endByte": 2063,
+        "startLine": 50,
+        "startColumn": 0,
+        "endLine": 56,
+        "endColumn": 1
+      },
+      "details": {
+        "type": "symbol",
+        "data": {
+          "signature": "async fn main() -> anyhow::Result<()>",
+          "signatureDigest": "c14b7bb60f0cf9bc40f7f4ad25daaf61eaa29f2e5386a36c40fec8fa6c593720",
+          "implementationDigest": "b8c8be3dfc5b341ac4871e9679ef77d3e7c6b19ad80a3d2c4ab260077bafe6eb",
+          "sourceDigest": "ac4625554ff2fa59cca87d3290d9fb70c1b79ef3d5df1c32296c26c08f80f2a9"
+        }
+      },
+      "evidence": [
+        {
+          "layer": "structural_graph",
+          "origin": "ast",
+          "extractor": "compass.languages.rust.universal",
+          "confidence": "exact",
+          "anchor": {
+            "file": "crates/fdb-gateway/src/main.rs",
+            "startByte": 1759,
+            "endByte": 1763,
+            "startLine": 50,
+            "startColumn": 9,
+            "endLine": 50,
+            "endColumn": 13
+          },
+          "rule": null,
+          "wiringSite": null,
+          "resolution": "exact"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "sha256:29b1f0fe151079fec475bb36549207ccaf9518dd184ca18c9b9d8340cc54809e",
+      "source": "sha256:d7ef4b0bdf0426219be44c6d1ea10df8a9bee14b750a98a0c23e6a52e13777fa",
+      "target": "sha256:81aed6b694777e0bc86d067542d3fa122dad19420af6a75c62c472cceee1093c",
+      "kind": "calls",
+      "relationshipSite": {
+        "file": "crates/fdb-gateway/src/main.rs",
+        "startByte": 2039,
+        "endByte": 2053,
+        "startLine": 55,
+        "startColumn": 4,
+        "endLine": 55,
+        "endColumn": 18
+      },
+      "details": null,
+      "evidence": [
+        {
+          "layer": "structural_graph",
+          "origin": "ast",
+          "extractor": "compass.resolve.rust.universal",
+          "confidence": "exact",
+          "anchor": {
+            "file": "crates/fdb-gateway/src/main.rs",
+            "startByte": 2039,
+            "endByte": 2053,
+            "startLine": 55,
+            "startColumn": 4,
+            "endLine": 55,
+            "endColumn": 18
+          },
+          "rule": "universal-call-explicit-binding",
+          "wiringSite": null,
+          "resolution": "exact"
+        }
+      ]
+    }
+  ],
+  "files": [],
+  "paths": [],
+  "diagnostics": [],
+  "limits": {
+    "maxDepth": 8,
+    "maxNodes": 500,
+    "maxEdges": 1000,
+    "maxPaths": 100,
+    "maxCandidates": 64,
+    "maxSourceBytes": 1048576,
+    "maxResponseBytes": 8388608
+  },
+  "truncated": false
+}
