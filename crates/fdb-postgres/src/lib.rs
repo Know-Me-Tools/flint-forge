@@ -15,3 +15,6 @@ pub use graphql::PgGraphQl;
 pub use provisioner::PgProvisioner;
 pub use rest::PgRest;
 pub use vector_rpc::PgVectorRpc;
+
+mod files;
+pub use files::PgFileMetadata;

@@ -167,7 +167,7 @@ impl SqlExecutor for PgRest {
 
         let lock_key = format!("{subject}:{}", idempotency.mutation_id);
         if let Err(error) = pg_conn
-            .inner
+            .client()?
             .query_one(
                 "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
                 &[&lock_key],
@@ -175,11 +175,11 @@ impl SqlExecutor for PgRest {
             .await
         {
             rollback(pg_conn).await?;
-            return Err(map_query_error("idempotency lock", error));
+            return Err(map_query_error("idempotency lock", &error));
         }
 
         let existing = match pg_conn
-            .inner
+            .client()?
             .query_opt(
                 "SELECT request_fingerprint, response FROM flint.mutation_receipts WHERE subject = $1 AND mutation_id = $2",
                 &[&subject, &idempotency.mutation_id],
@@ -189,7 +189,7 @@ impl SqlExecutor for PgRest {
             Ok(row) => row,
             Err(error) => {
                 rollback(pg_conn).await?;
-                return Err(map_query_error("idempotency receipt lookup", error));
+                return Err(map_query_error("idempotency receipt lookup", &error));
             }
         };
 
@@ -218,7 +218,7 @@ impl SqlExecutor for PgRest {
             BackendError::Internal(format!("serialize mutation receipt: {error}"))
         })?;
         if let Err(error) = pg_conn
-            .inner
+            .client()?
             .execute(
                 "INSERT INTO flint.mutation_receipts (subject, mutation_id, request_fingerprint, response) VALUES ($1, $2, $3, $4)",
                 &[&subject, &idempotency.mutation_id, &idempotency.request_fingerprint, &response],
@@ -226,7 +226,7 @@ impl SqlExecutor for PgRest {
             .await
         {
             rollback(pg_conn).await?;
-            return Err(map_query_error("idempotency receipt insert", error));
+            return Err(map_query_error("idempotency receipt insert", &error));
         }
         pg_conn.commit().await?;
         Ok(rows)
@@ -279,22 +279,18 @@ async fn query_bound(
     let binds: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
         owned.iter().map(RestBind::as_to_sql).collect();
     pg_conn
-        .inner
+        .client()?
         .query(sql, &binds)
         .await
         .map(|rows| project_rows(&rows))
-        .map_err(|error| map_query_error("bound query", error))
+        .map_err(|error| map_query_error("bound query", &error))
 }
 
 async fn rollback(pg_conn: &PgConn) -> Result<(), BackendError> {
-    pg_conn
-        .inner
-        .batch_execute("ROLLBACK")
-        .await
-        .map_err(|_| BackendError::Connection)
+    pg_conn.rollback().await
 }
 
-fn map_query_error(context: &str, error: tokio_postgres::Error) -> BackendError {
+fn map_query_error(context: &str, error: &tokio_postgres::Error) -> BackendError {
     if error.code() == Some(&tokio_postgres::error::SqlState::INSUFFICIENT_PRIVILEGE) {
         BackendError::Denied
     } else if error.code() == Some(&tokio_postgres::error::SqlState::UNIQUE_VIOLATION) {

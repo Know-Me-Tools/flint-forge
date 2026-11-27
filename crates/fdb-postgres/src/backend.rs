@@ -74,6 +74,11 @@ impl DatabaseBackend for PgBackend {
             .await
             .map_err(|e| PgError::Checkout(e.to_string()))?;
 
+        // Guard before BEGIN so setup errors and cancellation cannot recycle
+        // a connection with an unfinished RLS transaction.
+        let connection = PgConn::new(object);
+        let object = connection.client()?;
+
         // SET LOCAL requires an open transaction.
         object
             .execute("BEGIN", &[])
@@ -116,7 +121,7 @@ impl DatabaseBackend for PgBackend {
                 .map_err(|e| PgError::SetLocal(format!("set_config({name}): {e}")))?;
         }
 
-        Ok(Conn(Box::new(PgConn::new(object))))
+        Ok(Conn(Box::new(connection)))
     }
 
     /// Run a single SQL statement under the full RLS context and return each
@@ -162,7 +167,7 @@ impl DatabaseBackend for PgBackend {
             "WITH __flint_kiln_query AS ({sql}) SELECT to_jsonb(t) FROM __flint_kiln_query t"
         );
         let rows = pg_conn
-            .inner
+            .client()?
             .query(&wrapped, &binds)
             .await
             .map_err(|e| BackendError::Query(format!("kiln query_json: {e}")))?;

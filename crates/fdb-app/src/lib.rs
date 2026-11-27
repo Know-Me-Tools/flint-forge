@@ -327,3 +327,6 @@ fn json_value_to_filter(value: &Json) -> Option<String> {
         _ => None,
     }
 }
+
+/// File metadata request use cases.
+pub mod files;

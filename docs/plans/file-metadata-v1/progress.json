@@ -1,0 +1,43 @@
+{
+  "status": "review_corrections_source_complete_verification_blocked",
+  "test_runs": 0,
+  "source_head": "ce1efd189bcb520242acd530848e3b920d1036cd",
+  "owner": "implement_forge_file_metadata",
+  "paths": [
+    "crates/fdb-domain/src/files.rs",
+    "crates/fdb-ports/src/files.rs",
+    "crates/fdb-app/src/files/",
+    "crates/fdb-postgres/src/files/",
+    "crates/fdb-gateway/src/files/",
+    "migrations/0021_file_metadata.sql",
+    "docs/plans/file-metadata-v1/"
+  ],
+  "completed": [
+    "isolated source snapshot",
+    "design and acceptance plan",
+    "connected production source",
+    "authored live PostgreSQL acceptance",
+    "new Rust file formatting"
+  ],
+  "pending": [
+    "compile verdict",
+    "independent source review",
+    "security review",
+    "approved live fixture and acceptance",
+    "full workspace gates"
+  ],
+  "compile_attempts": [
+    {
+      "session": 67146,
+      "exit": 130,
+      "result": "cancelled without output"
+    },
+    {
+      "session": 53686,
+      "exit": 130,
+      "result": "cancelled without output"
+    }
+  ],
+  "format_result": "prior revision exit 0 session 6004; correction batch not formatted or checked",
+  "review_corrections": "five findings addressed in one source-only batch; tests authored and unrun"
+}

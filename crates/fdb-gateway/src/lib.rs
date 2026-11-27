@@ -19,3 +19,6 @@ pub mod realtime_source;
 /// `DATABASE_URL`-gated integration tests, which drive the real handlers
 /// through `tower::ServiceExt::oneshot`.
 pub mod schema_api;
+
+/// Authenticated private file metadata routes.
+pub mod files;

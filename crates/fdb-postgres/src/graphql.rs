@@ -78,7 +78,7 @@ impl GraphQlExecutor for PgGraphQl {
         // `serde_json::Value`'s `ToSql` impl (from `tokio-postgres`'s `with-serde_json-1` feature,
         // already enabled workspace-wide) accepts `JSON`/`JSONB` directly.
         let row = pg_conn
-            .inner
+            .client()?
             .query_one(
                 r"SELECT graphql.resolve($1, $2::jsonb, $3)",
                 &[&req.query, &req.variables, &req.operation_name],

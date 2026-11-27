@@ -13,6 +13,7 @@ forge-domain = { path = "../forge-domain" }
 forge-identity = { path = "../forge-identity" }
 async-trait = { workspace = true }
 serde_json = { workspace = true }
+serde = { workspace = true }
 tokio = { workspace = true }
 deadpool-postgres = { workspace = true }
 tokio-postgres = { workspace = true }
