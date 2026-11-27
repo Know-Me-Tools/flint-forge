@@ -1,0 +1,20 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.64s
+     Running tests/file_metadata_live_pg.rs (/Volumes/T7/rust/cargo-build/a9/c2cdf5b45920ac/debug/deps/file_metadata_live_pg-ac2f70e2b8389091)
+
+running 1 test
+issue40_policy_set baseline_sha256=911a3d4419d7863fab9f31d33ee09b9a53790cc203ea9aaaa09496c13d29e9b9 enabled_sha256=edc83ee49f75830f970a7a1869822bdd2a31d8c07bde2ce7919ce2936bce3574
+issue40_evidence FILE-2 insert=403 update=403 code=metadata_denied independent_state_matches=true
+issue40_evidence FILE-5 off_tenant=403 missing_actor=403 wrong_actor=403 independent_state_matches=true
+issue40_evidence FILE-4 type_registration=403 code=metadata_denied independent_type_set_unchanged=true
+issue40_evidence FILE-3 http_owner_controls=200 foreign_update=409 independent_state_matches=true
+Error: "FILE-3 direct SQL controls failed (tenant: record validation rejected the foreign insert (23514) before RLS could be observed, subject: record validation rejected the foreign insert (23514) before RLS could be observed)"
+test issue40_authorization_controls ... FAILED
+
+failures:
+
+failures:
+    issue40_authorization_controls
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.46s
+
+error: test failed, to rerun pass `-p fdb-gateway --test file_metadata_live_pg`
