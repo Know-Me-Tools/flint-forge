@@ -45,7 +45,12 @@ impl FileApiState {
             resource: object,
             context: Value::Null,
         };
-        if self.pep.check(rls, &request).await != Decision::Allow {
+        let decision = if table == "records" {
+            self.pep.check_file_record(rls, &request).await
+        } else {
+            self.pep.check(rls, &request).await
+        };
+        if decision != Decision::Allow {
             return Err(FileError::Denied);
         }
         Ok(())

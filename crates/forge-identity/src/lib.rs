@@ -58,15 +58,20 @@ pub struct RlsContext {
 }
 
 impl RlsContext {
+    /// Recover the typed claims snapshot created by the gateway verifier.
+    /// Callers must obtain this context from the authenticated middleware.
+    #[must_use]
+    pub fn claims(&self) -> Option<Claims> {
+        serde_json::from_str(&self.claims_json).ok()
+    }
+
     /// Re-parse [`Self::claims_json`] and return the authenticated subject
     /// (`sub` claim) as a [`SubjectId`], or `None` if the stored claims JSON
     /// no longer deserializes as [`Claims`] (it is always produced by
     /// [`verify_and_build`], so this should not happen in practice).
     #[must_use]
     pub fn subject(&self) -> Option<SubjectId> {
-        serde_json::from_str::<Claims>(&self.claims_json)
-            .ok()
-            .map(|c| SubjectId(c.sub))
+        self.claims().map(|c| SubjectId(c.sub))
     }
 
     /// Re-parse [`Self::claims_json`] and return the `tenant_id` claim as a
@@ -74,8 +79,7 @@ impl RlsContext {
     /// token carried no `tenant_id` claim.
     #[must_use]
     pub fn tenant(&self) -> Option<TenantId> {
-        serde_json::from_str::<Claims>(&self.claims_json)
-            .ok()
+        self.claims()
             .and_then(|c| c.tenant_id)
             .map(TenantId)
     }
