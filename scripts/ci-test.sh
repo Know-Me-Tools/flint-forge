@@ -43,7 +43,7 @@ else
   # Fallback: apply each migration in order via psql (no sqlx-cli in the image).
   for f in migrations/*.sql; do
     echo "    applying ${f}"
-    psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -f "${f}"
+    psql "${DATABASE_URL}" --single-transaction -v ON_ERROR_STOP=1 -f "${f}"
   done
 fi
 
