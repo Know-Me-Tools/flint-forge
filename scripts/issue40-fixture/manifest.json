@@ -11,6 +11,7 @@
   "migrations": {
     "0005_cedar_policies.sql": "363ff4163239d2bbe23e84abb742d6ebe078481cfdf474698fc8fbaf07e9529e",
     "0019_a2ui_cedar_mutation_capability.sql": "11935b726548eb8c15aa4ee9edc8b6033cd93c236e39b173bb47f509c9c3dfc2",
-    "0021_file_metadata.sql": "e0c0faad02730d8db9848ebe05de96f4c94d04c343056dd3b3c713feae964ca1"
+    "0021_file_metadata.sql": "e0c0faad02730d8db9848ebe05de96f4c94d04c343056dd3b3c713feae964ca1",
+    "0022_file_record_insert_validation.sql": "23bd8b32673fd5cb77be0bd5d67d462888a218eaf3f4223f3b3b0ab346e8f854"
   }
 }

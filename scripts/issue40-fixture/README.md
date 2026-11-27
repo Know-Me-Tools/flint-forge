@@ -12,10 +12,10 @@ From the Forge checkout, run the following command with Python 3 and a local Doc
 
 ```sh
 python3 scripts/issue40-fixture/run.py --approved \
-  --receipts .kbd-orchestrator/phases/private-file-metadata-authorization/issue40-run
+  --receipts .kbd-orchestrator/phases/private-file-metadata-authorization/issue40-run-repair
 ```
 
-The manifest binds the fixture to `127.0.0.1:55440/forge_issue40_file_metadata_test`, the PostgreSQL 18.7 image used in the identity verification, the three migration contents and the initial enabled Cedar policy. The runner reads the two commands directly from the phase contract and checks their arguments. In order, they select `issue40_owner_save` and `issue40_authorization_controls` from `file_metadata_live_pg`. It requires a successful named test and a count of one for each invocation.
+The manifest binds the fixture to `127.0.0.1:55440/forge_issue40_file_metadata_test`, the PostgreSQL 18.7 image used in the identity verification, the four migration checksums and the initial enabled Cedar policy. The runner reads the two commands directly from the phase contract and checks their arguments. In order, they select `issue40_owner_save` and `issue40_authorization_controls` from `file_metadata_live_pg`. It requires a successful named test and a count of one for each invocation.
 
 Each case gets a fresh memory-backed PostgreSQL database. A randomly generated password goes to PostgreSQL via stdin and to the test process via its environment. The runner checks the current database, fixture marker and baseline policy set. It then sets `FILE_METADATA_TEST_FIXTURE_MANIFEST` and `FILE_METADATA_TEST_DATABASE_URL` for the test. Within the fixture, a setup connection applies the existing Forge migrations and the gateway switches to the ordinary `authenticated` role for owner operations.
 

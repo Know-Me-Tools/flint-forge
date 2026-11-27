@@ -24,6 +24,7 @@ POLICY_COMMIT = "c74c101826b59d8db50d142ea2f339aecf602f69"
 OBSERVATIONS = {
     CASES[0]: (
         "FILE-1 owner insert=200 revision=1 update=200 revision=2 independent_full_row_matches=true",
+        "FILE-1 invalid_attributes=422 independent_row_absent=true",
     ),
     CASES[1]: (
         "FILE-2 insert=403 update=403 code=metadata_denied independent_state_matches=true",
@@ -34,7 +35,7 @@ OBSERVATIONS = {
     ),
 }
 MIGRATIONS = ("0005_cedar_policies.sql", "0019_a2ui_cedar_mutation_capability.sql",
-              "0021_file_metadata.sql")
+              "0021_file_metadata.sql", "0022_file_record_insert_validation.sql")
 LABEL = "org.flint-forge.issue40.run"
 BASELINE = """
 SELECT encode(sha256(convert_to(string_agg(id || chr(31) || policy_text, chr(30)

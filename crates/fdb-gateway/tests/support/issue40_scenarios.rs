@@ -99,6 +99,13 @@ pub(super) async fn owner_save() -> TestResult<()> {
         let bearer = f.bearer(&subject, &tenant, ACTOR)?;
         save_twice(&f, &ctx, &bearer, &FileId(fresh())).await?;
         eprintln!("issue40_evidence FILE-1 owner insert=200 revision=1 update=200 revision=2 independent_full_row_matches=true");
+        let id = FileId(fresh());
+        let mut invalid = mutation(0, 10);
+        invalid.attributes["amount"] = json!("invalid");
+        let response = put(&f, &bearer, &path(&id), &invalid, StatusCode::UNPROCESSABLE_ENTITY).await?;
+        assert_eq!(response["error"]["code"], "invalid_metadata");
+        missing(&f, &ctx, &id).await?;
+        eprintln!("issue40_evidence FILE-1 invalid_attributes=422 independent_row_absent=true");
         Ok(())
     }.await;
     f.cleanup().await?;
