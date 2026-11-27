@@ -1,0 +1,133 @@
+{
+  "schema": "kbd.phase-disposition/v1",
+  "projectId": "4818e02b-67ae-41e9-89fd-d5edf710f702",
+  "runId": "private-file-metadata-authorization-20261127",
+  "phaseId": "private-file-metadata-authorization",
+  "phaseStatus": "complete",
+  "contractBound": true,
+  "disposition": "CLOSED",
+  "binding": {
+    "contractPath": ".kbd-orchestrator/phases/private-file-metadata-authorization/adopted-contract.json",
+    "contractDigest": "514cbc7eee9c20b8c9475d58f6e96591ef24cc54e78a549ad7c1b27f84f99b07",
+    "scenarioDigests": {
+      "FILE-1": "d56c8e2bd53cd17f0d180cbcd70ee6a96435807a9ea69e20ad4ab821bbbc794e",
+      "FILE-2": "e445f7535c8a7684bdff264296ab33ba77ec770e241f917cb21f5fa34a107237",
+      "FILE-3": "381da2e5939de799ebd125365ae6cbfc61f5b38dd1f8bbd80a8ffc5b4675f561",
+      "FILE-4": "e60118c03c2451bd23e2fc36e96b7f7724943485656f535b245764cbdff48ae5",
+      "FILE-5": "8303e3a788000958b31454c3a7fd55f2242d36aea14d23a57544382385a6d287"
+    },
+    "planRevision": 1,
+    "adoptionDecisionId": "contract-adoption-private-file-metadata-authorization-514cbc7e",
+    "bindingRevision": 1
+  },
+  "closure": {
+    "runId": "private-file-metadata-authorization-20261127",
+    "contractDigest": "514cbc7eee9c20b8c9475d58f6e96591ef24cc54e78a549ad7c1b27f84f99b07",
+    "evidenceDigest": "16ad3f4ff61352a1ed1d8de85ed0ca2db458209e4a18b9f6534fca3f7c2731d9",
+    "disposition": "pass",
+    "reasonCode": "budget-exhausted",
+    "scenarios": [
+      {
+        "id": "FILE-1",
+        "status": "PASS",
+        "attempted": "issue40_owner_save — Owner save",
+        "observed": "FILE-1 owner insert=200 revision=1 update=200 revision=2 independent_full_row_matches=true | FILE-1 invalid_attributes=422 independent_row_absent=true",
+        "evidence": ".kbd-orchestrator/phases/private-file-metadata-authorization/issue40-run-repair/issue40_owner_save.json"
+      },
+      {
+        "id": "FILE-2",
+        "status": "PASS",
+        "attempted": "issue40_authorization_controls — Missing grant",
+        "observed": "FILE-2 insert=403 update=403 code=metadata_denied independent_state_matches=true",
+        "evidence": ".kbd-orchestrator/phases/private-file-metadata-authorization/issue40-run-repair/issue40_authorization_controls.json"
+      },
+      {
+        "id": "FILE-3",
+        "status": "PASS",
+        "attempted": "issue40_authorization_controls — Tenant and owner isolation",
+        "observed": "FILE-3 http_owner_controls=200 foreign_update=409 independent_state_matches=true | FILE-3 sql_axes=2 foreign_select=0 foreign_update=0 foreign_insert=rls_denied",
+        "evidence": ".kbd-orchestrator/phases/private-file-metadata-authorization/issue40-run-repair/issue40_authorization_controls.json"
+      },
+      {
+        "id": "FILE-4",
+        "status": "PASS",
+        "attempted": "issue40_authorization_controls — Record-only grant",
+        "observed": "FILE-4 type_registration=403 code=metadata_denied independent_type_set_unchanged=true",
+        "evidence": ".kbd-orchestrator/phases/private-file-metadata-authorization/issue40-run-repair/issue40_authorization_controls.json"
+      },
+      {
+        "id": "FILE-5",
+        "status": "PASS",
+        "attempted": "issue40_authorization_controls — Binding scope",
+        "observed": "FILE-5 off_tenant=403 missing_actor=403 wrong_actor=403 independent_state_matches=true",
+        "evidence": ".kbd-orchestrator/phases/private-file-metadata-authorization/issue40-run-repair/issue40_authorization_controls.json"
+      }
+    ],
+    "budgetConsumption": {
+      "noProgress": 0,
+      "repairAttempts": 1,
+      "timeMinutes": 24,
+      "toolCalls": 196
+    },
+    "evidenceFacts": {
+      "phase": "private-file-metadata-authorization",
+      "projectId": "4818e02b-67ae-41e9-89fd-d5edf710f702",
+      "sourceDigests": {
+        "Cargo.lock": "74f09056b8ff595bde4a815eaa9b4aaa223a6f74d91be8bdc429a91b062970bc",
+        "crates/fdb-app/src/files.rs": "bbdef9e9159999619d64e791398ad23f48b2ed3e38c6aedc278fc08888e8da1b",
+        "crates/fdb-app/src/lib.rs": "fd3d98bd0a9a806af83c3354c01fcfffa4570784de5d19ca160f5c6379a164d5",
+        "crates/fdb-domain/src/files.rs": "6f54264c2518f79a229b31be5448c06926a268183475b24f4017b9e338693c70",
+        "crates/fdb-domain/src/lib.rs": "30180fa99e8d72f568c2d16c95d368a790b9e27f2702b534e0b23694faf39ed5",
+        "crates/fdb-gateway/Cargo.toml": "e079457643acb3d0a4bfe48aa815ad8994cda18d4e1053044a1e99f24b9c69dd",
+        "crates/fdb-gateway/src/bootstrap.rs": "62d94db3e49cb3a36eb941a166ef02d31f565f5b4c94b7848766187912b71aa8",
+        "crates/fdb-gateway/src/files/handlers.rs": "ad91b82ffc1511554981a2b8e6eb99ecc40316d8b76d0db387486f80029532e5",
+        "crates/fdb-gateway/src/files/mod.rs": "c6a2569a399de703fbefb203a21c0232654e0804b7809b0f2e03fa016ed365dd",
+        "crates/fdb-gateway/src/lib.rs": "7f13310361e63798fd354f3c8af3cba92ca6bc7c51e8e6bb6ca71858cea929b5",
+        "crates/fdb-gateway/tests/file_metadata_live_pg.rs": "e3192636070a6af81989fafa675f18951f4c3fe71a01b95bf82ec7e773546619",
+        "crates/fdb-gateway/tests/support/issue40_fixture.rs": "8a444bb8733a7d431c40e5c23e101aabe3709d910511c7becb1eeb91ea380e31",
+        "crates/fdb-gateway/tests/support/issue40_isolation.rs": "b5c16beee97b82ee0b3de40cf3266a7daed56196104d6b5dfe728fa681de432c",
+        "crates/fdb-gateway/tests/support/issue40_scenarios.rs": "9aa252a04b62edf43f9f5c95c456784f4d84506ed21eb734e0a4b16e46ee8a47",
+        "crates/fdb-ports/src/files.rs": "5e16a7f7d703eff607c388ed0eb003d7389c9ba71d7725d04f3e316351c2603b",
+        "crates/fdb-ports/src/lib.rs": "c90be604f59a5442d5a10f7a4fd00ce672b9b7a1583be99dfadada10aa505434",
+        "crates/fdb-postgres/Cargo.toml": "4424dc596c18ec1ef8eeb491c1f4f41adcf62ab0dcd329ab8b02ab756324208a",
+        "crates/fdb-postgres/src/backend.rs": "b86af5f5bbfa47e60f0792f4ee747dea9032fcf9e2e137ab5a931cd2901e186d",
+        "crates/fdb-postgres/src/conn.rs": "881f7d54e0c721866d8084239f7bfff0e5b55b173e73decf2d1da0108decac70",
+        "crates/fdb-postgres/src/conn_tests.rs": "6df12256c8858f05015fc8fb410de36fc97b26616671aa9b72712954e2192163",
+        "crates/fdb-postgres/src/files/mod.rs": "5f5cc2c73d4cbcc70fa49bfe757303ab16360fb20939f748b4040533128c0e56",
+        "crates/fdb-postgres/src/files/mutations.rs": "567beb2bca7905e4ee9d9408b703d61ab95e540d045f69ef6852f6060f027290",
+        "crates/fdb-postgres/src/graphql.rs": "cb75c5edffbc64d63e1e9854aafb0c9e89c98ef72e1078114cb99b9e94038ee5",
+        "crates/fdb-postgres/src/lib.rs": "05df897e4bfe7b0d4e5b918945bac24c5c399f530411a3e4809baade45903a6f",
+        "crates/fdb-postgres/src/rest.rs": "ea8b78b178c7a234c101075f389fea01235076c0325e38426a0e197cd373cc3c",
+        "crates/fdb-postgres/src/vector_rpc.rs": "7956f26d3bb758de09b55fdc8efd1bec82e0376259f8df2a3e0a726f84a907eb",
+        "crates/fdb-postgres/tests/connection_cleanup_live_pg.rs": "cfb73630f31ad7d76519d3cc3bf73df6da46ab23976cb542e42d6463be229ae6",
+        "crates/forge-identity/src/lib.rs": "75cfd40b30ed1c8c742739685abc9096fe38d2bbe79aae9cefa260bad309fa94",
+        "crates/forge-policy/examples/render_console_grant.rs": "0e8f4a988ca05140d44b269e0b7f6a65394f1626cf5fb4f48e6bead505c9ac59",
+        "crates/forge-policy/policies/README.md": "638e900436bb244657e5d2e416d8b27a723ea2a06330d3ff08cd758d61e69867",
+        "crates/forge-policy/policies/console-record-v1.cedar.in": "a04b677e31d256f2bbb46ba277ec02ed7abc3c6ae430cb4eb4fa4ea3d5aa8d35",
+        "crates/forge-policy/src/cedar.rs": "9f6404744bdd61837df170b9fafc81a32888d3f53f451b04127805a9582c299e",
+        "crates/forge-policy/src/files.rs": "783e1391b49d70efbdedf1bdbf2005e91fb8aa34063bfd3345b06e5cd7b35d9e",
+        "crates/forge-policy/src/lib.rs": "4178339bef1d4bbbab76c5fe5dbfe08ca79eca7d46bc42bade034945afcaeedd",
+        "migrations/0021_file_metadata.sql": "e0c0faad02730d8db9848ebe05de96f4c94d04c343056dd3b3c713feae964ca1",
+        "migrations/0022_file_record_insert_validation.sql": "23bd8b32673fd5cb77be0bd5d67d462888a218eaf3f4223f3b3b0ab346e8f854",
+        "scripts/issue40-fixture/README.md": "1efa96b2a7d66c36f3a7fe96314355d30d720f40d48904c000ac1b02f14cf893",
+        "scripts/issue40-fixture/manifest.json": "c4e91854be699ab8748628b1000d5e6d66ca8967f4f384a739c3d9d209876a8f",
+        "scripts/issue40-fixture/run.py": "85a0220a631ae2ee8fec2481fc3413bc36e3b9b9cf7e88e75cb3fd16ec1bb386"
+      },
+      "budgetSource": "Codex execution turns from canonical Execute entry (14:46:54 UTC) through the end of the repair handoff (20:34:27 UTC). Count unique outer tool-call IDs across the coordinator and its workers, deduplicating inherited history. Five launcher calls before stage entry are reported separately. Active minutes use coordinator turn intervals rounded up and include overlapping workers. Pauses awaiting operator input and the later reflection are excluded. Repair and progress counts use the two saved packets."
+    },
+    "closureKey": "1219749b94ab4d6e829c25ee3c497635c1c3d9b2e896eaf68d230c21ce7ef5a5",
+    "admissionVersion": 2,
+    "recordedAtRevision": 53
+  },
+  "lastRefusal": null,
+  "successor": null,
+  "consumptionHighWater": {
+    "noProgress": 0,
+    "repairAttempts": 1,
+    "timeMinutes": 24,
+    "toolCalls": 196
+  },
+  "awaitingSuccessor": true,
+  "dispatchAllowed": false,
+  "successorAllowed": true
+}

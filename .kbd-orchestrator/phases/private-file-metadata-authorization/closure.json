@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "kind": "kbd.closure-view",
+  "generatedAt": "2026-11-27T22:29:07.923Z",
+  "authority": "derived view; the canonical disposition recorded by prometheus kbd phase close is authoritative",
+  "phaseId": "private-file-metadata-authorization",
+  "contractVersion": "2",
+  "contractDigest": "514cbc7eee9c20b8c9475d58f6e96591ef24cc54e78a549ad7c1b27f84f99b07",
+  "evidenceDigest": "16ad3f4ff61352a1ed1d8de85ed0ca2db458209e4a18b9f6534fca3f7c2731d9",
+  "disposition": "CLOSED",
+  "reason": "budget-exhausted",
+  "states": {
+    "implementationComplete": false,
+    "behaviorAccepted": true,
+    "releaseEligible": true,
+    "releaseAuthorized": false
+  },
+  "method": {
+    "name": "VLBV",
+    "source": "pack-default",
+    "deviation": null
+  },
+  "executedBy": null,
+  "candidate": {
+    "status": "not-recorded",
+    "recorded": null,
+    "current": null,
+    "reason": "boundary-results.json records no candidate"
+  },
+  "venue": null,
+  "preAuthorizationArtifacts": {
+    "status": "no-globs",
+    "authorizedAt": null,
+    "globs": [],
+    "scanned": 0,
+    "artifacts": []
+  },
+  "scenarios": [
+    {
+      "id": "FILE-1",
+      "name": "Owner save",
+      "actor": "Granted synthetic owner",
+      "usefulOutcome": "New metadata at revision 1 and amended metadata at revision 2",
+      "mandatory": true,
+      "verdict": "PASS",
+      "currentCandidateVerdict": "PASS",
+      "evidenceRefs": null,
+      "limitations": [
+        "Console session exchange and live deployment are outside this fixture."
+      ],
+      "substitutedBoundaries": [
+        "Synthetic issuer and fixture owners"
+      ],
+      "realCollaborators": [
+        "JWT middleware",
+        "CedarPolicyEngine with reviewed policy",
+        "PostgreSQL authenticated role and forced RLS"
+      ]
+    },
+    {
+      "id": "FILE-2",
+      "name": "Missing grant",
+      "actor": "Ungranted owner",
+      "usefulOutcome": "403 metadata_denied for valid insert and update, missing inserted row and unchanged seeded row",
+      "mandatory": true,
+      "verdict": "PASS",
+      "currentCandidateVerdict": "PASS",
+      "evidenceRefs": null,
+      "limitations": [
+        "Console session exchange and live deployment are outside this fixture."
+      ],
+      "substitutedBoundaries": [
+        "Synthetic issuer and fixture owners"
+      ],
+      "realCollaborators": [
+        "JWT middleware",
+        "CedarPolicyEngine with reviewed policy",
+        "PostgreSQL authenticated role and forced RLS"
+      ]
+    },
+    {
+      "id": "FILE-3",
+      "name": "Tenant and owner isolation",
+      "actor": "Granted foreign identities",
+      "usefulOutcome": "Other-tenant and same-tenant other-subject cannot change or see the original row under RLS or persist a foreign-owned insert",
+      "mandatory": true,
+      "verdict": "PASS",
+      "currentCandidateVerdict": "PASS",
+      "evidenceRefs": null,
+      "limitations": [
+        "Console session exchange and live deployment are outside this fixture."
+      ],
+      "substitutedBoundaries": [
+        "Synthetic issuer and fixture owners"
+      ],
+      "realCollaborators": [
+        "JWT middleware",
+        "CedarPolicyEngine with reviewed policy",
+        "PostgreSQL authenticated role and forced RLS"
+      ]
+    },
+    {
+      "id": "FILE-4",
+      "name": "Record-only grant",
+      "actor": "Granted record owner",
+      "usefulOutcome": "Type PUT returns 403 and independent lookup finds no new type",
+      "mandatory": true,
+      "verdict": "PASS",
+      "currentCandidateVerdict": "PASS",
+      "evidenceRefs": null,
+      "limitations": [
+        "Console session exchange and live deployment are outside this fixture."
+      ],
+      "substitutedBoundaries": [
+        "Synthetic issuer and fixture owners"
+      ],
+      "realCollaborators": [
+        "JWT middleware",
+        "CedarPolicyEngine with reviewed policy",
+        "PostgreSQL authenticated role and forced RLS"
+      ]
+    },
+    {
+      "id": "FILE-5",
+      "name": "Binding scope",
+      "actor": "Owner with the same subject in another tenant",
+      "usefulOutcome": "Tenant-scoped grant is denied on a valid own-namespace write outside its approved tenant, or reviewed identity source explicitly authorizes globally scoped subjects",
+      "mandatory": true,
+      "verdict": "PASS",
+      "currentCandidateVerdict": "PASS",
+      "evidenceRefs": null,
+      "limitations": [
+        "Console session exchange and live deployment are outside this fixture."
+      ],
+      "substitutedBoundaries": [
+        "Synthetic issuer and fixture owners"
+      ],
+      "realCollaborators": [
+        "JWT middleware",
+        "CedarPolicyEngine with reviewed policy",
+        "PostgreSQL authenticated role and forced RLS"
+      ]
+    }
+  ]
+}

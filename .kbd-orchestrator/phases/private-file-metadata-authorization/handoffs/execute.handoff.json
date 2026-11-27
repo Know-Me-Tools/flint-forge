@@ -1,0 +1,20 @@
+{
+  "stage": "execute",
+  "completedAt": "2026-11-27T22:27:47Z",
+  "outputs": [
+    "execution.md",
+    "issue40-run/README.md",
+    "issue40-run-repair/README.md"
+  ],
+  "nextStage": "reflect",
+  "summaryForNext": "Four tasks completed. The approved repair run passed all five Forge scenarios, and cleanup was verified. Task 5 has the redacted evidence. Keto remains deferred.",
+  "skipped": false,
+  "skipReason": null,
+  "identity": {
+    "projectId": "4818e02b-67ae-41e9-89fd-d5edf710f702",
+    "runId": "private-file-metadata-authorization-20261127",
+    "phaseId": "private-file-metadata-authorization",
+    "planRevision": 1,
+    "contractDigest": "514cbc7eee9c20b8c9475d58f6e96591ef24cc54e78a549ad7c1b27f84f99b07"
+  }
+}
