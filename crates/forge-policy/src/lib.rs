@@ -4,6 +4,7 @@
 
 pub mod a2ui;
 pub mod cedar;
+pub mod files;
 pub mod kiln;
 
 pub use a2ui::{request, A2UIPep, A2UI_EMIT, A2UI_REGISTER, A2UI_RESOURCE, A2UI_VIEW};
@@ -32,10 +33,8 @@ pub struct Request {
     pub action: String,
     /// The Cedar resource the action targets, e.g. `"a2ui:components"`.
     pub resource: String,
-    /// Additional evaluation context passed to the Cedar authorizer.
-    /// Currently always [`forge_domain::Json::Null`] (schemaless mode); the
-    /// field exists so future Cedar context attributes don't require an API
-    /// change.
+    /// Reserved caller context. The Cedar engine derives file-record
+    /// delegation facts exclusively from the verified identity.
     pub context: forge_domain::Json,
 }
 
@@ -52,4 +51,11 @@ pub trait Pep: Send + Sync {
     /// (parse failure, malformed identifiers, evaluator error) must produce
     /// [`Decision::Deny`], never [`Decision::Allow`].
     async fn check(&self, who: &RlsContext, req: &Request) -> Decision;
+
+    /// Authorize a mutation from the dedicated authenticated file-record route.
+    /// Cedar can add trusted delegation facts here. Other implementations
+    /// retain their existing authorization behavior.
+    async fn check_file_record(&self, who: &RlsContext, req: &Request) -> Decision {
+        self.check(who, req).await
+    }
 }

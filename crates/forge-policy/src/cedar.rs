@@ -158,7 +158,7 @@ impl CedarPolicyEngine {
     /// Constructs `EntityUid`s for principal (from RlsContext subject),
     /// action, and resource, then runs the authorizer.
     /// Any construction or evaluation error → `Decision::Deny` (fail-closed).
-    fn evaluate(&self, who: &RlsContext, req: &Request) -> Decision {
+    fn evaluate(&self, who: &RlsContext, req: &Request, context: Context) -> Decision {
         let Some(principal) = who.subject().map(|sid| sid.0) else {
             return Decision::Deny; // no subject → deny
         };
@@ -177,7 +177,7 @@ impl CedarPolicyEngine {
             principal_uid,
             action_uid,
             resource_uid,
-            Context::empty(),
+            context,
             None, // schemaless mode
         ) else {
             return Decision::Deny;
@@ -220,7 +220,17 @@ impl Pep for CedarPolicyEngine {
     /// `#[instrument(skip(self, who))]` ensures neither appears in spans.
     #[instrument(skip(self, who))]
     async fn check(&self, who: &RlsContext, req: &Request) -> Decision {
-        self.evaluate(who, req)
+        self.evaluate(who, req, Context::empty())
+    }
+
+    #[instrument(skip_all)]
+    async fn check_file_record(&self, who: &RlsContext, req: &Request) -> Decision {
+        if req.resource != "flint_files.records"
+            || !matches!(req.action.as_str(), "insert" | "update")
+        {
+            return Decision::Deny;
+        }
+        self.evaluate(who, req, crate::files::record_context(who))
     }
 }
 

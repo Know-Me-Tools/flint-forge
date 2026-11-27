@@ -1,0 +1,41 @@
+{
+  "contractAmendmentsAfterAdoption": 0,
+  "contractCausedBlockers": [
+    {
+      "cause": "Approved disposable fixture and write authorization initially outstanding",
+      "resolved": true
+    }
+  ],
+  "notExercisedScenarios": [],
+  "repairAttemptsUsed": 1,
+  "repairAttemptsAllowed": 1,
+  "postClosureEscapes": null,
+  "b4StaticQaCritical": null,
+  "b4StaticQaWarning": null,
+  "reviewLimit": "No dedicated B4 static QA receipt. Assessment and plan reviews were recorded separately. Post-closure escapes have no observation window at reflection.",
+  "budgetConsumption": {
+    "source": "Codex execution turns from canonical Execute entry (14:46:54 UTC) through the end of the repair handoff (20:34:27 UTC). Count unique outer tool-call IDs across the coordinator and its workers, deduplicating inherited history. Five launcher calls before stage entry are reported separately. Active minutes use coordinator turn intervals rounded up and include overlapping workers. Pauses awaiting operator input and the later reflection are excluded. Repair and progress counts use the two saved packets.",
+    "values": {
+      "timeMinutes": {
+        "value": 24,
+        "class": "estimate"
+      },
+      "toolCalls": {
+        "value": 196,
+        "class": "measured"
+      },
+      "repairAttempts": {
+        "value": 1,
+        "class": "measured"
+      },
+      "noProgress": {
+        "value": 0,
+        "class": "measured"
+      },
+      "tokens": {
+        "value": null,
+        "class": "unknown"
+      }
+    }
+  }
+}

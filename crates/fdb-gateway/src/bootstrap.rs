@@ -356,6 +356,22 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         )
         .with_state(schema_state);
 
+    // Private typed-file metadata uses the RLS pool, never the privileged reflection pool.
+    let file_enabled = fdb_gateway::files::enabled(
+        std::env::var("FLINT_FILE_METADATA_ENABLED").ok().as_deref(),
+    ).map_err(anyhow::Error::msg)?;
+    let file_store: Option<Arc<dyn fdb_ports::files::FileMetadataStore>> = if file_enabled {
+        let mut config = deadpool_postgres::Config::new();
+        config.url = Some(database_url.clone());
+        let pool = config.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls)?;
+        Some(Arc::new(fdb_postgres::PgFileMetadata::new(pool)))
+    } else { None };
+    let file_router = fdb_gateway::files::router(fdb_gateway::files::FileApiState {
+        store: file_store,
+        pep: Arc::clone(&pep),
+        keto: gateway_state.keto.clone(),
+    }).layer(axum::middleware::from_fn(rls_layer::require_rls));
+
     // Build the A2UI registry router. All routes require a valid JWT bearer.
     let a2ui_router = Router::new()
         .route("/a2ui/v1/components", get(routes::a2ui::list_components))
@@ -520,6 +536,7 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         .merge(agent_events_router)
         .merge(schema_router)
         .with_state(gateway_state)
+        .merge(file_router)
         .merge(reflection_router)
         // p9-c004: Prometheus metrics endpoint — no auth, no rate limit.
         // Served outside the rate-limiting tower stack by merging after the main app.

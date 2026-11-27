@@ -257,3 +257,6 @@ pub trait ChangeStreamSource: Send + Sync {
         who: &RlsContext,
     ) -> Result<BoxStream<'static, Result<ChangeEvent, StreamError>>, StreamError>;
 }
+
+/// File metadata persistence boundary.
+pub mod files;

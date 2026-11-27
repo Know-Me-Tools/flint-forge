@@ -94,7 +94,7 @@ impl PgVectorRpc {
         );
 
         let rows = pg_conn
-            .inner
+            .client()?
             .query(&sql, &[&vec, &(i64::from(limit))])
             .await
             .map_err(|e| BackendError::Query(format!("vector similarity query: {e}")))?;

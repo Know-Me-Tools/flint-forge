@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "2",
+  "generatedBy": "kbd-runtime",
+  "projectionContractVersion": 2,
+  "sourceRevision": 55,
+  "derivedRevision": 55,
+  "frontier": {
+    "1814aca5-1bd3-46b9-b301-99a1b24b0ab0": 2,
+    "8f60a1c6-24f5-483f-89b6-2fe039e73d0f": 53
+  },
+  "conflictCount": 0,
+  "phase": "private-file-metadata-authorization",
+  "phaseId": "private-file-metadata-authorization",
+  "parentPhase": null,
+  "last_updated": "2026-11-27T22:29:33.321114Z",
+  "last_updated_by": "kbd-runtime",
+  "changes_total": 1,
+  "changes_completed": 1,
+  "implementation_total": 1,
+  "implementation_completed": 1,
+  "completion": {
+    "primaryCounter": "implementation",
+    "implementation": {
+      "completed": 1,
+      "total": 1,
+      "status": "COMPLETE"
+    },
+    "evidence": {
+      "status": "NOT_TRACKED",
+      "summary": null,
+      "blockers": []
+    },
+    "certification": {
+      "status": "NOT_TRACKED",
+      "summary": null,
+      "blockers": []
+    },
+    "publication": {
+      "status": "NOT_TRACKED",
+      "summary": null,
+      "blockers": []
+    }
+  },
+  "completionScopes": {
+    "completion": "phase",
+    "runCompletion": "run"
+  },
+  "runCompletion": {
+    "scope": "run",
+    "runId": "private-file-metadata-authorization-20261127",
+    "primaryCounter": "implementation",
+    "implementation": {
+      "completed": 1,
+      "total": 1,
+      "status": "COMPLETE"
+    },
+    "evidence": {
+      "status": "COMPLETE",
+      "summary": "Two packets, four named test executions total: three passes and one original failure. One authorized repair. Both checks passed once each on the repair packet pinned at 0c8240f. Counts and per-scenario receipts are in boundary-results.json.",
+      "blockers": []
+    },
+    "certification": {
+      "status": "COMPLETE",
+      "summary": "All five Forge scenarios passed in the approved PostgreSQL 18.7 disposable RLS fixture at repair commit 8a59888.",
+      "blockers": []
+    },
+    "publication": {
+      "status": "PENDING",
+      "summary": null,
+      "blockers": []
+    }
+  },
+  "changes": [
+    {
+      "id": "forge-40-record-permissions",
+      "title": "Authorize private file metadata writes and hand evidence to Task 5",
+      "status": "DONE",
+      "implementation_status": "COMPLETE",
+      "tasks_total": 4,
+      "tasks_done": 4,
+      "last_task_completed": "Deliver the Task 5 evidence",
+      "next_task_pending": null,
+      "blockers": []
+    }
+  ],
+  "children": {},
+  "migrationStatus": null
+}

@@ -1,0 +1,7 @@
+permit (
+    principal == User::{subject},
+    action in [Action::"insert", Action::"update"],
+    resource == Resource::"flint_files.records"
+) when {{
+    context has consoleTenant && context.consoleTenant == {tenant}
+}};

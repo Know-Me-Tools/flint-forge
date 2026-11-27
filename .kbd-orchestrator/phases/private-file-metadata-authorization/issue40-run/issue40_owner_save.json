@@ -1,0 +1,36 @@
+{
+  "case": "issue40_owner_save",
+  "argv": [
+    "env",
+    "FLINT_AUTHZ_MODE=rls",
+    "FLINT_FILE_METADATA_ENABLED=true",
+    "FILE_METADATA_TEST_ALLOW_WRITES=isolated-disposable",
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "fdb-gateway",
+    "--test",
+    "file_metadata_live_pg",
+    "issue40_owner_save",
+    "--",
+    "--ignored",
+    "--exact"
+  ],
+  "exit_code": 0,
+  "fixture_id": "forge-40-rls-v1",
+  "source": {
+    "file_api_commit": "ce3b507712a9527a5080610baa0530ba4294c3d4",
+    "reviewed_policy_commit": "c74c101826b59d8db50d142ea2f339aecf602f69",
+    "infra_identity_commit": "06a4bcf611dfae527acaf1aa85d8454a5b454dba",
+    "gate_identity_test_commit": "1a4cd4297d0f952b0bfe232824070b6f97ac2a69",
+    "fixture_manifest_sha256": "70a8d84f64ae9e65c9a67748c08b26c78f0b9bd322f0a99627c3af273c146485"
+  },
+  "ran_named_case_once": true,
+  "baseline_sha256": "911a3d4419d7863fab9f31d33ee09b9a53790cc203ea9aaaa09496c13d29e9b9",
+  "enabled_sha256": "83cfd1d280866d170a9adba28ebbcb1599a2c8bad8f26c60864bdde95b0cb067",
+  "observations": [
+    "FILE-1 owner insert=200 revision=1 update=200 revision=2 independent_full_row_matches=true"
+  ],
+  "complete_evidence": true
+}

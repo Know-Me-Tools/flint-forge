@@ -1,0 +1,12 @@
+   Compiling fdb-gateway v1.0.0 (/Volumes/T7/Projects/prometheus/flint-forge/crates/fdb-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.71s
+     Running tests/file_metadata_live_pg.rs (/Volumes/T7/rust/cargo-build/a9/c2cdf5b45920ac/debug/deps/file_metadata_live_pg-ac2f70e2b8389091)
+
+running 1 test
+issue40_policy_set baseline_sha256=911a3d4419d7863fab9f31d33ee09b9a53790cc203ea9aaaa09496c13d29e9b9 enabled_sha256=ccd184df697fee6c393e89a5209230912ff35a40edd9c7c87738fd6ba2aee0ce
+issue40_evidence FILE-1 owner insert=200 revision=1 update=200 revision=2 independent_full_row_matches=true
+issue40_evidence FILE-1 invalid_attributes=422 independent_row_absent=true
+test issue40_owner_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.15s
+

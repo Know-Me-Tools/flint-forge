@@ -346,3 +346,6 @@ impl AgUiEvent {
         )
     }
 }
+
+/// Private file metadata contracts.
+pub mod files;
