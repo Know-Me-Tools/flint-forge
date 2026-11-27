@@ -58,7 +58,6 @@ impl FileApiState {
 }
 
 /// Mounted even when disabled. Caller MUST layer verified JWT extraction.
-#[must_use]
 pub fn router(state: FileApiState) -> Router {
     Router::new()
         .route("/files/v1/capabilities", get(handlers::capabilities))
@@ -76,7 +75,7 @@ pub fn router(state: FileApiState) -> Router {
         .with_state(state)
 }
 
-pub(super) fn error(error: FileError) -> axum::response::Response {
+pub(super) fn error(error: &FileError) -> axum::response::Response {
     use axum::{http::StatusCode, response::IntoResponse, Json};
     let (status, code) = match error {
         FileError::Invalid => (StatusCode::UNPROCESSABLE_ENTITY, "invalid_metadata"),

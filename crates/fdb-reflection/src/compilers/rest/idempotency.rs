@@ -9,7 +9,7 @@ use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
-use super::{bad_request, RestState};
+use super::RestState;
 
 pub(super) async fn execute_mutation(
     state: &RestState,
@@ -36,20 +36,20 @@ pub(super) fn idempotency_context(
     table: &str,
     body: Option<&Map<String, Value>>,
     query: Option<&HashMap<String, String>>,
-) -> Result<Option<IdempotencyContext>, axum::response::Response> {
+) -> Result<Option<IdempotencyContext>, &'static str> {
     let Some(raw_key) = headers.get("idempotency-key") else {
         return Ok(None);
     };
     let key = raw_key
         .to_str()
-        .map_err(|_| bad_request("invalid Idempotency-Key header"))?;
+        .map_err(|_| "invalid Idempotency-Key header")?;
     if key.is_empty()
         || key.len() > 128
         || !key
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':'))
     {
-        return Err(bad_request("invalid Idempotency-Key header"));
+        return Err("invalid Idempotency-Key header");
     }
 
     let mut hasher = Sha256::new();

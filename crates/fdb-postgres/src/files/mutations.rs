@@ -28,15 +28,15 @@ impl PgFileMetadata {
                 &[&key],
             )
             .await
-            .map_err(pg_error)?;
-        let existing=client.query_opt("SELECT definition FROM flint_files.types WHERE tenant_id=$1 AND subject=$2 AND type_id=$3 AND version=$4", &[&tenant,&subject,&value.type_id.0,&value.version]).await.map_err(pg_error)?;
+            .map_err(|error| pg_error(&error))?;
+        let existing=client.query_opt("SELECT definition FROM flint_files.types WHERE tenant_id=$1 AND subject=$2 AND type_id=$3 AND version=$4", &[&tenant,&subject,&value.type_id.0,&value.version]).await.map_err(|error| pg_error(&error))?;
         if let Some(row) = existing {
             let previous: Value = row.try_get(0).map_err(|_| FileError::Unavailable)?;
             if previous != definition {
                 return Err(FileError::Conflict);
             }
         } else {
-            client.execute("INSERT INTO flint_files.types(tenant_id,subject,type_id,version,definition) VALUES($1,$2,$3,$4,$5)", &[&tenant,&subject,&value.type_id.0,&value.version,&definition]).await.map_err(pg_error)?;
+            client.execute("INSERT INTO flint_files.types(tenant_id,subject,type_id,version,definition) VALUES($1,$2,$3,$4,$5)", &[&tenant,&subject,&value.type_id.0,&value.version,&definition]).await.map_err(|error| pg_error(&error))?;
         }
         pg.commit().await.map_err(|_| FileError::Unavailable)?;
         Ok(value.clone())
@@ -73,8 +73,8 @@ impl PgFileMetadata {
                 &[&retry_key],
             )
             .await
-            .map_err(pg_error)?;
-        if let Some(row)=client.query_opt("SELECT request,response FROM flint_files.receipts WHERE tenant_id=$1 AND subject=$2 AND mutation_id=$3", &[&tenant,&subject,&value.mutation_id]).await.map_err(pg_error)? {
+            .map_err(|error| pg_error(&error))?;
+        if let Some(row)=client.query_opt("SELECT request,response FROM flint_files.receipts WHERE tenant_id=$1 AND subject=$2 AND mutation_id=$3", &[&tenant,&subject,&value.mutation_id]).await.map_err(|error| pg_error(&error))? {
             let previous:Value=row.try_get(0).map_err(|_|FileError::Unavailable)?;
             if previous != request { return Err(FileError::Conflict); }
             let response:Value=row.try_get(1).map_err(|_|FileError::Unavailable)?;
@@ -89,15 +89,15 @@ impl PgFileMetadata {
                 &[&file_key],
             )
             .await
-            .map_err(pg_error)?;
+            .map_err(|error| pg_error(&error))?;
         let row=if value.expected_revision == 0 {
-            client.query_opt("INSERT INTO flint_files.records(tenant_id,subject,file_id,revision,type_id,type_version,data) VALUES($1,$2,$3,1,$4,$5,$6) ON CONFLICT DO NOTHING RETURNING data || jsonb_build_object('file_id',file_id,'revision',revision)", &[&tenant,&subject,&id.0,&value.type_id.0,&value.type_version,&data]).await.map_err(pg_error)?
+            client.query_opt("INSERT INTO flint_files.records(tenant_id,subject,file_id,revision,type_id,type_version,data) VALUES($1,$2,$3,1,$4,$5,$6) ON CONFLICT DO NOTHING RETURNING data || jsonb_build_object('file_id',file_id,'revision',revision)", &[&tenant,&subject,&id.0,&value.type_id.0,&value.type_version,&data]).await.map_err(|error| pg_error(&error))?
         } else {
-            client.query_opt("UPDATE flint_files.records SET revision=$4,type_id=$5,type_version=$6,data=$7 WHERE tenant_id=$1 AND subject=$2 AND file_id=$3 AND revision=$8 AND data->>'cid'=$9 RETURNING data || jsonb_build_object('file_id',file_id,'revision',revision)", &[&tenant,&subject,&id.0,&revision,&value.type_id.0,&value.type_version,&data,&value.expected_revision,&value.cid]).await.map_err(pg_error)?
+            client.query_opt("UPDATE flint_files.records SET revision=$4,type_id=$5,type_version=$6,data=$7 WHERE tenant_id=$1 AND subject=$2 AND file_id=$3 AND revision=$8 AND data->>'cid'=$9 RETURNING data || jsonb_build_object('file_id',file_id,'revision',revision)", &[&tenant,&subject,&id.0,&revision,&value.type_id.0,&value.type_version,&data,&value.expected_revision,&value.cid]).await.map_err(|error| pg_error(&error))?
         }.ok_or(FileError::Conflict)?;
         let result: FileRecord = decode(&row)?;
         let response = serde_json::to_value(&result).map_err(|_| FileError::Unavailable)?;
-        client.execute("INSERT INTO flint_files.receipts(tenant_id,subject,mutation_id,request,response) VALUES($1,$2,$3,$4,$5)", &[&tenant,&subject,&value.mutation_id,&request,&response]).await.map_err(pg_error)?;
+        client.execute("INSERT INTO flint_files.receipts(tenant_id,subject,mutation_id,request,response) VALUES($1,$2,$3,$4,$5)", &[&tenant,&subject,&value.mutation_id,&request,&response]).await.map_err(|error| pg_error(&error))?;
         pg.commit().await.map_err(|_| FileError::Unavailable)?;
         Ok(result)
     }
