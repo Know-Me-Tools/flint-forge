@@ -25,7 +25,9 @@ use crate::graphql::handle_graphql_query;
 use crate::handlers::{healthz, mcp_tools_handler, openapi_handler, rpc_vector_handler};
 use crate::subscriptions::{build_subscription_factory, graphql_ws_handler};
 use crate::GatewayState;
-use crate::{agui_hook_dispatcher, authz_mode, policy_source, rls_layer, role_preflight, routes, telemetry};
+use crate::{
+    agui_hook_dispatcher, authz_mode, policy_source, rls_layer, role_preflight, routes, telemetry,
+};
 
 // Composition root: sequential wiring of pools, adapters, gates, routes. Called
 // from the anyhow-at-the-edge binary entry point (`main()` in `main.rs`); a
@@ -357,20 +359,26 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         .with_state(schema_state);
 
     // Private typed-file metadata uses the RLS pool, never the privileged reflection pool.
-    let file_enabled = fdb_gateway::files::enabled(
-        std::env::var("FLINT_FILE_METADATA_ENABLED").ok().as_deref(),
-    ).map_err(anyhow::Error::msg)?;
+    let file_enabled =
+        fdb_gateway::files::enabled(std::env::var("FLINT_FILE_METADATA_ENABLED").ok().as_deref())
+            .map_err(anyhow::Error::msg)?;
     let file_store: Option<Arc<dyn fdb_ports::files::FileMetadataStore>> = if file_enabled {
         let mut config = deadpool_postgres::Config::new();
         config.url = Some(database_url.clone());
-        let pool = config.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls)?;
+        let pool = config.create_pool(
+            Some(deadpool_postgres::Runtime::Tokio1),
+            tokio_postgres::NoTls,
+        )?;
         Some(Arc::new(fdb_postgres::PgFileMetadata::new(pool)))
-    } else { None };
+    } else {
+        None
+    };
     let file_router = fdb_gateway::files::router(fdb_gateway::files::FileApiState {
         store: file_store,
         pep: Arc::clone(&pep),
         keto: gateway_state.keto.clone(),
-    }).layer(axum::middleware::from_fn(rls_layer::require_rls));
+    })
+    .layer(axum::middleware::from_fn(rls_layer::require_rls));
 
     // Build the A2UI registry router. All routes require a valid JWT bearer.
     let a2ui_router = Router::new()

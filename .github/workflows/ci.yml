@@ -20,6 +20,8 @@ jobs:
         with:
           components: rustfmt, clippy, llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
+      - name: Install Protocol Buffers compiler and headers
+        run: sudo apt-get update -qq && sudo apt-get install -y protobuf-compiler libprotobuf-dev
       - name: fmt
         run: cargo fmt --all --check
       - name: clippy
@@ -76,6 +78,8 @@ jobs:
         with:
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
+      - name: Install Protocol Buffers compiler and headers
+        run: sudo apt-get update -qq && sudo apt-get install -y protobuf-compiler libprotobuf-dev
 
       - name: Build Postgres 18 + Anvil image
         run: docker build -t flint-forge-pg:18 -f images/postgres18/Dockerfile .

@@ -100,7 +100,9 @@ fn concrete_mime(value: &str) -> bool {
     };
     let token = |part: &str| {
         !part.is_empty()
-            && part.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"!#$&^_.+-".contains(&byte))
+            && part
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"!#$&^_.+-".contains(&byte))
     };
     token(kind) && token(subtype)
 }

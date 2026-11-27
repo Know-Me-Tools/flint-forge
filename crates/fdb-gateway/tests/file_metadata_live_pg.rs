@@ -5,7 +5,9 @@ use axum::{
     http::{Request, StatusCode},
     Extension,
 };
-use fdb_domain::files::{FileId, FileQuery, FileType, FileTypeId, MatchCriteria, MatchInput, PutFile};
+use fdb_domain::files::{
+    FileId, FileQuery, FileType, FileTypeId, MatchCriteria, MatchInput, PutFile,
+};
 use fdb_gateway::files::{router, FileApiState};
 use fdb_ports::files::{FileError, FileMetadataStore};
 use fdb_postgres::PgFileMetadata;
@@ -22,7 +24,9 @@ impl Pep for Permit {
     async fn check(&self, _who: &RlsContext, request: &forge_policy::Request) -> Decision {
         // Synthetic test-only policy, scoped to the exact production resources.
         match (request.resource.as_str(), request.action.as_str()) {
-            ("flint_files.types", "insert") | ("flint_files.records", "insert" | "update") => Decision::Allow,
+            ("flint_files.types", "insert") | ("flint_files.records", "insert" | "update") => {
+                Decision::Allow
+            }
             _ => Decision::Deny,
         }
     }
@@ -84,11 +88,16 @@ async fn http_json(
     path: &str,
     body: &Value,
 ) -> Result<(StatusCode, Value), Box<dyn Error>> {
-    let response = api.clone().oneshot(
-        Request::builder().method(method).uri(path)
-            .header("content-type", "application/json")
-            .body(Body::from(serde_json::to_vec(body)?))?,
-    ).await?;
+    let response = api
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(method)
+                .uri(path)
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(body)?))?,
+        )
+        .await?;
     let status = response.status();
     let value = serde_json::from_slice(&response.into_body().collect().await?.to_bytes())?;
     Ok((status, value))
@@ -233,8 +242,15 @@ async fn persisted_validation_isolation_replay_concurrency_discovery() -> Result
     client.batch_execute("ROLLBACK").await?;
 
     // A numeric JSON type_id must not poison an immutable, readable registry.
-    client.batch_execute("BEGIN; SET LOCAL ROLE authenticated").await?;
-    client.execute("SELECT set_config('request.jwt.claims',$1,true)", &[&a.claims_json]).await?;
+    client
+        .batch_execute("BEGIN; SET LOCAL ROLE authenticated")
+        .await?;
+    client
+        .execute(
+            "SELECT set_config('request.jwt.claims',$1,true)",
+            &[&a.claims_json],
+        )
+        .await?;
     let mut numeric_type = serde_json::to_value(&typ)?;
     numeric_type["type_id"] = json!(123);
     let bad_type = client.execute(
@@ -242,23 +258,39 @@ async fn persisted_validation_isolation_replay_concurrency_discovery() -> Result
         &[&a.tenant().ok_or("missing test tenant")?.0, &a.keto_subject, &numeric_type],
     ).await;
     assert_eq!(
-        bad_type.as_ref().err().and_then(tokio_postgres::Error::code),
+        bad_type
+            .as_ref()
+            .err()
+            .and_then(tokio_postgres::Error::code),
         Some(&tokio_postgres::error::SqlState::CHECK_VIOLATION),
     );
     client.batch_execute("ROLLBACK").await?;
     let listed = store.types(&a).await?;
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].type_id, typ.type_id);
-    let selected = fdb_app::files::match_type(store.as_ref(), &a, &MatchInput {
-        mime_type: "Application/PDF".into(), filename: "one.pdf".into(),
-    }).await?.ok_or("expected intact type match after rejected insert")?;
+    let selected = fdb_app::files::match_type(
+        store.as_ref(),
+        &a,
+        &MatchInput {
+            mime_type: "Application/PDF".into(),
+            filename: "one.pdf".into(),
+        },
+    )
+    .await?
+    .ok_or("expected intact type match after rejected insert")?;
     assert_eq!(selected.type_id, typ.type_id);
 
     // Pin the specific PostgreSQL U+0000 rejection, not a blanket error class.
     let null_json = serde_json::to_string(&json!({"value": "\u{0000}"}))?;
-    let null_value = client.query_one("SELECT $1::text::jsonb", &[&null_json]).await;
+    let null_value = client
+        .query_one("SELECT $1::text::jsonb", &[&null_json])
+        .await;
     assert_eq!(
-        null_value.as_ref().err().and_then(tokio_postgres::Error::code).map(tokio_postgres::error::SqlState::code),
+        null_value
+            .as_ref()
+            .err()
+            .and_then(tokio_postgres::Error::code)
+            .map(tokio_postgres::error::SqlState::code),
         Some("22P05"),
     );
 
@@ -285,16 +317,32 @@ async fn persisted_validation_isolation_replay_concurrency_discovery() -> Result
     http_type.type_id = FileTypeId("http-image".into());
     http_type.criteria.mime_types = vec!["image/*".into()];
     http_type.criteria.filename_suffixes = vec![".png".into()];
-    let (status, body) = http_json(&api, "PUT", "/files/v1/types", &serde_json::to_value(&http_type)?).await?;
+    let (status, body) = http_json(
+        &api,
+        "PUT",
+        "/files/v1/types",
+        &serde_json::to_value(&http_type)?,
+    )
+    .await?;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["data"], serde_json::to_value(&http_type)?);
-    assert!(independent.types(&a).await?.iter().any(|value| value.type_id == http_type.type_id));
+    assert!(independent
+        .types(&a)
+        .await?
+        .iter()
+        .any(|value| value.type_id == http_type.type_id));
     let mut http_record = initial.clone();
     http_record.type_id = http_type.type_id.clone();
     http_record.mime_type = "image/png".into();
     http_record.path = Some("images/one.png".into());
     http_record.mutation_id = "http-create".into();
-    let (status, body) = http_json(&api, "PUT", "/files/v1/records/http-one", &serde_json::to_value(&http_record)?).await?;
+    let (status, body) = http_json(
+        &api,
+        "PUT",
+        "/files/v1/records/http-one",
+        &serde_json::to_value(&http_record)?,
+    )
+    .await?;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["data"]["file_id"], "http-one");
     assert_eq!(body["data"]["revision"], 1);
@@ -307,31 +355,81 @@ async fn persisted_validation_isolation_replay_concurrency_discovery() -> Result
     assert_eq!(persisted.data.type_version, 1);
     assert_eq!(persisted.data.attributes, http_record.attributes);
 
-    let (status, matched) = http_json(&api, "POST", "/files/v1/types/match", &json!({"mime_type":"IMAGE/PNG","filename":"one.png"})).await?;
+    let (status, matched) = http_json(
+        &api,
+        "POST",
+        "/files/v1/types/match",
+        &json!({"mime_type":"IMAGE/PNG","filename":"one.png"}),
+    )
+    .await?;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(matched["data"]["type_id"], "http-image");
-    let (status, unmatched) = http_json(&api, "POST", "/files/v1/types/match", &json!({"mime_type":"image/jpeg","filename":"one.jpg"})).await?;
+    let (status, unmatched) = http_json(
+        &api,
+        "POST",
+        "/files/v1/types/match",
+        &json!({"mime_type":"image/jpeg","filename":"one.jpg"}),
+    )
+    .await?;
     assert_eq!(status, StatusCode::OK);
     assert!(unmatched["data"].is_null());
-    for malformed in ["image", "image/", "/png", "image/png/extra", "image/png;charset=utf-8", "image/*", "*/png", " image/png", "image/png ", "image/p ng"] {
-        let (status, error) = http_json(&api, "POST", "/files/v1/types/match", &json!({"mime_type":malformed,"filename":"one.png"})).await?;
+    for malformed in [
+        "image",
+        "image/",
+        "/png",
+        "image/png/extra",
+        "image/png;charset=utf-8",
+        "image/*",
+        "*/png",
+        " image/png",
+        "image/png ",
+        "image/p ng",
+    ] {
+        let (status, error) = http_json(
+            &api,
+            "POST",
+            "/files/v1/types/match",
+            &json!({"mime_type":malformed,"filename":"one.png"}),
+        )
+        .await?;
         assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
         assert_eq!(error["error"]["code"], "invalid_metadata");
     }
     http_type.version = 2;
-    let (status, _) = http_json(&api, "PUT", "/files/v1/types", &serde_json::to_value(&http_type)?).await?;
+    let (status, _) = http_json(
+        &api,
+        "PUT",
+        "/files/v1/types",
+        &serde_json::to_value(&http_type)?,
+    )
+    .await?;
     assert_eq!(status, StatusCode::OK);
-    let (status, ambiguity) = http_json(&api, "POST", "/files/v1/types/match", &json!({"mime_type":"image/png","filename":"one.png"})).await?;
+    let (status, ambiguity) = http_json(
+        &api,
+        "POST",
+        "/files/v1/types/match",
+        &json!({"mime_type":"image/png","filename":"one.png"}),
+    )
+    .await?;
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(ambiguity["error"]["code"], "ambiguous_type");
 
     let mut null_record = http_record.clone();
     null_record.mutation_id = "http-null-byte".into();
     null_record.tags = vec!["\u{0000}".into()];
-    let (status, error) = http_json(&api, "PUT", "/files/v1/records/null-byte", &serde_json::to_value(&null_record)?).await?;
+    let (status, error) = http_json(
+        &api,
+        "PUT",
+        "/files/v1/records/null-byte",
+        &serde_json::to_value(&null_record)?,
+    )
+    .await?;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(error["error"]["code"], "invalid_metadata");
-    assert!(matches!(independent.get(&a, &FileId("null-byte".into())).await, Err(FileError::NotFound)));
+    assert!(matches!(
+        independent.get(&a, &FileId("null-byte".into())).await,
+        Err(FileError::NotFound)
+    ));
 
     let denied = router(FileApiState {
         store: Some(store),
