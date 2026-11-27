@@ -366,3 +366,22 @@ async fn persisted_validation_isolation_replay_concurrency_discovery() -> Result
     assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     Ok(())
 }
+
+#[path = "support/issue40_fixture.rs"]
+mod issue40_fixture;
+#[path = "support/issue40_isolation.rs"]
+mod issue40_isolation;
+#[path = "support/issue40_scenarios.rs"]
+mod issue40_scenarios;
+
+#[tokio::test]
+#[ignore = "Requires approved issue 40 disposable database and fixture manifest"]
+async fn issue40_owner_save() -> Result<(), Box<dyn Error>> {
+    issue40_scenarios::owner_save().await
+}
+
+#[tokio::test]
+#[ignore = "Requires approved issue 40 disposable database and fixture manifest"]
+async fn issue40_authorization_controls() -> Result<(), Box<dyn Error>> {
+    issue40_scenarios::authorization_controls().await
+}

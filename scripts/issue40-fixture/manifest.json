@@ -1,0 +1,16 @@
+{
+  "fixture_id": "forge-40-rls-v1",
+  "host": "127.0.0.1",
+  "port": 55440,
+  "database": "forge_issue40_file_metadata_test",
+  "image": "postgres:18.7-bookworm@sha256:e742a2668255221388004f3a42b6150a2103f5054ab3a4a93ae9e4f01e551c35",
+  "container_name": "flint-forge-issue40-postgres",
+  "baseline_sha256": "911a3d4419d7863fab9f31d33ee09b9a53790cc203ea9aaaa09496c13d29e9b9",
+  "baseline_policy_id": "a2ui-rls-mutations-v1",
+  "baseline_policy_text_sha256": "b9fc8fa84e13239b8cb82f04aa7eed371e652b3465d8bb543b75ec5fea64cc28",
+  "migrations": {
+    "0005_cedar_policies.sql": "363ff4163239d2bbe23e84abb742d6ebe078481cfdf474698fc8fbaf07e9529e",
+    "0019_a2ui_cedar_mutation_capability.sql": "11935b726548eb8c15aa4ee9edc8b6033cd93c236e39b173bb47f509c9c3dfc2",
+    "0021_file_metadata.sql": "e0c0faad02730d8db9848ebe05de96f4c94d04c343056dd3b3c713feae964ca1"
+  }
+}
