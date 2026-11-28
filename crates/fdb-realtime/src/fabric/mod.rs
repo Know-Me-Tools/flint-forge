@@ -106,7 +106,7 @@ impl FabricChangeSource {
         let response = client
             .watch_entity_type(request)
             .await
-            .map_err(status_to_stream_error)?;
+            .map_err(|status| status_to_stream_error(status.code()))?;
         let expected = map::ExpectedScope {
             schema: schema.to_owned(),
             table: name.to_owned(),
@@ -120,7 +120,7 @@ impl FabricChangeSource {
                 async move {
                     match message {
                         Ok(response) => map_response(response, &expected).transpose(),
-                        Err(status) => Some(Err(status_to_stream_error(status))),
+                        Err(status) => Some(Err(status_to_stream_error(status.code()))),
                     }
                 }
             })
@@ -158,8 +158,8 @@ pub enum FabricError {
     Configuration(&'static str),
 }
 
-fn status_to_stream_error(status: tonic::Status) -> StreamError {
-    match status.code() {
+fn status_to_stream_error(code: Code) -> StreamError {
+    match code {
         Code::PermissionDenied | Code::Unauthenticated => StreamError::Denied,
         Code::FailedPrecondition | Code::OutOfRange => StreamError::ResnapshotRequired,
         Code::ResourceExhausted => StreamError::Lagged,

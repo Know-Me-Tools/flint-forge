@@ -88,6 +88,76 @@ async fn check_axis(
         return Err("record RLS is inactive under the SQL caller".into());
     }
 
+    check_own_row(&tx, tenant, subject).await?;
+    if tx
+        .query_opt(READ, &[&original_tenant, &original_subject, &original.0])
+        .await
+        .map_err(|_| "foreign select failed")?
+        .is_some()
+    {
+        return Err("original record visible to foreign caller".into());
+    }
+    let mutation = Uuid::new_v4().to_string();
+    if tx
+        .execute(
+            UPDATE,
+            &[&original_tenant, &original_subject, &original.0, &mutation],
+        )
+        .await
+        .map_err(|_| "foreign update failed")?
+        != 0
+    {
+        return Err("foreign update affected the original row".into());
+    }
+    // Reuse the known-valid shape. The foreign pair has the same private type registered.
+    let fresh_id = Uuid::new_v4().to_string();
+    let mut record = attachment();
+    record.mutation_id = Uuid::new_v4().to_string();
+    let data = serde_json::to_value(&record).map_err(|_| "invalid fixture attachment")?;
+    let result = tx
+        .execute(
+            INSERT,
+            &[
+                &original_tenant,
+                &original_subject,
+                &fresh_id,
+                &record.type_id.0,
+                &record.type_version,
+                &data,
+            ],
+        )
+        .await;
+    tx.rollback()
+        .await
+        .map_err(|_| "could not roll back SQL control")?;
+    let error = result.err().ok_or("foreign insert succeeded")?;
+    let db = error
+        .as_db_error()
+        .ok_or("foreign insert failed without a PostgreSQL diagnostic")?;
+    if *db.code() == SqlState::CHECK_VIOLATION {
+        return Err(
+            "record validation rejected the foreign insert (23514) before RLS could be observed"
+                .into(),
+        );
+    }
+    if *db.code() != SqlState::INSUFFICIENT_PRIVILEGE
+        || !db.message().contains("row-level security policy")
+        || !db.message().contains("table \"records\"")
+    {
+        return Err(format!(
+            "foreign insert lacked a record RLS diagnostic (SQLSTATE {})",
+            db.code().code()
+        )
+        .into());
+    }
+    Ok(())
+}
+
+async fn check_own_row(
+    tx: &deadpool_postgres::Transaction<'_>,
+    tenant: &str,
+    subject: &str,
+) -> CheckResult {
     let id = Uuid::new_v4().to_string();
     let mut record = attachment();
     record.mutation_id = Uuid::new_v4().to_string();
@@ -127,65 +197,5 @@ async fn check_axis(
         return Err("own update did not affect exactly one row".into());
     }
 
-    if tx
-        .query_opt(READ, &[&original_tenant, &original_subject, &original.0])
-        .await
-        .map_err(|_| "foreign select failed")?
-        .is_some()
-    {
-        return Err("original record visible to foreign caller".into());
-    }
-    let mutation = Uuid::new_v4().to_string();
-    if tx
-        .execute(
-            UPDATE,
-            &[&original_tenant, &original_subject, &original.0, &mutation],
-        )
-        .await
-        .map_err(|_| "foreign update failed")?
-        != 0
-    {
-        return Err("foreign update affected the original row".into());
-    }
-    // Reuse the known-valid shape. The foreign pair has the same private type registered.
-    let fresh_id = Uuid::new_v4().to_string();
-    record.mutation_id = Uuid::new_v4().to_string();
-    let data = serde_json::to_value(&record).map_err(|_| "invalid fixture attachment")?;
-    let result = tx
-        .execute(
-            INSERT,
-            &[
-                &original_tenant,
-                &original_subject,
-                &fresh_id,
-                &record.type_id.0,
-                &record.type_version,
-                &data,
-            ],
-        )
-        .await;
-    tx.rollback()
-        .await
-        .map_err(|_| "could not roll back SQL control")?;
-    let error = result.err().ok_or("foreign insert succeeded")?;
-    let db = error
-        .as_db_error()
-        .ok_or("foreign insert failed without a PostgreSQL diagnostic")?;
-    if *db.code() == SqlState::CHECK_VIOLATION {
-        return Err(
-            "record validation rejected the foreign insert (23514) before RLS could be observed"
-                .into(),
-        );
-    }
-    if *db.code() != SqlState::INSUFFICIENT_PRIVILEGE
-        || !db.message().contains("row-level security policy")
-        || !db.message().contains("table \"records\"")
-    {
-        return Err(format!(
-            "foreign insert lacked a record RLS diagnostic (SQLSTATE {})",
-            db.code().code()
-        )
-        .into());
-    }
     Ok(())
 }

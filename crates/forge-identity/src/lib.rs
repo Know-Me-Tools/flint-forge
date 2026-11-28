@@ -79,9 +79,7 @@ impl RlsContext {
     /// token carried no `tenant_id` claim.
     #[must_use]
     pub fn tenant(&self) -> Option<TenantId> {
-        self.claims()
-            .and_then(|c| c.tenant_id)
-            .map(TenantId)
+        self.claims().and_then(|c| c.tenant_id).map(TenantId)
     }
 }
 

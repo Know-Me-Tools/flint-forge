@@ -36,7 +36,7 @@ fn owner(rls: &RlsContext) -> Result<(String, String), FileError> {
     }
     Ok((tenant, subject))
 }
-fn pg_error(error: tokio_postgres::Error) -> FileError {
+fn pg_error(error: &tokio_postgres::Error) -> FileError {
     match error.code().map(tokio_postgres::error::SqlState::code) {
         Some("23505" | "40001" | "40P01") => FileError::Conflict,
         // PostgreSQL JSONB rejects U+0000 as untranslatable_character (22P05).
@@ -67,7 +67,7 @@ impl FileMetadataStore for PgFileMetadata {
             .map_err(|_| FileError::Unavailable)?;
         let pg = PgConn::from_conn(&conn).ok_or(FileError::Unavailable)?;
         let rows = pg.client().map_err(|_| FileError::Unavailable)?.query(
-            "SELECT definition FROM flint_files.types WHERE tenant_id=$1 AND subject=$2 ORDER BY type_id,version LIMIT 1001", &[&tenant,&subject]).await.map_err(pg_error)?;
+            "SELECT definition FROM flint_files.types WHERE tenant_id=$1 AND subject=$2 ORDER BY type_id,version LIMIT 1001", &[&tenant,&subject]).await.map_err(|error| pg_error(&error))?;
         // Never silently truncate matching: completeness is required to detect ambiguity.
         if rows.len() > 1000 {
             return Err(FileError::Invalid);
@@ -95,7 +95,7 @@ impl FileMetadataStore for PgFileMetadata {
             .map_err(|_| FileError::Unavailable)?;
         let pg = PgConn::from_conn(&conn).ok_or(FileError::Unavailable)?;
         let row = pg.client().map_err(|_| FileError::Unavailable)?.query_opt(
-            "SELECT data || jsonb_build_object('file_id',file_id,'revision',revision) FROM flint_files.records WHERE tenant_id=$1 AND subject=$2 AND file_id=$3", &[&tenant,&subject,&id.0]).await.map_err(pg_error)?.ok_or(FileError::NotFound)?;
+            "SELECT data || jsonb_build_object('file_id',file_id,'revision',revision) FROM flint_files.records WHERE tenant_id=$1 AND subject=$2 AND file_id=$3", &[&tenant,&subject,&id.0]).await.map_err(|error| pg_error(&error))?.ok_or(FileError::NotFound)?;
         let result = decode(&row)?;
         pg.commit().await.map_err(|_| FileError::Unavailable)?;
         Ok(result)
@@ -122,7 +122,7 @@ impl FileMetadataStore for PgFileMetadata {
         let categories = serde_json::to_value(&query.categories).map_err(|_| FileError::Invalid)?;
         let rows = pg.client().map_err(|_| FileError::Unavailable)?.query(
             "SELECT data || jsonb_build_object('file_id',file_id,'revision',revision) FROM flint_files.records WHERE tenant_id=$1 AND subject=$2 AND ($3::text IS NULL OR data->>'cid'=$3) AND ($4::text IS NULL OR type_id=$4) AND data->'tags' @> $5 AND data->'categories' @> $6 AND data->'attributes' @> $7 AND ($8::text IS NULL OR file_id>$8) ORDER BY file_id LIMIT $9",
-            &[&tenant,&subject,&query.cid,&typ,&tags,&categories,&query.attributes,&after,&query.limit]).await.map_err(pg_error)?;
+            &[&tenant,&subject,&query.cid,&typ,&tags,&categories,&query.attributes,&after,&query.limit]).await.map_err(|error| pg_error(&error))?;
         let result = rows.iter().map(decode).collect::<Result<_, _>>()?;
         pg.commit().await.map_err(|_| FileError::Unavailable)?;
         Ok(result)

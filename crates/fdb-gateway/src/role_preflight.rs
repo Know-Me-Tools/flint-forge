@@ -13,7 +13,12 @@ use sqlx::PgPool;
 /// `01-extensions.sql` / `02-grants.sql` rather than queried dynamically: a dynamic "every extension
 /// in this database" check would also flag extensions the gateway never modifies (e.g. `pg_graphql`,
 /// `pgcrypto`), which the connecting role has no need to own.
-const REQUIRED_EXTENSIONS: &[&str] = &["ext-flint-meta", "ext-flint-auth", "flint_vault", "flint_llm"];
+const REQUIRED_EXTENSIONS: &[&str] = &[
+    "ext-flint-meta",
+    "ext-flint-auth",
+    "flint_vault",
+    "flint_llm",
+];
 
 /// The first required extension not owned by the current connection's role, if any, as
 /// `(extension_name, owning_role_name)`.

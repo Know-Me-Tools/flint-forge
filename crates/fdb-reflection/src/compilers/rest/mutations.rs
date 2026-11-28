@@ -129,7 +129,7 @@ pub(super) async fn handle_insert(
     let idempotency =
         match idempotency_context(&headers, "insert", &schema, &table, Some(&body), None) {
             Ok(value) => value,
-            Err(response) => return response,
+            Err(message) => return bad_request(message),
         };
     match execute_mutation(&state, &sql, params, &rls, idempotency.as_ref()).await {
         Ok(rows) => match rows.into_iter().next() {
@@ -217,7 +217,7 @@ pub(super) async fn handle_update(
         Some(&params),
     ) {
         Ok(value) => value,
-        Err(response) => return response,
+        Err(message) => return bad_request(message),
     };
     match execute_mutation(&state, &sql, binds, &rls, idempotency.as_ref()).await {
         Ok(rows) if rows.is_empty() => StatusCode::NO_CONTENT.into_response(),
@@ -270,7 +270,7 @@ pub(super) async fn handle_delete(
     let idempotency =
         match idempotency_context(&headers, "delete", &schema, &table, None, Some(&params)) {
             Ok(value) => value,
-            Err(response) => return response,
+            Err(message) => return bad_request(message),
         };
     match execute_mutation(&state, &sql, where_clause.binds, &rls, idempotency.as_ref()).await {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),

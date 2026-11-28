@@ -42,8 +42,10 @@ pub(super) fn map_response(
             Err(StreamError::ResnapshotRequired)
         }
         Some(watch_entity_type_response::Frame::Lagged(_)) => Err(StreamError::Lagged),
-        Some(watch_entity_type_response::Frame::SnapshotRow(_))
-        | Some(watch_entity_type_response::Frame::SnapshotComplete(_))
+        Some(
+            watch_entity_type_response::Frame::SnapshotRow(_)
+            | watch_entity_type_response::Frame::SnapshotComplete(_),
+        )
         | None => Err(StreamError::InvalidData),
     }
 }
@@ -57,7 +59,7 @@ fn map_mutation(
         frf_proto::fv2::ChangeOp::Update => ChangeOp::Update,
         frf_proto::fv2::ChangeOp::Delete => ChangeOp::Delete,
         frf_proto::fv2::ChangeOp::Upsert => ChangeOp::Upsert,
-        _ => return Err(StreamError::InvalidData),
+        frf_proto::fv2::ChangeOp::Unspecified => return Err(StreamError::InvalidData),
     };
     let entity_type = mutation.entity_type.ok_or(StreamError::InvalidData)?;
     scope_matches(

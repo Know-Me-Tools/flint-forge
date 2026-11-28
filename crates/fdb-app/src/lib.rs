@@ -115,13 +115,10 @@ impl Quarry {
                         }
                         Ok(mut event) => match build_pk_filters(&event, &table_meta) {
                             Some(filters) => {
-                                let select = match select_projection(&event, &table_meta) {
-                                    Some(select) => select,
-                                    None => {
-                                        return Some(Err(SubscriptionError::Stream(
-                                            StreamError::InvalidData,
-                                        )));
-                                    }
+                                let Some(select) = select_projection(&event, &table_meta) else {
+                                    return Some(Err(SubscriptionError::Stream(
+                                        StreamError::InvalidData,
+                                    )));
                                 };
                                 let query = RestQuery {
                                     schema: table_meta.schema.clone(),

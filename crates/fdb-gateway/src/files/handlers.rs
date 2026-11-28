@@ -14,7 +14,7 @@ type ApiResult<T> = Result<T, FileError>;
 fn response<T: serde::Serialize>(result: ApiResult<T>) -> Response {
     match result {
         Ok(value) => Json(json!({"data":value})).into_response(),
-        Err(e) => error(e),
+        Err(e) => error(&e),
     }
 }
 
