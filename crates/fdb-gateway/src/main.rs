@@ -57,5 +57,9 @@ async fn main() -> anyhow::Result<()> {
 }
 
 #[cfg(test)]
+#[path = "../tests/support/gateway_fixture_database.rs"]
+mod gateway_fixture_database;
+
+#[cfg(test)]
 #[path = "../tests/support/gateway_http_tests.rs"]
 mod gateway_http_tests;

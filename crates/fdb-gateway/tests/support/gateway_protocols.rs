@@ -111,10 +111,19 @@ pub(super) async fn request_errors(client: &Client) {
             .await;
         assert_eq!(response["error"]["code"], code, "{name}: {response}");
     }
-    for (name, input) in [
-        ("a2ui.component.discover", json!({"app_id":"reader"})),
-        ("a2ui.component.assemble", json!({})),
-        ("a2ui.search.semantic", json!({})),
+    for (name, input, code) in [
+        (
+            "a2ui.component.discover",
+            json!({"app_id":"reader"}),
+            -32602,
+        ),
+        ("a2ui.component.assemble", json!({}), -32602),
+        (
+            "a2ui.component.assemble",
+            json!({"event_type":"mount","event_payload":{"data_source":{"table":"unbound_fixture"}}}),
+            -32603,
+        ),
+        ("a2ui.search.semantic", json!({}), -32602),
     ] {
         let response = client
             .rpc(
@@ -123,6 +132,31 @@ pub(super) async fn request_errors(client: &Client) {
                 json!({"task":{"name":name,"input":input}}),
             )
             .await;
-        assert_eq!(response["error"]["code"], -32602, "{name}: {response}");
+        assert_eq!(response["error"]["code"], code, "{name}: {response}");
     }
+}
+
+pub(super) async fn receive_mcp_ping(client: &Client) {
+    use http_body_util::BodyExt as _;
+    use std::time::Duration;
+    let response = client
+        .request("GET", "/mcp/v1/a2ui/sse", &Value::Null, Some(&client.token))
+        .await;
+    assert_eq!(response.headers()["content-type"], "text/event-stream");
+    let mut body = response.into_body();
+    tokio::time::timeout(Duration::from_secs(22), async {
+        while let Some(frame) = body.frame().await {
+            let frame = frame.expect("MCP event");
+            if let Some(bytes) = frame.data_ref() {
+                let text = std::str::from_utf8(bytes).expect("event text");
+                if text.contains("event: ping") {
+                    assert!(text.contains("data: {}"));
+                    return;
+                }
+            }
+        }
+        panic!("connection closed before first ping");
+    })
+    .await
+    .expect("MCP heartbeat");
 }

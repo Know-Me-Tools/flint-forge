@@ -102,3 +102,35 @@ pub(super) async fn query_and_discover(client: &Client, pool: &PgPool) {
         }
     }).await.expect("outbox batch handled");
 }
+
+pub(super) async fn scrape_pool_metrics(client: &Client) {
+    tokio::time::timeout(Duration::from_secs(20), async {
+        loop {
+            let response = client.request("GET", "/metrics", &Value::Null, None).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            let bytes = axum::body::to_bytes(response.into_body(), 4 * 1024 * 1024)
+                .await
+                .expect("metrics body");
+            let samples = std::str::from_utf8(&bytes).expect("Prometheus text");
+            let sample = |key: &str| {
+                samples.lines().find_map(|line| {
+                    line.strip_prefix(key)?
+                        .strip_prefix(' ')?
+                        .parse::<u32>()
+                        .ok()
+                })
+            };
+            if let (Some(open), Some(idle)) = (
+                sample("sqlx_pool_connections_open"),
+                sample("sqlx_pool_connections_idle"),
+            ) {
+                assert!(open > 0 && idle <= open);
+                assert!(sample("flint_tables_rls_reportable").is_some());
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+    })
+    .await
+    .expect("pool gauges sampled");
+}

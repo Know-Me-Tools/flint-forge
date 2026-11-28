@@ -97,7 +97,6 @@ fn caller() -> RlsContext {
 
 #[tokio::test]
 async fn database_and_inference_use_the_invocation_identity_and_bind_parameters() {
-    let mut state = host();
     async fn query(s: &mut KilnHostState) -> Result<Vec<String>, db::HostError> {
         db::Host::query(
             s,
@@ -106,6 +105,7 @@ async fn database_and_inference_use_the_invocation_identity_and_bind_parameters(
         )
         .await
     }
+    let mut state = host();
     assert_eq!(
         query(&mut state).await.unwrap_err().code,
         "CAPABILITY_DENIED"

@@ -11,6 +11,9 @@ use serde_json::json;
 use sqlx::PgPool;
 use tower::ServiceExt;
 
+#[path = "../../../tests/support/htmx_previews.rs"]
+mod previews;
+
 fn fake_rls_context() -> RlsContext {
     RlsContext {
         role: "authenticated".to_string(),
@@ -279,6 +282,11 @@ async fn test_admin_registry_renders_with_db() {
 #[test]
 fn configured_components_render_the_supplied_labels_values_and_controls() {
     for (slug, schema, expected) in [
+        (
+            "card",
+            json!({"title":"Review","body":"Ready to publish"}),
+            "Ready to publish",
+        ),
         (
             "action-bar",
             json!({"actions":[{"label":"Archive"}]}),

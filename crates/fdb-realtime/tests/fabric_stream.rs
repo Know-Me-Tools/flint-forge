@@ -9,10 +9,11 @@ use fdb_ports::{ChangeStreamSource, StreamError};
 use fdb_realtime::{FabricChangeSource, FabricError, FrfConfig};
 use frf_proto::fv2::{
     canonical_value::Kind, watch_entity_type_request::Start, watch_entity_type_response::Frame,
-    ChangeOp as WireOp, WatchAccepted,
+    ChangeOp as WireOp, CheckpointAdvanced, Lagged, ResnapshotRequired, SnapshotRow, WatchAccepted,
 };
 use futures::StreamExt;
 use serde_json::json;
+use std::time::{Duration, UNIX_EPOCH};
 use tonic::{Code, Status};
 
 #[tokio::test]
@@ -27,7 +28,7 @@ async fn live_projection_and_key_only_delete_resume_with_the_server_checkpoint()
         field("blob", Kind::BytesValue(vec![255])),
         field("remark", Kind::NullValue(1)),
         field("detail", Kind::JsonValue(br#"{"ok":true}"#.to_vec())),
-        field("seen", Kind::TimestampValue(Default::default())),
+        field("seen", Kind::TimestampValue(UNIX_EPOCH.into())),
     ]);
     let frames = vec![
         Frame::Accepted(WatchAccepted {
@@ -35,7 +36,7 @@ async fn live_projection_and_key_only_delete_resume_with_the_server_checkpoint()
             tenant_id: spec().tenant,
             ..Default::default()
         }),
-        Frame::CheckpointAdvanced(Default::default()),
+        Frame::CheckpointAdvanced(CheckpointAdvanced::default()),
         Frame::Mutation(mutation(WireOp::Insert)),
         Frame::Mutation(updated),
         Frame::Mutation(mutation(WireOp::Upsert)),
@@ -94,19 +95,24 @@ async fn live_projection_and_key_only_delete_resume_with_the_server_checkpoint()
 #[tokio::test]
 async fn timestamps_retain_their_utc_precision_across_the_wire() {
     let examples = [
-        (0, 0, "1970-01-01T00:00:00Z"),
-        (0, 100_000_000, "1970-01-01T00:00:00.100Z"),
-        (-1, 1_000, "1969-12-31T23:59:59.000001Z"),
-        (1, 12, "1970-01-01T00:00:01.000000012Z"),
+        (UNIX_EPOCH, "1970-01-01T00:00:00Z"),
+        (
+            UNIX_EPOCH + Duration::from_millis(100),
+            "1970-01-01T00:00:00.100Z",
+        ),
+        (
+            UNIX_EPOCH - Duration::from_micros(999_999),
+            "1969-12-31T23:59:59.000001Z",
+        ),
+        (
+            UNIX_EPOCH + Duration::new(1, 100),
+            "1970-01-01T00:00:01.000000100Z",
+        ),
     ];
     let frames = examples
         .iter()
-        .map(|(seconds, nanos, _)| {
-            let mut timestamp = Kind::TimestampValue(Default::default());
-            if let Kind::TimestampValue(raw) = &mut timestamp {
-                raw.seconds = *seconds;
-                raw.nanos = *nanos;
-            }
+        .map(|(instant, _)| {
+            let timestamp = Kind::TimestampValue((*instant).into());
             let mut change = mutation(WireOp::Insert);
             change
                 .record
@@ -123,7 +129,7 @@ async fn timestamps_retain_their_utc_precision_across_the_wire() {
         .watch(spec(), &subscriber())
         .await
         .expect("watch");
-    for (_, _, expected) in examples {
+    for (_, expected) in examples {
         let row = events
             .next()
             .await
@@ -158,7 +164,7 @@ async fn invalid_frames_fail_closed_and_terminal_controls_retain_their_meaning()
     let mut bad_delete = mutation(WireOp::Insert);
     bad_delete.op = WireOp::Delete.into();
     let invalid = [
-        Frame::Accepted(Default::default()),
+        Frame::Accepted(WatchAccepted::default()),
         Frame::Mutation(foreign),
         Frame::Mutation(duplicate_key),
         Frame::Mutation(missing_id),
@@ -167,14 +173,14 @@ async fn invalid_frames_fail_closed_and_terminal_controls_retain_their_meaning()
         Frame::Mutation(empty_key),
         Frame::Mutation(bad_delete),
         Frame::Mutation(mutation(WireOp::Unspecified)),
-        Frame::SnapshotRow(Default::default()),
+        Frame::SnapshotRow(SnapshotRow::default()),
     ];
     let n_invalid = invalid.len();
     let frames = invalid
         .into_iter()
         .chain([
-            Frame::ResnapshotRequired(Default::default()),
-            Frame::Lagged(Default::default()),
+            Frame::ResnapshotRequired(ResnapshotRequired::default()),
+            Frame::Lagged(Lagged::default()),
         ])
         .map(Ok)
         .collect();

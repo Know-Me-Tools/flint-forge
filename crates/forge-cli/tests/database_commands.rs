@@ -27,11 +27,15 @@ async fn applies_migrations_and_registers_a_hook_in_a_fresh_database() -> Result
 }
 
 async fn exercise(url: &str) -> Result<()> {
+    // The deployed Forge image provisions its extensions before operator migrations run.
+    let pool = sqlx::PgPool::connect(url).await?;
+    sqlx::query("CREATE EXTENSION \"ext-flint-hooks\" CASCADE")
+        .execute(&pool)
+        .await?;
     let dir = tempdir()?;
     std::fs::write(
         dir.path().join("0001_fixture.sql"),
-        "CREATE EXTENSION \"ext-flint-hooks\" CASCADE;
-         CREATE TABLE public.widgets (id bigint PRIMARY KEY);",
+        "CREATE TABLE public.widgets (id bigint PRIMARY KEY);",
     )?;
     let cli = || {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_forge"));
@@ -68,7 +72,6 @@ async fn exercise(url: &str) -> Result<()> {
         "hook registration failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let pool = sqlx::PgPool::connect(url).await?;
     let (events, tier, bound): (Vec<String>, String, bool) = sqlx::query_as(
         "SELECT events, tier, EXISTS (
             SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.widgets'::regclass

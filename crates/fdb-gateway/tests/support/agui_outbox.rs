@@ -1,8 +1,7 @@
 use super::*;
 use sqlx::postgres::PgPoolOptions;
 
-#[path = "gateway_fixture_database.rs"]
-mod fixture;
+use crate::gateway_fixture_database as fixture;
 
 #[tokio::test]
 async fn undeliverable_hooks_back_off_then_stop_retrying() {
