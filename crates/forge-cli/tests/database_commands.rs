@@ -28,7 +28,11 @@ async fn applies_migrations_and_registers_a_hook_in_a_fresh_database() -> Result
 
 async fn exercise(url: &str) -> Result<()> {
     let dir = tempdir()?;
-    std::fs::write(dir.path().join("0001_fixture.sql"),"CREATE EXTENSION \"ext-flint-hooks\" CASCADE; CREATE TABLE public.widgets (id bigint PRIMARY KEY);")?;
+    std::fs::write(
+        dir.path().join("0001_fixture.sql"),
+        "CREATE EXTENSION \"ext-flint-hooks\" CASCADE;
+         CREATE TABLE public.widgets (id bigint PRIMARY KEY);",
+    )?;
     let cli = || {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_forge"));
         cmd.env("DATABASE_URL", url)
@@ -65,12 +69,37 @@ async fn exercise(url: &str) -> Result<()> {
         String::from_utf8_lossy(&output.stderr)
     );
     let pool = sqlx::PgPool::connect(url).await?;
-    let (events,tier,bound):(Vec<String>,String,bool)=sqlx::query_as("SELECT events, tier, EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.widgets'::regclass AND tgname='flint_dispatch_public_widgets') FROM flint.webhooks WHERE schema_name='public' AND table_name='widgets'")
-      .fetch_one(&pool).await.context("registered hook")?;
+    let (events, tier, bound): (Vec<String>, String, bool) = sqlx::query_as(
+        "SELECT events, tier, EXISTS (
+            SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.widgets'::regclass
+            AND tgname = 'flint_dispatch_public_widgets'
+         ) FROM flint.webhooks WHERE schema_name = 'public' AND table_name = 'widgets'",
+    )
+    .fetch_one(&pool)
+    .await
+    .context("registered hook")?;
     anyhow::ensure!(
         bound && events == ["INSERT"] && tier == "durable",
         "database does not contain the registered hook"
     );
+    let missing_table = cli()
+        .args([
+            "hook",
+            "add",
+            "public.absent",
+            "https://fixture.invalid/callback",
+        ])
+        .output()?;
+    anyhow::ensure!(
+        !missing_table.status.success(),
+        "registered a hook on an absent table"
+    );
+    let orphan: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM flint.webhooks WHERE table_name = 'absent')",
+    )
+    .fetch_one(&pool)
+    .await?;
+    anyhow::ensure!(!orphan, "failed registration persisted a webhook rule");
     pool.close().await;
     Ok(())
 }

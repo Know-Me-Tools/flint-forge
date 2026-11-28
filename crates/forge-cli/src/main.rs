@@ -315,6 +315,7 @@ async fn hook_add(args: HookAddArgs) -> Result<()> {
         .await
         .with_context(|| "failed to connect to database")?;
 
+    let mut transaction = pool.begin().await?;
     sqlx::query(
         "INSERT INTO flint.webhooks \
          (schema_name, table_name, events, target_url, secret, tier, target_type) \
@@ -326,25 +327,25 @@ async fn hook_add(args: HookAddArgs) -> Result<()> {
     .bind(&args.url)
     .bind(&secret)
     .bind(&args.tier)
-    .execute(&pool)
+    .execute(&mut *transaction)
     .await
     .with_context(|| "failed to insert webhook rule")?;
 
     let trigger_name = format!("flint_dispatch_{}_{}", table.schema, table.table);
     let sql = format!(
-        "DROP TRIGGER IF EXISTS {trigger_name} ON {}.{}; \
-         CREATE TRIGGER {trigger_name} \
+        "CREATE OR REPLACE TRIGGER {trigger_name} \
          AFTER INSERT OR UPDATE OR DELETE ON {}.{} \
          FOR EACH ROW EXECUTE FUNCTION flint.dispatch_webhook();",
-        table.schema, table.table, table.schema, table.table
+        table.schema, table.table
     );
     // SAFETY: schema/table were validated by `is_safe_identifier` above, and
     // `trigger_name` is derived only from those validated segments — no raw
     // user text reaches this DDL string.
     sqlx::query(sqlx::AssertSqlSafe(sql))
-        .execute(&pool)
+        .execute(&mut *transaction)
         .await
         .with_context(|| "failed to create dispatch trigger")?;
+    transaction.commit().await?;
 
     info!(
         schema = table.schema,

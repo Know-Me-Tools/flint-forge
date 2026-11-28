@@ -24,8 +24,12 @@ mod data;
 mod fixture;
 #[path = "../../../forge-identity/tests/common/mod.rs"]
 mod keys;
+#[path = "gateway_protocols.rs"]
+mod protocols;
 #[path = "gateway_schema_cycle.rs"]
 mod schema;
+#[path = "gateway_websocket.rs"]
+mod websocket;
 
 struct Client {
     app: Router,
@@ -87,9 +91,13 @@ async fn serves_compiled_and_authenticated_routes() {
         return;
     };
     if env::var_os("FORGE_GATEWAY_ROUTER_TEST_CHILD").is_none() {
+        let query = url.split_once('?').map(|(_, query)| query);
         fixture::with_database(&url, |options| async move {
             use sqlx::ConnectOptions as _;
-            let database_url = options.to_url_lossy().to_string();
+            let mut database_url = options.to_url_lossy();
+            // Keep the operator's options. SQLx adds client-only parameters
+            // on serialization that the gateway's tokio-postgres pool rejects.
+            database_url.set_query(query);
             let status = tokio::process::Command::new(env::current_exe().expect("test binary"))
                 .args([
                     "--exact",
@@ -100,7 +108,7 @@ async fn serves_compiled_and_authenticated_routes() {
                     "FORGE_GATEWAY_ROUTER_TEST_CHILD",
                     options.get_database().expect("fixture database name"),
                 )
-                .env("DATABASE_URL", database_url)
+                .env("DATABASE_URL", database_url.as_str())
                 .env_remove("OTEL_EXPORTER_OTLP_ENDPOINT")
                 .env("FLINT_A2UI_EMBED_MODEL", "tongyi-embedding-vision-plus")
                 .env("FLINT_A2UI_EMBED_DIMENSIONS", "1152")
@@ -178,6 +186,7 @@ async fn exercise_gateway(url: &str) {
     };
     schema::provision(&service, &pool, &namespace).await;
     data::query_and_discover(&client, &pool).await;
+    websocket::subscriptions(&client, &pool).await;
     let health = client
         .json("GET", "/healthz", &Value::Null, StatusCode::OK)
         .await;
@@ -211,7 +220,16 @@ async fn exercise_gateway(url: &str) {
         .bind(&table).bind(json!({"columns":["name"],"fields":["name"]})).fetch_one(&pool).await.expect("private fixture binding");
     sqlx::query("INSERT INTO flint_a2ui.applications(id,slug,name,owner_id) VALUES($1,$2,'Catalog fixture',$1)")
         .bind(sub).bind(&table).execute(&pool).await.expect("owned application");
+    sqlx::query("INSERT INTO flint_a2ui.assembly_rules(application_id,event_type,assembly_config) VALUES($1,'catalog.preview',$2)")
+        .bind(sub).bind(json!({"component_slug":"button","props":{"label":"Review draft"}}))
+        .execute(&pool).await.expect("preview assembly rule");
     catalog_protocols(&client, &table).await;
+    surface_preview(&client, sub).await;
+    sqlx::query("DELETE FROM flint_a2ui.assembly_rules WHERE application_id=$1")
+        .bind(sub)
+        .execute(&pool)
+        .await
+        .expect("remove preview rule");
     sqlx::query("DELETE FROM flint_a2ui.applications WHERE id=$1")
         .bind(sub)
         .execute(&pool)
@@ -259,92 +277,22 @@ async fn catalog_protocols(client: &Client, table: &str) {
             .await["application"]["slug"],
         table
     );
-    mcp_tools(client, table, id, &context).await;
-    a2a_tasks(client, &context).await;
-}
-
-async fn mcp_tools(client: &Client, table: &str, id: &str, context: &Value) {
-    for (name, args, field) in [
-        (
-            "a2ui_list_components",
-            json!({"category":"layout","app_id":id}),
-            "components",
-        ),
-        ("a2ui_get_component", json!({"slug":"button"}), "component"),
-        (
-            "a2ui_generate_form",
-            json!({"schema":"public","table":table}),
-            "fields",
-        ),
-        (
-            "a2ui_generate_grid",
-            json!({"schema":"public","table":table}),
-            "columns",
-        ),
-        (
-            "a2ui_semantic_search",
-            json!({"query":"button","limit":2}),
-            "results",
-        ),
-        (
-            "a2ui_resolve_tokens",
-            json!({"application_slug":table}),
-            "tokens",
-        ),
-        (
-            "a2ui_assemble_surface",
-            json!({"event_type":"mount","event_context":context}),
-            "messages",
-        ),
-    ] {
-        let response = client
-            .rpc(
-                "/mcp/v1/a2ui",
-                "tools/call",
-                json!({"name":name,"arguments":args}),
-            )
-            .await;
-        let encoded = response["result"]["content"][0]["text"]
-            .as_str()
-            .unwrap_or_else(|| panic!("{name}: {response}"));
-        let value: Value = serde_json::from_str(encoded).expect("tool result");
-        assert!(value.get(field).is_some(), "{name}: {value}");
-    }
-}
-
-async fn a2a_tasks(client: &Client, context: &Value) {
-    for (task, input, field) in [
-        ("a2ui.component.discover", json!({}), "components"),
-        ("a2ui.search.semantic", json!({"query":"button"}), "results"),
-        (
-            "a2ui.component.assemble",
-            json!({"event_type":"mount","event_payload":context}),
-            "surface",
-        ),
-    ] {
-        let response = client
-            .rpc(
-                "/a2a/v1",
-                "tasks/send",
-                json!({"task":{"name":task,"id":"fixture","input":input}}),
-            )
-            .await;
-        assert_eq!(
-            response["result"]["task"]["state"], "completed",
-            "{response}"
-        );
-        assert!(response["result"]["task"]["output"].get(field).is_some());
-    }
+    protocols::mcp_tools(client, table, id, &context).await;
+    protocols::a2a_tasks(client, id, &context).await;
+    protocols::request_errors(client).await;
 }
 
 async fn design_import_and_htmx(client: &Client, pool: &PgPool) {
     let id = Uuid::new_v4();
-    sqlx::query("INSERT INTO flint_a2ui.design_systems(id,slug,name) VALUES($1,$2,'Fixture')")
-        .bind(id)
-        .bind(id.to_string())
-        .execute(pool)
-        .await
-        .expect("private design fixture");
+    sqlx::query(
+        "INSERT INTO flint_a2ui.design_systems(id,slug,name,tokens) VALUES($1,$2,'Fixture',$3)",
+    )
+    .bind(id)
+    .bind(id.to_string())
+    .bind(json!({"color":{"primary":"navy"}}))
+    .execute(pool)
+    .await
+    .expect("private design fixture");
     let path = "/a2ui/v1/design-systems/import";
     let md = "# Design System: Sample\n\n## 1. Color\nprimary: blue\n";
     let zip = {
@@ -358,27 +306,37 @@ async fn design_import_and_htmx(client: &Client, pool: &PgPool) {
         base64::engine::general_purpose::STANDARD
             .encode(archive.finish().expect("archive").into_inner())
     };
-    for (fmt, content) in [("design_md", md.to_owned()), ("claude_design_zip", zip)] {
-        let result = client
+    // A closed pool simulates a storage outage for both insert and update.
+    // Every parser must reach persistence and return a stable, redacted error.
+    let unavailable = PgPool::connect_lazy("postgres://localhost/unavailable").expect("lazy pool");
+    unavailable.close().await;
+    let app = Router::new()
+        .route(
+            path,
+            axum::routing::post(crate::routes::design_import::import_design_system),
+        )
+        .with_state(crate::routes::a2ui::A2uiState { pool: unavailable })
+        .layer(axum::middleware::from_fn(crate::rls_layer::require_rls));
+    let importer = Client {
+        app,
+        token: client.token.clone(),
+    };
+    let tokens = json!({"color":{"primary":{"$value":"navy"}}});
+    for (fmt, content, system) in [
+        ("design_md", md.to_owned(), Some(id)),
+        ("claude_design_zip", zip, None),
+        ("w3c_tokens", tokens.to_string(), None),
+    ] {
+        let result = importer
             .json(
                 "POST",
                 path,
-                &json!({"format":fmt,"content":content,"design_system_id":id}),
-                StatusCode::OK,
+                &json!({"format":fmt, "content":content,"design_system_id":system}),
+                StatusCode::INTERNAL_SERVER_ERROR,
             )
             .await;
-        assert_eq!(result["component_overrides_applied"], 0);
-        assert_eq!(result["name"], "Sample");
+        assert_eq!(result, json!({"error":"database error"}));
     }
-    let tokens = json!({"color":{"primary":{"$value":"navy"}}});
-    client
-        .json(
-            "POST",
-            path,
-            &json!({"format":"w3c_tokens","content":tokens.to_string(),"design_system_id":id}),
-            StatusCode::OK,
-        )
-        .await;
     assert_eq!(
         client
             .json(
@@ -488,4 +446,61 @@ async fn run_lifecycle(client: &Client, table: &str) {
     let body = std::str::from_utf8(&data).expect("SSE text");
     assert!(body.contains("a2ui:surface"));
     assert!(body.contains("StateSnapshot"));
+}
+
+async fn surface_preview(client: &Client, app_id: Uuid) {
+    let url = format!("/htmx/surfaces/assemble?event_type=catalog.preview&application_id={app_id}");
+    for (method, path, status, content) in [
+        ("GET", url.as_str(), StatusCode::OK, "Review draft"),
+        (
+            "GET",
+            "/htmx/surfaces/assemble?event_type=no.rule",
+            StatusCode::BAD_REQUEST,
+            "missing field",
+        ),
+        (
+            "GET",
+            "/htmx/components/absent-fixture",
+            StatusCode::NOT_FOUND,
+            "not found",
+        ),
+        (
+            "POST",
+            "/htmx/components/absent-fixture",
+            StatusCode::NOT_FOUND,
+            "not found",
+        ),
+        (
+            "POST",
+            "/htmx/components/button",
+            StatusCode::OK,
+            "Preview button",
+        ),
+    ] {
+        let request = Request::builder()
+            .method(method)
+            .uri(path)
+            .extension(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 10000))))
+            .header("HX-Request", "true")
+            .header("authorization", format!("Bearer {}", client.token))
+            .header("content-type", "application/json")
+            .body(Body::from(json!({"label":"Preview button"}).to_string()))
+            .expect("HTMX request");
+        let response = client
+            .app
+            .clone()
+            .oneshot(request)
+            .await
+            .expect("render fragment");
+        assert_eq!(response.status(), status, "{path}");
+        let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("HTML");
+        let html = std::str::from_utf8(&bytes).expect("UTF-8");
+        assert!(html.contains(content), "{path}: {html}");
+        assert!(
+            !html.contains("<!DOCTYPE html>"),
+            "HTMX clients expect a fragment"
+        );
+    }
 }

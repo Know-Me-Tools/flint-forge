@@ -28,6 +28,9 @@
 #![forbid(unsafe_code)]
 
 mod db_host;
+#[cfg(test)]
+#[path = "../tests/support/governed_hosts.rs"]
+mod governed_hosts;
 mod host_bindings;
 mod identity_host;
 mod kv_host;

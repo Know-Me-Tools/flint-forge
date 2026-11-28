@@ -170,6 +170,10 @@ enum DeliveryError {
     MissingRunId,
 }
 
+#[cfg(test)]
+#[path = "../tests/support/agui_outbox.rs"]
+mod outbox_tests;
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

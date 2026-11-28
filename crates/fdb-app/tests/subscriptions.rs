@@ -34,7 +34,7 @@ fn event(op: ChangeOp, id: Value) -> ChangeEvent {
         op,
         schema: "public".into(),
         table: "notes".into(),
-        record: Some(json!({"id": id})),
+        record: Some(Value::Object([("id".into(), id)].into_iter().collect())),
         old_record: None,
         event_id: Some("event".into()),
         checkpoint: Some("next".into()),

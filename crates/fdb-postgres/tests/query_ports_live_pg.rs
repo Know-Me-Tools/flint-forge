@@ -111,6 +111,15 @@ async fn raw_sql_bindings_project_scalar_types_and_vector_similarity_in_order() 
         json!([{"title":"hello","n":2,"data":{"enabled":true},"wide":9999,
         "missing":null,"dims":2,"flag":true,"small":3,"single":0.5,"double":0.75}])
     );
+    assert!(matches!(
+        rest.execute_raw(
+            "INSERT INTO pg_temp.adapter_vectors VALUES (1,'[0,1]')",
+            vec![],
+            &who
+        )
+        .await,
+        Err(BackendError::ConstraintConflict)
+    ));
 
     let vector = PgVectorRpc::new(pool);
     let mut query = VectorRpcRequest {

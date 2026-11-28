@@ -423,3 +423,48 @@ async fn provisioner_cannot_create_outside_granted_namespaces() {
 
     reset_fixture(&client, ns, &["pln_it_deny"]).await;
 }
+
+#[tokio::test]
+async fn ordinary_role_gets_only_sqlstate_when_it_cannot_access_the_ledger() {
+    let Some(url) = database_url() else { return };
+    let admin = admin(&url).await;
+    if !prereqs_present(&admin).await {
+        return;
+    }
+
+    // Apply the restricted role at connection startup, including to the
+    // ledger pre-check that runs before any DDL transaction is opened.
+    let restricted_url = if url.starts_with("postgres://") || url.starts_with("postgresql://") {
+        let separator = if url.contains('?') { '&' } else { '?' };
+        format!("{url}{separator}options=-crole%3Dauthenticated")
+    } else {
+        format!("{url} options=-crole=authenticated")
+    };
+    let provisioner = PgProvisioner::from_url(&restricted_url).expect("restricted pool");
+    let (record, plan) = planned(
+        "ordinary_role",
+        "example",
+        "fixture_role_denied",
+        "sha256:fixture-denied",
+        "SELECT 1",
+    );
+    for result in [
+        provisioner.persist_planned(&record).await,
+        provisioner.load_planned(&record.hash).await.map(|_| ()),
+        provisioner
+            .apply(&plan, "test-operator", None)
+            .await
+            .map(|_| ()),
+        provisioner.record_version_after(&record.plan_id, 1).await,
+        provisioner.last_apply().await.map(|_| ()),
+    ] {
+        let error = result
+            .expect_err("ordinary role has no ledger grant")
+            .to_string();
+        assert!(error.contains("SQLSTATE 42501"), "{error}");
+        assert!(
+            !error.contains("provision_ledger"),
+            "database details escaped: {error}"
+        );
+    }
+}

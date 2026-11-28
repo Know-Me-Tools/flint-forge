@@ -18,6 +18,7 @@ pub(super) async fn provision(service: &Client, pool: &PgPool, namespace: &str) 
         .json("POST", "/schema/v1/plan", &spec, StatusCode::OK)
         .await;
     assert_eq!(repeat["planId"], plan["planId"]);
+    pending_plan_errors(service, pool, &hash).await;
     for already_applied in [false, true] {
         let result = service
             .json("POST", "/schema/v1/apply", &hash, StatusCode::OK)
@@ -67,9 +68,43 @@ pub(super) async fn provision(service: &Client, pool: &PgPool, namespace: &str) 
     .execute(pool)
     .await
     .expect("remove owned schema");
+    service
+        .json("POST", "/schema/v1/apply", &hash, StatusCode::CONFLICT)
+        .await;
+    service
+        .json("POST", "/schema/v1/plan", &spec, StatusCode::CONFLICT)
+        .await;
     sqlx::query("DELETE FROM flint_schema.provision_ledger WHERE namespace=$1")
         .bind(namespace)
         .execute(pool)
         .await
         .expect("remove fixture ledger");
+}
+
+async fn pending_plan_errors(service: &Client, pool: &PgPool, hash: &Value) {
+    let plan_hash = hash["planHash"].as_str().expect("plan hash");
+    for (request, status) in [
+        (json!({}), StatusCode::BAD_REQUEST),
+        (json!({"planHash":"unknown"}), StatusCode::NOT_FOUND),
+    ] {
+        service
+            .json("POST", "/schema/v1/apply", &request, status)
+            .await;
+    }
+    // Set up the same persisted states the ledger exposes on a later request.
+    sqlx::query("UPDATE flint_schema.provision_ledger SET created_at=now()-interval '2 days' WHERE plan_hash=$1")
+        .bind(plan_hash).execute(pool).await.expect("age pending plan");
+    service
+        .json("POST", "/schema/v1/apply", hash, StatusCode::GONE)
+        .await;
+    sqlx::query("UPDATE flint_schema.provision_ledger SET status='failed' WHERE plan_hash=$1")
+        .bind(plan_hash)
+        .execute(pool)
+        .await
+        .expect("record failed plan");
+    service
+        .json("POST", "/schema/v1/apply", hash, StatusCode::CONFLICT)
+        .await;
+    sqlx::query("UPDATE flint_schema.provision_ledger SET status='planned',created_at=now() WHERE plan_hash=$1")
+        .bind(plan_hash).execute(pool).await.expect("restore pending fixture");
 }

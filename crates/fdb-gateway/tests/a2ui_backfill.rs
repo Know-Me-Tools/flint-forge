@@ -39,8 +39,47 @@ async fn replicas_coordinate_backfill_and_recover_notifications() {
             sqlx::raw_sql(sql).execute(&mut *transaction).await.expect("install embedding schema");
         }
         transaction.commit().await.expect("commit fixture installation");
+        check_provider_recovery(&pool).await;
         check_replica_recovery(pool).await;
     }).await;
+}
+
+async fn check_provider_recovery(pool: &PgPool) {
+    sqlx::raw_sql("CREATE FUNCTION llm.embed(input text,model text DEFAULT 'default') RETURNS vector LANGUAGE sql AS $$ SELECT '[1]'::vector $$")
+        .execute(pool).await.expect("incompatible provider fixture");
+    let error = a2ui_embedder::backfill_missing(pool)
+        .await
+        .expect_err("invalid vector rejected");
+    assert!(error.to_string().contains("embedding dimension mismatch"));
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM flint_a2ui.embeddings")
+        .fetch_one(pool)
+        .await
+        .expect("persisted count");
+    assert_eq!(count, 0);
+    assert!(a2ui_embedder::query_embedding(pool, "Search")
+        .await
+        .is_none());
+
+    // Sequence values survive a failed transaction, as requests to an external
+    // provider do. The first two attempts simulate temporary rate limiting.
+    sqlx::raw_sql("CREATE SEQUENCE llm.attempts;
+        CREATE OR REPLACE FUNCTION llm.embed(input text, model text DEFAULT 'default') RETURNS vector
+        LANGUAGE plpgsql AS $$ BEGIN
+          IF nextval('llm.attempts') < 3 THEN RAISE EXCEPTION 'gateway error 429'; END IF;
+          RETURN array_fill(0.1::real,ARRAY[1152])::vector;
+        END $$")
+        .execute(pool).await.expect("transient provider fixture");
+    a2ui_embedder::backfill_missing(pool)
+        .await
+        .expect("retry accepted vectors");
+    let (attempts, embeddings): (i64, i64) = sqlx::query_as(
+        "SELECT last_value, (SELECT count(*) FROM flint_a2ui.embeddings) FROM llm.attempts",
+    )
+    .fetch_one(pool)
+    .await
+    .expect("retry accounting");
+    assert_eq!(embeddings, 2);
+    assert_eq!(attempts, embeddings + 2);
 }
 
 async fn check_replica_recovery(pool: PgPool) {

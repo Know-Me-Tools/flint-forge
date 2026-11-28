@@ -1896,6 +1896,7 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tokio-stream",
+ "tokio-tungstenite",
  "tower",
  "tower-http",
  "tower_governor",

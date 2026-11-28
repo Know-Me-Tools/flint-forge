@@ -50,6 +50,7 @@ opentelemetry-otlp = { workspace = true }
 tracing-opentelemetry = { workspace = true }
 
 [dev-dependencies]
+tokio-tungstenite = "0.29"
 jsonwebtoken.workspace = true
 ring.workspace = true
 tower = { version = "0.5", features = ["util"] }

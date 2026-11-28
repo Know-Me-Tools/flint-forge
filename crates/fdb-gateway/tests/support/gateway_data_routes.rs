@@ -22,6 +22,11 @@ pub(super) async fn install_extensions(pool: &PgPool) {
         CREATE POLICY samples_read ON public.samples FOR SELECT TO authenticated USING(true);
         GRANT SELECT ON public.samples TO authenticated;
         INSERT INTO public.samples VALUES(1,'[1,0]'),(2,'[0,1]');
+        CREATE TABLE public.notices(id text PRIMARY KEY, body text NOT NULL);
+        ALTER TABLE public.notices ENABLE ROW LEVEL SECURITY;
+        CREATE POLICY notices_read ON public.notices FOR SELECT TO authenticated USING(true);
+        GRANT SELECT ON public.notices TO authenticated;
+        INSERT INTO public.notices VALUES ('notice', 'Message from the database');
         SELECT flint_meta.full_refresh()
     "#,
     )
