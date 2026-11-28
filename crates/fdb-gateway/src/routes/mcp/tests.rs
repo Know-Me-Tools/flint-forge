@@ -23,9 +23,20 @@ fn fake_rls_context(user_id: &str) -> RlsContext {
     }
 }
 
+// Protocol-only handlers require router state but perform no database queries.
+fn protocol_state() -> McpState {
+    McpState {
+        a2ui: A2uiState {
+            pool: PgPool::connect_lazy("postgres://localhost/protocol_test").expect("valid URL"),
+        },
+    }
+}
+
 async fn connect() -> Option<McpState> {
     let url = std::env::var("DATABASE_URL").ok()?;
-    let pool = PgPool::connect(&url).await.ok()?;
+    let pool = PgPool::connect(&url)
+        .await
+        .expect("configured test database");
     Some(McpState {
         a2ui: A2uiState { pool },
     })
@@ -58,7 +69,7 @@ fn rpc(id: i64, method: &str, params: &Value) -> Vec<u8> {
 
 #[tokio::test]
 async fn test_initialize_returns_server_info() {
-    let Some(state) = connect().await else { return };
+    let state = protocol_state();
     let app = mcp_app(state, "anonymous-user");
     let req = Request::builder()
         .method(Method::POST)
@@ -77,7 +88,7 @@ async fn test_initialize_returns_server_info() {
 
 #[tokio::test]
 async fn test_tools_list_returns_seven_a2ui_tools() {
-    let Some(state) = connect().await else { return };
+    let state = protocol_state();
     let app = mcp_app(state, "anonymous-user");
     let req = Request::builder()
         .method(Method::POST)
@@ -122,7 +133,7 @@ async fn test_a2ui_list_components_tool_returns_components() {
 
 #[tokio::test]
 async fn test_unknown_method_returns_method_not_found() {
-    let Some(state) = connect().await else { return };
+    let state = protocol_state();
     let app = mcp_app(state, "anonymous-user");
     let req = Request::builder()
         .method(Method::POST)
@@ -137,7 +148,7 @@ async fn test_unknown_method_returns_method_not_found() {
 
 #[tokio::test]
 async fn test_health_endpoint() {
-    let Some(state) = connect().await else { return };
+    let state = protocol_state();
     let app = mcp_app(state, "anonymous-user");
     let req = Request::builder()
         .uri("/mcp/v1/a2ui/health")

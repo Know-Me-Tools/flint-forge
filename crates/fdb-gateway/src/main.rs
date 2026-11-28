@@ -55,3 +55,7 @@ async fn main() -> anyhow::Result<()> {
     // panic backtrace.
     bootstrap::run().await
 }
+
+#[cfg(test)]
+#[path = "../tests/support/gateway_http_tests.rs"]
+mod gateway_http_tests;
