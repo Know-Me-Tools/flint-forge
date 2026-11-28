@@ -43,8 +43,7 @@ jobs:
         run: cargo deny check licenses advisories
       # p10-c003: Security advisory gate. Fails on any unfixed advisory with
       # CVSS >= 7.0 that is not in .cargo/audit.toml allowlist.
-      # Allowlisted: quick-xml (DoS via operator-controlled S3), rsa/sqlx-mysql
-      # (PostgreSQL-only codebase), two unmaintained indirect deps.
+      # Existing exceptions are documented in .cargo/audit.toml.
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
       - name: Security audit

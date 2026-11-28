@@ -51,11 +51,11 @@ mod identity;
 mod sct;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use fke_domain::FunctionManifest;
 use fke_ports::{SignError, SignatureVerifier};
 use p256::ecdsa::{signature::hazmat::PrehashVerifier as _, DerSignature, VerifyingKey};
 use sha2::{Digest, Sha256};
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use x509_cert::{der::DecodePem, Certificate};
 
 const DEFAULT_REKOR_URL: &str = "https://rekor.sigstore.dev";
@@ -274,13 +274,9 @@ fn sha256_hex(data: &[u8]) -> String {
 }
 
 fn check_validity_window(not_before: &str, not_after: &str) -> Result<(), SignError> {
-    let now = Utc::now();
-    let nb = DateTime::parse_from_rfc3339(not_before)
-        .map_err(|_| SignError::Invalid)?
-        .with_timezone(&Utc);
-    let na = DateTime::parse_from_rfc3339(not_after)
-        .map_err(|_| SignError::Invalid)?
-        .with_timezone(&Utc);
+    let now = OffsetDateTime::now_utc();
+    let nb = OffsetDateTime::parse(not_before, &Rfc3339).map_err(|_| SignError::Invalid)?;
+    let na = OffsetDateTime::parse(not_after, &Rfc3339).map_err(|_| SignError::Invalid)?;
     if now < nb || now > na {
         return Err(SignError::Expired);
     }
@@ -355,7 +351,8 @@ mod tests {
             b"not-a-real-sig",
         );
         // Generate a real P-256 key for the publicKey field.
-        let sk = p256::ecdsa::SigningKey::random(&mut rand_core::OsRng);
+        let sk =
+            p256::ecdsa::SigningKey::from_slice(&[0x42; 32]).expect("valid synthetic signing key");
         let pubkey_b64 = base64::Engine::encode(
             &base64::engine::general_purpose::STANDARD,
             sk.verifying_key().to_sec1_bytes(),
@@ -448,7 +445,7 @@ mod tests {
         use p256::ecdsa::{signature::hazmat::PrehashSigner as _, SigningKey};
 
         let server = MockServer::start().await;
-        let sk = SigningKey::random(&mut rand_core::OsRng);
+        let sk = SigningKey::from_slice(&[0x42; 32]).expect("valid synthetic signing key");
         let artifact = b"cosign-style-artifact";
         let digest = Sha256::digest(artifact);
         let der_sig: DerSignature = sk

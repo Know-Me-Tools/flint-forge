@@ -10,13 +10,6 @@
 
 [advisories]
 ignore = [
-  # RUSTSEC-2026-0195 / RUSTSEC-2026-0194 — quick-xml 0.40.x via object_store 0.14.0
-  # Affects XML NsReader / start-tag parsing. Attack requires controlling S3 API
-  # responses. Flint's S3 backend is operator-controlled; no untrusted XML path.
-  # Fix blocked on object_store releasing with quick-xml >=0.41.0.
-  "RUSTSEC-2026-0195",
-  "RUSTSEC-2026-0194",
-
   # RUSTSEC-2023-0071 (rsa via sqlx-mysql) — REMOVED 2026-07-14 (p14-c001).
   # The sqlx 0.8 -> 0.9 upgrade dropped `rsa` from sqlx-mysql's dependency tree
   # entirely (mysql_native_password auth no longer pulls it in); `cargo audit`

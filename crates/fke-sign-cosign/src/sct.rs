@@ -25,7 +25,7 @@
 use const_oid::AssociatedOid;
 use fke_ports::SignError;
 use p256::ecdsa::{signature::Verifier as _, DerSignature, VerifyingKey};
-use p256::elliptic_curve::pkcs8::DecodePublicKey;
+use p256::elliptic_curve::pkcs8::{DecodePublicKey, EncodePublicKey};
 use sha2::{Digest, Sha256};
 use x509_cert::der::Encode;
 use x509_cert::ext::pkix::sct::{
@@ -115,11 +115,10 @@ fn ct_log_verifying_key() -> Result<VerifyingKey, SignError> {
 /// log's own public key — used to match an embedded SCT to this pinned key.
 fn ct_log_id(log_key: &VerifyingKey) -> Result<[u8; 32], SignError> {
     let public_key = p256::PublicKey::from(log_key);
-    let spki_der = spki::SubjectPublicKeyInfoOwned::from_key(public_key)
-        .map_err(|_| SignError::Invalid)?
-        .to_der()
+    let spki_der = public_key
+        .to_public_key_der()
         .map_err(|_| SignError::Invalid)?;
-    Ok(Sha256::digest(spki_der).into())
+    Ok(Sha256::digest(spki_der.as_ref()).into())
 }
 
 /// Reconstruct the DER-encoded "precertificate" TBSCertificate that was

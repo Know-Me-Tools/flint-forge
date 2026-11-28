@@ -40,11 +40,11 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use ed25519_dalek::{Signature, VerifyingKey};
 use fke_domain::FunctionManifest;
 use fke_ports::{SignError, SignatureVerifier};
 use sha2::{Digest, Sha256};
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 const DEFAULT_RESOLVER_URL: &str = "https://did.flint.example.com";
 const DEFAULT_CACHE_TTL: Duration = Duration::from_mins(5);
@@ -226,15 +226,11 @@ fn try_inline_key(encoded: &str) -> Result<VerifyingKey, SignError> {
 
 /// Check that current UTC time is inside `[not_before, not_after]`.
 fn check_validity_window(not_before: &str, not_after: &str) -> Result<(), SignError> {
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
 
-    let nb = DateTime::parse_from_rfc3339(not_before)
-        .map_err(|_| SignError::Invalid)?
-        .with_timezone(&Utc);
+    let nb = OffsetDateTime::parse(not_before, &Rfc3339).map_err(|_| SignError::Invalid)?;
 
-    let na = DateTime::parse_from_rfc3339(not_after)
-        .map_err(|_| SignError::Invalid)?
-        .with_timezone(&Utc);
+    let na = OffsetDateTime::parse(not_after, &Rfc3339).map_err(|_| SignError::Invalid)?;
 
     if now < nb || now > na {
         return Err(SignError::Expired);

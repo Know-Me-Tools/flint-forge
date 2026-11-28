@@ -167,9 +167,18 @@ fn canonical_to_json(value: CanonicalValue) -> Result<Value, StreamError> {
         canonical_value::Kind::BytesValue(value) => Value::String(URL_SAFE_NO_PAD.encode(value)),
         canonical_value::Kind::TimestampValue(value) => {
             let nanos = u32::try_from(value.nanos).map_err(|_| StreamError::InvalidData)?;
-            let timestamp = chrono::DateTime::from_timestamp(value.seconds, nanos)
-                .ok_or(StreamError::InvalidData)?;
-            Value::String(timestamp.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true))
+            let timestamp = jiff::Timestamp::new(value.seconds, value.nanos)
+                .map_err(|_| StreamError::InvalidData)?;
+            let precision = if nanos == 0 {
+                0
+            } else if nanos.is_multiple_of(1_000_000) {
+                3
+            } else if nanos.is_multiple_of(1_000) {
+                6
+            } else {
+                9
+            };
+            Value::String(format!("{timestamp:.precision$}"))
         }
         canonical_value::Kind::JsonValue(value) => {
             serde_json::from_slice(&value).map_err(|_| StreamError::InvalidData)?

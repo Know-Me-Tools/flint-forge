@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
 use base64::Engine as _;
-use chrono::{Duration, Utc};
+use jiff::Timestamp;
 use clap::Args;
 use fke_domain::{Capability, FunctionManifest};
 use serde::{Deserialize, Serialize};
@@ -55,11 +55,11 @@ struct RegisterBody {
 }
 
 fn default_not_before() -> String {
-    Utc::now().to_rfc3339()
+    Timestamp::now().to_string()
 }
 
 fn default_not_after() -> String {
-    (Utc::now() + Duration::days(365)).to_rfc3339()
+    (Timestamp::now() + jiff::SignedDuration::from_hours(365 * 24)).to_string()
 }
 
 /// Sign `wasm_bytes` for registration: `did:prometheus:<pubkey>` derived from

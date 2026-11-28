@@ -2,10 +2,10 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
 use base64::Engine as _;
-use chrono::{Duration, Utc};
 use clap::{Args, Parser, Subcommand};
 use fke_domain::{Capability, FunctionManifest};
 use forge_domain::is_safe_identifier;
+use jiff::Timestamp;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -173,11 +173,11 @@ struct Claims {
 }
 
 fn default_not_before() -> String {
-    Utc::now().to_rfc3339()
+    Timestamp::now().to_string()
 }
 
 fn default_not_after() -> String {
-    (Utc::now() + Duration::days(365)).to_rfc3339()
+    (Timestamp::now() + jiff::SignedDuration::from_hours(365 * 24)).to_string()
 }
 
 #[tokio::main]
@@ -377,12 +377,14 @@ fn token_mint(args: TokenMintArgs) -> Result<()> {
     let secret = args
         .secret
         .with_context(|| "FLINT_JWT_SECRET or --secret required")?;
-    let now = Utc::now();
+    let now = Timestamp::now().as_second();
     let claims = Claims {
         sub: args.subject,
         role: args.role,
-        iat: now.timestamp(),
-        exp: (now + Duration::seconds(args.expiry_seconds)).timestamp(),
+        iat: now,
+        exp: now
+            .checked_add(args.expiry_seconds)
+            .context("token expiration is outside the supported range")?,
     };
     let token = encode(
         &Header::default(),

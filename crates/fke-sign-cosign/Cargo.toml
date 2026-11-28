@@ -15,17 +15,15 @@ async-trait = { workspace = true }
 anyhow = { workspace = true }
 reqwest = { workspace = true }
 sha2 = { workspace = true }
-chrono = { workspace = true }
+time = { workspace = true }
 base64 = { workspace = true }
 p256 = { workspace = true }
 p384 = { workspace = true }
 serde_json = { workspace = true }
 x509-cert = { workspace = true }
 const-oid = { workspace = true }
-spki = { workspace = true }
 hex = "0.4"
 
 [dev-dependencies]
 tokio = { workspace = true }
 wiremock = { workspace = true }
-rand_core = { version = "0.6", features = ["getrandom"] }
