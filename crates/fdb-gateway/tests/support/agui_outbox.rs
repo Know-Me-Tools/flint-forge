@@ -4,6 +4,46 @@ use sqlx::postgres::PgPoolOptions;
 use crate::gateway_fixture_database as fixture;
 
 #[tokio::test]
+async fn hook_events_reach_the_named_run_in_order_with_a_shared_call_id() {
+    let agui = AgUiState::new(8);
+    let mut target = agui.channel_for("run-a").await.subscribe();
+    let mut other = agui.channel_for("run-b").await.subscribe();
+    let payload = serde_json::json!({"schema":"inventory", "table":"widgets", "id":12});
+    let row = OutboxRow {
+        id: 1,
+        payload: sqlx::types::Json(payload.clone()),
+        agui_run_id: Some("run-a".to_owned()),
+        retry_count: 0,
+    };
+    deliver_agui_event(&agui, &row).await.unwrap();
+    let AgUiEvent::ToolCallStart {
+        tool_call_id: started_id,
+        tool_name,
+        ..
+    } = target.try_recv().expect("tool start")
+    else {
+        panic!("expected ToolCallStart")
+    };
+    assert_eq!(tool_name, "hook:inventory.widgets");
+    Uuid::parse_str(&started_id).expect("unique tool call identifier");
+    let AgUiEvent::ToolCallResult {
+        tool_call_id,
+        result,
+        error,
+    } = target.try_recv().expect("tool result")
+    else {
+        panic!("expected ToolCallResult")
+    };
+    assert_eq!(tool_call_id, started_id);
+    assert_eq!(result, payload);
+    assert!(error.is_none());
+    assert!(matches!(
+        other.try_recv(),
+        Err(tokio::sync::broadcast::error::TryRecvError::Empty)
+    ));
+}
+
+#[tokio::test]
 async fn undeliverable_hooks_back_off_then_stop_retrying() {
     let Ok(admin_url) = std::env::var("DATABASE_URL") else {
         return;

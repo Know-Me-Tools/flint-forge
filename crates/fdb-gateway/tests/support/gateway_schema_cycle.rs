@@ -18,6 +18,7 @@ pub(super) async fn provision(service: &Client, pool: &PgPool, namespace: &str) 
         .json("POST", "/schema/v1/plan", &spec, StatusCode::OK)
         .await;
     assert_eq!(repeat["planId"], plan["planId"]);
+    super::recovery::provisioning(service, pool, &spec, &hash).await;
     pending_plan_errors(service, pool, &hash).await;
     for already_applied in [false, true] {
         let result = service

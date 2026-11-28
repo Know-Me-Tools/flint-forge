@@ -25,6 +25,8 @@ use crate::gateway_fixture_database as fixture;
 mod keys;
 #[path = "gateway_protocols.rs"]
 mod protocols;
+#[path = "gateway_recovery.rs"]
+mod recovery;
 #[path = "gateway_schema_cycle.rs"]
 mod schema;
 #[path = "gateway_views.rs"]
@@ -198,6 +200,7 @@ async fn exercise_gateway(url: &str) {
     sqlx::query("INSERT INTO flint_a2ui.assembly_rules(application_id,event_type,assembly_config) VALUES($1,'catalog.preview',$2)")
         .bind(sub).bind(json!({"component_slug":"button","props":{"label":"Review draft"}}))
         .execute(&pool).await.expect("preview assembly rule");
+    recovery::catalog(&client, &pool, sub).await;
     catalog_protocols(&client, &table).await;
     views::surface_preview(&client, sub).await;
     sqlx::query("DELETE FROM flint_a2ui.assembly_rules WHERE application_id=$1")
