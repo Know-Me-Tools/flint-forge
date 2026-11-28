@@ -11,6 +11,9 @@ use serde_json::json;
 use sqlx::PgPool;
 use tower::ServiceExt;
 
+#[path = "../../../tests/support/htmx_previews.rs"]
+mod previews;
+
 fn fake_rls_context() -> RlsContext {
     RlsContext {
         role: "authenticated".to_string(),
@@ -274,4 +277,84 @@ async fn test_admin_registry_renders_with_db() {
     assert_eq!(resp.status(), StatusCode::OK);
     let body = read_body(resp).await;
     assert!(body.contains("Component Registry") || body.contains("alert-error"));
+}
+
+#[test]
+fn configured_components_render_the_supplied_labels_values_and_controls() {
+    for (slug, schema, expected) in [
+        (
+            "card",
+            json!({"title":"Review","body":"Ready to publish"}),
+            "Ready to publish",
+        ),
+        (
+            "action-bar",
+            json!({"actions":[{"label":"Archive"}]}),
+            "Archive",
+        ),
+        ("dropdown-menu", json!({"items":[{"label":"Open"}]}), "Open"),
+        (
+            "context-menu",
+            json!({"items":[{"label":"Choose"}]}),
+            "Choose",
+        ),
+        (
+            "nav-bar",
+            json!({"links":[{"label":"Projects"}]}),
+            "Projects",
+        ),
+        ("sidebar", json!({"items":[{"label":"Billing"}]}), "Billing"),
+        ("stepper", json!({"steps":[{"label":"Saved"}]}), "Saved"),
+        ("data-table", json!({"headers":["Label"]}), "<th>Label</th>"),
+        ("data-grid", json!({"columns":[{"name":"Ref"}]}), "Ref"),
+        (
+            "tabs",
+            json!({"tabs":[{"label":"History"},"Changes"]}),
+            "History",
+        ),
+        (
+            "stat-card",
+            json!({"delta":"-4","trend":"down"}),
+            "text-error",
+        ),
+        (
+            "timeline",
+            json!({"events":[{"label":"Updated","timestamp":"Tuesday"}]}),
+            "Tuesday",
+        ),
+        (
+            "list",
+            json!({"items":["Item A"],"ordered":true}),
+            "<li>Item A</li>",
+        ),
+        (
+            "detail-view",
+            json!({"fields":[{"label":"State","value":"Done"}]}),
+            "Done",
+        ),
+        (
+            "select",
+            json!({"options":[{"label":"Approved"}]}),
+            ">Approved</option>",
+        ),
+        ("radio", json!({"options":["Queued"]}), "value=\"Queued\""),
+        ("number-input", json!({"min":3,"max":5}), "max=\"5\""),
+        ("checkbox", json!({"checked":true}), " checked "),
+        ("toggle", json!({"checked":true}), " checked "),
+        ("link", json!({"external":true}), "noopener"),
+        (
+            "avatar",
+            json!({"src":"/team.png","name":"Team"}),
+            "/team.png",
+        ),
+        (
+            "divider",
+            json!({"orientation":"vertical"}),
+            "divider-horizontal",
+        ),
+        ("modal", json!({"size":"xl"}), "max-w-4xl"),
+    ] {
+        let html = render_component_html(slug, &schema, None);
+        assert!(html.contains(expected), "{slug}: {html}");
+    }
 }

@@ -52,36 +52,30 @@ pgvector = { version = "0.4", features = ["postgres", "sqlx"] }
 cedar-policy = "4"
 wiremock = "0.6"
 # WASM Component Model runtime (Kiln data-plane). Compiler feature adds Cranelift AOT.
-# p10-c003: Upgraded 26→46 to resolve RUSTSEC-2026-0095/0096 (CVSS 9.0) and all
-# wasmtime-suite advisories. wasmtime uses calendar versioning; component-model
-# and async APIs are stable across this range.
-# `anyhow` feature: wasmtime 40+ made anyhow optional; re-enable it so
-# wasmtime::Error = anyhow::Error and .context() calls in fke-runtime continue to work.
-wasmtime = { version = "46", features = ["component-model", "async", "pooling-allocator", "anyhow"] }
-wasmtime-wasi = "46"
-wasmtime-wasi-http = "46"
+# Keep the runtime and WASI hosts on the same security-patched release line.
+wasmtime = { version = "48.0.10", features = ["component-model", "async", "pooling-allocator", "anyhow"] }
+wasmtime-wasi = "48.0.10"
+wasmtime-wasi-http = "48.0.10"
 hyper = { version = "1", features = ["full"] }
 http-body-util = "0.1"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 sha2 = "0.10"
-chrono = { version = "0.4", features = ["serde"] }
+jiff = { version = "0.2", default-features = false, features = ["std"] }
+time = { version = "0.3", features = ["parsing"] }
 base64 = "0.22"
-zip = "2"
-p256 = { version = "0.13", features = ["ecdsa"] }
+zip = { version = "9.8", default-features = false, features = ["aes-crypto", "bzip2-rs", "deflate64", "deflate", "lzma", "time", "zstd", "xz"] }
+p256 = { version = "0.14", features = ["ecdsa"] }
 # p16-c002: Fulcio intermediate/root CA certs are P-384 (leaf certs are P-256).
-p384 = { version = "0.13", features = ["ecdsa"] }
+p384 = { version = "0.14", features = ["ecdsa"] }
 x509-cert = { version = "0.2", features = ["pem", "std", "sct"] }
 # p16-c005: test-only ES256 keypair generation for JWKS-rotation integration tests
 # (already a transitive dep of jsonwebtoken's "use_pem"/ring backend).
 ring = "0.17"
-# p16-c002: OID matching (Fulcio identity extensions) and SPKI DER encoding
-# (SCT issuer_key_hash) independent of x509-cert's re-exports.
+# p16-c002: OID matching for Fulcio identity extensions.
 const-oid = "0.9"
-spki = { version = "0.7", features = ["alloc", "pem"] }
 oci-client = { version = "0.17", default-features = false, features = ["rustls-tls"] }
-# p10-c003: Upgraded 0.11→0.14 to resolve RUSTSEC-2026-0194/0195 (CVSS 7.5,
-# quick-xml via object_store 0.11). object_store 0.14 uses quick-xml >=0.41.
-object_store = { version = "0.14", features = ["aws"] }
+# 0.14.2 requires the patched quick-xml 0.41 series.
+object_store = { version = "0.14.2", features = ["aws"] }
 testcontainers = "0.23"
 testcontainers-modules = { version = "0.11", features = ["cncf_distribution", "minio"] }
 # p9-c003: Per-IP token-bucket rate limiting via tower_governor.
@@ -121,14 +115,8 @@ tracing-opentelemetry = "0.33"
 #   `ring` to `aws-lc-rs` — a real TLS-behavior change across every outbound
 #   HTTPS client in the workspace (Keto check, sigstore Fulcio/Rekor calls,
 #   JWKS fetch, IPFS upload). Needs its own reviewed change.
-# - digest 0.10 vs 0.11 (and its dependents: block-buffer, const-oid,
-#   cpufeatures, crypto-common, hmac, md-5, sha2, typenum): ed25519-dalek,
-#   the elliptic-curve family (p256/p384, used for Fulcio cert validation),
-#   and zip's aes/pbkdf2 chain all still pin the digest 0.10 RustCrypto
-#   generation, while postgres-protocol (transitive via tokio-postgres) has
-#   moved to digest 0.11. Converging means major-bumping security-sensitive
-#   signing/crypto crates (ed25519-dalek 2→3, zip 2→9.0.0-pre2 which is not
-#   even a stable release) — out of scope here.
+# - digest 0.10 vs 0.11: ed25519-dalek 2 uses the former; the P-256/P-384
+#   signers and postgres-protocol use the newer RustCrypto generation.
 # - darling 0.20 vs 0.23 (and darling_core/darling_macro): oci-spec (via our
 #   oci-client dep) pins `derive_builder ^0.20` → darling 0.20; async-graphql
 #   internally requires `handlebars` (also on derive_builder 0.20 — removing

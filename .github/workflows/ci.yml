@@ -43,8 +43,7 @@ jobs:
         run: cargo deny check licenses advisories
       # p10-c003: Security advisory gate. Fails on any unfixed advisory with
       # CVSS >= 7.0 that is not in .cargo/audit.toml allowlist.
-      # Allowlisted: quick-xml (DoS via operator-controlled S3), rsa/sqlx-mysql
-      # (PostgreSQL-only codebase), two unmaintained indirect deps.
+      # Existing exceptions are documented in .cargo/audit.toml.
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
       - name: Security audit
@@ -56,10 +55,6 @@ jobs:
       # See docs/api/versioning.md for the full policy.
       - name: API version check
         run: bash scripts/check_api_versions.sh
-      - name: Install cargo-component
-        run: cargo install cargo-component --locked
-      - name: Build hello-component
-        run: cargo component build -p hello-component
 
 # ── Postgres integration tests ────────────────────────────────────────────────
 # p15-c004: Builds the pinned Postgres 18 image (with all five Anvil pgrx
@@ -101,6 +96,11 @@ jobs:
           echo "Postgres failed to become ready" >&2
           docker logs flint-db >&2
           exit 1
+
+      - name: Install cargo-component
+        run: cargo install cargo-component --locked
+      - name: Build hello-component
+        run: cargo component build -p hello-component
 
       - name: Run integration tests
         env:

@@ -28,6 +28,9 @@
 #![forbid(unsafe_code)]
 
 mod db_host;
+#[cfg(test)]
+#[path = "../tests/support/governed_hosts.rs"]
+mod governed_hosts;
 mod host_bindings;
 mod identity_host;
 mod kv_host;
@@ -57,9 +60,7 @@ use wasmtime::{Config, Engine, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 use wasmtime_wasi_http::p2::bindings::http::types::Scheme;
 use wasmtime_wasi_http::p2::bindings::ProxyPre;
-use wasmtime_wasi_http::p2::WasiHttpCtxView;
-use wasmtime_wasi_http::p2::WasiHttpView;
-use wasmtime_wasi_http::WasiHttpCtx;
+use wasmtime_wasi_http::{WasiHttpCtx, WasiHttpCtxView, WasiHttpView};
 
 use fke_domain::{Capability, ContentId};
 

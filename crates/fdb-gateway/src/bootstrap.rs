@@ -48,7 +48,6 @@ pub(crate) async fn run() -> anyhow::Result<()> {
     // p9-c004: Initialise structured tracing (fmt + optional OTLP) and Prometheus metrics.
     // Guard is held for the process lifetime so the OTLP exporter flushes cleanly on exit.
     let _telemetry_guard = telemetry::init_tracing();
-    let (metrics_layer, metrics_handle) = telemetry::metrics_layer();
 
     let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
         tracing::warn!("DATABASE_URL not set; reflection will use placeholder");
@@ -59,6 +58,25 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         .await
         .expect("reflection pool connect");
 
+    let app = build_router(pool, database_url).await?;
+    let addr = std::env::var("BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:8080".to_owned());
+    tracing::info!(%addr, "flint-quarry listening");
+    let listener = tokio::net::TcpListener::bind(&addr).await.expect("bind");
+
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("serve: {e}"))?;
+
+    Ok(())
+}
+
+/// Prepare the database, then compose the HTTP routes and their background consumers.
+#[allow(clippy::too_many_lines)]
+pub(crate) async fn build_router(pool: PgPool, database_url: String) -> anyhow::Result<Router> {
+    let (metrics_layer, metrics_handle) = telemetry::metrics_layer();
     // See role_preflight.rs and docs/contracts/database-roles.md: the gateway's own migrations
     // require the connecting role to own the pgrx extensions they touch, and a mismatch otherwise
     // surfaces as a bare `permission denied for schema flint_meta` on migration 3 with nothing
@@ -74,10 +92,6 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         .expect("database migration failed");
     tracing::info!("database migrations applied");
 
-    // p14-c001: Emit sqlx pool gauges so the Grafana DB connections panel and
-    // the HighDbConnections alert rule produce real data.
-    telemetry::spawn_pool_metrics(pool.clone());
-
     // Seed base A2UI component catalog (idempotent — ON CONFLICT DO UPDATE/DO NOTHING).
     // The seed SQL lives at scripts/seed_a2ui_components.sql relative to workspace root.
     let seed_sql = include_str!("../../../scripts/seed_a2ui_components.sql");
@@ -86,6 +100,10 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         .await
         .expect("a2ui component seed failed");
     tracing::info!("a2ui base component catalog seeded");
+
+    // p14-c001: Emit sqlx pool gauges so the Grafana DB connections panel and
+    // the HighDbConnections alert rule produce real data.
+    telemetry::spawn_pool_metrics(pool.clone());
 
     // Spawn the A2UI component embedder. It backfills missing embeddings and
     // listens on the Postgres `a2ui_embed` channel for new component inserts.
@@ -555,10 +573,6 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         // p9-c004: Instrument every request with http_requests_total + duration histograms.
         .layer(metrics_layer);
 
-    let addr = std::env::var("BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:8080".to_owned());
-    tracing::info!(%addr, "flint-quarry listening");
-    let listener = tokio::net::TcpListener::bind(&addr).await.expect("bind");
-
     // p9-c003: Per-IP token-bucket rate limiting via tower_governor.
     // FLINT_RATE_LIMIT_REST: requests-per-second sustained rate per IP (0 = disabled, default 100).
     // FLINT_RATE_LIMIT_BURST: token-bucket burst capacity (default 10).
@@ -617,14 +631,7 @@ pub(crate) async fn run() -> anyhow::Result<()> {
             HeaderValue::from_static("strict-origin-when-cross-origin"),
         ));
 
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
-    )
-    .await
-    .map_err(|e| anyhow::anyhow!("serve: {e}"))?;
-
-    Ok(())
+    Ok(app)
 }
 
 /// Convert requests per second to the replenishment interval Governor expects.

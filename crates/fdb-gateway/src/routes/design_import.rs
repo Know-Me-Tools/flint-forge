@@ -231,7 +231,7 @@ async fn import_claude_design_zip(state: A2uiState, body: ImportBody) -> axum::r
             let Ok(mut file) = archive.by_index(i) else {
                 continue;
             };
-            if file.name().ends_with("DESIGN.md") {
+            if file.name().is_ok_and(|name| name.ends_with("DESIGN.md")) {
                 let mut buf = String::new();
                 if std::io::Read::read_to_string(&mut file, &mut buf).is_ok() {
                     found = Some(buf);

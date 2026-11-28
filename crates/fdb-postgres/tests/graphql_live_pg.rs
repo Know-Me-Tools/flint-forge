@@ -75,18 +75,17 @@ async fn graphql_resolve_decodes_jsonb_without_panicking() {
     let who = rls_for_role(&role);
 
     let req = GraphQlRequest {
-        query: "query { __typename }".to_owned(),
-        variables: serde_json::json!({}),
-        operation_name: None,
+        // Selecting a named operation and supplying a Boolean variable tests
+        // both parameter binds at the pg_graphql boundary.
+        query: "query Read($enabled: Boolean!) { __typename @include(if: $enabled) } query Other { __typename }".into(),
+        variables: serde_json::json!({"enabled":true}),
+        operation_name: Some("Read".into()),
     };
 
     // Must not panic (regression coverage for the jsonb/String FromSql mismatch)
     // and must return a valid JSON object.
     let result = gql.execute(req, &who).await.expect("execute");
-    assert!(
-        result.is_object(),
-        "graphql.resolve result should be a JSON object"
-    );
+    assert_eq!(result, serde_json::json!({"data":{"__typename":"Query"}}));
 
     let c = pool.get().await.expect("conn");
     c.batch_execute("DROP SCHEMA graphql_it CASCADE;")

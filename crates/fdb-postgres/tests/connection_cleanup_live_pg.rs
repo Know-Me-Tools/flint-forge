@@ -175,3 +175,46 @@ async fn explicitly_rolled_back_query_error_keeps_a_clean_reusable_connection() 
         .get::<_, Option<String>>(1)
         .is_none_or(|value| value.is_empty()));
 }
+
+#[tokio::test]
+async fn a_deferred_constraint_failure_at_commit_discards_the_checkout() {
+    let Some(pool) = pool() else {
+        return;
+    };
+    let setup = pool.get().await.expect("checkout");
+    let row = setup
+        .query_one("SELECT pg_backend_pid(),current_user", &[])
+        .await
+        .expect("original session");
+    let original_pid: i32 = row.get(0);
+    let role: String = row.get(1);
+    setup.batch_execute("CREATE TEMP TABLE deferred_commit_test (value int UNIQUE DEFERRABLE INITIALLY DEFERRED)")
+        .await.expect("deferred constraint");
+    drop(setup);
+
+    let scope = RlsContext {
+        role,
+        claims_json: "{}".into(),
+        raw_bearer: String::new(),
+        keto_subject: String::new(),
+        vault_key_id: None,
+    };
+    let result = PgRest::new(pool.clone())
+        .execute_raw(
+            "INSERT INTO deferred_commit_test VALUES (1),(1) RETURNING value",
+            vec![],
+            &scope,
+        )
+        .await;
+    let message = result
+        .expect_err("constraint must fail at commit")
+        .to_string();
+    assert!(message.contains("commit") && message.contains("23505"));
+    let recycled = pool.get().await.expect("replacement checkout");
+    let replacement_pid: i32 = recycled
+        .query_one("SELECT pg_backend_pid()", &[])
+        .await
+        .expect("replacement session")
+        .get(0);
+    assert_ne!(original_pid, replacement_pid);
+}

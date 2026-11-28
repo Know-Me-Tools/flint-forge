@@ -109,20 +109,20 @@ async fn deliver_agui_event(agui: &AgUiState, row: &OutboxRow) -> Result<(), Del
         .unwrap_or("public");
     let tool_name = format!("hook:{schema}.{table}");
 
-    // publish() lazily creates the run channel — no need to call channel_for().
-    agui.publish(AgUiEvent::ToolCallStart {
+    // Tool-call events carry no run_id. Route both through the run recorded on
+    // the outbox row. A run without active subscribers can drop live events.
+    let channel = agui.channel_for(run_id).await;
+    let _ = channel.send(AgUiEvent::ToolCallStart {
         tool_call_id: tool_call_id.clone(),
         tool_name: tool_name.clone(),
         parent_message_id: None,
-    })
-    .await;
+    });
 
-    agui.publish(AgUiEvent::ToolCallResult {
+    let _ = channel.send(AgUiEvent::ToolCallResult {
         tool_call_id,
         result: row.payload.0.clone(),
         error: None,
-    })
-    .await;
+    });
 
     tracing::debug!(run_id, tool_name, "ag-ui hook: ToolCallResult emitted");
     Ok(())
@@ -169,6 +169,10 @@ enum DeliveryError {
     #[error("outbox entry has no agui_run_id")]
     MissingRunId,
 }
+
+#[cfg(test)]
+#[path = "../tests/support/agui_outbox.rs"]
+mod outbox_tests;
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 

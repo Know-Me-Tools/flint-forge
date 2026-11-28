@@ -1,22 +1,88 @@
 //! Integration test against the isolated repair database, never a live catalog.
 use fdb_gateway::a2ui_embedder;
+#[path = "support/gateway_fixture_database.rs"]
+mod fixture;
 use sqlx::PgPool;
 use std::{sync::Arc, time::Duration};
 
 #[tokio::test]
 async fn replicas_coordinate_backfill_and_recover_notifications() {
-    let Ok(url) = std::env::var("A2UI_TEST_DATABASE_URL") else {
+    std::env::set_var("FLINT_A2UI_EMBED_MODEL", "tongyi-embedding-vision-plus");
+    std::env::set_var("FLINT_A2UI_EMBED_DIMENSIONS", "1152");
+    if let Ok(url) = std::env::var("A2UI_TEST_DATABASE_URL") {
+        let pool = PgPool::connect(&url).await.expect("repair database");
+        let db: String = sqlx::query_scalar("SELECT current_database()")
+            .fetch_one(&pool)
+            .await
+            .expect("database name");
+        assert_eq!(
+            db, "flint_a2ui_repair_test",
+            "isolated repair database required"
+        );
+        check_replica_recovery(pool).await;
+        return;
+    }
+    let Ok(url) = std::env::var("DATABASE_URL") else {
         return;
     };
-    let pool = PgPool::connect(&url).await.unwrap();
-    let database: String = sqlx::query_scalar("SELECT current_database()")
-        .fetch_one(&pool)
+    // The mock provider and its counter must never replace objects in the CI
+    // database. Every invocation owns a new database and drops it on failure.
+    fixture::with_database(&url, |options| async move {
+        let pool = PgPool::connect_with(options).await.expect("embedding database");
+        let mut transaction = pool.begin().await.expect("begin fixture installation");
+        for sql in [
+            include_str!("../../../migrations/0002_flint_a2ui.sql"),
+            include_str!("../../../migrations/0017_a2ui_embedding_invalidation.sql"),
+            include_str!("../../../migrations/0018_a2ui_dashscope_dimensions.sql"),
+            "CREATE SCHEMA llm; INSERT INTO flint_a2ui.components(slug,category,primitive_type,schema,description) VALUES ('sample','input','Text','{}','Example text'),('second','input','Text','{}','Second example');",
+        ] {
+            sqlx::raw_sql(sql).execute(&mut *transaction).await.expect("install embedding schema");
+        }
+        transaction.commit().await.expect("commit fixture installation");
+        check_provider_recovery(&pool).await;
+        check_replica_recovery(pool).await;
+    }).await;
+}
+
+async fn check_provider_recovery(pool: &PgPool) {
+    sqlx::raw_sql("CREATE FUNCTION llm.embed(input text,model text DEFAULT 'default') RETURNS vector LANGUAGE sql AS $$ SELECT '[1]'::vector $$")
+        .execute(pool).await.expect("incompatible provider fixture");
+    let error = a2ui_embedder::backfill_missing(pool)
         .await
-        .unwrap();
-    assert_eq!(
-        database, "flint_a2ui_repair_test",
-        "isolated database required"
-    );
+        .expect_err("invalid vector rejected");
+    assert!(error.to_string().contains("embedding dimension mismatch"));
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM flint_a2ui.embeddings")
+        .fetch_one(pool)
+        .await
+        .expect("persisted count");
+    assert_eq!(count, 0);
+    assert!(a2ui_embedder::query_embedding(pool, "Search")
+        .await
+        .is_none());
+
+    // Sequence values survive a failed transaction, as requests to an external
+    // provider do. The first two attempts simulate temporary rate limiting.
+    sqlx::raw_sql("CREATE SEQUENCE llm.attempts;
+        CREATE OR REPLACE FUNCTION llm.embed(input text, model text DEFAULT 'default') RETURNS vector
+        LANGUAGE plpgsql AS $$ BEGIN
+          IF nextval('llm.attempts') < 3 THEN RAISE EXCEPTION 'gateway error 429'; END IF;
+          RETURN array_fill(0.1::real,ARRAY[1152])::vector;
+        END $$")
+        .execute(pool).await.expect("transient provider fixture");
+    a2ui_embedder::backfill_missing(pool)
+        .await
+        .expect("retry accepted vectors");
+    let (attempts, embeddings): (i64, i64) = sqlx::query_as(
+        "SELECT last_value, (SELECT count(*) FROM flint_a2ui.embeddings) FROM llm.attempts",
+    )
+    .fetch_one(pool)
+    .await
+    .expect("retry accounting");
+    assert_eq!(embeddings, 2);
+    assert_eq!(attempts, embeddings + 2);
+}
+
+async fn check_replica_recovery(pool: PgPool) {
     sqlx::raw_sql(
         "CREATE TABLE IF NOT EXISTS public.embedding_calls(id bigserial PRIMARY KEY);
         CREATE OR REPLACE FUNCTION llm.embed(input text,model text DEFAULT 'default') RETURNS vector

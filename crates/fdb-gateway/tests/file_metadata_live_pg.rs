@@ -1,5 +1,5 @@
-//! Authored, intentionally ignored acceptance against an already-provisioned disposable DB.
-//! No DDL, server startup, credentials discovery or default DATABASE_URL fallback.
+//! File metadata HTTP acceptance on a migrated database. The wider issue 40
+//! acceptance cases require their dedicated disposable database and manifest.
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -261,4 +261,72 @@ async fn issue40_owner_save() -> Result<(), Box<dyn Error>> {
 #[ignore = "Requires approved issue 40 disposable database and fixture manifest"]
 async fn issue40_authorization_controls() -> Result<(), Box<dyn Error>> {
     issue40_scenarios::authorization_controls().await
+}
+
+/// Regular CI exercises the HTTP contract in a fresh owner namespace. No
+/// shared policies, tables or existing owner records are modified.
+#[tokio::test]
+async fn file_routes_create_discover_and_read_an_owner_scoped_record() -> Result<(), Box<dyn Error>>
+{
+    let Ok(url) = std::env::var("DATABASE_URL") else {
+        return Ok(());
+    };
+    let subject = uuid::Uuid::new_v4().to_string();
+    let who = identity(&subject, &subject);
+    let store = Arc::new(PgFileMetadata::new(pool(&url)?));
+    let api = router(FileApiState {
+        store: Some(store.clone()),
+        pep: Arc::new(Permit),
+        keto: None,
+    })
+    .layer(Extension(who.clone()));
+    let (status, capabilities) =
+        http_json(&api, "GET", "/files/v1/capabilities", &Value::Null).await?;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(capabilities["data"]["schema_profile"], "file-schema-v1");
+    let mut typ = serde_json::to_value(definition())?;
+    let (status, registered) = http_json(&api, "PUT", "/files/v1/types", &typ).await?;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(registered["data"], typ);
+    let (_, listed) = http_json(&api, "GET", "/files/v1/types", &Value::Null).await?;
+    assert_eq!(listed["data"], json!([typ]));
+    let matched = json!({"mime_type":"Application/PDF","filename":"one.pdf"});
+    let (_, found) = http_json(&api, "POST", "/files/v1/types/match", &matched).await?;
+    assert_eq!(found["data"], typ);
+    let mut data = serde_json::to_value(attachment())?;
+    let (status, created) = http_json(&api, "PUT", "/files/v1/records/one", &data).await?;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(created["data"]["revision"], 1);
+    let (_, fetched) = http_json(&api, "GET", "/files/v1/records/one", &Value::Null).await?;
+    assert_eq!(fetched, created);
+    data["expected_revision"] = json!(1);
+    data["mutation_id"] = json!("edit-one");
+    let (status, updated) = http_json(&api, "PUT", "/files/v1/records/one", &data).await?;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(updated["data"]["revision"], 2);
+    let query = json!({"attributes":{"amount":10},"type_id":"invoice","after":"a","limit":1});
+    let (status, results) = http_json(&api, "POST", "/files/v1/records/query", &query).await?;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(results["data"], json!([updated["data"]]));
+    typ["type_id"] = json!("second-invoice");
+    assert_eq!(
+        http_json(&api, "PUT", "/files/v1/types", &typ).await?.0,
+        StatusCode::OK
+    );
+    let (status, ambiguous) = http_json(&api, "POST", "/files/v1/types/match", &matched).await?;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(ambiguous["error"]["code"], "ambiguous_type");
+    let forbidden = router(FileApiState {
+        store: Some(store),
+        pep: Arc::new(Deny),
+        keto: None,
+    })
+    .layer(Extension(who));
+    assert_eq!(
+        http_json(&forbidden, "PUT", "/files/v1/records/one", &data)
+            .await?
+            .0,
+        StatusCode::FORBIDDEN
+    );
+    Ok(())
 }

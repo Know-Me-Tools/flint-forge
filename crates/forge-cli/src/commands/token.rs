@@ -1,7 +1,7 @@
 //! `forge token mint` — mint a smoke-test JWT.
 
 use anyhow::{Context, Result};
-use chrono::{Duration, Utc};
+use jiff::Timestamp;
 use clap::Args;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
@@ -34,12 +34,12 @@ pub fn token_mint(args: TokenMintArgs) -> Result<()> {
     let secret = args
         .secret
         .with_context(|| "FLINT_JWT_SECRET or --secret required")?;
-    let now = Utc::now();
+    let now = Timestamp::now().as_second();
     let claims = Claims {
         sub: args.subject,
         role: args.role,
-        iat: now.timestamp(),
-        exp: (now + Duration::seconds(args.expiry_seconds)).timestamp(),
+        iat: now,
+        exp: now.checked_add(args.expiry_seconds).context("token expiration is outside the supported range")?,
     };
     let token = encode(
         &Header::default(),

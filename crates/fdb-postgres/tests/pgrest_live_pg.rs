@@ -79,12 +79,31 @@ async fn pgrest_execute_returns_filtered_rows() {
         offset: None,
     };
 
-    let result = rest.execute(q, &who).await.expect("execute");
+    let result = rest.execute(q.clone(), &who).await.expect("execute");
     let rows = result.rows.as_array().expect("rows array");
     assert_eq!(rows.len(), 2, "two rows have status=active");
     for row in rows {
         assert_eq!(row.get("status").and_then(|v| v.as_str()), Some("active"));
     }
+
+    let page = RestQuery {
+        select: Some("id".into()),
+        order: Some("id.desc".into()),
+        limit: Some(1),
+        offset: Some(1),
+        ..q
+    };
+    let result = rest.execute(page.clone(), &who).await.expect("second page");
+    assert_eq!(result.rows, serde_json::json!([{"id":1}]));
+    assert_eq!(result.count, Some(1));
+    let unsupported_filter = RestQuery {
+        filters: vec![("status".into(), "unknown".into(), "active".into())],
+        ..page
+    };
+    assert!(matches!(
+        rest.execute(unsupported_filter, &who).await,
+        Err(fdb_ports::BackendError::Query(_))
+    ));
 
     // cleanup
     let c = pool.get().await.expect("conn");

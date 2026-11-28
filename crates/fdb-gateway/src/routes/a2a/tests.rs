@@ -24,9 +24,20 @@ fn fake_rls_context(user_id: &str) -> RlsContext {
     }
 }
 
+// Protocol-only handlers require router state but perform no database queries.
+fn protocol_state() -> A2aState {
+    A2aState {
+        a2ui: A2uiState {
+            pool: PgPool::connect_lazy("postgres://localhost/protocol_test").expect("valid URL"),
+        },
+    }
+}
+
 async fn connect() -> Option<A2aState> {
     let url = std::env::var("DATABASE_URL").ok()?;
-    let pool = PgPool::connect(&url).await.ok()?;
+    let pool = PgPool::connect(&url)
+        .await
+        .expect("configured test database");
     Some(A2aState {
         a2ui: A2uiState { pool },
     })
@@ -83,7 +94,7 @@ async fn test_agent_card_has_three_skills() {
 
 #[tokio::test]
 async fn test_tasks_list_returns_three_tasks() {
-    let Some(state) = connect().await else { return };
+    let state = protocol_state();
     let app = a2a_app(state, "anonymous-user");
     let req = Request::builder()
         .method(Method::POST)
@@ -127,7 +138,7 @@ async fn test_component_discover_via_query() {
 
 #[tokio::test]
 async fn test_unknown_task_returns_task_not_found() {
-    let Some(state) = connect().await else { return };
+    let state = protocol_state();
     let app = a2a_app(state, "anonymous-user");
     let req = Request::builder()
         .method(Method::POST)
@@ -148,7 +159,7 @@ async fn test_unknown_task_returns_task_not_found() {
 
 #[tokio::test]
 async fn test_assemble_missing_event_type_returns_invalid_params() {
-    let Some(state) = connect().await else { return };
+    let state = protocol_state();
     let app = a2a_app(state, "anonymous-user");
     let req = Request::builder()
         .method(Method::POST)

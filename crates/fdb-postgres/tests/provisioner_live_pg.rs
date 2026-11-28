@@ -254,9 +254,63 @@ async fn apply_commits_visible_on_fresh_connection_and_rolls_back_on_failure() {
         "same-hash replay must report alreadyApplied"
     );
 
+    assert_committed_catalog(&provisioner, &record).await;
     assert_failed_apply_rolls_back(&provisioner, &fresh, ns).await;
 
     reset_fixture(&client, ns, &["pln_it_ok", "pln_it_fail"]).await;
+}
+
+async fn assert_committed_catalog(provisioner: &PgProvisioner, record: &PlannedRecord) {
+    let ns = &record.namespace;
+    assert!(provisioner.schema_exists(ns).await.expect("namespace"));
+    let tables = provisioner.introspect_namespace(ns).await.expect("catalog");
+    assert_eq!(tables.len(), 1);
+    assert_eq!(tables[0].name, "t_ok");
+    assert_eq!(tables[0].primary_key, ["id"]);
+    assert_eq!(tables[0].columns[0].sql_type, "text");
+    let details = provisioner
+        .table_ddl_info(ns, "t_ok")
+        .await
+        .expect("DDL info")
+        .expect("table");
+    assert_eq!(details.columns[0].name, "id");
+    assert!(!details.columns[0].nullable);
+    assert!(details.columns[0].pk_ordinal.is_some());
+    assert!(!details.rls_enabled);
+    assert!(provisioner
+        .table_ddl_info(ns, "absent")
+        .await
+        .expect("missing table")
+        .is_none());
+    assert!(provisioner.persist_planned(record).await.is_err());
+    let stored = provisioner
+        .load_planned(&record.hash)
+        .await
+        .expect("lookup")
+        .expect("plan");
+    assert_eq!(stored.plan_id, record.plan_id);
+    assert_eq!(stored.status, "applied");
+    assert_eq!(stored.spec.namespace, *ns);
+    assert!(provisioner
+        .load_planned(&PlanHash("sha256:unknown-fixture".into()))
+        .await
+        .expect("absent lookup")
+        .is_none());
+    provisioner
+        .record_version_after(&record.plan_id, 2)
+        .await
+        .expect("version receipt");
+    assert!(provisioner
+        .record_version_after(&PlanId("absent-fixture".into()), 3)
+        .await
+        .is_err());
+    let latest = provisioner
+        .last_apply()
+        .await
+        .expect("ledger summary")
+        .expect("apply history");
+    assert!(matches!(latest.status.as_str(), "applied" | "failed"));
+    assert!(latest.at_epoch > 0);
 }
 
 /// Audit invariant: apply WITHOUT a persisted planned row must refuse and
@@ -309,6 +363,20 @@ async fn apply_without_planned_row_is_refused_and_rolled_back() {
         .get(0);
     assert!(!orphaned, "DDL must not survive without its audit record");
 
+    // If the DDL itself fails before the missing row can be detected, the
+    // caller needs both the SQLSTATE and the failure to record the outcome.
+    let failed_orphan = ValidatedPlan {
+        ddl: "SELECT 1/0".into(),
+        ..orphan
+    };
+    let error = provisioner
+        .apply(&failed_orphan, "it-subject", None)
+        .await
+        .expect_err("both the DDL and its ledger transition fail")
+        .to_string();
+    assert!(error.contains("SQLSTATE 22012"));
+    assert!(error.contains("failed-ledger transition also did not persist"));
+
     reset_fixture(&client, ns, &["pln_it_orphan_never_persisted"]).await;
 }
 
@@ -354,4 +422,49 @@ async fn provisioner_cannot_create_outside_granted_namespaces() {
     );
 
     reset_fixture(&client, ns, &["pln_it_deny"]).await;
+}
+
+#[tokio::test]
+async fn ordinary_role_gets_only_sqlstate_when_it_cannot_access_the_ledger() {
+    let Some(url) = database_url() else { return };
+    let admin = admin(&url).await;
+    if !prereqs_present(&admin).await {
+        return;
+    }
+
+    // Apply the restricted role at connection startup, including to the
+    // ledger pre-check that runs before any DDL transaction is opened.
+    let restricted_url = if url.starts_with("postgres://") || url.starts_with("postgresql://") {
+        let separator = if url.contains('?') { '&' } else { '?' };
+        format!("{url}{separator}options=-crole%3Dauthenticated")
+    } else {
+        format!("{url} options=-crole=authenticated")
+    };
+    let provisioner = PgProvisioner::from_url(&restricted_url).expect("restricted pool");
+    let (record, plan) = planned(
+        "ordinary_role",
+        "example",
+        "fixture_role_denied",
+        "sha256:fixture-denied",
+        "SELECT 1",
+    );
+    for result in [
+        provisioner.persist_planned(&record).await,
+        provisioner.load_planned(&record.hash).await.map(|_| ()),
+        provisioner
+            .apply(&plan, "test-operator", None)
+            .await
+            .map(|_| ()),
+        provisioner.record_version_after(&record.plan_id, 1).await,
+        provisioner.last_apply().await.map(|_| ()),
+    ] {
+        let error = result
+            .expect_err("ordinary role has no ledger grant")
+            .to_string();
+        assert!(error.contains("SQLSTATE 42501"), "{error}");
+        assert!(
+            !error.contains("provision_ledger"),
+            "database details escaped: {error}"
+        );
+    }
 }
